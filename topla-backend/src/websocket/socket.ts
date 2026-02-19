@@ -1,10 +1,51 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import { verifyToken } from '../utils/jwt.js';
+import { z } from 'zod';
+import { verifyToken, isTokenBlacklisted } from '../utils/jwt.js';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
 
 let io: SocketIOServer | null = null;
+
+// ============================================
+// Rate limiter for WS events
+// ============================================
+const wsRateLimits = new Map<string, { count: number; resetAt: number }>();
+
+function wsRateLimit(socketId: string, event: string, maxPerMinute: number): boolean {
+  const key = `${socketId}:${event}`;
+  const now = Date.now();
+  const entry = wsRateLimits.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    wsRateLimits.set(key, { count: 1, resetAt: now + 60000 });
+    return true;
+  }
+
+  entry.count++;
+  if (entry.count > maxPerMinute) {
+    return false;
+  }
+  return true;
+}
+
+// Har 5 daqiqada tozalash
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of wsRateLimits) {
+    if (now > entry.resetAt) wsRateLimits.delete(key);
+  }
+}, 300000);
+
+// Validation schemas
+const courierLocationSchema = z.object({
+  courierId: z.string().uuid(),
+  orderId: z.string().uuid().optional(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  speed: z.number().min(0).max(200).optional(),
+  heading: z.number().min(0).max(360).optional(),
+});
 
 // ============================================
 // Active connections tracking
@@ -18,6 +59,9 @@ const courierSockets = new Map<string, string>();
 
 // userId → socketId
 const userSockets = new Map<string, string>();
+
+// adminId → socketId
+const adminSockets = new Map<string, string>();
 
 // ============================================
 // Initialize WebSocket Server
@@ -43,6 +87,12 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     }
 
     try {
+      // Blacklist tekshirish
+      const blacklisted = await isTokenBlacklisted(token as string);
+      if (blacklisted) {
+        return next(new Error('Token bekor qilingan'));
+      }
+
       const payload = verifyToken(token as string);
       (socket as any).user = payload;
       next();
@@ -69,8 +119,32 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     // MIJOZ events — buyurtmani kuzatish
     // ============================================
 
-    // Mijoz buyurtmani kuzata boshlaydi
-    socket.on('track:order', (orderId: string) => {
+    // Mijoz buyurtmani kuzata boshlaydi (ownership check bilan)
+    socket.on('track:order', async (orderId: string) => {
+      // Input validation
+      if (!orderId || typeof orderId !== 'string') {
+        socket.emit('error', { message: 'orderId kerak' });
+        return;
+      }
+
+      // Rate limit: 30 track requests per minute
+      if (!wsRateLimit(socket.id, 'track:order', 30)) {
+        socket.emit('error', { message: 'Juda ko\'p so\'rov' });
+        return;
+      }
+
+      // Ownership check — faqat o'zining buyurtmasini kuzatish mumkin
+      if (user.role === 'user') {
+        const order = await prisma.order.findFirst({
+          where: { id: orderId, userId: user.userId },
+          select: { id: true },
+        });
+        if (!order) {
+          socket.emit('error', { message: 'Buyurtma topilmadi' });
+          return;
+        }
+      }
+
       if (!orderWatchers.has(orderId)) {
         orderWatchers.set(orderId, new Set());
       }
@@ -82,6 +156,16 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     socket.on('track:stop', (orderId: string) => {
       orderWatchers.get(orderId)?.delete(socket.id);
       socket.leave(`order:${orderId}`);
+    });
+
+    // ============================================
+    // ADMIN events — dashboard kuzatish
+    // ============================================
+
+    socket.on('admin:watch-dashboard', () => {
+      if (user.role !== 'admin') return;
+      adminSockets.set(user.userId, socket.id);
+      socket.join('admin:dashboard');
     });
 
     // ============================================
@@ -102,11 +186,136 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // ============================================
+    // CHAT events — real-time xabar almashish
+    // ============================================
+
+    // Chat roomga qo'shilish
+    socket.on('chat:join', async (roomId: string) => {
+      if (!roomId || typeof roomId !== 'string') return;
+      if (!wsRateLimit(socket.id, 'chat:join', 20)) return;
+
+      // Ownership check — faqat o'zining chat roomiga qo'shilish
+      const room = await prisma.chatRoom.findFirst({
+        where: {
+          id: roomId,
+          OR: [
+            { customerId: user.userId },
+            { shop: { ownerId: user.userId } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!room) {
+        socket.emit('error', { message: 'Chat topilmadi' });
+        return;
+      }
+
+      socket.join(`chat:${roomId}`);
+    });
+
+    // Chat roomdan chiqish
+    socket.on('chat:leave', (roomId: string) => {
+      if (!roomId) return;
+      socket.leave(`chat:${roomId}`);
+    });
+
+    // Xabar yuborish (real-time)
+    socket.on('chat:message', async (data: unknown) => {
+      if (!wsRateLimit(socket.id, 'chat:message', 30)) {
+        socket.emit('error', { message: 'Juda ko\'p xabar' });
+        return;
+      }
+
+      const chatMessageSchema = z.object({
+        roomId: z.string().uuid(),
+        content: z.string().min(1).max(2000),
+      });
+
+      const parsed = chatMessageSchema.safeParse(data);
+      if (!parsed.success) {
+        socket.emit('error', { message: 'Noto\'g\'ri xabar', details: parsed.error.issues });
+        return;
+      }
+
+      const { roomId, content } = parsed.data;
+
+      // Ownership check
+      const room = await prisma.chatRoom.findFirst({
+        where: {
+          id: roomId,
+          OR: [
+            { customerId: user.userId },
+            { shop: { ownerId: user.userId } },
+          ],
+        },
+        include: { shop: { select: { ownerId: true } } },
+      });
+
+      if (!room) {
+        socket.emit('error', { message: 'Chat topilmadi' });
+        return;
+      }
+
+      // Rol aniqlash
+      const senderRole = room.customerId === user.userId ? 'user' : 'vendor';
+      const senderId = user.userId;
+
+      // Xabarni saqlash
+      const message = await prisma.chatMessage.create({
+        data: {
+          roomId,
+          senderId,
+          senderRole,
+          message: content,
+        },
+      });
+
+      // Room yangilash (lastMessage)
+      await prisma.chatRoom.update({
+        where: { id: roomId },
+        data: {
+          lastMessageAt: new Date(),
+        },
+      });
+
+      // Roomdagi barcha foydalanuvchilarga yuborish
+      emitToChatRoom(roomId, 'chat:new-message', {
+        id: message.id,
+        roomId,
+        senderId,
+        senderRole,
+        message: content,
+        createdAt: message.createdAt.toISOString(),
+      });
+    });
+
+    // Typing indicator
+    socket.on('chat:typing', (roomId: string) => {
+      if (!roomId || typeof roomId !== 'string') return;
+      if (!wsRateLimit(socket.id, 'chat:typing', 20)) return;
+      socket.to(`chat:${roomId}`).emit('chat:typing', {
+        userId: user.userId,
+        roomId,
+      });
+    });
+
+    // Stop typing indicator
+    socket.on('chat:stop-typing', (roomId: string) => {
+      if (!roomId) return;
+      socket.to(`chat:${roomId}`).emit('chat:stop-typing', {
+        userId: user.userId,
+        roomId,
+      });
+    });
+
+    // ============================================
     // DISCONNECT
     // ============================================
 
     socket.on('disconnect', () => {
       userSockets.delete(user.userId);
+      adminSockets.delete(user.userId);
 
       // Kuryer disconnect
       if (user.role === 'courier') {
@@ -153,17 +362,23 @@ function handleCourierConnection(socket: Socket, user: any): void {
   // GPS joylashuvni yangilash (har 5 soniya)
   socket.on(
     'courier:location',
-    async (data: {
-      courierId: string;
-      orderId?: string;
-      latitude: number;
-      longitude: number;
-      speed?: number;
-      heading?: number;
-    }) => {
+    async (data: unknown) => {
+      // Rate limit: max 15 per minute (har 4 sekundda 1)
+      if (!wsRateLimit(socket.id, 'courier:location', 15)) {
+        return; // Quietly drop — sekin yuborish kerak
+      }
+
+      // Input validation
+      const parsed = courierLocationSchema.safeParse(data);
+      if (!parsed.success) {
+        socket.emit('error', { message: 'Noto\'g\'ri ma\'lumot', details: parsed.error.issues });
+        return;
+      }
+
+      const validData = parsed.data;
       // Tekshirish: courierId shu userga tegishlimi?
       const courier = await prisma.courier.findFirst({
-        where: { id: data.courierId, profileId: user.userId },
+        where: { id: validData.courierId, profileId: user.userId },
       });
       if (!courier) {
         socket.emit('error', { message: 'Courier ID yaroqsiz' });
@@ -172,33 +387,33 @@ function handleCourierConnection(socket: Socket, user: any): void {
 
       // DB da yangilash
       await prisma.courier.update({
-        where: { id: data.courierId },
+        where: { id: validData.courierId },
         data: {
-          currentLatitude: data.latitude,
-          currentLongitude: data.longitude,
+          currentLatitude: validData.latitude,
+          currentLongitude: validData.longitude,
           lastLocationAt: new Date(),
         },
       });
 
       // Agar yetkazmoqda bo'lsa — tarix saqlash
-      if (data.orderId) {
+      if (validData.orderId) {
         await prisma.courierLocation.create({
           data: {
-            courierId: data.courierId,
-            latitude: data.latitude,
-            longitude: data.longitude,
-            speed: data.speed,
-            heading: data.heading,
+            courierId: validData.courierId,
+            latitude: validData.latitude,
+            longitude: validData.longitude,
+            speed: validData.speed,
+            heading: validData.heading,
           },
         });
 
         // Buyurtmani kuzatayotgan mijozlarga yuborish
-        emitToOrderWatchers(data.orderId, 'tracking:location', {
-          courierId: data.courierId,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          speed: data.speed,
-          heading: data.heading,
+        emitToOrderWatchers(validData.orderId, 'tracking:location', {
+          courierId: validData.courierId,
+          latitude: validData.latitude,
+          longitude: validData.longitude,
+          speed: validData.speed,
+          heading: validData.heading,
           timestamp: new Date().toISOString(),
         });
       }
@@ -236,17 +451,6 @@ export function emitToShop(shopId: string, event: string, data: any): void {
 export function emitToCourier(courierId: string, event: string, data: any): void {
   if (!io) return;
   const socketId = courierSockets.get(courierId);
-  if (socketId) {
-    io.to(socketId).emit(event, data);
-  }
-}
-
-/**
- * Ma'lum bir foydalanuvchiga event yuborish
- */
-export function emitToUser(userId: string, event: string, data: any): void {
-  if (!io) return;
-  const socketId = userSockets.get(userId);
   if (socketId) {
     io.to(socketId).emit(event, data);
   }
@@ -298,6 +502,29 @@ export function emitDeliveryOfferToCourier(
   emitToCourier(courierId, 'delivery:offer', offer);
 }
 
-export function getIO(): SocketIOServer | null {
-  return io;
+/**
+ * Admin dashboard ga real-time statistika yangilanishi
+ */
+export function emitToAdminDashboard(event: string, data: any): void {
+  if (!io) return;
+  io.to('admin:dashboard').emit(event, data);
+}
+
+/**
+ * Chat roomga real-time xabar/event yuborish
+ */
+export function emitToChatRoom(roomId: string, event: string, data: any): void {
+  if (!io) return;
+  io.to(`chat:${roomId}`).emit(event, data);
+}
+
+/**
+ * Foydalanuvchiga shaxsiy event yuborish (notification kabi)
+ */
+export function emitToUser(userId: string, event: string, data: any): void {
+  if (!io) return;
+  const socketId = userSockets.get(userId);
+  if (socketId) {
+    io.to(socketId).emit(event, data);
+  }
 }

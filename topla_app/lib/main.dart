@@ -29,11 +29,8 @@ import 'features/orders/orders_screen.dart';
 import 'features/profile/purchased_products_screen.dart';
 import 'features/profile/returns_screen.dart';
 import 'features/profile/reviews_questions_screen.dart';
-// Web pages
-import 'features/web/landing/web_landing_page.dart';
-import 'features/web/vendor/web_vendor_landing.dart';
-import 'features/web/vendor/web_vendor_login.dart';
-import 'features/web/vendor/web_vendor_register.dart';
+import 'features/profile/devices_screen.dart';
+import 'features/auth/complete_profile_screen.dart';
 import 'core/widgets/auth_guard.dart';
 
 void main() async {
@@ -115,6 +112,10 @@ void main() async {
 class ToplaApp extends StatelessWidget {
   const ToplaApp({super.key});
 
+  /// Global navigator key - push notification navigation uchun
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -134,6 +135,7 @@ class ToplaApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
           return MaterialApp(
+            navigatorKey: ToplaApp.navigatorKey,
             title: 'TOPLA',
             debugShowCheckedModeBanner: false,
 
@@ -174,6 +176,7 @@ class ToplaApp extends StatelessWidget {
               '/auth': (context) => const AuthScreen(),
               '/phone-auth': (context) => const PhoneAuthScreen(),
               '/otp': (context) => const OtpScreen(),
+              '/complete-profile': (context) => const CompleteProfileScreen(),
               '/favorites': (context) =>
                   const AuthGuard(child: FavoritesScreen()),
               '/addresses': (context) =>
@@ -190,17 +193,11 @@ class ToplaApp extends StatelessWidget {
               '/returns': (context) => const AuthGuard(child: ReturnsScreen()),
               '/reviews-questions': (context) =>
                   const AuthGuard(child: ReviewsQuestionsScreen()),
+              '/devices': (context) => const AuthGuard(child: DevicesScreen()),
               '/mobile-vendor': (context) =>
                   const AuthGuard(child: VendorDashboardScreen()),
 
-              // Web routes - topla.uz
-              '/': (context) =>
-                  kIsWeb ? const WebLandingPage() : const SplashScreen(),
-
-              // Vendor panel - vendor.topla.uz
-              '/vendor': (context) => const WebVendorLanding(),
-              '/vendor/login': (context) => const WebVendorLogin(),
-              '/vendor/register': (context) => const WebVendorRegister(),
+              '/': (context) => const SplashScreen(),
               '/vendor/dashboard': (context) =>
                   const AuthGuard(child: VendorDashboardScreen()),
             },

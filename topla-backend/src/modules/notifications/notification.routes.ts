@@ -1,6 +1,13 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware } from '../../middleware/auth.js';
+
+const paginationSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+const idParamSchema = z.object({ id: z.string().uuid() });
 
 export async function notificationRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -8,15 +15,15 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
    * Foydalanuvchining barcha bildirishnomalarini olish
    */
   app.get('/notifications', { preHandler: authMiddleware }, async (request, reply) => {
-    const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { page, limit } = paginationSchema.parse(request.query);
+    const skip = (page - 1) * limit;
 
     const [notifications, total, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where: { userId: request.user!.userId },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limit,
       }),
       prisma.notification.count({
         where: { userId: request.user!.userId },
@@ -32,10 +39,10 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
         notifications,
         unreadCount,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page,
+          limit,
           total,
-          totalPages: Math.ceil(total / parseInt(limit)),
+          totalPages: Math.ceil(total / limit),
         },
       },
     });
@@ -46,7 +53,7 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
    * Bildirishnomani o'qilgan deb belgilash
    */
   app.put('/notifications/:id/read', { preHandler: authMiddleware }, async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = idParamSchema.parse(request.params);
 
     await prisma.notification.update({
       where: { id, userId: request.user!.userId },

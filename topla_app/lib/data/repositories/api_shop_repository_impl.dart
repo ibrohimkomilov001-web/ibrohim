@@ -80,24 +80,37 @@ class ApiShopRepositoryImpl implements IShopRepository {
 
   @override
   Future<bool> followShop(String shopId) async {
-    // TODO: Backend follow endpoint kerak
+    await _api.post('/shops/$shopId/follow');
     return true;
   }
 
   @override
   Future<bool> unfollowShop(String shopId) async {
-    // TODO: Backend unfollow endpoint kerak
+    await _api.delete('/shops/$shopId/follow');
     return true;
   }
 
   @override
   Future<bool> isFollowingShop(String shopId) async {
-    return false;
+    try {
+      final response = await _api.get('/shops/$shopId/is-following');
+      return response.dataMap['isFollowing'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
   Future<List<ShopModel>> getFollowedShops() async {
-    return [];
+    try {
+      final response = await _api.get('/user/followed-shops');
+      return response
+          .nestedList('shops')
+          .map((e) => ShopModel.fromJson(e))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
@@ -142,8 +155,14 @@ class ApiShopRepositoryImpl implements IShopRepository {
 
   @override
   Future<Map<String, dynamic>?> getOrCreateConversation(String shopId) async {
-    // TODO: Backend conversation endpoint kerak
-    return null;
+    try {
+      final response = await _api.post('/chat/rooms', body: {
+        'shopId': shopId,
+      });
+      return response.dataMap;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -152,8 +171,20 @@ class ApiShopRepositoryImpl implements IShopRepository {
     int page = 1,
     int pageSize = 50,
   }) async {
-    // TODO: Backend messages endpoint kerak
-    return [];
+    try {
+      final response = await _api.get(
+        '/chat/rooms/$conversationId/messages',
+        queryParams: {'page': page, 'limit': pageSize},
+      );
+      // Backend returns { items: [...], pagination: {...} }
+      final data = response.dataMap;
+      if (data.containsKey('items')) {
+        return (data['items'] as List).cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
@@ -165,18 +196,37 @@ class ApiShopRepositoryImpl implements IShopRepository {
     String? productId,
     String? orderId,
   }) async {
-    // TODO: Backend send message endpoint kerak
-    return false;
+    try {
+      await _api.post('/chat/rooms/$conversationId/messages', body: {
+        'message': message,
+        if (attachmentUrl != null) 'imageUrl': attachmentUrl,
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
   Future<void> markMessagesAsRead(String conversationId) async {
-    // TODO: Backend mark read endpoint kerak
+    try {
+      await _api.put('/chat/rooms/$conversationId/read');
+    } catch (_) {
+      // silently fail
+    }
   }
 
   @override
   Future<List<Map<String, dynamic>>> getUserConversations() async {
-    // TODO: Backend conversations endpoint kerak
-    return [];
+    try {
+      final response = await _api.get('/chat/rooms');
+      final data = response.data;
+      if (data is List) {
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
   }
 }

@@ -86,7 +86,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final profile = context.read<AuthProvider>().profile;
       if (profile != null) {
         _recipientNameController.text = profile.fullName ?? '';
-        _recipientPhoneController.text = profile.phone ?? '';
+        // google_ placeholder telefon raqamini ko'rsatmaslik
+        final phone = profile.phone ?? '';
+        _recipientPhoneController.text =
+            phone.startsWith('google_') ? '' : phone;
       }
 
       // Saqlangan kartalarni yuklash
@@ -516,11 +519,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         borderRadius: BorderRadius.circular(12),
                         onTap: () {
                           // Profilni tanlash
+                          final phone = profile?.phone ?? '';
                           setState(() {
                             _recipientNameController.text =
                                 profile?.fullName ?? '';
                             _recipientPhoneController.text =
-                                profile?.phone ?? '';
+                                phone.startsWith('google_') ? '' : phone;
                           });
                           Navigator.pop(ctx);
                         },
@@ -574,7 +578,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         ),
                                       ),
                                       if (profile?.phone != null &&
-                                          profile!.phone!.isNotEmpty) ...[
+                                          profile!.phone!.isNotEmpty &&
+                                          !profile.phone!
+                                              .startsWith('google_')) ...[
                                         Text(
                                           '  ',
                                           style: TextStyle(
@@ -601,7 +607,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               onTap: () {
                                 tempNameController.text =
                                     profile?.fullName ?? '';
-                                tempPhoneController.text = profile?.phone ?? '';
+                                tempPhoneController.text =
+                                    (profile?.phone ?? '').startsWith('google_')
+                                        ? ''
+                                        : (profile?.phone ?? '');
                                 setModalState(() => isEditing = true);
                               },
                               child: Icon(

@@ -169,6 +169,12 @@ class ProductsProvider extends ChangeNotifier {
 
     try {
       _featuredProducts = await _productRepo.getFeaturedProducts();
+      // Agar featured bo'sh bo'lsa — barcha mahsulotlarni ko'rsatish
+      if (_featuredProducts.isEmpty) {
+        _featuredProducts = await _productRepo.getProducts(limit: 20);
+        AppLogger.d(_tag,
+            'No featured products, loaded all: ${_featuredProducts.length}');
+      }
       _featuredLoaded = true;
       AppLogger.d(
           _tag, 'Featured products loaded: ${_featuredProducts.length}');
@@ -285,13 +291,34 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
-  /// Mahsulotlarni qidirish
-  Future<List<ProductModel>> searchProducts(String query) async {
+  /// Mahsulotlarni qidirish (Meilisearch)
+  Future<List<ProductModel>> searchProducts(String query,
+      {String? sort}) async {
     try {
-      return await _productRepo.searchProducts(query);
+      return await _productRepo.searchProducts(query, sort: sort);
     } catch (e) {
       AppLogger.e(_tag, 'searchProducts error', e);
       _error = e.toString();
+      return [];
+    }
+  }
+
+  /// Mashhur qidiruvlar
+  Future<List<String>> getPopularSearches() async {
+    try {
+      return await _productRepo.getPopularSearches();
+    } catch (e) {
+      AppLogger.e(_tag, 'getPopularSearches error', e);
+      return [];
+    }
+  }
+
+  /// Auto-suggest
+  Future<List<Map<String, dynamic>>> getSearchSuggestions(String query) async {
+    try {
+      return await _productRepo.getSearchSuggestions(query);
+    } catch (e) {
+      AppLogger.e(_tag, 'getSearchSuggestions error', e);
       return [];
     }
   }

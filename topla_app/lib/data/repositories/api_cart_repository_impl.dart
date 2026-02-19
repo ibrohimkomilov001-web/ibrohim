@@ -31,13 +31,13 @@ class ApiCartRepositoryImpl implements ICartRepository {
   }
 
   @override
-  Future<void> updateCartQuantity(String cartItemId, int quantity) async {
-    await _api.put('/cart/$cartItemId', body: {'quantity': quantity});
+  Future<void> updateCartQuantity(String productId, int quantity) async {
+    await _api.put('/cart/$productId', body: {'quantity': quantity});
   }
 
   @override
-  Future<void> removeFromCart(String cartItemId) async {
-    await _api.delete('/cart/$cartItemId');
+  Future<void> removeFromCart(String productId) async {
+    await _api.delete('/cart/$productId');
   }
 
   @override
@@ -47,9 +47,9 @@ class ApiCartRepositoryImpl implements ICartRepository {
 
   @override
   Stream<List<CartItemModel>> watchCart() {
-    // Polling orqali savat kuzatish (har 5 sekund)
+    // Polling orqali savat kuzatish (har 15 sekund)
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
       try {
         final cart = await getCart();
         _cartController.add(cart);
@@ -67,7 +67,8 @@ class ApiCartRepositoryImpl implements ICartRepository {
   @override
   Future<Map<String, dynamic>?> validatePromoCode(String code) async {
     try {
-      final response = await _api.post('/promo/validate', body: {'code': code});
+      final response =
+          await _api.post('/promo-codes/verify', body: {'code': code});
       return response.dataMap;
     } on ApiException {
       return null;

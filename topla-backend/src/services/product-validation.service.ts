@@ -230,14 +230,3 @@ export function calculateQualityScore(data: ProductData): number {
 
   return Math.min(score, 100);
 }
-
-// ============================================
-// Check if text contains banned words
-// ============================================
-export function checkBannedWords(text: string): { hasBanned: boolean; words: string[] } {
-  const lowerText = text.toLowerCase();
-  const found = [...BANNED_WORDS_UZ, ...BANNED_WORDS_RU].filter(word =>
-    lowerText.includes(word.toLowerCase())
-  );
-  return { hasBanned: found.length > 0, words: found };
-}

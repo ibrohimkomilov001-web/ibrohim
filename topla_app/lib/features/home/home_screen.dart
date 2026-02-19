@@ -8,8 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/constants.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import '../../widgets/category_item.dart';
 import '../../widgets/skeleton_widgets.dart';
+import '../../widgets/empty_states.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../search/search_screen.dart';
@@ -63,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: Consumer<ProductsProvider>(
         builder: (context, productsProvider, _) {
-          return RefreshIndicator(
+          return ToplaRefreshIndicator(
             onRefresh: () => productsProvider.loadAll(),
             child: CustomScrollView(
               slivers: [
@@ -750,28 +752,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (products.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Container(
-          height: 200,
-          margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Iconsax.box, size: 48, color: Colors.grey.shade400),
-                const SizedBox(height: AppSizes.sm),
-                Text(
-                  'Mahsulotlar yuklanmoqda...',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-        ),
+      return const SliverToBoxAdapter(
+        child: ProductsLoadingWidget(),
       );
     }
 
@@ -866,6 +848,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'rating': product.rating,
             'sold': product.soldCount,
             'image': product.firstImage,
+            'images': product.images,
             'cashback': product.cashbackPercent,
             'description': product.descriptionUz,
           },

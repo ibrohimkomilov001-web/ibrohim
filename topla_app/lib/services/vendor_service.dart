@@ -92,7 +92,9 @@ class VendorService {
     if (moderationStatus != null) params['moderationStatus'] = moderationStatus;
 
     final response = await _api.get('/vendor/products', queryParams: params);
-    return (response.dataList).map((e) => ProductModel.fromJson(e)).toList();
+    return (response.nestedList('products'))
+        .map((e) => ProductModel.fromJson(e))
+        .toList();
   }
 
   /// Yangi mahsulot qo'shish
@@ -160,7 +162,7 @@ class VendorService {
 
   /// Mahsulotni qayta yuborish (moderatsiya uchun)
   static Future<void> resubmitProduct(String productId) async {
-    await _api.put('/vendor/products/$productId/resubmit', body: {});
+    await _api.put('/vendor/products/$productId', body: {'status': 'pending'});
   }
 
   // ==================== ORDERS ====================
@@ -182,8 +184,7 @@ class VendorService {
   }
 
   /// Buyurtma statusini yangilash
-  static Future<void> updateOrderStatus(
-      String orderId, String status) async {
+  static Future<void> updateOrderStatus(String orderId, String status) async {
     await _api.put('/vendor/orders/$orderId/status', body: {
       'status': status,
     });
@@ -217,10 +218,7 @@ class VendorService {
   }) async {
     final response = await _api.post('/vendor/payouts', body: {
       'amount': amount,
-      'bankName': bankName,
-      'accountNumber': accountNumber,
-      'accountHolder': accountHolder,
-      if (notes != null) 'notes': notes,
+      'cardNumber': accountNumber,
     });
     return PayoutModel.fromJson(response.dataMap);
   }
@@ -262,10 +260,8 @@ class VendorService {
           (data['monthly_commission'] ?? data['monthlyCommission'] ?? 0)
               .toDouble(),
       monthlyOrders: data['monthly_orders'] ?? data['monthlyOrders'] ?? 0,
-      activeProducts:
-          data['active_products'] ?? data['activeProducts'] ?? 0,
-      pendingProducts:
-          data['pending_products'] ?? data['pendingProducts'] ?? 0,
+      activeProducts: data['active_products'] ?? data['activeProducts'] ?? 0,
+      pendingProducts: data['pending_products'] ?? data['pendingProducts'] ?? 0,
       rejectedProducts:
           data['rejected_products'] ?? data['rejectedProducts'] ?? 0,
     );

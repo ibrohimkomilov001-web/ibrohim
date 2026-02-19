@@ -61,16 +61,23 @@ class AddressModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'name': title,
       'fullAddress': address,
-      'apartment': apartment,
-      'entrance': entrance,
-      'floor': floor,
-      'latitude': latitude,
-      'longitude': longitude,
+      'latitude': latitude ?? 0.0,
+      'longitude': longitude ?? 0.0,
       'isDefault': isDefault,
     };
+    if (apartment != null && apartment!.isNotEmpty) {
+      map['apartment'] = apartment;
+    }
+    if (entrance != null && entrance!.isNotEmpty) {
+      map['entrance'] = entrance;
+    }
+    if (floor != null && floor!.isNotEmpty) {
+      map['floor'] = floor;
+    }
+    return map;
   }
 
   AddressModel copyWith({

@@ -51,17 +51,35 @@ class ConnectivityService {
 
   /// Haqiqiy internet borligini tekshirish (DNS lookup)
   Future<bool> _hasRealInternet() async {
+    // Birinchi: tez DNS lookup
     try {
       final result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
-      return false;
-    } on TimeoutException catch (_) {
-      return false;
+          .timeout(const Duration(seconds: 3));
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
     } catch (_) {
-      return false;
+      // google.com ishlamasa, boshqa hostlarni tekshiramiz
     }
+
+    // Ikkinchi: alternative DNS
+    try {
+      final result = await InternetAddress.lookup('cloudflare.com')
+          .timeout(const Duration(seconds: 3));
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } catch (_) {}
+
+    // Uchinchi: API serverga HTTP request
+    try {
+      final socket = await Socket.connect('1.1.1.1', 53,
+          timeout: const Duration(seconds: 3));
+      socket.destroy();
+      return true;
+    } catch (_) {}
+
+    return false;
   }
 
   Future<void> _checkConnectivity() async {

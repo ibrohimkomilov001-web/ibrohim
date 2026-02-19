@@ -74,15 +74,37 @@ class ApiProductRepositoryImpl implements IProductRepository {
 
   @override
   Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20}) async {
+      {int limit = 20, String? sort}) async {
+    final params = <String, dynamic>{'q': query, 'limit': limit};
+    if (sort != null) params['sort'] = sort;
     final response = await _api.get(
-      '/products',
-      queryParams: {'search': query, 'limit': limit},
+      '/products/search',
+      queryParams: params,
       auth: false,
     );
-    return response
-        .nestedList('products')
-        .map((e) => ProductModel.fromJson(e))
+    return response.dataList
+        .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<String>> getPopularSearches() async {
+    final response = await _api.get('/search/popular', auth: false);
+    final list = response.dataList;
+    return list
+        .map((e) => (e as Map<String, dynamic>)['query'] as String)
+        .toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSearchSuggestions(String query) async {
+    final response = await _api.get(
+      '/search/suggest',
+      queryParams: {'q': query},
+      auth: false,
+    );
+    return response.dataList
+        .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
   }
 

@@ -2,7 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import { createServer } from 'http';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 
 import { env } from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
@@ -14,6 +15,8 @@ import { errorHandler } from './middleware/error.js';
 // Route modules
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { productRoutes } from './modules/products/product.routes.js';
+import { cartRoutes } from './modules/products/cart.routes.js';
+import { favoriteRoutes } from './modules/products/favorite.routes.js';
 import { shopRoutes } from './modules/shops/shop.routes.js';
 import { orderRoutes } from './modules/orders/order.routes.js';
 import { courierRoutes } from './modules/courier/courier.routes.js';
@@ -22,9 +25,12 @@ import { addressRoutes } from './modules/addresses/address.routes.js';
 import { bannerRoutes } from './modules/banners/banner.routes.js';
 import { uploadRoutes } from './modules/upload/upload.routes.js';
 import { vendorRoutes } from './modules/vendor/vendor.routes.js';
+import { documentRoutes } from './modules/vendor/document.routes.js';
 import { paymentRoutes } from './modules/payments/payment.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { chatRoutes } from './modules/chat/chat.routes.js';
+import { returnRoutes } from './modules/returns/return.routes.js';
+import { referralRoutes } from './modules/referral/referral.routes.js';
 import { initRedis } from './config/redis.js';
 import { initMeilisearch } from './services/search.service.js';
 import fastifyStatic from '@fastify/static';
@@ -54,6 +60,13 @@ const app = Fastify({
 // Plugins
 // ============================================
 
+// DELETE so'rovlarida bo'sh body bilan Content-Type: application/json kelganda xatolik chiqmaslik uchun
+app.addHook('onRequest', async (request) => {
+  if (request.method === 'DELETE' && (!request.body || request.headers['content-length'] === '0')) {
+    request.headers['content-type'] = undefined as any;
+  }
+});
+
 await app.register(cors, {
   origin: env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean),
   credentials: true,
@@ -62,6 +75,39 @@ await app.register(cors, {
 await app.register(helmet, {
   contentSecurityPolicy: false,
 });
+
+// Swagger API docs — faqat development da
+if (env.NODE_ENV !== 'production') {
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: 'TOPLA API',
+        description: 'TOPLA Marketplace Backend API hujjatlari',
+        version: '1.0.0',
+      },
+      servers: [
+        { url: `http://localhost:${env.PORT}`, description: 'Local dev server' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
+      },
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+    },
+  });
+}
 
 await app.register(rateLimit, {
   max: 100,
@@ -100,6 +146,8 @@ await app.register(
   async (api) => {
     await api.register(authRoutes);
     await api.register(productRoutes);
+    await api.register(cartRoutes);
+    await api.register(favoriteRoutes);
     await api.register(shopRoutes);
     await api.register(orderRoutes);
     await api.register(courierRoutes);
@@ -108,9 +156,12 @@ await app.register(
     await api.register(bannerRoutes);
     await api.register(uploadRoutes);
     await api.register(vendorRoutes);
+    await api.register(documentRoutes);
     await api.register(paymentRoutes);
     await api.register(adminRoutes);
     await api.register(chatRoutes);
+    await api.register(returnRoutes);
+    await api.register(referralRoutes);
   },
   { prefix: '/api/v1' },
 );

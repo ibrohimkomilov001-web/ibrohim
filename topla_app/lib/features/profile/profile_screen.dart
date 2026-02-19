@@ -8,6 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../models/user_role.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -41,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF5F5F5),
           body: SafeArea(
-            child: RefreshIndicator(
+            child: ToplaRefreshIndicator(
               onRefresh: () async {
                 if (isLoggedIn) {
                   await authProvider.loadProfile();
@@ -246,7 +247,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  profile?.phone ?? profile?.email ?? '',
+                  // google_ placeholder ni ko'rsatmaslik
+                  (profile?.phone != null &&
+                          !profile!.phone!.startsWith('google_'))
+                      ? profile.phone!
+                      : profile?.email ?? '',
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ],
@@ -355,6 +360,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: () => Navigator.pushNamed(context, '/invite'),
           showLogin: !isLoggedIn,
         ),
+        if (isLoggedIn) ...[
+          _divider(),
+          _buildMenuItem(
+            icon: Iconsax.mobile,
+            label: 'Qurilmalar',
+            subtitle: 'Ulangan qurilmalarni boshqarish',
+            iconColor: Colors.teal,
+            onTap: () => Navigator.pushNamed(context, '/devices'),
+          ),
+        ],
       ],
     );
   }
@@ -627,21 +642,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               _buildLanguageOption(
-                flagWidget: _buildRussiaFlag(),
-                name: 'Русский',
-                isSelected: settings.language == 'ru',
-                onTap: () {
-                  settings.setLanguage('ru');
-                  Navigator.pop(context);
-                },
-              ),
-              Divider(height: 1, color: Colors.grey.shade100),
-              _buildLanguageOption(
                 flagWidget: _buildUzbekistanFlag(),
                 name: "O'zbekcha",
                 isSelected: settings.language == 'uz',
                 onTap: () {
                   settings.setLanguage('uz');
+                  Navigator.pop(context);
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100),
+              _buildLanguageOption(
+                flagWidget: _buildRussiaFlag(),
+                name: 'Русский',
+                isSelected: settings.language == 'ru',
+                onTap: () {
+                  settings.setLanguage('ru');
                   Navigator.pop(context);
                 },
               ),

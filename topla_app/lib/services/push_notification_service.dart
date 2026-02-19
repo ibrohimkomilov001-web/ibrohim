@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../core/services/api_client.dart';
+import '../main.dart';
 
 /// Background message handler (must be top-level function)
 @pragma('vm:entry-point')
@@ -196,9 +197,40 @@ class PushNotificationService {
     final type = data['type'] as String?;
     final id = data['id'] as String?;
 
-    // Navigation handled by app's navigation service
-    // Example: NavigationService.navigateTo('/order/$id')
     debugPrint('Navigate from notification: type=$type, id=$id');
+
+    final navigator = ToplaApp.navigatorKey.currentState;
+    if (navigator == null) {
+      debugPrint('Navigator not ready, skipping notification navigation');
+      return;
+    }
+
+    switch (type) {
+      case 'order':
+      case 'order_status':
+        navigator.pushNamed('/orders');
+        break;
+      case 'return':
+      case 'return_status':
+        navigator.pushNamed('/returns');
+        break;
+      case 'promo':
+      case 'sale':
+        // Ana sahifaga o'tish (aksiyalar tab'iga)
+        navigator.pushNamed('/main');
+        break;
+      case 'referral':
+        navigator.pushNamed('/invite');
+        break;
+      case 'chat':
+      case 'message':
+        navigator.pushNamed('/help');
+        break;
+      default:
+        // Noma'lum turdagi bildirishnoma — asosiy sahifaga
+        navigator.pushNamed('/main');
+        break;
+    }
   }
 
   String _getChannelForType(String? type) {

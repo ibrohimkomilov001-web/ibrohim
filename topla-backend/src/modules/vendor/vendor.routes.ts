@@ -27,6 +27,33 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   const vendorAuth = [authMiddleware, requireRole('vendor', 'admin')];
 
   // ============================================
+  // GET /vendor/profile
+  // Vendor profil ma'lumotlari
+  // ============================================
+  app.get('/vendor/profile', { preHandler: vendorAuth }, async (request, reply) => {
+    const profile = await prisma.profile.findUnique({
+      where: { id: request.user!.userId },
+      include: { shop: true },
+    });
+
+    if (!profile) throw new NotFoundError('Profil');
+
+    return reply.send({
+      id: profile.id,
+      email: profile.email,
+      fullName: profile.fullName,
+      phone: profile.phone,
+      role: profile.role,
+      avatarUrl: profile.avatarUrl,
+      shop: profile.shop ? {
+        id: profile.shop.id,
+        name: profile.shop.name,
+        status: profile.shop.status,
+      } : undefined,
+    });
+  });
+
+  // ============================================
   // GET /vendor/shop
   // Vendor do'kon ma'lumotlari
   // ============================================
@@ -95,6 +122,63 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
         pagination: paginationMeta(pg, lim, total),
       },
     });
+  });
+
+  // ============================================
+  // GET /vendor/products/:id
+  // Vendor o'z mahsulotini ID bo'yicha ko'rish
+  // ============================================
+  app.get('/vendor/products/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const shop = await prisma.shop.findUnique({
+      where: { ownerId: request.user!.userId },
+    });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    const product = await prisma.product.findFirst({
+      where: { id, shopId: shop.id },
+      include: {
+        category: { select: { id: true, nameUz: true, nameRu: true } },
+        subcategory: { select: { id: true, nameUz: true, nameRu: true } },
+        brand: { select: { id: true, name: true } },
+        color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+      },
+    });
+
+    if (!product) throw new NotFoundError('Mahsulot');
+
+    return reply.send({ success: true, data: product });
+  });
+
+  // ============================================
+  // PATCH /vendor/products/:id
+  // Mahsulotni active/inactive qilish (toggle)
+  // ============================================
+  app.patch('/vendor/products/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      isActive: z.boolean().optional(),
+      isFeatured: z.boolean().optional(),
+    }).parse(request.body);
+
+    const shop = await prisma.shop.findUnique({
+      where: { ownerId: request.user!.userId },
+    });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    // Ownership tekshiruvi
+    const existing = await prisma.product.findFirst({
+      where: { id, shopId: shop.id },
+    });
+    if (!existing) throw new NotFoundError('Mahsulot');
+
+    const product = await prisma.product.update({
+      where: { id },
+      data: body,
+    });
+
+    return reply.send({ success: true, data: product });
   });
 
   // ============================================
@@ -496,5 +580,213 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     });
+  });
+
+  /**
+   * GET /vendor/reviews
+   * Vendor do'koniga yozilgan sharhlar
+   */
+  app.get('/vendor/reviews', { preHandler: [authMiddleware, requireRole('vendor')] }, async (request, reply) => {
+    const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Vendor do'konini topish
+    const shop = await prisma.shop.findFirst({
+      where: { ownerId: request.user!.userId },
+    });
+
+    if (!shop) {
+      throw new AppError('Do\'kon topilmadi', 404);
+    }
+
+    const [reviews, total] = await Promise.all([
+      prisma.shopReview.findMany({
+        where: { shopId: shop.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.shopReview.count({ where: { shopId: shop.id } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        reviews,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / parseInt(limit)),
+        },
+      },
+    });
+  });
+
+  // ============================================
+  // POST /vendor/reviews/:id/reply
+  // Vendor sharhga javob berish
+  // ============================================
+  app.post('/vendor/reviews/:id/reply', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { reply: replyText } = z.object({
+      reply: z.string().min(1, 'Javob matnini kiriting'),
+    }).parse(request.body);
+
+    const shop = await prisma.shop.findFirst({
+      where: { ownerId: request.user!.userId },
+    });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    // Sharh vendor do'konigami tekshirish
+    const review = await prisma.shopReview.findFirst({
+      where: { id, shopId: shop.id },
+    });
+    if (!review) throw new NotFoundError('Sharh');
+
+    // ShopReview modelda reply field yo'q — notification orqali javob yuborish
+    // va review comment'ga vendor javobini qo'shish
+    const updatedReview = await prisma.shopReview.update({
+      where: { id },
+      data: {
+        comment: review.comment
+          ? `${review.comment}\n\n💬 Sotuvchi javobi: ${replyText}`
+          : `💬 Sotuvchi javobi: ${replyText}`,
+      },
+    });
+
+    // Notify user
+    await prisma.notification.create({
+      data: {
+        userId: review.userId,
+        type: 'system',
+        title: '💬 Sharhingizga javob keldi',
+        body: `${shop.name}: ${replyText.substring(0, 100)}`,
+        data: { shopId: shop.id, reviewId: id },
+      },
+    });
+
+    return reply.send({ success: true, data: updatedReview });
+  });
+
+  // ============================================
+  // VENDOR CHAT ALIASES (frontend /vendor/chats chaqiradi)
+  // Asl chat route'lari /chat/rooms da — bu alias'lar
+  // ============================================
+
+  app.get('/vendor/chats', { preHandler: vendorAuth }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const shop = await prisma.shop.findUnique({ where: { ownerId: userId } });
+    if (!shop) return reply.send({ success: true, data: [] });
+
+    const rooms = await prisma.chatRoom.findMany({
+      where: { shopId: shop.id },
+      orderBy: { lastMessageAt: 'desc' },
+      include: {
+        customer: { select: { id: true, fullName: true, avatarUrl: true, phone: true } },
+        shop: { select: { id: true, name: true, logoUrl: true } },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: { message: true, createdAt: true, senderRole: true, isRead: true },
+        },
+      },
+    });
+
+    const roomIds = rooms.map(r => r.id);
+    const unreadCounts = roomIds.length > 0
+      ? await prisma.chatMessage.groupBy({
+          by: ['roomId'],
+          where: { roomId: { in: roomIds }, isRead: false, senderRole: 'user' },
+          _count: { id: true },
+        })
+      : [];
+
+    const unreadMap = new Map(unreadCounts.map(u => [u.roomId, u._count.id]));
+    const roomsWithUnread = rooms.map(room => ({
+      ...room,
+      unreadCount: unreadMap.get(room.id) || 0,
+    }));
+
+    return reply.send({ success: true, data: roomsWithUnread });
+  });
+
+  app.get('/vendor/chats/:id/messages', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const query = request.query as any;
+    const skip = ((parseInt(query.page || '1') - 1) * parseInt(query.limit || '50'));
+    const limit = parseInt(query.limit || '50');
+    const userId = request.user!.userId;
+
+    const room = await prisma.chatRoom.findUnique({
+      where: { id },
+      include: { shop: { select: { ownerId: true } } },
+    });
+    if (!room) throw new NotFoundError('Chat xonasi');
+    if (room.shop.ownerId !== userId) throw new AppError('Ruxsat yo\'q', 403);
+
+    const [messages, total] = await Promise.all([
+      prisma.chatMessage.findMany({
+        where: { roomId: id },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { sender: { select: { id: true, fullName: true, avatarUrl: true } } },
+      }),
+      prisma.chatMessage.count({ where: { roomId: id } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        items: messages.reverse(),
+        pagination: { total, page: Math.floor(skip / limit) + 1, limit, totalPages: Math.ceil(total / limit) },
+      },
+    });
+  });
+
+  app.post('/vendor/chats/:id/messages', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+    const { message, imageUrl } = z.object({
+      message: z.string().optional(),
+      imageUrl: z.string().optional(),
+    }).parse(request.body);
+
+    if (!message && !imageUrl) throw new AppError('Xabar yoki rasm kerak', 400);
+
+    const room = await prisma.chatRoom.findUnique({
+      where: { id },
+      include: { shop: { select: { ownerId: true } } },
+    });
+    if (!room) throw new NotFoundError('Chat xonasi');
+    if (room.shop.ownerId !== userId) throw new AppError('Ruxsat yo\'q', 403);
+
+    const chatMessage = await prisma.chatMessage.create({
+      data: {
+        roomId: id,
+        senderId: userId,
+        senderRole: 'vendor',
+        message: message || null,
+        imageUrl: imageUrl || null,
+      },
+      include: { sender: { select: { id: true, fullName: true, avatarUrl: true } } },
+    });
+
+    await prisma.chatRoom.update({
+      where: { id },
+      data: { lastMessageAt: new Date() },
+    });
+
+    return reply.send({ success: true, data: chatMessage });
   });
 }

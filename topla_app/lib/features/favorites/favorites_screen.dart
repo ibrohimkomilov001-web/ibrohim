@@ -237,12 +237,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text(
-                          '${_formatPrice(product.price)} ${context.l10n.translate('currency')}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: AppColors.primary,
+                        Flexible(
+                          child: Text(
+                            '${_formatPrice(product.price)} ${context.l10n.translate('currency')}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppColors.primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (product.oldPrice != null) ...[
@@ -254,6 +258,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               color: Colors.grey.shade500,
                               fontSize: 12,
                             ),
+                            maxLines: 1,
                           ),
                         ],
                       ],
@@ -359,9 +364,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   String _formatPrice(dynamic price) {
     if (price == null) return '0';
-    return price.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]} ',
-        );
+    String priceStr = price.toString();
+    // Remove trailing .0 for whole numbers
+    if (priceStr.endsWith('.0')) {
+      priceStr = priceStr.substring(0, priceStr.length - 2);
+    }
+    return priceStr.replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]} ',
+    );
   }
 }

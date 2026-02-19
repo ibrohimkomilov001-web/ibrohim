@@ -1,5 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { verifyToken, JwtPayload } from '../utils/jwt.js';
+import { verifyToken, isTokenBlacklisted, JwtPayload } from '../utils/jwt.js';
 
 // Extend FastifyRequest to include user
 declare module 'fastify' {
@@ -27,6 +27,15 @@ export async function authMiddleware(
   const token = authHeader.substring(7);
 
   try {
+    // Blacklist tekshirish
+    const blacklisted = await isTokenBlacklisted(token);
+    if (blacklisted) {
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Token bekor qilingan. Qayta kiring.',
+      });
+    }
+
     const payload = verifyToken(token);
     request.user = payload;
   } catch (error) {

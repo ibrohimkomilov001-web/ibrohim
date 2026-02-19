@@ -53,12 +53,22 @@ class ApiOrderRepositoryImpl implements IOrderRepository {
     double discount = 0,
     double cashbackUsed = 0,
   }) async {
-    // Backend creates order from cart - only needs addressId, paymentMethod, deliveryMethod
+    // Backend creates order from cart - sends selected items with productId & quantity
     final body = <String, dynamic>{
       'addressId': addressId,
       'paymentMethod': paymentMethod,
       'deliveryMethod': deliveryMethod ?? 'courier',
     };
+
+    // Tanlangan mahsulotlarni yuborish (backend faqat shu items'larni buyurtma qiladi)
+    if (items.isNotEmpty) {
+      body['items'] = items
+          .map((item) => {
+                'productId': item['product_id'] ?? item['productId'],
+                'quantity': item['quantity'],
+              })
+          .toList();
+    }
     if (scheduledDate != null) {
       body['deliveryDate'] = scheduledDate.toIso8601String();
     }

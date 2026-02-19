@@ -1,7 +1,7 @@
 /**
  * OTP Service — Dual Channel (Telegram Gateway + Eskiz SMS)
  *
- * In-memory store (keyinroq Redis'ga ko'chirish mumkin)
+ * Redis-backed store (in-memory fallback agar Redis yo'q bo'lsa)
  * - 4 xonali tasodifiy kod
  * - 2 daqiqa (120 soniya) TTL
  * - Maksimum 3 ta urinish
@@ -16,6 +16,7 @@ import { env } from '../config/env.js';
 import { randomInt } from 'crypto';
 import { sendSmsViaEskiz } from '../config/eskiz.js';
 import { sendOtpViaTelegram, isTelegramGatewayConfigured } from '../config/telegram.js';
+import { setWithExpiry, getValue, deleteKey } from '../config/redis.js';
 
 export type OtpChannel = 'sms' | 'telegram';
 
@@ -25,29 +26,111 @@ interface OtpEntry {
   attempts: number;
   createdAt: number;
   expiresAt: number;
-  verified?: boolean; // Kod tasdiqlangan, lekin hali o'chirilmagan
+  verified?: boolean;
 }
 
-// In-memory OTP store: phone -> OtpEntry
-const otpStore = new Map<string, OtpEntry>();
+// In-memory fallback (agar Redis ishlamasa)
+const otpStoreFallback = new Map<string, OtpEntry>();
+const rateLimitFallback = new Map<string, number>();
 
-// Rate limiting: phone -> last sent timestamp
-const rateLimitStore = new Map<string, number>();
-
-// Tozalash interval — har 5 daqiqada eskirgan OTP'larni o'chirish
+// Tozalash interval — fallback uchun
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of otpStore.entries()) {
-    if (now > entry.expiresAt) {
-      otpStore.delete(key);
-    }
+  for (const [key, entry] of otpStoreFallback.entries()) {
+    if (now > entry.expiresAt) otpStoreFallback.delete(key);
   }
-  for (const [key, timestamp] of rateLimitStore.entries()) {
-    if (now - timestamp > 120_000) {
-      rateLimitStore.delete(key);
-    }
+  for (const [key, timestamp] of rateLimitFallback.entries()) {
+    if (now - timestamp > 120_000) rateLimitFallback.delete(key);
   }
 }, 5 * 60 * 1000);
+
+// ============================================
+// Redis OTP helpers
+// ============================================
+
+const OTP_PREFIX = 'otp:';
+const RATE_PREFIX = 'otp_rate:';
+
+async function saveOtpToRedis(phone: string, entry: OtpEntry): Promise<boolean> {
+  try {
+    const ttl = Math.ceil((entry.expiresAt - Date.now()) / 1000);
+    if (ttl <= 0) return false;
+    await setWithExpiry(`${OTP_PREFIX}${phone}`, JSON.stringify(entry), ttl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getOtpFromRedis(phone: string): Promise<OtpEntry | null> {
+  try {
+    const data = await getValue(`${OTP_PREFIX}${phone}`);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function deleteOtpFromRedis(phone: string): Promise<void> {
+  try {
+    await deleteKey(`${OTP_PREFIX}${phone}`);
+  } catch {
+    // ignore
+  }
+}
+
+async function setRateLimit(phone: string): Promise<boolean> {
+  try {
+    await setWithExpiry(`${RATE_PREFIX}${phone}`, Date.now().toString(), 60);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getRateLimit(phone: string): Promise<number | null> {
+  try {
+    const val = await getValue(`${RATE_PREFIX}${phone}`);
+    return val ? parseInt(val, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
+// Combined store operations (Redis + fallback)
+// ============================================
+
+async function storeOtp(phone: string, entry: OtpEntry): Promise<void> {
+  const saved = await saveOtpToRedis(phone, entry);
+  if (!saved) {
+    otpStoreFallback.set(phone, entry);
+  }
+}
+
+async function loadOtp(phone: string): Promise<OtpEntry | null> {
+  const entry = await getOtpFromRedis(phone);
+  if (entry) return entry;
+  return otpStoreFallback.get(phone) ?? null;
+}
+
+async function removeOtp(phone: string): Promise<void> {
+  await deleteOtpFromRedis(phone);
+  otpStoreFallback.delete(phone);
+}
+
+async function storeRate(phone: string, now: number): Promise<void> {
+  const saved = await setRateLimit(phone);
+  if (!saved) {
+    rateLimitFallback.set(phone, now);
+  }
+}
+
+async function loadRate(phone: string): Promise<number | null> {
+  const val = await getRateLimit(phone);
+  if (val) return val;
+  return rateLimitFallback.get(phone) ?? null;
+}
 
 /**
  * Tasodifiy OTP kod generatsiya qilish
@@ -78,7 +161,7 @@ export async function sendOtp(
   channel: OtpChannel = 'sms',
 ): Promise<{ success: boolean; error?: string; channel: OtpChannel }> {
   // 1. Rate limiting tekshirish — 60 sekundda 1 marta
-  const lastSent = rateLimitStore.get(phone);
+  const lastSent = await loadRate(phone);
   if (lastSent) {
     const elapsed = Date.now() - lastSent;
     const waitSeconds = Math.ceil((60_000 - elapsed) / 1000);
@@ -96,14 +179,15 @@ export async function sendOtp(
   const now = Date.now();
   const ttlMs = env.OTP_TTL_SECONDS * 1000;
 
-  // 3. Saqlash
-  otpStore.set(phone, {
+  // 3. Saqlash (Redis yoki fallback)
+  const entry: OtpEntry = {
     code,
     phone,
     attempts: 0,
     createdAt: now,
     expiresAt: now + ttlMs,
-  });
+  };
+  await storeOtp(phone, entry);
 
   // 4. Kanalga qarab yuborish
   let result: { success: boolean; error?: string };
@@ -116,10 +200,10 @@ export async function sendOtp(
         `TOPLA tasdiqlash kodi: ${code}. Kod 2 daqiqa amal qiladi.`,
       );
       if (result.success) {
-        rateLimitStore.set(phone, now);
+        await storeRate(phone, now);
         return { ...result, channel: 'sms' };
       }
-      otpStore.delete(phone);
+      await removeOtp(phone);
       return { ...result, channel: 'sms' };
     }
 
@@ -133,14 +217,14 @@ export async function sendOtp(
         `TOPLA tasdiqlash kodi: ${code}. Kod 2 daqiqa amal qiladi.`,
       );
       if (result.success) {
-        rateLimitStore.set(phone, now);
+        await storeRate(phone, now);
         return { ...result, channel: 'sms' };
       }
-      otpStore.delete(phone);
+      await removeOtp(phone);
       return { ...result, channel: 'sms' };
     }
 
-    rateLimitStore.set(phone, now);
+    await storeRate(phone, now);
     return { success: true, channel: 'telegram' };
   }
 
@@ -151,9 +235,9 @@ export async function sendOtp(
   );
 
   if (result.success) {
-    rateLimitStore.set(phone, now);
+    await storeRate(phone, now);
   } else {
-    otpStore.delete(phone);
+    await removeOtp(phone);
   }
 
   return { ...result, channel: 'sms' };
@@ -162,13 +246,11 @@ export async function sendOtp(
 /**
  * OTP tekshirish
  */
-export function verifyOtp(
+export async function verifyOtp(
   phone: string,
   code: string,
-): { valid: boolean; error?: string } {
-  // Debug log
-  
-  const entry = otpStore.get(phone);
+): Promise<{ valid: boolean; error?: string }> {
+  const entry = await loadOtp(phone);
 
   if (!entry) {
     return { valid: false, error: 'Kod topilmadi. Qayta yuboring' };
@@ -176,31 +258,32 @@ export function verifyOtp(
 
   // Muddati tugaganmi?
   if (Date.now() > entry.expiresAt) {
-    otpStore.delete(phone);
+    await removeOtp(phone);
     return { valid: false, error: 'Kod muddati tugagan. Qayta yuboring' };
   }
 
   // Urinishlar soni
   if (entry.attempts >= 3) {
-    otpStore.delete(phone);
+    await removeOtp(phone);
     return { valid: false, error: 'Juda ko\'p urinish. Qayta yuboring' };
   }
 
   // Kodlar mos kelmaydimi?
   if (entry.code !== code) {
     entry.attempts++;
+    await storeOtp(phone, entry);
     return {
       valid: false,
       error: `Noto'g'ri kod. ${3 - entry.attempts} ta urinish qoldi`,
     };
   }
 
-  // ✅ Kod to'g'ri — o'chirmaymiz, faqat belgilaymiz (duplicate so'rovlar uchun)
-  // Agar allaqachon verified bo'lsa, qayta muvaffaqiyat qaytaramiz
+  // ✅ Kod to'g'ri — belgilaymiz (duplicate so'rovlar uchun)
   if (!entry.verified) {
     entry.verified = true;
-    // 10 sekunddan keyin o'chirish (idempotent so'rovlar uchun)
-    setTimeout(() => otpStore.delete(phone), 10_000);
+    // 10 sekunddan keyin o'chirish uchun qisqa TTL bilan saqlash
+    entry.expiresAt = Date.now() + 10_000;
+    await storeOtp(phone, entry);
   }
   return { valid: true };
 }
@@ -208,8 +291,8 @@ export function verifyOtp(
 /**
  * Dev/test uchun — OTP'ni olish (production'da o'chiriladi)
  */
-export function getOtpForTesting(phone: string): string | null {
+export async function getOtpForTesting(phone: string): Promise<string | null> {
   if (env.NODE_ENV === 'production') return null;
-  const entry = otpStore.get(phone);
+  const entry = await loadOtp(phone);
   return entry?.code ?? null;
 }

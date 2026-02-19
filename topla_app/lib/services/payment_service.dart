@@ -162,9 +162,9 @@ class PaymentService {
     try {
       // API ga saqlash
       final response = await _api.post('/payments/cards', body: {
-        'bindingId': bindingId,
-        'maskedPan': maskedPan,
-        'cardType': cardType.toLowerCase(),
+        'cardNumber': maskedPan,
+        'token': bindingId,
+        'provider': cardType.toLowerCase() == 'click' ? 'click' : 'payme',
         'expiryDate': expiryDate,
       });
 

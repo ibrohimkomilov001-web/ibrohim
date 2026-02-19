@@ -3,9 +3,11 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/services/nominatim_service.dart';
 import '../../models/address_model.dart';
 import '../../providers/addresses_provider.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import 'map_picker_screen.dart';
 
 class AddressesScreen extends StatefulWidget {
@@ -30,9 +32,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text(
-          'Manzillar',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: Text(
+          context.l10n.myAddresses,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       body: Consumer<AddressesProvider>(
@@ -56,7 +58,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
         onPressed: _showAddAddressSheet,
         backgroundColor: AppColors.primary,
         icon: const Icon(Iconsax.add),
-        label: const Text('Yangi manzil'),
+        label: Text(context.l10n.locale.languageCode == 'ru'
+            ? 'Новый адрес'
+            : 'Yangi manzil'),
       ),
     );
   }
@@ -135,7 +139,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
   }
 
   Widget _buildAddressList(List<AddressModel> addresses) {
-    return RefreshIndicator(
+    return ToplaRefreshIndicator(
       onRefresh: () => context.read<AddressesProvider>().loadAddresses(),
       child: ListView.builder(
         padding: const EdgeInsets.all(16),

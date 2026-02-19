@@ -89,34 +89,6 @@ export async function sendOtpViaTelegram(
 }
 
 /**
- * Telefon raqam Telegramda borligini tekshirish
- */
-export async function checkTelegramAbility(
-  phone: string,
-): Promise<{ available: boolean }> {
-  const token = env.TELEGRAM_GATEWAY_TOKEN;
-  if (!token) return { available: false };
-
-  try {
-    const cleanPhone = phone.startsWith('+') ? phone : `+${phone}`;
-
-    const response = await fetch(`${GATEWAY_API}/checkSendAbility`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ phone_number: cleanPhone }),
-    });
-
-    const data = (await response.json()) as { ok: boolean };
-    return { available: data.ok };
-  } catch {
-    return { available: false };
-  }
-}
-
-/**
  * Telegram Gateway sozlanganmi
  */
 export function isTelegramGatewayConfigured(): boolean {

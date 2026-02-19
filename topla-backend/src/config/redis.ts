@@ -40,10 +40,6 @@ export function getRedis(): RedisClientType | null {
   return isConnected ? redisClient : null;
 }
 
-export function isRedisConnected(): boolean {
-  return isConnected;
-}
-
 // ============================================
 // OTP Operations (with Redis or in-memory fallback)
 // ============================================

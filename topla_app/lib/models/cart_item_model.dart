@@ -66,17 +66,33 @@ class ProductInfo {
     this.stock = 0,
   });
 
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
+
+  static int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
   factory ProductInfo.fromJson(Map<String, dynamic> json) {
     return ProductInfo(
       id: json['id'] as String? ?? '',
-      nameUz: (json['name_uz'] ?? json['name']) as String? ?? 'Nomsiz mahsulot',
-      nameRu: (json['name_ru'] ?? json['name']) as String? ?? 'Без названия',
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      oldPrice: (json['old_price'] ?? json['originalPrice']) != null
-          ? ((json['old_price'] ?? json['originalPrice']) as num).toDouble()
-          : null,
+      nameUz: (json['name_uz'] ?? json['nameUz'] ?? json['name']) as String? ??
+          'Nomsiz mahsulot',
+      nameRu: (json['name_ru'] ?? json['nameRu'] ?? json['name']) as String? ??
+          'Без названия',
+      price: _toDouble(json['price']) ?? 0.0,
+      oldPrice: _toDouble(
+          json['old_price'] ?? json['oldPrice'] ?? json['originalPrice']),
       images: json['images'] != null ? List<String>.from(json['images']) : [],
-      stock: json['stock'] as int? ?? 0,
+      stock: _toInt(json['stock']) ?? 0,
     );
   }
 

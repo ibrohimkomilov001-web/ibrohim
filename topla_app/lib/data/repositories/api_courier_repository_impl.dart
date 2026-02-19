@@ -18,7 +18,7 @@ class ApiCourierRepositoryImpl implements ICourierRepository {
   }) async {
     final body = <String, dynamic>{
       'vehicleType': vehicleType,
-      'maxDeliveryDistance': maxDistance,
+      'maxDistance': maxDistance,
     };
     if (vehicleNumber != null) body['vehicleNumber'] = vehicleNumber;
     await _api.post('/courier/register', body: body);
@@ -123,8 +123,9 @@ class ApiCourierRepositoryImpl implements ICourierRepository {
 
   @override
   Future<Map<String, dynamic>> getEarnings({String? period}) async {
-    final query = period != null ? '?period=$period' : '';
-    final res = await _api.get('/courier/earnings$query');
+    final params = <String, dynamic>{};
+    if (period != null) params['period'] = period;
+    final res = await _api.get('/courier/earnings', queryParams: params);
     return (res.data as Map<String, dynamic>?) ?? {};
   }
 

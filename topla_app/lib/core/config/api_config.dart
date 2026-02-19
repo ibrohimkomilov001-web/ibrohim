@@ -22,9 +22,9 @@ class ApiConfig {
       return 'https://api.topla.uz';
     }
 
-    // adb reverse tcp:3000 tcp:3000 bilan localhost ishlaydi
+    // adb reverse tcp:3001 tcp:3001 bilan localhost ishlaydi
     // Emulator va real qurilma uchun bir xil
-    return 'http://localhost:3000';
+    return 'http://localhost:3001';
   }
 
   /// API versiya prefix

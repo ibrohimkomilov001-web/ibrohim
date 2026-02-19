@@ -1,42 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FF8C00;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FF5500;stop-opacity:1" />
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8800"/>
+      <stop offset="100%" stop-color="#E85500"/>
     </linearGradient>
-    <linearGradient id="cartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#F0F0F0;stop-opacity:1" />
-    </linearGradient>
-    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#00000040"/>
-    </filter>
   </defs>
-  
-  <!-- Background rounded square -->
-  <rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
-  
-  <!-- Shopping cart icon -->
-  <g transform="translate(512, 480)" filter="url(#shadow)">
-    <!-- Cart body -->
-    <path d="M-280,-120 L-220,-120 L-180,100 Q-175,130 -145,130 L200,130 Q230,130 235,100 L280,-60 L-140,-60" 
-          fill="none" stroke="white" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- Cart handle line -->
-    <line x1="-280" y1="-120" x2="-330" y2="-180" 
-          stroke="white" stroke-width="42" stroke-linecap="round"/>
-    
-    <!-- Cart wheels -->
-    <circle cx="-130" cy="190" r="35" fill="white"/>
-    <circle cx="180" cy="190" r="35" fill="white"/>
-    
-    <!-- Plus sign inside cart -->
-    <line x1="30" y1="-20" x2="30" y2="80" stroke="white" stroke-width="36" stroke-linecap="round"/>
-    <line x1="-20" y1="30" x2="80" y2="30" stroke="white" stroke-width="36" stroke-linecap="round"/>
-  </g>
-  
-  <!-- "TOPLA" text at bottom -->
-  <text x="512" y="820" text-anchor="middle" 
-        font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="120" 
-        fill="white" letter-spacing="12">TOPLA</text>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Shopping bag body -->
+  <rect x="282" y="380" width="460" height="410" rx="48" fill="white"/>
+
+  <!-- Bag handle (semicircular arc) -->
+  <path d="M 392,380 A 120,135 0 0 0 632,380"
+        fill="none" stroke="white" stroke-width="42" stroke-linecap="round"/>
+
+  <!-- T letter inside bag (orange cutout) -->
+  <rect x="372" y="460" width="280" height="72" rx="14" fill="#FF6E00"/>
+  <rect x="474" y="460" width="76" height="245" rx="14" fill="#FF6E00"/>
 </svg>

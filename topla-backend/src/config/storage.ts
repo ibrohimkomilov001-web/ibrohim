@@ -46,19 +46,11 @@ export async function uploadFile(
 /**
  * Delete a file from S3
  */
-export async function deleteFile(bucket: string, fileName: string): Promise<void> {
+export async function deleteFile(
+  bucket: string,
+  fileName: string,
+): Promise<void> {
   if (!storageClient) throw new Error('Storage not initialized');
   await storageClient.removeObject(bucket, fileName);
 }
 
-/**
- * Generate a presigned upload URL (for direct client uploads)
- */
-export async function getPresignedUploadUrl(
-  bucket: string,
-  fileName: string,
-  expirySeconds = 3600,
-): Promise<string> {
-  if (!storageClient) throw new Error('Storage not initialized');
-  return storageClient.presignedPutObject(bucket, fileName, expirySeconds);
-}

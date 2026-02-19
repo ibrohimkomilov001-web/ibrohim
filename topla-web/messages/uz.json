@@ -1,0 +1,104 @@
+{
+  "nav": {
+    "home": "Bosh sahifa",
+    "categories": "Kategoriyalar",
+    "search": "Qidirish",
+    "cart": "Savat",
+    "profile": "Profil"
+  },
+  "home": {
+    "searchPlaceholder": "Mahsulot qidirish...",
+    "categories": "Kategoriyalar",
+    "viewAll": "Barchasi",
+    "featured": "Tavsiya etilgan",
+    "newProducts": "Yangi mahsulotlar",
+    "popular": "Mashhur mahsulotlar",
+    "sold": "sotildi"
+  },
+  "product": {
+    "addToCart": "Savatga qo'shish",
+    "outOfStock": "Tugagan",
+    "inStock": "{count} dona",
+    "description": "Tavsif",
+    "specs": "Xususiyatlar",
+    "category": "Kategoriya",
+    "brand": "Brend",
+    "weight": "Og'irlik",
+    "availability": "Mavjudlik",
+    "delivery": "Yetkazib berish",
+    "guarantee": "Kafolat",
+    "returns": "Qaytarish",
+    "views": "ko'rildi",
+    "chatSeller": "Sotuvchiga yozish"
+  },
+  "cart": {
+    "title": "Savat",
+    "empty": "Savat bo'sh",
+    "emptyDesc": "Mahsulotlarni qidiring va savatga qo'shing",
+    "startShopping": "Xarid qilish",
+    "clear": "Tozalash",
+    "summary": "Buyurtma xulosasi",
+    "products": "Mahsulotlar",
+    "delivery": "Yetkazib berish",
+    "free": "Bepul",
+    "freeDeliveryHint": "{amount} qo'shsangiz yetkazish bepul!",
+    "total": "Jami",
+    "checkout": "Buyurtma berish"
+  },
+  "search": {
+    "placeholder": "Mahsulot qidirish...",
+    "recent": "So'nggi qidiruvlar",
+    "trending": "Trend qidiruvlar",
+    "clear": "Tozalash",
+    "noResults": "natija topilmadi",
+    "tryOther": "Boshqa so'z bilan qidirib ko'ring",
+    "results": "ta natija"
+  },
+  "categories": {
+    "title": "Kategoriyalar",
+    "products": "ta mahsulot",
+    "all": "Barchasi",
+    "noProducts": "Mahsulot topilmadi",
+    "loadMore": "Ko'proq ko'rsatish"
+  },
+  "profile": {
+    "title": "Profil",
+    "subtitle": "Hisobingizni boshqaring",
+    "login": "Hisobingizga kiring",
+    "loginDesc": "Buyurtmalarni kuzatish va sevimlilarni saqlash uchun",
+    "loginViaApp": "Kirish TOPLA mobil ilovasi orqali amalga oshiriladi",
+    "orders": "Buyurtmalarim",
+    "favorites": "Sevimlilar",
+    "addresses": "Manzillarim",
+    "payments": "To'lov usullari",
+    "settings": "Sozlamalar",
+    "help": "Yordam",
+    "vendorLogin": "Sotuvchi sifatida kirish",
+    "logout": "Chiqish"
+  },
+  "shop": {
+    "open": "Ochiq",
+    "closed": "Yopiq",
+    "products": "Mahsulotlar",
+    "noProducts": "Hozircha mahsulot yo'q",
+    "minOrder": "Min. buyurtma",
+    "deliveryFee": "Yetkazish"
+  },
+  "common": {
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik yuz berdi",
+    "back": "Ortga",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "delete": "O'chirish",
+    "edit": "Tahrirlash",
+    "notFound": "Topilmadi"
+  },
+  "sort": {
+    "newest": "Yangi",
+    "popular": "Mashhur",
+    "priceAsc": "Arzon→Qimmat",
+    "priceDesc": "Qimmat→Arzon",
+    "rating": "Reyting"
+  }
+}

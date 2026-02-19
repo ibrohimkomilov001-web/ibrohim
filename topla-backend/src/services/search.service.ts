@@ -3,8 +3,6 @@
 // Product search with fuzzy matching
 // ============================================
 
-import { env } from '../config/env.js';
-
 const MEILI_URL = process.env.MEILISEARCH_URL || 'http://localhost:7700';
 const MEILI_KEY = process.env.MEILISEARCH_API_KEY || '';
 const INDEX_NAME = 'products';
@@ -35,14 +33,6 @@ interface MeiliProduct {
   stock: number;
   status: string;
   createdAt: string;
-}
-
-interface SearchResult {
-  hits: MeiliProduct[];
-  estimatedTotalHits: number;
-  limit: number;
-  offset: number;
-  processingTimeMs: number;
 }
 
 // ============================================
@@ -146,15 +136,6 @@ export async function indexProduct(product: any): Promise<void> {
 }
 
 // ============================================
-// Index multiple products
-// ============================================
-export async function indexProducts(products: any[]): Promise<void> {
-  if (products.length === 0) return;
-  const docs = products.map(buildMeiliDocument);
-  await meiliRequest(`/indexes/${INDEX_NAME}/documents`, 'POST', docs);
-}
-
-// ============================================
 // Remove product from index
 // ============================================
 export async function removeProductFromIndex(productId: string): Promise<void> {
@@ -162,30 +143,30 @@ export async function removeProductFromIndex(productId: string): Promise<void> {
 }
 
 // ============================================
-// Search products
+// Search products via Meilisearch
 // ============================================
-export async function searchProducts(params: {
-  query: string;
-  filter?: string[];
-  sort?: string[];
+export async function searchProducts(query: string, options?: {
   limit?: number;
   offset?: number;
-}): Promise<SearchResult | null> {
-  const result = await meiliRequest(`/indexes/${INDEX_NAME}/search`, 'POST', {
-    q: params.query,
-    filter: params.filter,
-    sort: params.sort,
-    limit: params.limit || 20,
-    offset: params.offset || 0,
-    attributesToRetrieve: [
-      'id', 'nameUz', 'nameRu', 'name', 'price', 'originalPrice',
-      'images', 'thumbnailUrl', 'shopId', 'shopName', 'categoryId',
-      'categoryNameUz', 'categoryNameRu', 'brandName', 'rating',
-      'salesCount', 'qualityScore', 'stock', 'status',
-    ],
-  });
+  filter?: string[];
+  sort?: string[];
+}): Promise<{ hits: MeiliProduct[]; totalHits: number; query: string } | null> {
+  const body: any = {
+    q: query,
+    limit: options?.limit || 20,
+    offset: options?.offset || 0,
+  };
+  if (options?.filter?.length) body.filter = options.filter;
+  if (options?.sort?.length) body.sort = options.sort;
 
-  return result;
+  const result = await meiliRequest(`/indexes/${INDEX_NAME}/search`, 'POST', body);
+  if (!result) return null;
+
+  return {
+    hits: result.hits || [],
+    totalHits: result.estimatedTotalHits || result.totalHits || 0,
+    query: result.query || query,
+  };
 }
 
 // ============================================

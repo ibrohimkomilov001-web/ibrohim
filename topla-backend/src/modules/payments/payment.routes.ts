@@ -115,6 +115,49 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
+   * GET /payments/cards/default
+   * Asosiy kartani olish
+   */
+  app.get('/payments/cards/default', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const card = await prisma.savedCard.findFirst({
+      where: { userId, isDefault: true },
+      select: {
+        id: true,
+        cardNumber: true,
+        cardHolder: true,
+        expiryDate: true,
+        provider: true,
+        isDefault: true,
+        createdAt: true,
+      },
+    });
+
+    if (!card) {
+      // Agar default yo'q bo'lsa, birinchi kartani qaytarish
+      const firstCard = await prisma.savedCard.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          cardNumber: true,
+          cardHolder: true,
+          expiryDate: true,
+          provider: true,
+          isDefault: true,
+          createdAt: true,
+        },
+      });
+
+      if (!firstCard) throw new NotFoundError('Karta topilmadi');
+      return reply.send({ success: true, data: firstCard });
+    }
+
+    return reply.send({ success: true, data: card });
+  });
+
+  /**
    * DELETE /payments/cards/:id
    * Kartani o'chirish
    */
@@ -215,6 +258,9 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
   /**
    * PUT /payments/transactions/:id
    * Tranzaksiya statusini yangilash
+   * 
+   * XAVFSIZLIK: Foydalanuvchi faqat 'failed' (bekor qilish) ga o'zgartira oladi.
+   * 'completed' va 'refunded' statuslari FAQAT admin yoki webhook callback orqali o'zgartiriladi.
    */
   app.put('/payments/transactions/:id', { preHandler: authMiddleware }, async (request, reply) => {
     const { id } = request.params as { id: string };
@@ -225,8 +271,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!transaction) throw new NotFoundError('Tranzaksiya');
 
-    // Ownership tekshiruvi: faqat buyurtma egasi yoki admin
-    // transaction.orderId orqali order egasini tekshiramiz
+    // Ownership tekshiruvi
     const order = await prisma.order.findUnique({
       where: { id: transaction.orderId },
       select: { userId: true },
@@ -238,6 +283,17 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       throw new AppError('Bu tranzaksiyani o\'zgartirish huquqingiz yo\'q', 403);
     }
 
+    // XAVFSIZLIK: Faqat admin 'completed' yoki 'refunded' ga o'zgartira oladi
+    // Oddiy foydalanuvchi faqat 'failed' (bekor qilish) qila oladi
+    if (!isAdmin && (body.status === 'completed' || body.status === 'refunded')) {
+      throw new AppError('Faqat administrator to\'lov statusini tasdiqlashi mumkin', 403);
+    }
+
+    // Allaqachon completed/refunded tranzaksiyani o'zgartirib bo'lmaydi
+    if (transaction.status === 'completed' || transaction.status === 'refunded') {
+      throw new AppError('Yakunlangan tranzaksiyani o\'zgartirish mumkin emas', 400);
+    }
+
     const updated = await prisma.transaction.update({
       where: { id },
       data: {
@@ -247,7 +303,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // Agar to'lov muvaffaqiyatli bo'lsa — buyurtma paymentStatus ni yangilash
+    // Agar to'lov muvaffaqiyatli bo'lsa — buyurtma paymentStatus ni yangilash (faqat admin)
     if (body.status === 'completed') {
       await prisma.order.update({
         where: { id: transaction.orderId },
@@ -255,7 +311,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // Agar qaytarilsa (refund)
+    // Agar qaytarilsa (refund) — faqat admin
     if (body.status === 'refunded') {
       await prisma.order.update({
         where: { id: transaction.orderId },

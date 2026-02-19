@@ -39,10 +39,22 @@ class UserProfile {
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
-    final firstName = (json['first_name'] ?? json['firstName']) as String?;
-    final lastName = (json['last_name'] ?? json['lastName']) as String?;
+    var firstName = (json['first_name'] ?? json['firstName']) as String?;
+    var lastName = (json['last_name'] ?? json['lastName']) as String?;
     // fullName ni first_name va last_name dan yasash yoki to'g'ridan-to'g'ri olish
     String? fullName = (json['full_name'] ?? json['fullName']) as String?;
+
+    // Agar firstName/lastName yo'q bo'lsa, fullName dan ajratib olish
+    if ((firstName == null || firstName.isEmpty) &&
+        fullName != null &&
+        fullName.isNotEmpty) {
+      final parts = fullName.trim().split(RegExp(r'\\s+'));
+      firstName = parts.first;
+      if (parts.length > 1) {
+        lastName = parts.sublist(1).join(' ');
+      }
+    }
+
     if (fullName == null && (firstName != null || lastName != null)) {
       fullName = [firstName, lastName]
           .where((s) => s != null && s.isNotEmpty)

@@ -3,11 +3,51 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database.js';
 import { verifyFirebaseToken } from '../../config/firebase.js';
-import { generateToken, generateRefreshToken, verifyToken, verifyRefreshToken } from '../../utils/jwt.js';
+import { generateToken, generateRefreshToken, verifyRefreshToken, blacklistToken } from '../../utils/jwt.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error.js';
 import { env } from '../../config/env.js';
+import { checkRateLimit, setWithExpiry, getValue, deleteKey } from '../../config/redis.js';
 import { sendOtp, verifyOtp, getOtpForTesting, isTelegramConfigured, type OtpChannel } from '../../services/otp.service.js';
+import { randomUUID } from 'crypto';
+
+// ============================================
+// Helper: Extract device info from request
+// ============================================
+function extractDeviceInfo(request: any) {
+  const ua = request.headers['user-agent'] || '';
+  const ip = request.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || request.headers['x-real-ip']
+    || request.ip
+    || '';
+
+  // Parse device name from user-agent
+  let deviceName = 'Unknown';
+  let browser = '';
+
+  if (ua.includes('Android')) {
+    const match = ua.match(/Android[^;]*;\s*([^)]+)\)/);
+    deviceName = match ? match[1].trim() : 'Android Device';
+  } else if (ua.includes('iPhone')) {
+    deviceName = 'iPhone';
+  } else if (ua.includes('iPad')) {
+    deviceName = 'iPad';
+  } else if (ua.includes('Windows')) {
+    deviceName = 'Windows PC';
+  } else if (ua.includes('Macintosh')) {
+    deviceName = 'Mac';
+  } else if (ua.includes('Linux')) {
+    deviceName = 'Linux PC';
+  }
+
+  if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+  else if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+  else if (ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+
+  return { deviceName, browser, ipAddress: ip };
+}
 
 // ============================================
 // Validation Schemas
@@ -23,6 +63,7 @@ const loginSchema = z.object({
 const updateProfileSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
+  phone: z.string().min(9).max(20).optional(),
   avatarUrl: z.string().url().optional(),
   language: z.enum(['uz', 'ru']).optional(),
 });
@@ -49,6 +90,11 @@ const vendorLoginSchema = z.object({
 
 const resetPasswordSchema = z.object({
   email: z.string().email('Email noto\'g\'ri'),
+});
+
+const confirmResetSchema = z.object({
+  token: z.string().uuid('Token noto\'g\'ri'),
+  newPassword: z.string().min(6, 'Parol kamida 6 belgidan iborat bo\'lishi kerak'),
 });
 
 const googleLoginSchema = z.object({
@@ -101,7 +147,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     // Dev mode: OTP'ni faqat server logga yozish (responsga HECH QACHON bermang!)
     if (env.NODE_ENV !== 'production') {
-      const devOtp = getOtpForTesting(phone);
+      const devOtp = await getOtpForTesting(phone);
       if (devOtp) {
         console.log(`[DEV] OTP for ${phone}: ${devOtp}`);
       }
@@ -135,7 +181,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         : `+998${body.phone}`;
 
     // 1. OTP tekshirish
-    const otpResult = verifyOtp(phone, body.code);
+    const otpResult = await verifyOtp(phone, body.code);
     if (!otpResult.valid) {
       throw new AppError(otpResult.error || 'Noto\'g\'ri kod', 401);
     }
@@ -145,8 +191,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       where: { phone },
     });
 
+    let isNewUser = false;
+
     if (!profile) {
       // Yangi foydalanuvchi
+      isNewUser = true;
       profile = await prisma.profile.create({
         data: {
           phone,
@@ -164,6 +213,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 3. FCM device saqlash
+    const deviceInfo = extractDeviceInfo(request);
     if (body.fcmToken) {
       await prisma.userDevice.upsert({
         where: {
@@ -172,11 +222,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
             fcmToken: body.fcmToken,
           },
         },
-        update: { isActive: true, platform: body.platform },
+        update: { isActive: true, platform: body.platform, ...deviceInfo, lastActiveAt: new Date() },
         create: {
           userId: profile.id,
           fcmToken: body.fcmToken,
           platform: body.platform,
+          ...deviceInfo,
         },
       });
     }
@@ -203,6 +254,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           role: profile.role,
           language: profile.language,
         },
+        isNewUser,
         accessToken,
         refreshToken,
       },
@@ -233,8 +285,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       where: { phone: body.phone },
     });
 
+    let isNewUser = false;
+
     if (!profile) {
       // Yangi foydalanuvchi
+      isNewUser = true;
       profile = await prisma.profile.create({
         data: {
           phone: body.phone,
@@ -254,6 +309,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 3. FCM token qurilmaga saqlash
+    const deviceInfo2 = extractDeviceInfo(request);
     if (body.fcmToken) {
       await prisma.userDevice.upsert({
         where: {
@@ -262,11 +318,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
             fcmToken: body.fcmToken,
           },
         },
-        update: { isActive: true, platform: body.platform },
+        update: { isActive: true, platform: body.platform, ...deviceInfo2, lastActiveAt: new Date() },
         create: {
           userId: profile.id,
           fcmToken: body.fcmToken,
           platform: body.platform,
+          ...deviceInfo2,
         },
       });
     }
@@ -293,6 +350,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           role: profile.role,
           language: profile.language,
         },
+        isNewUser,
         accessToken,
         refreshToken,
       },
@@ -308,6 +366,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       const payload = verifyRefreshToken(body.refreshToken);
+
+      // Eski refresh tokenni blacklist ga qo'shish (token rotation)
+      await blacklistToken(body.refreshToken);
 
       // Profil hali ham borligini tekshirish
       const profile = await prisma.profile.findUnique({
@@ -379,6 +440,26 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.put('/auth/profile', { preHandler: authMiddleware }, async (request, reply) => {
     const body = updateProfileSchema.parse(request.body);
 
+    // Telefon raqam yangilanayotgan bo'lsa, unikal ekanligini tekshirish
+    if (body.phone) {
+      // Normalize phone
+      let normalizedPhone = body.phone.replace(/[^0-9+]/g, '');
+      if (!normalizedPhone.startsWith('+')) {
+        normalizedPhone = normalizedPhone.startsWith('998') ? `+${normalizedPhone}` : `+998${normalizedPhone}`;
+      }
+      body.phone = normalizedPhone;
+
+      const existing = await prisma.profile.findFirst({
+        where: {
+          phone: normalizedPhone,
+          id: { not: request.user!.userId },
+        },
+      });
+      if (existing) {
+        throw new AppError('Bu telefon raqam boshqa foydalanuvchiga bog\'langan', 400);
+      }
+    }
+
     const profile = await prisma.profile.update({
       where: { id: request.user!.userId },
       data: body,
@@ -394,8 +475,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    * POST /auth/fcm-token
    * FCM tokenni yangilash
    */
+  const fcmTokenSchema = z.object({
+    fcmToken: z.string().min(1, 'FCM token bo\'sh bo\'lmasligi kerak'),
+    platform: z.enum(['android', 'ios', 'web']).default('android'),
+  });
+
   app.post('/auth/fcm-token', { preHandler: authMiddleware }, async (request, reply) => {
-    const { fcmToken, platform } = request.body as { fcmToken: string; platform?: string };
+    const { fcmToken, platform } = fcmTokenSchema.parse(request.body);
 
     if (!fcmToken) {
       throw new AppError('FCM token kerak');
@@ -414,11 +500,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
             fcmToken,
           },
         },
-        update: { isActive: true },
+        update: { isActive: true, ...extractDeviceInfo(request), lastActiveAt: new Date() },
         create: {
           userId: request.user!.userId,
           fcmToken,
           platform: platform || 'android',
+          ...extractDeviceInfo(request),
         },
       }),
     ]);
@@ -430,8 +517,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    * POST /auth/logout
    * Chiqish - FCM tokenni o'chirish
    */
+  const logoutSchema = z.object({ fcmToken: z.string().optional() });
+
   app.post('/auth/logout', { preHandler: authMiddleware }, async (request, reply) => {
-    const { fcmToken } = (request.body as { fcmToken?: string }) || {};
+    const { fcmToken } = logoutSchema.parse(request.body || {});
+
+    // Access token ni blacklist ga qo'shish
+    const authHeader = request.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const accessToken = authHeader.substring(7);
+      await blacklistToken(accessToken);
+    }
 
     const updates: Promise<any>[] = [
       prisma.profile.update({
@@ -545,6 +641,16 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/auth/vendor/login', async (request, reply) => {
     const body = vendorLoginSchema.parse(request.body);
 
+    // Rate limiting: 5 urinish / 15 daqiqa
+    const rateLimitKey = `login:vendor:${body.email}`;
+    const rateCheck = await checkRateLimit(rateLimitKey, 5, 900);
+    if (!rateCheck.allowed) {
+      throw new AppError(
+        `Juda ko'p urinish. ${Math.ceil((rateCheck.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
     // Profilni email orqali topish
     const profile = await prisma.profile.findFirst({
       where: { email: body.email },
@@ -597,7 +703,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * POST /auth/reset-password
-   * Parol tiklash (email orqali)
+   * Parol tiklash — email bo'yicha reset token yaratish
    */
   app.post('/auth/reset-password', async (request, reply) => {
     const body = resetPasswordSchema.parse(request.body);
@@ -614,17 +720,78 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // TODO: Email xizmati ulanganda:
-    // 1. UUID token yaratish
-    // 2. Bazaga saqlash (reset_token, reset_token_expires)
-    // 3. Email yuborish
-    // Hozircha log qilib qo'yamiz — production'da email service ulanadi
-    console.log(`[Auth] Password reset requested for: ${body.email} (user: ${profile.id})`);
-    // Future: await emailService.sendPasswordReset(profile.email, resetToken);
+    // Foydalanuvchida password bo'lishi kerak (ya'ni vendor/admin)
+    if (!profile.passwordHash) {
+      return reply.send({
+        success: true,
+        message: 'Agar email mavjud bo\'lsa, tiklash ko\'rsatmalari yuboriladi',
+      });
+    }
+
+    // Reset token yaratish va Redis'ga saqlash (15 daqiqa TTL)
+    const resetToken = randomUUID();
+    const RESET_TTL = 15 * 60; // 15 daqiqa
+    await setWithExpiry(`password_reset:${resetToken}`, profile.id, RESET_TTL);
+
+    console.log(`[Auth] Password reset token created for: ${body.email} (user: ${profile.id})`);
+
+    // Development rejimda tokenni javobda qaytaramiz
+    if (env.NODE_ENV === 'development') {
+      return reply.send({
+        success: true,
+        message: 'Tiklash tokeni yaratildi',
+        resetToken, // faqat dev uchun
+        expiresIn: RESET_TTL,
+      });
+    }
+
+    // Production: email orqali yuborish kerak
+    // TODO: email service ulanganida bu qismni yoqish
+    // await emailService.sendPasswordReset(profile.email, resetToken);
 
     return reply.send({
       success: true,
       message: 'Agar email mavjud bo\'lsa, tiklash ko\'rsatmalari yuboriladi',
+    });
+  });
+
+  /**
+   * POST /auth/confirm-reset
+   * Reset token + yangi parol bilan parolni yangilash
+   */
+  app.post('/auth/confirm-reset', async (request, reply) => {
+    const body = confirmResetSchema.parse(request.body);
+
+    // Redis'dan token tekshirish
+    const userId = await getValue(`password_reset:${body.token}`);
+    if (!userId) {
+      throw new AppError('Token yaroqsiz yoki muddati tugagan', 400);
+    }
+
+    // Foydalanuvchini topish
+    const profile = await prisma.profile.findUnique({
+      where: { id: userId },
+    });
+
+    if (!profile) {
+      throw new AppError('Token yaroqsiz', 400);
+    }
+
+    // Yangi parolni xeshlash va yangilash
+    const passwordHash = await bcrypt.hash(body.newPassword, 12);
+    await prisma.profile.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    // Tokenni o'chirish (bir martalik ishlatish)
+    await deleteKey(`password_reset:${body.token}`);
+
+    console.log(`[Auth] Password reset completed for user: ${userId}`);
+
+    return reply.send({
+      success: true,
+      message: 'Parol muvaffaqiyatli yangilandi',
     });
   });
 
@@ -691,6 +858,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 3. FCM token saqlash
+    const googleDeviceInfo = extractDeviceInfo(request);
     if (body.fcmToken) {
       await prisma.userDevice.upsert({
         where: {
@@ -699,11 +867,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
             fcmToken: body.fcmToken,
           },
         },
-        update: { isActive: true, platform: body.platform },
+        update: { isActive: true, platform: body.platform, ...googleDeviceInfo, lastActiveAt: new Date() },
         create: {
           userId: profile.id,
           fcmToken: body.fcmToken,
           platform: body.platform,
+          ...googleDeviceInfo,
         },
       });
     }
@@ -733,6 +902,163 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         accessToken,
         refreshToken,
       },
+    });
+  });
+
+  // ============================================
+  // DEVICE MANAGEMENT
+  // ============================================
+
+  /**
+   * GET /auth/devices
+   * Foydalanuvchining barcha qurilmalarini olish
+   */
+  app.get('/auth/devices', { preHandler: authMiddleware }, async (request, reply) => {
+    const devices = await prisma.userDevice.findMany({
+      where: { userId: request.user!.userId },
+      orderBy: { lastActiveAt: 'desc' },
+      select: {
+        id: true,
+        platform: true,
+        deviceId: true,
+        deviceName: true,
+        browser: true,
+        ipAddress: true,
+        lastActiveAt: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    return reply.send({
+      success: true,
+      data: devices,
+    });
+  });
+
+  /**
+   * DELETE /auth/devices/:id
+   * Qurilmani o'chirish (boshqa qurilmadan chiqarish)
+   */
+  app.delete('/auth/devices/:id', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const device = await prisma.userDevice.findFirst({
+      where: { id, userId: request.user!.userId },
+    });
+
+    if (!device) {
+      throw new AppError('Qurilma topilmadi', 404);
+    }
+
+    await prisma.userDevice.delete({ where: { id } });
+
+    return reply.send({
+      success: true,
+      message: 'Qurilma o\'chirildi',
+    });
+  });
+
+  // ============================================
+  // Account Deletion (GDPR)
+  // ============================================
+
+  /**
+   * DELETE /auth/account
+   * Hisobni o'chirish (GDPR/App Store talabi)
+   * Barcha ma'lumotlarni anonim qiladi
+   */
+  app.delete('/auth/account', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: userId },
+      include: {
+        shop: { select: { id: true, status: true } },
+      },
+    });
+
+    if (!profile) {
+      throw new AppError('Foydalanuvchi topilmadi', 404);
+    }
+
+    // Aktiv buyurtmalar bormi tekshirish
+    const activeOrders = await prisma.order.count({
+      where: {
+        userId,
+        status: { notIn: ['delivered', 'cancelled'] },
+      },
+    });
+
+    if (activeOrders > 0) {
+      throw new AppError(`Sizda ${activeOrders} ta aktiv buyurtma bor. Avval ularni yakunlang yoki bekor qiling`, 400);
+    }
+
+    // Agar vendor bo'lsa — do'konga tegishli aktiv buyurtmalarni tekshirish
+    if (profile.shop) {
+      const shopActiveOrders = await prisma.orderItem.count({
+        where: {
+          product: { shopId: profile.shop.id },
+          order: { status: { notIn: ['delivered', 'cancelled'] } },
+        },
+      });
+
+      if (shopActiveOrders > 0) {
+        throw new AppError(`Do\'koningizda ${shopActiveOrders} ta aktiv buyurtma bor. Avval ularni yakunlang`, 400);
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Ma'lumotlarni anonim qilish
+      await tx.profile.update({
+        where: { id: userId },
+        data: {
+          phone: `deleted_${userId.slice(0, 8)}`,
+          fullName: 'O\'chirilgan foydalanuvchi',
+          email: null,
+          avatarUrl: null,
+          passwordHash: null,
+          firebaseUid: null,
+          fcmToken: null,
+          status: 'blocked',
+        },
+      });
+
+      // 2. Savatni tozalash
+      await tx.cartItem.deleteMany({ where: { userId } });
+
+      // 3. Sevimlilarni o'chirish
+      await tx.favorite.deleteMany({ where: { userId } });
+
+      // 4. Manzillarni o'chirish
+      await tx.address.deleteMany({ where: { userId } });
+
+      // 5. Qurilmalarni o'chirish
+      await tx.userDevice.deleteMany({ where: { userId } });
+
+      // 6. Agar vendor bo'lsa — do'konni deaktivatsiya qilish
+      if (profile.shop) {
+        await tx.shop.update({
+          where: { id: profile.shop.id },
+          data: {
+            status: 'blocked',
+            name: 'O\'chirilgan do\'kon',
+          },
+        });
+
+        // Barcha mahsulotlarni deaktivatsiya qilish
+        await tx.product.updateMany({
+          where: { shopId: profile.shop.id },
+          data: { isActive: false },
+        });
+      }
+    });
+
+    console.log(`[Auth] Account deleted: ${userId}`);
+
+    return reply.send({
+      success: true,
+      message: 'Hisobingiz muvaffaqiyatli o\'chirildi',
     });
   });
 }

@@ -21,8 +21,15 @@ abstract class IProductRepository {
   /// Flash sale mahsulotlar
   Future<List<ProductModel>> getFlashSaleProducts({int limit = 10});
 
-  /// Mahsulot qidirish
-  Future<List<ProductModel>> searchProducts(String query, {int limit = 20});
+  /// Mahsulot qidirish (Meilisearch)
+  Future<List<ProductModel>> searchProducts(String query,
+      {int limit = 20, String? sort});
+
+  /// Mashhur qidiruv so'zlari
+  Future<List<String>> getPopularSearches();
+
+  /// Auto-suggest (debounce bilan)
+  Future<List<Map<String, dynamic>>> getSearchSuggestions(String query);
 
   /// Kategoriya bo'yicha mahsulotlar
   Future<List<ProductModel>> getProductsByCategory(

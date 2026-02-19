@@ -4,6 +4,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../widgets/empty_states.dart';
 import '../../providers/providers.dart';
 import '../../models/order_model.dart';
 
@@ -94,41 +95,9 @@ class _PurchasedProductsScreenState extends State<PurchasedProductsScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Iconsax.bag_2, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
-            context.l10n.translate('purchased_empty'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            context.l10n.translate('purchased_empty_desc'),
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                context, '/main', (route) => false),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text(context.l10n.translate('start_shopping')),
-          ),
-        ],
-      ),
+    return EmptyPurchasedWidget(
+      onShopNow: () =>
+          Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false),
     );
   }
 

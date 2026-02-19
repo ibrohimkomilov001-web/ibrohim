@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { authMiddleware, requireRole, optionalAuth } from '../../middleware/auth.js';
+import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 
@@ -70,6 +70,12 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
   app.get('/shops/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
+    // UUID format tekshiruvi
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundError('Do\'kon');
+    }
+
     const shop = await prisma.shop.findUnique({
       where: { id },
       include: {
@@ -128,13 +134,15 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
   /**
    * POST /shops/:id/reviews
    */
-  app.post('/shops/:id/reviews', { preHandler: authMiddleware }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const { rating, comment } = request.body as { rating: number; comment?: string };
+  const reviewSchema = z.object({
+    rating: z.number().int().min(1, 'Baho kamida 1').max(5, 'Baho 5 dan oshmasligi kerak'),
+    comment: z.string().max(500).optional(),
+  });
+  const idParamSchema = z.object({ id: z.string().uuid() });
 
-    if (!rating || rating < 1 || rating > 5) {
-      throw new AppError('Baho 1 dan 5 gacha bo\'lishi kerak');
-    }
+  app.post('/shops/:id/reviews', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = idParamSchema.parse(request.params);
+    const { rating, comment } = reviewSchema.parse(request.body);
 
     await prisma.shopReview.upsert({
       where: {
@@ -192,23 +200,29 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
       const existing = await prisma.shop.findUnique({ where: { ownerId: userId } });
       if (existing) throw new AppError('Sizda allaqachon do\'kon bor');
 
-      const shop = await prisma.shop.create({
-        data: { 
-          ...body,
-          status: 'pending', // Admin tasdiqlashi kerak
-          owner: { connect: { id: userId } }
-        } as any,
-      });
+      const result = await prisma.$transaction(async (tx) => {
+        const shop = await tx.shop.create({
+          data: { 
+            ...body,
+            status: 'pending', // Admin tasdiqlashi kerak
+            owner: { connect: { id: userId } }
+          } as any,
+        });
 
-      // role ni vendor qilmaslik — admin tasdiqlangandan keyin
-      // await prisma.profile.update({
-      //   where: { id: userId },
-      //   data: { role: 'vendor' },
-      // });
+        // Foydalanuvchi rolini vendor ga o'zgartirish
+        if (profile.status !== 'blocked') {
+          await tx.profile.update({
+            where: { id: userId },
+            data: { role: 'vendor' },
+          });
+        }
+
+        return shop;
+      });
 
       return reply.status(201).send({ 
         success: true, 
-        data: shop,
+        data: result,
         message: 'Do\'kon yaratildi. Admin tasdiqlashini kuting.',
       });
     },
@@ -284,4 +298,119 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
       });
     },
   );
+
+  // ============================================
+  // SHOP FOLLOW / UNFOLLOW
+  // ============================================
+
+  /**
+   * POST /shops/:id/follow
+   * Do'konga obuna bo'lish
+   */
+  app.post('/shops/:id/follow', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+
+    // Do'kon mavjudligini tekshirish
+    const shop = await prisma.shop.findUnique({ where: { id }, select: { id: true } });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    // Allaqachon follow qilganmi?
+    const existing = await prisma.shopFollow.findUnique({
+      where: { shopId_userId: { shopId: id, userId } },
+    });
+
+    if (existing) {
+      return reply.send({ success: true, message: 'Allaqachon obuna bo\'lgansiz', isFollowing: true });
+    }
+
+    await prisma.shopFollow.create({
+      data: { shopId: id, userId },
+    });
+
+    return reply.status(201).send({ success: true, isFollowing: true });
+  });
+
+  /**
+   * DELETE /shops/:id/follow
+   * Do'kondan obunani bekor qilish
+   */
+  app.delete('/shops/:id/follow', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+
+    const existing = await prisma.shopFollow.findUnique({
+      where: { shopId_userId: { shopId: id, userId } },
+    });
+
+    if (!existing) {
+      return reply.send({ success: true, message: 'Obuna mavjud emas', isFollowing: false });
+    }
+
+    await prisma.shopFollow.delete({
+      where: { shopId_userId: { shopId: id, userId } },
+    });
+
+    return reply.send({ success: true, isFollowing: false });
+  });
+
+  /**
+   * GET /shops/:id/is-following
+   * Do'konga obuna bo'lganmi tekshirish
+   */
+  app.get('/shops/:id/is-following', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+
+    const existing = await prisma.shopFollow.findUnique({
+      where: { shopId_userId: { shopId: id, userId } },
+    });
+
+    return reply.send({ success: true, isFollowing: !!existing });
+  });
+
+  /**
+   * GET /shops/:id/followers/count
+   * Do'kon obunachilar soni
+   */
+  app.get('/shops/:id/followers/count', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const count = await prisma.shopFollow.count({ where: { shopId: id } });
+
+    return reply.send({ success: true, data: { count } });
+  });
+
+  /**
+   * GET /user/followed-shops
+   * Foydalanuvchi obuna bo'lgan do'konlar
+   */
+  app.get('/user/followed-shops', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
+    const { skip, limit: lim } = parsePagination({ page, limit });
+
+    const [follows, total] = await Promise.all([
+      prisma.shopFollow.findMany({
+        where: { userId },
+        include: {
+          shop: {
+            select: {
+              id: true, name: true, description: true, logoUrl: true,
+              rating: true, reviewCount: true, isOpen: true,
+              _count: { select: { products: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: lim,
+      }),
+      prisma.shopFollow.count({ where: { userId } }),
+    ]);
+
+    const shops = follows.map(f => f.shop);
+
+    return reply.send({ success: true, data: { shops, total } });
+  });
 }

@@ -7,16 +7,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { NotFoundError, ForbiddenError } from '../../middleware/error.js';
-
-// ============================================
-// Pagination
-// ============================================
-function parsePagination(query: any) {
-  const page = Math.max(1, parseInt(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 30));
-  const skip = (page - 1) * limit;
-  return { page, limit, skip };
-}
+import { parsePagination } from '../../utils/pagination.js';
 
 // ============================================
 // Routes
@@ -57,16 +48,26 @@ export async function chatRoutes(app: FastifyInstance) {
       },
     });
 
-    // Add unread count
-    const roomsWithUnread = await Promise.all(rooms.map(async (room) => {
-      const unreadCount = await prisma.chatMessage.count({
-        where: {
-          roomId: room.id,
-          isRead: false,
-          senderRole: userRole === 'vendor' ? 'user' : 'vendor',
-        },
-      });
-      return { ...room, unreadCount };
+    // Add unread count — bitta so'rov bilan (N+1 muammoni bartaraf qilish)
+    const senderRoleFilter = userRole === 'vendor' ? 'user' : 'vendor';
+    const roomIds = rooms.map(r => r.id);
+
+    const unreadCounts = roomIds.length > 0
+      ? await prisma.chatMessage.groupBy({
+          by: ['roomId'],
+          where: {
+            roomId: { in: roomIds },
+            isRead: false,
+            senderRole: senderRoleFilter,
+          },
+          _count: { id: true },
+        })
+      : [];
+
+    const unreadMap = new Map(unreadCounts.map(u => [u.roomId, u._count.id]));
+    const roomsWithUnread = rooms.map(room => ({
+      ...room,
+      unreadCount: unreadMap.get(room.id) || 0,
     }));
 
     return { success: true, data: roomsWithUnread };

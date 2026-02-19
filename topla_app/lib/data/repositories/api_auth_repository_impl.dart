@@ -57,7 +57,13 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
   Future<void> signUp(String email, String password) async {
     final response = await _api.post(
       '/auth/vendor/register',
-      body: {'email': email, 'password': password, 'shopName': 'My Shop'},
+      body: {
+        'email': email,
+        'password': password,
+        'fullName': email.split('@').first,
+        'phone': '+998000000000',
+        'shopName': 'My Shop',
+      },
       auth: false,
     );
 
@@ -95,8 +101,9 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<void> signInWithGoogle() async {
-    // 1. Google Sign-In
+    // 1. Google Sign-In — avval signOut qilib, account picker chiqishini ta'minlaymiz
     final googleSignIn = GoogleSignIn();
+    await googleSignIn.signOut();
     final googleUser = await googleSignIn.signIn();
 
     if (googleUser == null) {

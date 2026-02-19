@@ -7,12 +7,12 @@ import { NotFoundError } from '../../middleware/error.js';
 const addressSchema = z.object({
   name: z.string().min(1).max(50),
   fullAddress: z.string().min(5),
-  street: z.string().optional(),
-  building: z.string().optional(),
-  apartment: z.string().optional(),
-  entrance: z.string().optional(),
-  floor: z.string().optional(),
-  comment: z.string().optional(),
+  street: z.string().nullable().optional(),
+  building: z.string().nullable().optional(),
+  apartment: z.string().nullable().optional(),
+  entrance: z.string().nullable().optional(),
+  floor: z.string().nullable().optional(),
+  comment: z.string().nullable().optional(),
   latitude: z.number(),
   longitude: z.number(),
   isDefault: z.boolean().default(false),
@@ -26,6 +26,15 @@ export async function addressRoutes(app: FastifyInstance): Promise<void> {
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     });
     return reply.send({ success: true, data: addresses });
+  });
+
+  app.get('/addresses/:id', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const address = await prisma.address.findFirst({
+      where: { id, userId: request.user!.userId },
+    });
+    if (!address) throw new NotFoundError('Manzil');
+    return reply.send({ success: true, data: address });
   });
 
   app.post('/addresses', { preHandler: authMiddleware }, async (request, reply) => {
@@ -75,9 +84,15 @@ export async function addressRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete('/addresses/:id', { preHandler: authMiddleware }, async (request, reply) => {
-    await prisma.address.deleteMany({
-      where: { id: (request.params as { id: string }).id, userId: request.user!.userId },
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+
+    const existing = await prisma.address.findFirst({
+      where: { id, userId },
     });
+    if (!existing) throw new NotFoundError('Manzil');
+
+    await prisma.address.delete({ where: { id } });
     return reply.send({ success: true });
   });
 }

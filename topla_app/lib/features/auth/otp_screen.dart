@@ -120,7 +120,13 @@ class _OtpScreenState extends State<OtpScreen> {
         }
 
         if (mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+          if (_isNewUser) {
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/complete-profile', (route) => false);
+          } else {
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/main', (route) => false);
+          }
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -144,6 +150,8 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
+  bool _isNewUser = false;
+
   Future<void> _authenticateWithBackend(
       String firebaseToken, String phone) async {
     try {
@@ -159,6 +167,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (data != null) {
         final accessToken = data['accessToken'] as String?;
         final refreshToken = data['refreshToken'] as String?;
+        _isNewUser = data['isNewUser'] == true;
         if (accessToken != null) {
           await api.setTokens(
               accessToken: accessToken, refreshToken: refreshToken ?? '');

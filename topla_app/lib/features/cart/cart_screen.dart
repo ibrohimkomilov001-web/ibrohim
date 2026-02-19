@@ -27,6 +27,7 @@ class _CartScreenState extends State<CartScreen> {
   final Set<String> _selectedItems = {};
   bool _allSelected = true;
   bool _isSelectionInitialized = false;
+  final Set<String> _knownItemIds = {}; // Bilgan item ID'lar
 
   @override
   void initState() {
@@ -69,17 +70,21 @@ class _CartScreenState extends State<CartScreen> {
             final cartIds = cart.items.map((e) => e.id).toSet();
             _selectedItems.removeWhere((id) => !cartIds.contains(id));
 
-            // Auto-select items: first load selects all, new items also auto-selected
+            // Auto-select items: faqat birinchi yuklashda hammasi va yangi qo'shilgan mahsulotlar
             if (!_isSelectionInitialized && cart.items.isNotEmpty) {
               _selectedItems.addAll(cartIds);
+              _knownItemIds.addAll(cartIds);
               _isSelectionInitialized = true;
             } else {
-              // Auto-select newly added items
+              // Faqat haqiqatan yangi qo'shilgan mahsulotlarni belgilash
               for (final id in cartIds) {
-                if (!_selectedItems.contains(id)) {
+                if (!_knownItemIds.contains(id)) {
                   _selectedItems.add(id);
+                  _knownItemIds.add(id);
                 }
               }
+              // O'chirilgan mahsulotlarni known ro'yxatdan ham olib tashlash
+              _knownItemIds.removeWhere((id) => !cartIds.contains(id));
             }
 
             _allSelected = _selectedItems.length == cart.items.length &&
@@ -159,8 +164,8 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 // Scrollable cart items only
                 Expanded(child: _buildCartContent(cart)),
-                // Fixed bottom section (pinned, not scrollable)
-                _buildBottomSection(cart),
+                // Fixed bottom section — faqat tanlangan mahsulot bo'lganda ko'rsatish
+                if (_selectedItems.isNotEmpty) _buildBottomSection(cart),
               ],
             );
           },
@@ -411,7 +416,7 @@ class _CartScreenState extends State<CartScreen> {
                             onPressed: () {
                               if (item.quantity > 1) {
                                 context.read<CartProvider>().updateQuantity(
-                                      item.id,
+                                      item.productId,
                                       item.quantity - 1,
                                     );
                               }
@@ -432,7 +437,7 @@ class _CartScreenState extends State<CartScreen> {
                             icon: Icons.add,
                             onPressed: () {
                               context.read<CartProvider>().updateQuantity(
-                                    item.id,
+                                    item.productId,
                                     item.quantity + 1,
                                   );
                             },
@@ -467,7 +472,7 @@ class _CartScreenState extends State<CartScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              context.read<CartProvider>().removeFromCart(item.id);
+              context.read<CartProvider>().removeFromCart(item.productId);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -662,6 +667,9 @@ class _CartScreenState extends State<CartScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

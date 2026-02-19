@@ -354,6 +354,43 @@ class AppLocalizations {
       'notification_feature_3': 'Maxsus takliflarni qo\'ldan boy bermang',
       'allow': 'Ruxsat berish',
       'later': 'Keyinroq',
+
+      // Yordam markazi
+      'help': 'Yordam',
+      'help_needed': 'Yordam kerakmi?',
+      'help_subtitle': 'Biz sizga 24/7 yordam berishga tayyormiz',
+      'call': 'Qo\'ng\'iroq',
+      'faq_title': 'Ko\'p so\'raladigan savollar',
+      'terms_of_use': 'Foydalanish shartlari',
+      'privacy_policy': 'Maxfiylik siyosati',
+      'about_app': 'Ilova haqida',
+      'call_error': 'Qo\'ng\'iroq qilishda xatolik',
+      'telegram_error': 'Telegramni ochishda xatolik',
+      'faq_q1': 'Qanday buyurtma beraman?',
+      'faq_a1':
+          'Mahsulotni tanlang, savatchaga qo\'shing va buyurtmani rasmiylashting. To\'lov usulini tanlang va manzilni kiriting.',
+      'faq_q2': 'Yetkazib berish qancha vaqt oladi?',
+      'faq_a2':
+          'Toshkent shahri bo\'ylab 2-4 soat ichida. Viloyatlarga 1-3 kun ichida yetkazib beramiz.',
+      'faq_q3': 'Mahsulotni qaytarish mumkinmi?',
+      'faq_a3':
+          'Ha, 14 kun ichida mahsulotni qaytarishingiz mumkin. Mahsulot ishlatilmagan va original qadoqda bo\'lishi kerak.',
+      'faq_q4': 'Cashback qanday ishlaydi?',
+      'faq_a4':
+          'Har bir xarid uchun cashback olasiz. Cashbackni keyingi xaridlaringizda ishlatishingiz mumkin.',
+      'faq_q5': 'To\'lov qanday amalga oshiriladi?',
+      'faq_a5':
+          'Naqd pul, UzCard, Humo, Click yoki Payme orqali to\'lashingiz mumkin.',
+      'faq_q6': 'Buyurtmani bekor qilsam bo\'ladimi?',
+      'faq_a6':
+          'Ha, buyurtma jo\'natilmaguncha uni bekor qilishingiz mumkin. Ilovadagi buyurtmalar bo\'limidan bekor qiling.',
+      'faq_q7': 'Yetkazib berish narxi qancha?',
+      'faq_a7':
+          'Yetkazib berish narxi buyurtma summasiga qarab 10,000 so\'mdan boshlanadi. 200,000 so\'mdan yuqori buyurtmalarga bepul yetkazib berish.',
+      'faq_q8': 'Promokodam ishlashni to\'xtatdi, nima qilaman?',
+      'faq_a8':
+          'Promokodning amal qilish muddati tugagan yoki ishlatish chegarasiga yetgan bo\'lishi mumkin. Yangi promokodlar uchun bildirishnomalarni kuzating.',
+      'free_and_secure': 'Bepul va xavfsiz',
     },
     'ru': {
       // Общие
@@ -690,6 +727,41 @@ class AppLocalizations {
       'notification_feature_3': 'Не пропустите специальные предложения',
       'allow': 'Разрешить',
       'later': 'Позже',
+
+      // Центр помощи
+      'help': 'Помощь',
+      'help_needed': 'Нужна помощь?',
+      'help_subtitle': 'Мы готовы помочь вам 24/7',
+      'call': 'Позвонить',
+      'faq_title': 'Часто задаваемые вопросы',
+      'terms_of_use': 'Условия использования',
+      'privacy_policy': 'Политика конфиденциальности',
+      'about_app': 'О приложении',
+      'call_error': 'Ошибка при звонке',
+      'telegram_error': 'Ошибка при открытии Telegram',
+      'faq_q1': 'Как сделать заказ?',
+      'faq_a1':
+          'Выберите товар, добавьте в корзину и оформите заказ. Выберите способ оплаты и укажите адрес доставки.',
+      'faq_q2': 'Сколько времени занимает доставка?',
+      'faq_a2': 'По Ташкенту 2-4 часа. В регионы 1-3 рабочих дня.',
+      'faq_q3': 'Можно ли вернуть товар?',
+      'faq_a3':
+          'Да, вы можете вернуть товар в течение 14 дней. Товар должен быть неиспользованным и в оригинальной упаковке.',
+      'faq_q4': 'Как работает кешбэк?',
+      'faq_a4':
+          'За каждую покупку вы получаете кешбэк. Его можно использовать при следующих покупках.',
+      'faq_q5': 'Как производится оплата?',
+      'faq_a5': 'Наличными, через UzCard, Humo, Click или Payme.',
+      'faq_q6': 'Можно ли отменить заказ?',
+      'faq_a6':
+          'Да, вы можете отменить заказ до его отправки в разделе «Мои заказы».',
+      'faq_q7': 'Сколько стоит доставка?',
+      'faq_a7':
+          'Стоимость доставки от 10 000 сумов в зависимости от суммы заказа. Бесплатная доставка при заказе от 200 000 сумов.',
+      'faq_q8': 'Промокод не работает, что делать?',
+      'faq_a8':
+          'Возможно, срок действия промокода истек или достигнут лимит использования. Следите за новыми промокодами в уведомлениях.',
+      'free_and_secure': 'Бесплатно и безопасно',
     },
   };
 

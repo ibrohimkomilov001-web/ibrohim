@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "user_devices" ADD COLUMN IF NOT EXISTS "device_name" TEXT;
+ALTER TABLE "user_devices" ADD COLUMN IF NOT EXISTS "browser" TEXT;
+ALTER TABLE "user_devices" ADD COLUMN IF NOT EXISTS "ip_address" TEXT;
+ALTER TABLE "user_devices" ADD COLUMN IF NOT EXISTS "last_active_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

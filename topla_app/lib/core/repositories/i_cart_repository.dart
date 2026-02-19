@@ -9,10 +9,10 @@ abstract class ICartRepository {
   Future<void> addToCart(String productId, {int quantity = 1});
 
   /// Savat miqdorini yangilash
-  Future<void> updateCartQuantity(String cartItemId, int quantity);
+  Future<void> updateCartQuantity(String productId, int quantity);
 
   /// Savatdan o'chirish
-  Future<void> removeFromCart(String cartItemId);
+  Future<void> removeFromCart(String productId);
 
   /// Savatni tozalash
   Future<void> clearCart();

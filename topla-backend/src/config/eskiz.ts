@@ -132,24 +132,3 @@ export async function sendSmsViaEskiz(
   }
 }
 
-/**
- * Eskiz balansni tekshirish
- */
-export async function getEskizBalance(): Promise<{ balance: number } | null> {
-  try {
-    const token = await getEskizToken();
-
-    const response = await fetch(`${ESKIZ_BASE_URL}/user/get-limit`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as { data: { balance: number } };
-    return { balance: data.data.balance };
-  } catch {
-    return null;
-  }
-}

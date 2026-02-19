@@ -36,11 +36,15 @@ class ColorOption {
   factory ColorOption.fromJson(Map<String, dynamic> json) {
     return ColorOption(
       id: json['id'] as String,
-      nameUz: json['name_uz'] as String,
-      nameRu: json['name_ru'] as String?,
-      hexCode: json['hex_code'] as String,
-      sortOrder: json['sort_order'] as int? ?? 0,
-      productCount: json['product_count'] as int? ?? 0,
+      nameUz:
+          (json['nameUz'] ?? json['name_uz'] ?? json['name'] ?? '') as String,
+      nameRu: (json['nameRu'] ?? json['name_ru']) as String?,
+      hexCode: (json['hexCode'] ?? json['hex_code'] ?? '#000000') as String,
+      sortOrder: (json['sortOrder'] ?? json['sort_order']) as int? ?? 0,
+      productCount: (json['productCount'] ??
+              json['product_count'] ??
+              json['_count']?['products']) as int? ??
+          0,
     );
   }
 

@@ -1,0 +1,104 @@
+{
+  "nav": {
+    "home": "Главная",
+    "categories": "Категории",
+    "search": "Поиск",
+    "cart": "Корзина",
+    "profile": "Профиль"
+  },
+  "home": {
+    "searchPlaceholder": "Поиск товаров...",
+    "categories": "Категории",
+    "viewAll": "Все",
+    "featured": "Рекомендуемые",
+    "newProducts": "Новые товары",
+    "popular": "Популярные товары",
+    "sold": "продано"
+  },
+  "product": {
+    "addToCart": "В корзину",
+    "outOfStock": "Нет в наличии",
+    "inStock": "{count} шт",
+    "description": "Описание",
+    "specs": "Характеристики",
+    "category": "Категория",
+    "brand": "Бренд",
+    "weight": "Вес",
+    "availability": "Наличие",
+    "delivery": "Доставка",
+    "guarantee": "Гарантия",
+    "returns": "Возврат",
+    "views": "просмотров",
+    "chatSeller": "Написать продавцу"
+  },
+  "cart": {
+    "title": "Корзина",
+    "empty": "Корзина пуста",
+    "emptyDesc": "Найдите товары и добавьте в корзину",
+    "startShopping": "Начать покупки",
+    "clear": "Очистить",
+    "summary": "Итого заказа",
+    "products": "Товары",
+    "delivery": "Доставка",
+    "free": "Бесплатно",
+    "freeDeliveryHint": "Добавьте ещё {amount} для бесплатной доставки!",
+    "total": "Итого",
+    "checkout": "Оформить заказ"
+  },
+  "search": {
+    "placeholder": "Поиск товаров...",
+    "recent": "Недавние поиски",
+    "trending": "Популярные запросы",
+    "clear": "Очистить",
+    "noResults": "результатов не найдено",
+    "tryOther": "Попробуйте другие ключевые слова",
+    "results": "результатов"
+  },
+  "categories": {
+    "title": "Категории",
+    "products": "товаров",
+    "all": "Все",
+    "noProducts": "Товары не найдены",
+    "loadMore": "Показать ещё"
+  },
+  "profile": {
+    "title": "Профиль",
+    "subtitle": "Управление аккаунтом",
+    "login": "Войдите в аккаунт",
+    "loginDesc": "Для отслеживания заказов и сохранения избранного",
+    "loginViaApp": "Вход через мобильное приложение TOPLA",
+    "orders": "Мои заказы",
+    "favorites": "Избранное",
+    "addresses": "Мои адреса",
+    "payments": "Способы оплаты",
+    "settings": "Настройки",
+    "help": "Помощь",
+    "vendorLogin": "Войти как продавец",
+    "logout": "Выйти"
+  },
+  "shop": {
+    "open": "Открыт",
+    "closed": "Закрыт",
+    "products": "Товары",
+    "noProducts": "Пока нет товаров",
+    "minOrder": "Мин. заказ",
+    "deliveryFee": "Доставка"
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Произошла ошибка",
+    "back": "Назад",
+    "save": "Сохранить",
+    "cancel": "Отменить",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "notFound": "Не найдено"
+  },
+  "sort": {
+    "newest": "Новые",
+    "popular": "Популярные",
+    "priceAsc": "Дешевле→Дороже",
+    "priceDesc": "Дороже→Дешевле",
+    "rating": "Рейтинг"
+  }
+}

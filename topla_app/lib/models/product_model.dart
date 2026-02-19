@@ -51,39 +51,72 @@ class ProductModel {
     this.rejectionReason,
   });
 
+  /// Xavfsiz num parse — backend string yoki num qaytarishi mumkin
+  static double _parseDouble(dynamic value, [double fallback = 0]) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  static int _parseInt(dynamic value, [int fallback = 0]) {
+    if (value == null) return fallback;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
       id: json['id'] as String,
-      nameUz: (json['name_uz'] ?? json['name'] ?? '') as String,
-      nameRu: (json['name_ru'] ?? json['name'] ?? '') as String,
-      descriptionUz: (json['description_uz'] ?? json['description']) as String?,
-      descriptionRu: (json['description_ru'] ?? json['description']) as String?,
-      price: (json['price'] as num).toDouble(),
-      oldPrice: (json['old_price'] ?? json['originalPrice']) != null
-          ? ((json['old_price'] ?? json['originalPrice']) as num).toDouble()
+      nameUz:
+          (json['nameUz'] ?? json['name_uz'] ?? json['name'] ?? '') as String,
+      nameRu:
+          (json['nameRu'] ?? json['name_ru'] ?? json['name'] ?? '') as String,
+      descriptionUz: (json['descriptionUz'] ??
+          json['description_uz'] ??
+          json['description']) as String?,
+      descriptionRu: (json['descriptionRu'] ??
+          json['description_ru'] ??
+          json['description']) as String?,
+      price: _parseDouble(json['price']),
+      oldPrice: (json['oldPrice'] ??
+                  json['old_price'] ??
+                  json['originalPrice']) !=
+              null
+          ? _parseDouble(
+              json['oldPrice'] ?? json['old_price'] ?? json['originalPrice'])
           : null,
-      categoryId: (json['category_id'] ?? json['categoryId']) as String?,
+      categoryId: (json['categoryId'] ?? json['category_id']) as String?,
       subcategoryId:
-          (json['subcategory_id'] ?? json['subcategoryId']) as String?,
-      shopId: (json['shop_id'] ?? json['shopId']) as String?,
+          (json['subcategoryId'] ?? json['subcategory_id']) as String?,
+      shopId: (json['shopId'] ?? json['shop_id']) as String?,
       images: json['images'] != null ? List<String>.from(json['images']) : [],
-      stock: json['stock'] as int? ?? 0,
-      soldCount: (json['sold_count'] ?? json['salesCount']) as int? ?? 0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 0,
-      reviewCount: (json['review_count'] ?? json['reviewCount']) as int? ?? 0,
-      isActive: (json['is_active'] ?? json['isActive']) as bool? ?? true,
-      isFeatured: (json['is_featured'] ?? json['isFeatured']) as bool? ?? false,
-      isFlashSale: json['is_flash_sale'] as bool? ?? false,
-      flashSaleEnd: json['flash_sale_end'] != null
-          ? DateTime.parse(json['flash_sale_end'])
+      stock: _parseInt(json['stock']),
+      soldCount: _parseInt(
+          json['salesCount'] ?? json['sold_count'] ?? json['soldCount']),
+      rating: _parseDouble(json['rating']),
+      reviewCount: _parseInt(json['reviewCount'] ?? json['review_count']),
+      isActive: (json['isActive'] ?? json['is_active']) as bool? ?? true,
+      isFeatured: (json['isFeatured'] ?? json['is_featured']) as bool? ?? false,
+      isFlashSale:
+          (json['isFlashSale'] ?? json['is_flash_sale']) as bool? ?? false,
+      flashSaleEnd: (json['flashSaleEnd'] ?? json['flash_sale_end']) != null
+          ? DateTime.tryParse(
+              (json['flashSaleEnd'] ?? json['flash_sale_end']).toString())
           : null,
-      cashbackPercent:
-          (json['cashback_percent'] ?? json['discountPercent']) as int? ?? 0,
-      createdAt: (json['created_at'] ?? json['createdAt']) != null
-          ? DateTime.parse((json['created_at'] ?? json['createdAt']))
+      cashbackPercent: _parseInt(json['discountPercent'] ??
+          json['cashback_percent'] ??
+          json['cashbackPercent']),
+      createdAt: (json['createdAt'] ?? json['created_at']) != null
+          ? DateTime.tryParse(
+              (json['createdAt'] ?? json['created_at']).toString())
           : null,
-      moderationStatus: json['moderation_status'] as String?,
-      rejectionReason: json['rejection_reason'] as String?,
+      moderationStatus:
+          (json['moderationStatus'] ?? json['moderation_status']) as String?,
+      rejectionReason:
+          (json['rejectionReason'] ?? json['rejection_reason']) as String?,
     );
   }
 

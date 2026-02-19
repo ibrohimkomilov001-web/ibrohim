@@ -24,14 +24,15 @@ abstract class CardsRepository {
 class CardsRepositoryImpl implements CardsRepository {
   final ApiClient _api;
 
-  CardsRepositoryImpl({ApiClient? api})
-      : _api = api ?? ApiClient();
+  CardsRepositoryImpl({ApiClient? api}) : _api = api ?? ApiClient();
 
   @override
   Future<List<SavedCardModel>> getCards(String userId) async {
     try {
       final response = await _api.get('/payments/cards');
-      return (response.dataList).map((e) => SavedCardModel.fromJson(e)).toList();
+      return (response.dataList)
+          .map((e) => SavedCardModel.fromJson(e))
+          .toList();
     } catch (e) {
       debugPrint('Get cards error: $e');
       return [];
@@ -42,9 +43,9 @@ class CardsRepositoryImpl implements CardsRepository {
   Future<SavedCardModel?> addCard(SavedCardModel card) async {
     try {
       final response = await _api.post('/payments/cards', body: {
-        'bindingId': card.bindingId,
-        'maskedPan': card.maskedPan,
-        'cardType': card.cardType.value,
+        'cardNumber': card.maskedPan,
+        'token': card.bindingId,
+        'provider': card.cardType.value == 'click' ? 'click' : 'payme',
         'expiryDate': card.expiryDate,
         'isDefault': card.isDefault,
       });

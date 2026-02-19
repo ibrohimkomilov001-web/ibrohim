@@ -8,6 +8,7 @@ import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import '../main/main_screen.dart';
 import 'order_detail_screen.dart';
 
@@ -131,7 +132,7 @@ class _OrdersScreenState extends State<OrdersScreen>
       );
     }
 
-    return RefreshIndicator(
+    return ToplaRefreshIndicator(
       onRefresh: () => context.read<OrdersProvider>().loadOrders(),
       child: ListView.builder(
         padding: const EdgeInsets.all(AppSizes.lg),

@@ -56,16 +56,11 @@ class CartProvider extends ChangeNotifier {
   void _startRealtimeSubscription() {
     _cartSubscription?.cancel();
     _cartSubscription = _cartRepo.watchCart().listen(
-      (_) async {
-        // Realtime stream doesn't include product joins,
-        // so we reload cart properly with product data
-        try {
-          _items = await _cartRepo.getCart();
-          debugPrint('🛒 Cart realtime: ${_items.length} items loaded');
-          notifyListeners();
-        } catch (e) {
-          debugPrint('🛒 Cart realtime reload error: $e');
-        }
+      (cartItems) {
+        // watchCart() already calls getCart() with product joins
+        _items = cartItems;
+        debugPrint('🛒 Cart realtime: ${_items.length} items loaded');
+        notifyListeners();
       },
       onError: (e) {
         debugPrint('🛒 Cart stream error: $e');
@@ -114,15 +109,15 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateQuantity(String cartItemId, int quantity) async {
+  Future<void> updateQuantity(String productId, int quantity) async {
     // Optimistic update: immediately update locally
-    final index = _items.indexWhere((item) => item.id == cartItemId);
+    final index = _items.indexWhere((item) => item.productId == productId);
     if (index != -1) {
       _items[index] = _items[index].copyWith(quantity: quantity);
       notifyListeners();
     }
     try {
-      await _cartRepo.updateCartQuantity(cartItemId, quantity);
+      await _cartRepo.updateCartQuantity(productId, quantity);
       // Realtime subscription will sync
     } catch (e) {
       // Revert on error
@@ -138,13 +133,13 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> removeFromCart(String cartItemId) async {
+  Future<void> removeFromCart(String productId) async {
     // Optimistic: remove locally first
     final removedItems = List<CartItemModel>.from(_items);
-    _items.removeWhere((item) => item.id == cartItemId);
+    _items.removeWhere((item) => item.productId == productId);
     notifyListeners();
     try {
-      await _cartRepo.removeFromCart(cartItemId);
+      await _cartRepo.removeFromCart(productId);
       // Realtime subscription will sync
     } catch (e) {
       // Revert on error

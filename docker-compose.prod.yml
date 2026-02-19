@@ -18,16 +18,19 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - DATABASE_URL=postgresql://${POSTGRES_USER:-topla_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-topla_db}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
       - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
       - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
       - S3_ENDPOINT=${S3_ENDPOINT:-https://storage.yandexcloud.net}
-      - S3_BUCKET=${S3_BUCKET:-topla-media}
+      - S3_REGION=${S3_REGION:-ru-central1}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_PRODUCTS=${S3_BUCKET_PRODUCTS:-topla-products}
+      - S3_BUCKET_SHOPS=${S3_BUCKET_SHOPS:-topla-shops}
+      - S3_BUCKET_AVATARS=${S3_BUCKET_AVATARS:-topla-avatars}
       - FCM_SERVER_KEY=${FCM_SERVER_KEY}
       - ESKIZ_EMAIL=${ESKIZ_EMAIL}
       - ESKIZ_PASSWORD=${ESKIZ_PASSWORD}
@@ -36,12 +39,12 @@ services:
       - CLICK_WEBHOOK_SECRET=${CLICK_WEBHOOK_SECRET}
       - CORS_ORIGINS=https://topla.uz,https://admin.topla.uz,https://vendor.topla.uz
       - MEILISEARCH_URL=http://meilisearch:7700
-      - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY:-topla_meili_master_key}
+      - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       meilisearch:
         condition: service_started
     networks:
@@ -51,6 +54,11 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   # ============================================
   # TOPLA Web Frontend (Next.js)
@@ -65,11 +73,16 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.topla.uz/api/v1
       - NEXT_PUBLIC_WS_URL=wss://api.topla.uz
-      - NEXT_PUBLIC_STORAGE_URL=https://storage.yandexcloud.net/topla-media
+      - NEXT_PUBLIC_STORAGE_URL=https://storage.yandexcloud.net/topla-products
     depends_on:
       - api
     networks:
       - topla-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================
   # PostgreSQL 16
@@ -92,9 +105,14 @@ services:
       retries: 5
     networks:
       - topla-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================
-  # Redis 7
+  # Redis 7 (cache + rate limiting)
   # ============================================
   redis:
     image: redis:7-alpine
@@ -102,19 +120,24 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - topla-network
 
   # ============================================
-  # Meilisearch v1.7
+  # Meilisearch v1.7 (full-text search)
   # ============================================
   meilisearch:
     image: getmeili/meilisearch:v1.7
     container_name: topla-meilisearch
     restart: unless-stopped
     environment:
-      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-topla_meili_master_key}
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:?MEILISEARCH_API_KEY is required}
       MEILI_ENV: production
       MEILI_NO_ANALYTICS: true
     volumes:
@@ -123,7 +146,7 @@ services:
       - topla-network
 
   # ============================================
-  # Nginx (reverse proxy + SSL + routing)
+  # Nginx (reverse proxy + SSL + Let's Encrypt)
   # ============================================
   nginx:
     image: nginx:alpine
@@ -134,11 +157,53 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./nginx/certbot:/var/www/certbot:ro
+      - certbot_certs:/etc/nginx/ssl:ro
+      - certbot_www:/var/www/certbot:ro
     depends_on:
       - api
       - web
+    networks:
+      - topla-network
+
+  # ============================================
+  # Certbot (auto SSL renewal)
+  # ============================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: topla-certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
+    networks:
+      - topla-network
+
+  # ============================================
+  # PostgreSQL Backup (daily)
+  # ============================================
+  backup:
+    image: postgres:16-alpine
+    container_name: topla-backup
+    restart: unless-stopped
+    volumes:
+      - ./backups:/backups
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-topla_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-topla_db}
+    entrypoint: >
+      /bin/sh -c 'while true; do
+        FILENAME="/backups/topla_$$(date +%Y%m%d_%H%M%S).sql.gz";
+        pg_dump | gzip > $$FILENAME;
+        echo "[BACKUP] $$FILENAME created";
+        find /backups -name "*.sql.gz" -mtime +7 -delete;
+        echo "[BACKUP] Old backups cleaned";
+        sleep 86400;
+      done'
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - topla-network
 
@@ -146,6 +211,8 @@ volumes:
   postgres_data:
   redis_data:
   meilisearch_data:
+  certbot_certs:
+  certbot_www:
 
 networks:
   topla-network:

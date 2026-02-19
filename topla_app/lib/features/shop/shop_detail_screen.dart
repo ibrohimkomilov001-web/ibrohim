@@ -7,7 +7,6 @@ import '../../core/constants/constants.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shop_provider.dart';
-import '../../providers/products_provider.dart';
 import '../../models/shop_model.dart';
 import '../../widgets/premium_product_card.dart';
 import '../product/product_detail_screen.dart';
@@ -51,6 +50,11 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
   Future<void> _loadShopData() async {
     final shopProvider = context.read<ShopProvider>();
     await shopProvider.loadShop(widget.shopId);
+
+    // Mahsulotlarni API dan yuklash
+    if (mounted) {
+      shopProvider.loadShopProducts(widget.shopId);
+    }
 
     // Check follow status
     if (!mounted) return;
@@ -547,14 +551,22 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
   }
 
   Widget _buildProductsTab(ShopModel shop) {
-    return Consumer<ProductsProvider>(
-      builder: (context, productsProvider, _) {
-        // Filter products by shop
-        final shopProducts = productsProvider.allProducts
-            .where((p) => p.shopId == shop.id)
-            .toList();
+    return Consumer<ShopProvider>(
+      builder: (context, shopProvider, _) {
+        final shopProducts = shopProvider.shopProducts;
+
+        if (shopProvider.isLoading && shopProducts.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
         if (shopProducts.isEmpty) {
+          // Fallback: try loading from API
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (shopProvider.shopProducts.isEmpty && !shopProvider.isLoading) {
+              shopProvider.loadShopProducts(shop.id);
+            }
+          });
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

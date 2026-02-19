@@ -8,6 +8,11 @@ import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { notifyOrderStatusChange } from '../notifications/notification.service.js';
 import { findAndAssignCourier } from '../courier/courier.service.js';
+import {
+  emitOrderStatusUpdate,
+  emitNewOrderToVendor,
+  emitToAdminDashboard,
+} from '../../websocket/socket.js';
 
 // ============================================
 // Validation Schemas
@@ -41,6 +46,11 @@ const createOrderSchema = z.object({
   deliveryTimeSlot: z.string().optional(),
   promoCode: z.string().optional(),
   note: z.string().optional(),
+  // Tanlangan mahsulotlar — agar berilmasa, barcha savat items olinadi
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    quantity: z.number().int().positive().optional(),
+  })).optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -64,7 +74,7 @@ const updateStatusSchema = z.object({
 function generateOrderNumber(): string {
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-  const random = randomInt(0, 10000).toString().padStart(4, '0');
+  const random = randomInt(0, 1000000).toString().padStart(6, '0');
   return `TOPLA-${dateStr}-${random}`;
 }
 
@@ -98,6 +108,70 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
   // ============================================
 
   /**
+   * POST /promo-codes/verify
+   * Promo kodni tekshirish (buyurtma berishdan oldin)
+   */
+  app.post('/promo-codes/verify', { preHandler: authMiddleware }, async (request, reply) => {
+    const verifySchema = z.object({
+      code: z.string().min(1).max(50),
+      subtotal: z.number().min(0).optional(),
+    });
+    const body = verifySchema.parse(request.body);
+    const userId = request.user!.userId;
+
+    const promo = await prisma.promoCode.findFirst({
+      where: {
+        code: body.code.toUpperCase(),
+        isActive: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    });
+
+    if (!promo) {
+      throw new AppError('Promo kod topilmadi yoki muddati tugagan', 404);
+    }
+
+    // Limit tekshiruvi
+    if (promo.maxUses && promo.currentUses >= promo.maxUses) {
+      throw new AppError('Promo kod limiti tugagan', 400);
+    }
+
+    // Foydalanuvchi allaqachon ishlatganmi
+    const alreadyUsed = await prisma.promoCodeUsage.findFirst({
+      where: { promoId: promo.id, userId },
+    });
+    if (alreadyUsed) {
+      throw new AppError('Siz bu promo kodni oldin ishlatgansiz', 400);
+    }
+
+    // Minimum summa tekshiruvi
+    if (promo.minOrderAmount && body.subtotal && body.subtotal < Number(promo.minOrderAmount)) {
+      throw new AppError(`Minimal buyurtma summasi: ${promo.minOrderAmount} so'm`, 400);
+    }
+
+    // Chegirma hisobi
+    let discount = 0;
+    if (body.subtotal) {
+      discount =
+        promo.discountType === 'percentage'
+          ? (body.subtotal * Number(promo.discountValue)) / 100
+          : Number(promo.discountValue);
+    }
+
+    return reply.send({
+      success: true,
+      data: {
+        code: promo.code,
+        discountType: promo.discountType,
+        discountValue: Number(promo.discountValue),
+        discount: Math.round(discount),
+        expiresAt: promo.expiresAt,
+        remainingUses: promo.maxUses ? promo.maxUses - promo.currentUses : null,
+      },
+    });
+  });
+
+  /**
    * POST /orders
    * Yangi buyurtma yaratish
    */
@@ -105,15 +179,41 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     const body = createOrderSchema.parse(request.body);
     const userId = request.user!.userId;
 
-    // 1. Savatdagi mahsulotlarni olish
-    const cartItems = await prisma.cartItem.findMany({
-      where: { userId },
-      include: {
-        product: {
-          include: { shop: true },
+    // 1. Savatdagi mahsulotlarni olish (tanlangan yoki barchasi)
+    let cartItems;
+    if (body.items && body.items.length > 0) {
+      // Faqat tanlangan mahsulotlar
+      const selectedProductIds = body.items.map(i => i.productId);
+      cartItems = await prisma.cartItem.findMany({
+        where: {
+          userId,
+          productId: { in: selectedProductIds },
         },
-      },
-    });
+        include: {
+          product: {
+            include: { shop: true },
+          },
+        },
+      });
+
+      // Agar request'da quantity berilgan bo'lsa, uni qo'llash
+      for (const item of cartItems) {
+        const requestItem = body.items!.find(i => i.productId === item.productId);
+        if (requestItem?.quantity) {
+          item.quantity = requestItem.quantity;
+        }
+      }
+    } else {
+      // Barcha savat items (backward compatible)
+      cartItems = await prisma.cartItem.findMany({
+        where: { userId },
+        include: {
+          product: {
+            include: { shop: true },
+          },
+        },
+      });
+    }
 
     if (cartItems.length === 0) {
       throw new AppError('Savat bo\'sh');
@@ -144,6 +244,30 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // 3.5 Shop minOrderAmount tekshirish  
+    const shopTotals = new Map<string, { total: number; shopName: string; minOrder: number }>();
+    for (const item of cartItems) {
+      const shopId = item.product.shopId;
+      const existing = shopTotals.get(shopId);
+      const itemTotal = Number(item.product.price) * item.quantity;
+      if (existing) {
+        existing.total += itemTotal;
+      } else {
+        shopTotals.set(shopId, {
+          total: itemTotal,
+          shopName: item.product.shop.name,
+          minOrder: Number(item.product.shop.minOrderAmount || 0),
+        });
+      }
+    }
+    for (const [, info] of shopTotals) {
+      if (info.minOrder > 0 && info.total < info.minOrder) {
+        throw new AppError(
+          `"${info.shopName}" do'konida minimal buyurtma summasi ${info.minOrder} so'm. Hozirgi: ${info.total} so'm`,
+        );
+      }
+    }
+
     // 4. Narxlarni hisoblash
     const subtotal = cartItems.reduce(
       (sum, item) => sum + Number(item.product.price) * item.quantity,
@@ -151,7 +275,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     );
 
     let discount = 0;
-    // Promo code tekshirish
+    let promoId: string | null = null;
+    // Promo code — asosiy tekshiruv (tez xato qaytarish uchun)
     if (body.promoCode) {
       const promo = await prisma.promoCode.findFirst({
         where: {
@@ -166,7 +291,6 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           throw new AppError('Promo kod limiti tugagan');
         }
 
-        // Oldin ishlatilganmi?
         const alreadyUsed = await prisma.promoCodeUsage.findFirst({
           where: { promoId: promo.id, userId },
         });
@@ -178,6 +302,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           promo.discountType === 'percentage'
             ? (subtotal * Number(promo.discountValue)) / 100
             : Number(promo.discountValue);
+        promoId = promo.id;
       }
     }
 
@@ -186,8 +311,24 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       : 0;
     const total = Math.max(0, subtotal - discount + deliveryFee);
 
-    // 5. Transaction ichida buyurtma yaratish
+    // 5. Transaction ichida buyurtma yaratish (stock check + decrement atomik)
     const order = await prisma.$transaction(async (tx) => {
+      // Stock tekshirish - TRANSACTION ICHIDA (race condition oldini oladi)
+      for (const item of cartItems) {
+        const currentProduct = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stock: true, name: true, isActive: true },
+        });
+        if (!currentProduct || currentProduct.stock < item.quantity) {
+          throw new AppError(
+            `"${currentProduct?.name || item.product.name}" mahsulotidan faqat ${currentProduct?.stock || 0} dona bor`,
+          );
+        }
+        if (!currentProduct.isActive) {
+          throw new AppError(`"${currentProduct.name}" mahsuloti sotuvda mavjud emas`);
+        }
+      }
+
       // Buyurtma yaratish
       const newOrder = await tx.order.create({
         data: {
@@ -232,8 +373,14 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // Savatni tozalash
-      await tx.cartItem.deleteMany({ where: { userId } });
+      // Savatdan faqat buyurtma qilingan mahsulotlarni o'chirish
+      const orderedProductIds = cartItems.map(item => item.productId);
+      await tx.cartItem.deleteMany({
+        where: {
+          userId,
+          productId: { in: orderedProductIds },
+        },
+      });
 
       // Status history
       await tx.orderStatusHistory.create({
@@ -244,20 +391,22 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Promo usage
-      if (body.promoCode) {
-        const promo = await tx.promoCode.findFirst({
-          where: { code: body.promoCode.toUpperCase() },
-        });
-        if (promo) {
-          await tx.promoCodeUsage.create({
-            data: { promoId: promo.id, userId },
-          });
-          await tx.promoCode.update({
-            where: { id: promo.id },
-            data: { currentUses: { increment: 1 } },
-          });
+      // Promo usage — atomik tekshiruv va yangilash (race condition oldini oladi)
+      if (promoId) {
+        // Atomik: faqat limit tugamagan bo'lsa increment qilish
+        const updated = await tx.$executeRaw`
+          UPDATE promo_codes 
+          SET current_uses = current_uses + 1
+          WHERE id = ${promoId}::uuid
+          AND (max_uses IS NULL OR current_uses < max_uses)
+          AND is_active = true
+        `;
+        if (updated === 0) {
+          throw new AppError('Promo kod limiti tugagan (boshqa foydalanuvchi ishlatib bo\'ldi)');
         }
+        await tx.promoCodeUsage.create({
+          data: { promoId, userId },
+        });
       }
 
       return newOrder;
@@ -277,6 +426,15 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
+    // 7.5 Real-time: Vendorlarga yangi buyurtma + Admin dashboard
+    if (fullOrder) {
+      const shopIds = [...new Set(fullOrder.items.map((i) => i.shopId))];
+      for (const shopId of shopIds) {
+        emitNewOrderToVendor(shopId, fullOrder);
+      }
+      emitToAdminDashboard('order:new', { order: fullOrder });
+    }
+
     return reply.status(201).send({
       success: true,
       data: fullOrder,
@@ -287,17 +445,20 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
    * GET /orders
    * Mijozning buyurtmalari ro'yxati
    */
+  const orderListQuerySchema = z.object({
+    status: z.string().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  });
+  const idParamSchema = z.object({ id: z.string().uuid() });
+  const cancelSchema = z.object({ reason: z.string().max(500).optional() });
+
   app.get('/orders', { preHandler: authMiddleware }, async (request, reply) => {
-    const { status, page = '1', limit = '20' } = request.query as {
-      status?: string;
-      page?: string;
-      limit?: string;
-    };
+    const { status, page, limit: lim } = orderListQuerySchema.parse(request.query);
+    const skip = (page - 1) * lim;
 
     const where: any = { userId: request.user!.userId };
     if (status) where.status = status;
-
-    const { page: pg, limit: lim, skip } = parsePagination({ page, limit });
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
@@ -328,7 +489,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       success: true,
       data: {
         orders,
-        pagination: paginationMeta(pg, lim, total),
+        pagination: paginationMeta(page, lim, total),
       },
     });
   });
@@ -338,7 +499,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
    * Buyurtma tafsilotlari (mijoz)
    */
   app.get('/orders/:id', { preHandler: authMiddleware }, async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = idParamSchema.parse(request.params);
 
     const order = await prisma.order.findFirst({
       where: { id, userId: request.user!.userId },
@@ -371,8 +532,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
    * Buyurtmani bekor qilish (mijoz)
    */
   app.post('/orders/:id/cancel', { preHandler: authMiddleware }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const { reason } = (request.body as { reason?: string }) || {};
+    const { id } = idParamSchema.parse(request.params);
+    const { reason } = cancelSchema.parse(request.body || {});
 
     const order = await prisma.order.findFirst({
       where: { id, userId: request.user!.userId },
@@ -417,6 +578,10 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     });
 
     await notifyOrderStatusChange(id, 'order_cancelled', { cancelReason: reason });
+
+    // Real-time: Buyurtma kuzatuvchilariga
+    emitOrderStatusUpdate(id, 'cancelled', { cancelReason: reason });
+    emitToAdminDashboard('order:cancelled', { orderId: id });
 
     return reply.send({ success: true, message: 'Buyurtma bekor qilindi' });
   });
@@ -481,6 +646,48 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         success: true,
         data: { orders, total },
       });
+    },
+  );
+
+  /**
+   * GET /vendor/orders/:id
+   * Vendor buyurtmani ID bo'yicha ko'rish
+   */
+  app.get(
+    '/vendor/orders/:id',
+    { preHandler: [authMiddleware, requireRole('vendor', 'admin')] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const shop = await prisma.shop.findUnique({
+        where: { ownerId: request.user!.userId },
+      });
+      if (!shop) throw new AppError('Do\'kon topilmadi');
+
+      const order = await prisma.order.findFirst({
+        where: {
+          id,
+          items: { some: { shopId: shop.id } },
+        },
+        include: {
+          items: {
+            where: { shopId: shop.id },
+            include: { product: { select: { id: true, name: true, nameUz: true, images: true } } },
+          },
+          user: { select: { id: true, fullName: true, phone: true, email: true } },
+          address: true,
+          courier: {
+            include: {
+              profile: { select: { id: true, fullName: true, phone: true } },
+            },
+          },
+          statusHistory: { orderBy: { createdAt: 'desc' } },
+        },
+      });
+
+      if (!order) throw new AppError('Buyurtma topilmadi', 404);
+
+      return reply.send({ success: true, data: order });
     },
   );
 
@@ -564,12 +771,29 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
               data: { stock: { increment: item.quantity } },
             });
           }
+
+          // BL2: Agar kuryer tayinlangan bo'lsa — kuryerni bo'shatish
+          if (order.courierId) {
+            await tx.courier.update({
+              where: { id: order.courierId },
+              data: { status: 'online' },
+            });
+          }
         }
       });
 
       // Bildirishnomalar
       await notifyOrderStatusChange(id, body.status, {
         cancelReason: body.cancelReason,
+      });
+
+      // Real-time: Buyurtma kuzatuvchilariga
+      emitOrderStatusUpdate(id, body.status, {
+        cancelReason: body.cancelReason,
+      });
+      emitToAdminDashboard('order:status-changed', {
+        orderId: id,
+        status: body.status,
       });
 
       // MUHIM: Agar "ready_for_pickup" bo'lsa → kuryer izlash boshlash!
@@ -595,13 +819,14 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
    * POST /orders/:id/rate
    * Yetkazib berishni baholash
    */
-  app.post('/orders/:id/rate', { preHandler: authMiddleware }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const { rating, comment } = request.body as { rating: number; comment?: string };
+  const rateSchema = z.object({
+    rating: z.number().int().min(1, 'Baho kamida 1').max(5, 'Baho 5 dan oshmasligi kerak'),
+    comment: z.string().max(500).optional(),
+  });
 
-    if (!rating || rating < 1 || rating > 5) {
-      throw new AppError('Baho 1 dan 5 gacha bo\'lishi kerak');
-    }
+  app.post('/orders/:id/rate', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const { rating, comment } = rateSchema.parse(request.body);
 
     const order = await prisma.order.findFirst({
       where: { id, userId: request.user!.userId, status: 'delivered' },

@@ -165,7 +165,7 @@ class ApiClient {
     Future<ApiResponse> doDelete() async {
       try {
         final response = await _client
-            .delete(_uri(path), headers: _headers(auth: auth))
+            .delete(_uri(path), headers: _headers(auth: auth, json: false))
             .timeout(Duration(milliseconds: ApiConfig.receiveTimeout));
         return _handleResponse(response);
       } on SocketException {

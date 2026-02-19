@@ -524,9 +524,12 @@ export async function courierRoutes(app: FastifyInstance): Promise<void> {
       let startDate: Date;
 
       switch (period) {
-        case 'today':
-          startDate = new Date(now.setHours(0, 0, 0, 0));
+        case 'today': {
+          const today = new Date(now);
+          today.setHours(0, 0, 0, 0);
+          startDate = today;
           break;
+        }
         case 'week':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
@@ -577,48 +580,7 @@ export async function courierRoutes(app: FastifyInstance): Promise<void> {
   // ADMIN: KURYER BOSHQARISH
   // ============================================
 
-  /**
-   * GET /admin/couriers
-   * Barcha kuryerlar ro'yxati (admin)
-   */
-  app.get(
-    '/admin/couriers',
-    { preHandler: [authMiddleware, requireRole('admin')] },
-    async (request, reply) => {
-      const { status, verified, page = '1', limit = '20' } = request.query as {
-        status?: string;
-        verified?: string;
-        page?: string;
-        limit?: string;
-      };
 
-      const where: any = {};
-      if (status) where.status = status;
-      if (verified !== undefined) where.isVerified = verified === 'true';
-
-      const skip = (parseInt(page) - 1) * parseInt(limit);
-
-      const [couriers, total] = await Promise.all([
-        prisma.courier.findMany({
-          where,
-          include: {
-            profile: {
-              select: { id: true, fullName: true, phone: true, avatarUrl: true },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: parseInt(limit),
-        }),
-        prisma.courier.count({ where }),
-      ]);
-
-      return reply.send({
-        success: true,
-        data: { couriers, total },
-      });
-    },
-  );
 
   /**
    * PUT /admin/couriers/:id/verify
@@ -629,7 +591,13 @@ export async function courierRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware, requireRole('admin')] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
-      const { verified } = request.body as { verified: boolean };
+      const verifySchema = z.object({
+        verified: z.boolean(),
+      });
+      const { verified } = verifySchema.parse(request.body);
+
+      const courier = await prisma.courier.findUnique({ where: { id } });
+      if (!courier) throw new NotFoundError('Kuryer');
 
       await prisma.courier.update({
         where: { id },

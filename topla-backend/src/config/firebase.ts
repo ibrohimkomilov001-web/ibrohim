@@ -22,10 +22,6 @@ export function initFirebase(): void {
   console.log('✅ Firebase initialized');
 }
 
-export function getFirebaseAdmin(): admin.app.App | null {
-  return firebaseApp;
-}
-
 export async function verifyFirebaseToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
   if (!firebaseApp) throw new Error('Firebase not initialized');
   return admin.auth(firebaseApp).verifyIdToken(idToken);

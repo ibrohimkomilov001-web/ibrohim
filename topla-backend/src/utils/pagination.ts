@@ -21,5 +21,6 @@ export function paginationMeta(page: number, limit: number, total: number) {
     limit,
     total,
     totalPages: Math.ceil(total / limit),
+    hasMore: page * limit < total,
   };
 }

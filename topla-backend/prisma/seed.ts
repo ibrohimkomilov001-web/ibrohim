@@ -4,6 +4,13 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
+  // PRODUCTION DA SEED ISHLASHINI OLDINI OLISH
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ XATO: Seed production muhitda ishlatish mumkin emas!');
+    console.error('   Agar haqiqatan kerak bo\'lsa, NODE_ENV=development qilib ishga tushiring.');
+    process.exit(1);
+  }
+
   console.log('🌱 Seeding database...');
 
   // Clear existing categories and subcategories
@@ -591,6 +598,48 @@ async function main() {
     },
   });
   console.log('✅ Admin user created: admin@topla.uz / admin123');
+
+  // ============================================
+  // Vendor User + Shop
+  // ============================================
+  const vendorPasswordHash = await bcrypt.hash('vendor123', 12);
+  const vendorProfile = await prisma.profile.upsert({
+    where: { phone: '+998911112233' },
+    update: {
+      email: 'vendor@topla.uz',
+      passwordHash: vendorPasswordHash,
+      role: 'vendor',
+      fullName: 'Demo Vendor',
+    },
+    create: {
+      phone: '+998911112233',
+      email: 'vendor@topla.uz',
+      passwordHash: vendorPasswordHash,
+      role: 'vendor',
+      fullName: 'Demo Vendor',
+      status: 'active',
+    },
+  });
+
+  await prisma.shop.upsert({
+    where: { ownerId: vendorProfile.id },
+    update: {
+      name: 'Demo Shop',
+      description: 'Demo do\'kon',
+      phone: '+998911112233',
+      address: 'Toshkent, Chilonzor',
+      status: 'active',
+    },
+    create: {
+      ownerId: vendorProfile.id,
+      name: 'Demo Shop',
+      description: 'Demo do\'kon',
+      phone: '+998911112233',
+      address: 'Toshkent, Chilonzor',
+      status: 'active',
+    },
+  });
+  console.log('✅ Vendor user created: vendor@topla.uz / vendor123');
 
   // ============================================
   // Banners

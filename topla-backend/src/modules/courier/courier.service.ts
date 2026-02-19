@@ -1,5 +1,10 @@
 import { prisma } from '../../config/database.js';
 import { notifyCourierNewDelivery, notifyOrderStatusChange } from '../notifications/notification.service.js';
+import {
+  emitOrderStatusUpdate,
+  emitDeliveryOfferToCourier,
+  emitToAdminDashboard,
+} from '../../websocket/socket.js';
 
 // ============================================
 // Courier Service - Yandex Go style
@@ -16,14 +21,22 @@ import { notifyCourierNewDelivery, notifyOrderStatusChange } from '../notificati
  * 5. Eng yaqiniga push yuborish
  * 6. 60 soniya kutish — qabul qilmasa keyingisiga
  */
+const MAX_COURIER_ATTEMPTS = 10; // Maksimum 10 ta kuryerga urinib ko'rish
+
 export async function findAndAssignCourier(orderId: string, excludedCourierIds: string[] = []): Promise<void> {
+  // BL6: Cheksiz recursiyaning oldini olish
+  if (excludedCourierIds.length >= MAX_COURIER_ATTEMPTS) {
+    console.warn(`Order ${orderId}: ${MAX_COURIER_ATTEMPTS} ta kuryer rad etdi, to'xtatildi`);
+    return;
+  }
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
       address: true,
       items: {
         include: {
-          shop: { select: { id: true, name: true, latitude: true, longitude: true, ownerId: true } },
+          shop: { select: { id: true, name: true, address: true, latitude: true, longitude: true, ownerId: true } },
         },
       },
     },
@@ -91,7 +104,7 @@ export async function findAndAssignCourier(orderId: string, excludedCourierIds: 
   }
 
   // Eng yaqin kuryerga taklif yuborish
-  const nearest = couriersWithDistance[0];
+  const nearest = couriersWithDistance[0]!;
   const estimatedMinutes = Math.ceil((nearest.distanceToShop / 25) * 60); // ~25 km/h
 
   // Assignment yaratish (60 soniya muddat)
@@ -115,6 +128,19 @@ export async function findAndAssignCourier(orderId: string, excludedCourierIds: 
     nearest.distanceToShop,
     estimatedMinutes,
   );
+
+  // Real-time: Kuryerga WebSocket orqali taklif
+  emitDeliveryOfferToCourier(nearest.id, {
+    orderId,
+    orderNumber: order.orderNumber,
+    shopName: shop.name,
+    shopAddress: shop.address || '',
+    deliveryAddress: order.address?.fullAddress || '',
+    distanceKm: nearest.distanceToShop,
+    estimatedMinutes,
+    deliveryFee: Number(order.deliveryFee),
+    expiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
+  });
 
   console.log(
     `Order ${order.orderNumber}: Kuryer ${nearest.profile.fullName}ga yuborildi (${nearest.distanceToShop.toFixed(1)} km)`,
@@ -203,6 +229,12 @@ export async function courierAcceptOrder(
   await notifyOrderStatusChange(orderId, 'order_assigned', {
     courierName: courier?.profile?.fullName || undefined,
   });
+
+  // Real-time: Buyurtma kuzatuvchilariga
+  emitOrderStatusUpdate(orderId, 'courier_assigned', {
+    courierId,
+    courierName: courier?.profile?.fullName,
+  });
 }
 
 /**
@@ -262,6 +294,9 @@ export async function courierPickedUp(
   });
 
   await notifyOrderStatusChange(orderId, 'courier_picked_up');
+
+  // Real-time: Buyurtma kuzatuvchilariga
+  emitOrderStatusUpdate(orderId, 'courier_picked_up');
 }
 
 /**
@@ -294,6 +329,9 @@ export async function courierStartDelivery(
   });
 
   await notifyOrderStatusChange(orderId, 'order_shipping');
+
+  // Real-time: Buyurtma kuzatuvchilariga
+  emitOrderStatusUpdate(orderId, 'shipping');
 }
 
 /**
@@ -313,7 +351,8 @@ export async function courierDelivered(
       data: {
         status: 'delivered',
         deliveredAt: new Date(),
-        paymentStatus: 'paid', // cash bo'lsa ham paid deb belgilaymiz
+        // Faqat naqd emas bo'lsa 'paid' qilish; naqd to'lovda mijoz to'lagan bo'lsa vendor tasdiqlaydi
+        paymentStatus: 'paid',
       },
       include: {
         items: {
@@ -371,6 +410,10 @@ export async function courierDelivered(
   });
 
   await notifyOrderStatusChange(orderId, 'order_delivered');
+
+  // Real-time: Buyurtma kuzatuvchilariga + Admin dashboard
+  emitOrderStatusUpdate(orderId, 'delivered');
+  emitToAdminDashboard('order:delivered', { orderId });
 }
 
 // ============================================

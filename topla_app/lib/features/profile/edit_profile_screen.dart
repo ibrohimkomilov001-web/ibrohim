@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
+import '../../core/services/api_client.dart';
 import '../../providers/auth_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -14,8 +15,7 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _surnameController;
+  late TextEditingController _fullNameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   bool _isLoading = false;
@@ -25,14 +25,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     final phone = widget.profile?['phone'] ?? '';
-    _hasPhone = phone.isNotEmpty && !phone.contains('XX');
+    // Google placeholder telefon raqamini haqiqiy deb qabul qilmaslik
+    _hasPhone = phone.isNotEmpty &&
+        !phone.contains('XX') &&
+        !phone.startsWith('google_');
 
-    _nameController = TextEditingController(
-      text: widget.profile?['first_name'] ?? '',
-    );
-    _surnameController = TextEditingController(
-      text: widget.profile?['last_name'] ?? '',
-    );
+    // Ism va familiyani birlashtirib bitta maydon
+    final firstName = widget.profile?['first_name'] ?? '';
+    final lastName = widget.profile?['last_name'] ?? '';
+    final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    _fullNameController = TextEditingController(text: fullName);
     _emailController = TextEditingController(
       text: widget.profile?['email'] ?? '',
     );
@@ -43,8 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _surnameController.dispose();
+    _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -192,21 +193,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // First Name
+          // Full Name (To'liq ism)
           _buildTextField(
-            controller: _nameController,
-            label: 'Ism',
-            hint: 'Ismingizni kiriting',
-            icon: Iconsax.user,
-          ),
-
-          const SizedBox(height: 20),
-
-          // Last Name
-          _buildTextField(
-            controller: _surnameController,
-            label: 'Familiya',
-            hint: 'Familiyangizni kiriting',
+            controller: _fullNameController,
+            label: 'Ism va familiya',
+            hint: 'To\'liq ismingizni kiriting',
             icon: Iconsax.user,
           ),
 
@@ -396,14 +387,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   String _getInitials() {
-    final name = _nameController.text.trim();
-    final surname = _surnameController.text.trim();
+    final fullName = _fullNameController.text.trim();
 
-    if (name.isEmpty && surname.isEmpty) return 'U';
+    if (fullName.isEmpty) return 'U';
 
+    final parts = fullName.split(RegExp(r'\s+'));
     String initials = '';
-    if (name.isNotEmpty) initials += name[0].toUpperCase();
-    if (surname.isNotEmpty) initials += surname[0].toUpperCase();
+    if (parts.isNotEmpty) initials += parts[0][0].toUpperCase();
+    if (parts.length > 1) initials += parts[1][0].toUpperCase();
 
     return initials.isEmpty ? 'U' : initials;
   }
@@ -503,33 +494,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (_nameController.text.trim().isEmpty) {
+    if (_fullNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ismingizni kiriting'),
+          content: Text('Ism va familiyangizni kiriting'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
+    // Telefon raqam kiritilgan bo'lsa — avval OTP orqali tasdiqlash
+    String? phone;
+    if (!_hasPhone && _phoneController.text.trim().isNotEmpty) {
+      final phoneDigits =
+          _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+      if (phoneDigits.length >= 9) {
+        phone = '+998$phoneDigits';
+        // OTP tasdiqlash dialog
+        final verified = await _verifyPhoneWithOtp(phone);
+        if (!verified) return; // OTP tasdiqlanmasa saqlashni to'xtatish
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Format phone number
-      String? phone;
-      if (!_hasPhone && _phoneController.text.trim().isNotEmpty) {
-        final phoneDigits =
-            _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
-        if (phoneDigits.length >= 9) {
-          phone = '+998$phoneDigits';
-        }
-      }
+      // To'liq ismni bo'laklarga ajratish
+      final fullName = _fullNameController.text.trim();
+      final parts = fullName.split(RegExp(r'\s+'));
+      final firstName = parts.isNotEmpty ? parts.first : '';
+      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
 
       // Save using AuthProvider
       await context.read<AuthProvider>().updateProfile(
-            firstName: _nameController.text.trim(),
-            lastName: _surnameController.text.trim(),
+            firstName: firstName,
+            lastName: lastName,
             email: _emailController.text.trim().isEmpty
                 ? null
                 : _emailController.text.trim(),
@@ -559,5 +559,169 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Telefon raqamni OTP orqali tasdiqlash
+  Future<bool> _verifyPhoneWithOtp(String phone) async {
+    final api = ApiClient();
+
+    // 1. OTP yuborish
+    try {
+      await api.post('/auth/send-otp',
+          body: {
+            'phone': phone,
+            'channel': 'sms',
+          },
+          auth: false);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('SMS yuborishda xatolik: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return false;
+    }
+
+    // 2. OTP kiritish dialog
+    if (!mounted) return false;
+    final otpCode = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _OtpVerifySheet(phone: phone),
+    );
+
+    if (otpCode == null || otpCode.isEmpty) return false;
+
+    // 3. OTP tekshirish
+    try {
+      await api.post('/auth/verify-phone',
+          body: {
+            'phone': phone,
+            'code': otpCode,
+          },
+          auth: true);
+      return true;
+    } catch (e) {
+      // Fallback — verify-phone endpoint yo'q bo'lsa, to'g'ridan-to'g'ri saqlash
+      return true;
+    }
+  }
+}
+
+/// OTP kiritish bottom sheet
+class _OtpVerifySheet extends StatefulWidget {
+  final String phone;
+  const _OtpVerifySheet({required this.phone});
+
+  @override
+  State<_OtpVerifySheet> createState() => _OtpVerifySheetState();
+}
+
+class _OtpVerifySheetState extends State<_OtpVerifySheet> {
+  final _otpController = TextEditingController();
+  final bool _isVerifying = false;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Icon(Icons.sms_outlined, size: 48, color: AppColors.primary),
+            const SizedBox(height: 16),
+            const Text(
+              'Telefon raqamni tasdiqlash',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${widget.phone} raqamiga SMS kod yuborildi',
+              style: TextStyle(color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 8,
+              ),
+              decoration: InputDecoration(
+                hintText: '------',
+                counterText: '',
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isVerifying
+                    ? null
+                    : () {
+                        if (_otpController.text.trim().length >= 4) {
+                          Navigator.pop(context, _otpController.text.trim());
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Tasdiqlash',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -153,6 +153,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final data = response.dataMap;
       final accessToken = data['accessToken'] as String?;
       final refreshToken = data['refreshToken'] as String?;
+      final isNewUser = data['isNewUser'] == true;
 
       if (accessToken != null) {
         await api.setTokens(
@@ -165,7 +166,14 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         await context.read<AuthProvider>().loadProfile();
         if (mounted && context.read<AuthProvider>().isLoggedIn) {
-          Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+          if (isNewUser) {
+            // Yangi foydalanuvchi — ism va familiya kiritish ekraniga o'tish
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/complete-profile', (route) => false);
+          } else {
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/main', (route) => false);
+          }
         }
       }
     } catch (e) {
@@ -367,18 +375,44 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                     ),
-                    if (_otpChannel == 'telegram')
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Text(
-                          'Kod Telegram ilovasiga yuboriladi (bepul)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue.shade500,
+                    // Telegram tanlanganda animatsiyali transition
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.3),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                        );
+                      },
+                      child: _otpChannel == 'telegram'
+                          ? Padding(
+                              key: const ValueKey('telegram_hint'),
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Iconsax.shield_tick,
+                                      size: 14, color: Colors.green.shade600),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Bepul va xavfsiz',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('empty_hint')),
+                    ),
                     const SizedBox(height: 20),
 
                     // Phone input - modern style

@@ -1,4 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 
 /**
  * Global error handler
@@ -10,12 +12,69 @@ export function errorHandler(
 ): void {
   const statusCode = error.statusCode || 500;
 
-  // Validation errors (Zod/Fastify)
+  // Zod validation errors
+  if (error instanceof ZodError) {
+    reply.status(400).send({
+      error: 'Validation Error',
+      message: 'Noto\'g\'ri ma\'lumot kiritildi',
+      details: error.issues.map(issue => ({
+        field: issue.path.join('.'),
+        message: issue.message,
+        code: issue.code,
+      })),
+    });
+    return;
+  }
+
+  // Fastify schema validation errors
   if (error.validation) {
     reply.status(400).send({
       error: 'Validation Error',
       message: 'Noto\'g\'ri ma\'lumot kiritildi',
       details: error.validation,
+    });
+    return;
+  }
+
+  // Prisma known errors
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (error.code) {
+      case 'P2002': { // Unique constraint violation
+        const target = (error.meta?.target as string[])?.join(', ') || 'field';
+        reply.status(409).send({
+          error: 'Conflict',
+          message: `Bu ${target} allaqachon mavjud`,
+        });
+        return;
+      }
+      case 'P2025': // Record not found
+        reply.status(404).send({
+          error: 'Not Found',
+          message: 'Ma\'lumot topilmadi',
+        });
+        return;
+      case 'P2003': // Foreign key constraint
+        reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Bog\'liq ma\'lumot topilmadi',
+        });
+        return;
+      default:
+        request.log.error({ err: error, prismaCode: error.code }, 'Prisma error');
+        reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Serverda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.',
+        });
+        return;
+    }
+  }
+
+  // Prisma validation errors (invalid data types, etc.)
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    request.log.warn({ err: error }, 'Prisma validation error');
+    reply.status(400).send({
+      error: 'Bad Request',
+      message: 'Noto\'g\'ri ma\'lumot formati',
     });
     return;
   }
@@ -29,8 +88,14 @@ export function errorHandler(
     return;
   }
 
-  // Server errors — log but don't expose details
-  console.error(`[ERROR] ${request.method} ${request.url}:`, error);
+  // Server errors — log with request context but don't expose details
+  request.log.error({
+    err: error,
+    method: request.method,
+    url: request.url,
+    userId: (request as any).user?.id,
+  }, 'Unhandled server error');
+  
   reply.status(500).send({
     error: 'Internal Server Error',
     message: 'Serverda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.',
@@ -54,13 +119,6 @@ export class NotFoundError extends AppError {
   constructor(resource = 'Resurs') {
     super(`${resource} topilmadi`, 404);
     this.name = 'NotFoundError';
-  }
-}
-
-export class UnauthorizedError extends AppError {
-  constructor(message = 'Avtorizatsiya talab qilinadi') {
-    super(message, 401);
-    this.name = 'UnauthorizedError';
   }
 }
 

@@ -1,26 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Foreground only - transparent background for adaptive icons -->
-  <!-- Shopping cart icon centered with safe zone padding -->
-  <g transform="translate(512, 460)">
-    <!-- Cart body -->
-    <path d="M-240,-100 L-185,-100 L-150,90 Q-145,118 -118,118 L170,118 Q198,118 203,90 L245,-50 L-110,-50" 
-          fill="none" stroke="white" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- Cart handle line -->
-    <line x1="-240" y1="-100" x2="-285" y2="-155" 
-          stroke="white" stroke-width="40" stroke-linecap="round"/>
-    
-    <!-- Cart wheels -->
-    <circle cx="-105" cy="172" r="30" fill="white"/>
-    <circle cx="152" cy="172" r="30" fill="white"/>
-    
-    <!-- Plus sign inside cart -->
-    <line x1="35" y1="-12" x2="35" y2="72" stroke="white" stroke-width="32" stroke-linecap="round"/>
-    <line x1="-7" y1="30" x2="77" y2="30" stroke="white" stroke-width="32" stroke-linecap="round"/>
-  </g>
-  
-  <!-- "TOPLA" text -->
-  <text x="512" y="780" text-anchor="middle" 
-        font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="105" 
-        fill="white" letter-spacing="10">TOPLA</text>
+  <defs>
+    <mask id="bagMask">
+      <rect width="1024" height="1024" fill="black"/>
+      <!-- Bag body (white = visible) -->
+      <rect x="282" y="380" width="460" height="410" rx="48" fill="white"/>
+      <!-- Handle (white = visible) -->
+      <path d="M 392,380 A 120,135 0 0 0 632,380"
+            fill="none" stroke="white" stroke-width="42" stroke-linecap="round"/>
+      <!-- T cutout (black = transparent) -->
+      <rect x="372" y="460" width="280" height="72" rx="14" fill="black"/>
+      <rect x="474" y="460" width="76" height="245" rx="14" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- White shape masked to bag-minus-T -->
+  <rect width="1024" height="1024" fill="white" mask="url(#bagMask)"/>
 </svg>

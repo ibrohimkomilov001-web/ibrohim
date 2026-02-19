@@ -258,9 +258,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<String> _getProductImages() {
     final product = widget.product;
     if (product['images'] != null && product['images'] is List) {
-      return List<String>.from(product['images']);
+      final images = List<String>.from(product['images']);
+      // Remove duplicates while preserving order
+      return images.toSet().toList();
     } else if (product['image'] != null) {
-      return [product['image'], product['image'], product['image']];
+      return [product['image']];
     }
     return [];
   }
@@ -475,20 +477,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(_productImages.length, (index) {
+                    final isActive = _selectedImageIndex == index;
                     return GestureDetector(
                       onTap: () => _pageController.animateToPage(index,
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _selectedImageIndex == index ? 24 : 8,
-                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: isActive ? 20 : 6,
+                        height: 6,
                         decoration: BoxDecoration(
-                          color: _selectedImageIndex == index
-                              ? AppColors.primary
-                              : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(4),
+                          color:
+                              isActive ? Colors.black87 : Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(3),
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  )
+                                ]
+                              : null,
                         ),
                       ),
                     );
@@ -1213,7 +1224,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             _buildInfoRow(
                 icon: Iconsax.truck_fast,
                 title: 'Yetkazib berish',
-                value: 'Bugun 2-4 soat ichida',
+                value: '3-7 kun ichida yetkazib beramiz',
                 color: AppColors.success),
             const Divider(height: 24),
             _buildInfoRow(
@@ -2002,7 +2013,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         )
         .firstOrNull;
     if (cartItem != null) {
-      cartProvider.removeFromCart(cartItem.id);
+      cartProvider.removeFromCart(cartItem.productId);
     }
   }
 }

@@ -26,15 +26,19 @@ class SavedCardModel {
   factory SavedCardModel.fromJson(Map<String, dynamic> json) {
     return SavedCardModel(
       id: json['id'] ?? '',
-      userId: json['user_id'] ?? '',
-      bindingId: json['binding_id'] ?? '',
-      maskedPan: json['masked_pan'] ?? '',
-      cardType: CardType.fromString(json['card_type']),
-      expiryDate: json['expiry_date'] ?? '',
-      isDefault: json['is_default'] ?? false,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
-          : DateTime.now(),
+      userId: json['userId'] ?? json['user_id'] ?? '',
+      bindingId: json['token'] ?? json['binding_id'] ?? json['bindingId'] ?? '',
+      maskedPan:
+          json['cardNumber'] ?? json['masked_pan'] ?? json['maskedPan'] ?? '',
+      cardType: CardType.fromString(
+          json['provider'] ?? json['card_type'] ?? json['cardType']),
+      expiryDate: json['expiryDate'] ?? json['expiry_date'] ?? '',
+      isDefault: json['isDefault'] ?? json['is_default'] ?? false,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : json['created_at'] != null
+              ? DateTime.parse(json['created_at'])
+              : DateTime.now(),
     );
   }
 

@@ -176,7 +176,7 @@ export async function notifyOrderStatusChange(
   const notifications: Promise<void>[] = [];
 
   // --- Mijozga ---
-  const customerMsg = NOTIFICATION_MESSAGES.customer[newStatus];
+  const customerMsg = NOTIFICATION_MESSAGES.customer?.[newStatus];
   if (customerMsg) {
     const msg = customerMsg(orderNum, extra?.courierName || extra?.cancelReason);
     notifications.push(
@@ -190,7 +190,7 @@ export async function notifyOrderStatusChange(
 
   // --- Vendorga ---
   if (shopOwnerId) {
-    const vendorMsg = NOTIFICATION_MESSAGES.vendor[newStatus];
+    const vendorMsg = NOTIFICATION_MESSAGES.vendor?.[newStatus];
     if (vendorMsg) {
       const msg = vendorMsg(orderNum);
       notifications.push(
@@ -205,7 +205,7 @@ export async function notifyOrderStatusChange(
 
   // --- Kuryerga ---
   if (courierId) {
-    const courierMsg = NOTIFICATION_MESSAGES.courier[newStatus];
+    const courierMsg = NOTIFICATION_MESSAGES.courier?.[newStatus];
     if (courierMsg) {
       const msg = courierMsg(orderNum, shopName);
       notifications.push(
@@ -225,7 +225,7 @@ export async function notifyOrderStatusChange(
   });
 
   for (const admin of admins) {
-    const adminMsg = NOTIFICATION_MESSAGES.admin[newStatus];
+    const adminMsg = NOTIFICATION_MESSAGES.admin?.[newStatus];
     if (adminMsg) {
       const msg = adminMsg(orderNum);
       notifications.push(
@@ -253,7 +253,9 @@ export async function notifyCourierNewDelivery(
   distanceKm: number,
   estimatedMinutes: number,
 ): Promise<void> {
-  const msg = NOTIFICATION_MESSAGES.courier.courier_new(orderNumber, shopName);
+  const courierNewMsg = NOTIFICATION_MESSAGES.courier?.courier_new;
+  if (!courierNewMsg) return;
+  const msg = courierNewMsg(orderNumber, shopName);
   await createNotification(
     courierId,
     'courier_new' as NotificationType,
