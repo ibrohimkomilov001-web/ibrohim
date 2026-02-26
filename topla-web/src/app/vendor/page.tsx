@@ -1,1 +1,1 @@
-export { default } from "../landing-page";
+export { default } from "./become-seller/page";

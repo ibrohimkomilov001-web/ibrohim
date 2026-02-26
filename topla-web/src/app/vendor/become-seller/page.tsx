@@ -33,7 +33,7 @@ import {
   MessageCircle,
   Heart,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 /* ──────────────── FORMAT NUMBER (consistent server/client) ──────────────── */
 function formatNumber(n: number): string {
@@ -746,7 +746,7 @@ const benefits = [
       "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400",
   },
   {
-    icon: Package,
+    icon: Truck,
     title: "Yetkazib berish xizmati",
     desc: "Siz faqat mahsulotni tayyorlang — qadoqlash va yetkazishni biz o'z zimmamizga olamiz",
     color:
@@ -836,47 +836,65 @@ const testimonials = [
 
 /* ──────────────── MAIN PAGE ──────────────── */
 export default function BecomeSellerPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       {/* ━━━ NAVBAR ━━━ */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-border/50">
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg'
+          : 'bg-white backdrop-blur-md shadow-sm'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <ShoppingBag className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-extrabold tracking-tight">
-                TOPLA
-                <span className="text-[#2563EB]">.UZ</span>
+          <div className="flex items-center justify-between h-14">
+            <Link href="/" className="flex items-center">
+              <span className="text-base font-extrabold tracking-tight text-gray-900">
+                TOPLA<span className="text-[#2563EB]">.UZ</span>
               </span>
             </Link>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="hidden sm:inline-flex text-muted-foreground hover:text-[#2563EB]"
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="flex flex-col justify-center items-center w-9 h-9 rounded-lg hover:bg-black/5 transition-colors"
+                aria-label="Menu"
               >
-                <Link href="/vendor/login">Kirish</Link>
-              </Button>
-              <Button
-                size="sm"
-                asChild
-                className="rounded-full bg-[#2563EB] hover:bg-[#1D4ED8] shadow-lg shadow-blue-500/25 px-5"
-              >
-                <Link href="/vendor/register">
-                  Sotuvchi bo&apos;lish
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
-              </Button>
+                <span className={`block w-5 h-0.5 bg-gray-800 rounded transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-[3px]' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-gray-800 rounded mt-1 transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-gray-800 rounded mt-1 transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                  <Link
+                    href="/vendor/login"
+                    className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Kirish
+                  </Link>
+                  <Link
+                    href="/vendor/register"
+                    className="block px-4 py-2.5 text-sm font-medium text-[#2563EB] hover:bg-blue-50 transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sotuvchi bo&apos;lish
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
       {/* ━━━ HERO ━━━ */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden pt-14">
         {/* BG decorations */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#EFF6FF] via-white to-[#F0F9FF] dark:from-gray-950 dark:via-gray-950 dark:to-blue-950/20" />
         <div className="absolute top-20 -left-20 w-72 h-72 bg-[#2563EB]/10 rounded-full blur-3xl" />
@@ -928,7 +946,7 @@ export default function BecomeSellerPage() {
                   className="rounded-full text-base px-8 bg-[#2563EB] hover:bg-[#1D4ED8] shadow-xl shadow-blue-500/25 h-12"
                 >
                   <Link href="/vendor/register">
-                    Hoziroq boshlash
+                    Sotuvchi bo&apos;lish
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -1135,7 +1153,7 @@ export default function BecomeSellerPage() {
                 className="rounded-full bg-[#2563EB] hover:bg-[#1D4ED8] shadow-lg shadow-blue-500/25 px-8 mt-2"
               >
                 <Link href="/vendor/register">
-                  Hoziroq boshlash{" "}
+                  Sotuvchi bo&apos;lish{" "}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -1442,9 +1460,8 @@ export default function BecomeSellerPage() {
               </Button>
               <Button
                 size="lg"
-                variant="outline"
                 asChild
-                className="rounded-full text-base px-10 h-12 border-2 border-white/30 text-white hover:bg-white/10 font-bold"
+                className="rounded-full text-base px-10 h-12 border-2 border-white text-white hover:bg-white/20 font-bold bg-transparent"
               >
                 <Link href="/vendor/login">Kabinetga kirish</Link>
               </Button>
@@ -1514,11 +1531,8 @@ export default function BecomeSellerPage() {
       <footer className="bg-[#0F172A] py-10 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-[#2563EB] flex items-center justify-center">
-                <ShoppingBag className="h-4 w-4 text-white" />
-              </div>
-              <span className="font-bold text-sm">TOPLA.UZ</span>
+            <div className="flex items-center">
+              <span className="font-bold text-sm">TOPLA<span className="text-[#2563EB]">.UZ</span></span>
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-400">
               <Link
