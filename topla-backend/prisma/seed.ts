@@ -18,7 +18,8 @@ async function main() {
   await prisma.category.deleteMany();
 
   // ============================================
-  // Exact 29 Categories (Supabase original)
+  // 30 Categories — Pro marketplace tuzilishi
+  // O'zbek va Rus tillarida to'g'ri yozilishi tekshirilgan
   // ============================================
   const categories = await Promise.all([
     // 1. Elektronika
@@ -34,15 +35,17 @@ async function main() {
             { nameUz: 'Planshetlar', nameRu: 'Планшеты', sortOrder: 2 },
             { nameUz: 'Quloqchinlar', nameRu: 'Наушники', sortOrder: 3 },
             { nameUz: 'Smart soatlar', nameRu: 'Умные часы', sortOrder: 4 },
-            { nameUz: 'Aksessuarlar', nameRu: 'Аксессуары', sortOrder: 5 },
+            { nameUz: 'Portativ kolonkalar', nameRu: 'Портативные колонки', sortOrder: 5 },
+            { nameUz: 'Zaryadlovchi qurilmalar', nameRu: 'Зарядные устройства', sortOrder: 6 },
+            { nameUz: 'Telefon aksessuarlari', nameRu: 'Аксессуары для телефонов', sortOrder: 7 },
           ],
         },
       },
     }),
-    // 2. Noutbuklar va kompyuterlar
+    // 2. Noutbuk va kompyuter
     prisma.category.create({
       data: {
-        nameUz: 'Noutbuklar va kompyuterlar',
+        nameUz: 'Noutbuk va kompyuter',
         nameRu: 'Ноутбуки и компьютеры',
         icon: 'monitor',
         sortOrder: 2,
@@ -52,7 +55,9 @@ async function main() {
             { nameUz: 'Kompyuterlar', nameRu: 'Компьютеры', sortOrder: 2 },
             { nameUz: 'Monitorlar', nameRu: 'Мониторы', sortOrder: 3 },
             { nameUz: 'Komponentlar', nameRu: 'Комплектующие', sortOrder: 4 },
-            { nameUz: 'Periferiya', nameRu: 'Периферия', sortOrder: 5 },
+            { nameUz: 'Klaviatura va sichqoncha', nameRu: 'Клавиатуры и мыши', sortOrder: 5 },
+            { nameUz: 'Printerlar', nameRu: 'Принтеры', sortOrder: 6 },
+            { nameUz: 'Tarmoq jihozlari', nameRu: 'Сетевое оборудование', sortOrder: 7 },
           ],
         },
       },
@@ -69,8 +74,10 @@ async function main() {
             { nameUz: 'Kir yuvish mashinalari', nameRu: 'Стиральные машины', sortOrder: 1 },
             { nameUz: 'Muzlatgichlar', nameRu: 'Холодильники', sortOrder: 2 },
             { nameUz: 'Changyutgichlar', nameRu: 'Пылесосы', sortOrder: 3 },
-            { nameUz: 'Oshxona texnikasi', nameRu: 'Кухонная техника', sortOrder: 4 },
-            { nameUz: 'Iqlim texnikasi', nameRu: 'Климатическая техника', sortOrder: 5 },
+            { nameUz: 'Konditsionerlar', nameRu: 'Кондиционеры', sortOrder: 4 },
+            { nameUz: 'Oshxona texnikasi', nameRu: 'Кухонная техника', sortOrder: 5 },
+            { nameUz: 'Dazmollar', nameRu: 'Утюги', sortOrder: 6 },
+            { nameUz: 'Isitgichlar', nameRu: 'Обогреватели', sortOrder: 7 },
           ],
         },
       },
@@ -85,416 +92,478 @@ async function main() {
         subcategories: {
           create: [
             { nameUz: 'Televizorlar', nameRu: 'Телевизоры', sortOrder: 1 },
-            { nameUz: 'Proektor', nameRu: 'Проекторы', sortOrder: 2 },
-            { nameUz: 'TV pristavkalar', nameRu: 'ТВ приставки', sortOrder: 3 },
-            { nameUz: 'Aksessuarlar', nameRu: 'Аксессуары', sortOrder: 4 },
+            { nameUz: 'Projektorlar', nameRu: 'Проекторы', sortOrder: 2 },
+            { nameUz: 'TV pristavkalar', nameRu: 'ТВ-приставки', sortOrder: 3 },
+            { nameUz: 'Videokameralar', nameRu: 'Видеокамеры', sortOrder: 4 },
+            { nameUz: 'TV aksessuarlar', nameRu: 'Аксессуары для ТВ', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 5. Kiyim va poyabzal
+    // 5. Erkaklar kiyimi
     prisma.category.create({
       data: {
-        nameUz: 'Kiyim va poyabzal',
-        nameRu: 'Одежда и обувь',
+        nameUz: 'Erkaklar kiyimi',
+        nameRu: 'Мужская одежда',
         icon: 'shirt',
         sortOrder: 5,
         subcategories: {
           create: [
-            { nameUz: 'Erkaklar kiyimi', nameRu: 'Мужская одежда', sortOrder: 1 },
-            { nameUz: 'Ayollar kiyimi', nameRu: 'Женская одежда', sortOrder: 2 },
-            { nameUz: 'Bolalar kiyimi', nameRu: 'Детская одежда', sortOrder: 3 },
-            { nameUz: 'Erkaklar poyabzali', nameRu: 'Мужская обувь', sortOrder: 4 },
-            { nameUz: 'Ayollar poyabzali', nameRu: 'Женская обувь', sortOrder: 5 },
+            { nameUz: 'Ko\'ylaklar', nameRu: 'Рубашки', sortOrder: 1 },
+            { nameUz: 'Shimlar', nameRu: 'Брюки', sortOrder: 2 },
+            { nameUz: 'Futbolkalar', nameRu: 'Футболки', sortOrder: 3 },
+            { nameUz: 'Kurtkalar', nameRu: 'Куртки', sortOrder: 4 },
+            { nameUz: 'Kostyumlar', nameRu: 'Костюмы', sortOrder: 5 },
+            { nameUz: 'Ichki kiyimlar', nameRu: 'Нижнее бельё', sortOrder: 6 },
+            { nameUz: 'Poyabzal', nameRu: 'Обувь', sortOrder: 7 },
           ],
         },
       },
     }),
-    // 6. Sumkalar va aksessuarlar
+    // 6. Ayollar kiyimi
+    prisma.category.create({
+      data: {
+        nameUz: 'Ayollar kiyimi',
+        nameRu: 'Женская одежда',
+        icon: 'woman',
+        sortOrder: 6,
+        subcategories: {
+          create: [
+            { nameUz: 'Ko\'ylaklar', nameRu: 'Платья', sortOrder: 1 },
+            { nameUz: 'Bluzka va ko\'ylaklar', nameRu: 'Блузки и рубашки', sortOrder: 2 },
+            { nameUz: 'Shimlar va yubkalar', nameRu: 'Брюки и юбки', sortOrder: 3 },
+            { nameUz: 'Ustki kiyim', nameRu: 'Верхняя одежда', sortOrder: 4 },
+            { nameUz: 'Ichki kiyimlar', nameRu: 'Нижнее бельё', sortOrder: 5 },
+            { nameUz: 'Ro\'mollar va sharf', nameRu: 'Платки и шарфы', sortOrder: 6 },
+            { nameUz: 'Poyabzal', nameRu: 'Обувь', sortOrder: 7 },
+          ],
+        },
+      },
+    }),
+    // 7. Sumkalar va aksessuarlar
     prisma.category.create({
       data: {
         nameUz: 'Sumkalar va aksessuarlar',
         nameRu: 'Сумки и аксессуары',
         icon: 'bag_2',
-        sortOrder: 6,
+        sortOrder: 7,
         subcategories: {
           create: [
             { nameUz: 'Ayollar sumkalari', nameRu: 'Женские сумки', sortOrder: 1 },
             { nameUz: 'Erkaklar sumkalari', nameRu: 'Мужские сумки', sortOrder: 2 },
             { nameUz: 'Ryukzaklar', nameRu: 'Рюкзаки', sortOrder: 3 },
             { nameUz: 'Hamyonlar', nameRu: 'Кошельки', sortOrder: 4 },
+            { nameUz: 'Kamarlar', nameRu: 'Ремни', sortOrder: 5 },
+            { nameUz: 'Chamadonlar', nameRu: 'Чемоданы', sortOrder: 6 },
           ],
         },
       },
     }),
-    // 7. Zargarlik buyumlari
+    // 8. Zargarlik
     prisma.category.create({
       data: {
-        nameUz: 'Zargarlik buyumlari',
+        nameUz: 'Zargarlik',
         nameRu: 'Ювелирные изделия',
         icon: 'diamonds',
-        sortOrder: 7,
+        sortOrder: 8,
         subcategories: {
           create: [
             { nameUz: 'Uzuklar', nameRu: 'Кольца', sortOrder: 1 },
-            { nameUz: 'Marjonlar', nameRu: 'Ожерелья', sortOrder: 2 },
+            { nameUz: 'Bo\'yintuqlar', nameRu: 'Ожерелья', sortOrder: 2 },
             { nameUz: 'Isirg\'alar', nameRu: 'Серьги', sortOrder: 3 },
-            { nameUz: 'Soatlar', nameRu: 'Часы', sortOrder: 4 },
+            { nameUz: 'Bilaguzuklar', nameRu: 'Браслеты', sortOrder: 4 },
+            { nameUz: 'Soatlar', nameRu: 'Часы', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 8. Go'zallik
+    // 9. Go'zallik
     prisma.category.create({
       data: {
         nameUz: "Go'zallik",
         nameRu: 'Красота',
         icon: 'magic_star',
-        sortOrder: 8,
+        sortOrder: 9,
         subcategories: {
           create: [
-            { nameUz: 'Pardoz vositalari', nameRu: 'Косметика', sortOrder: 1 },
-            { nameUz: 'Terini parvarish', nameRu: 'Уход за кожей', sortOrder: 2 },
+            { nameUz: 'Pardoz vositalari', nameRu: 'Декоративная косметика', sortOrder: 1 },
+            { nameUz: 'Teri parvarishi', nameRu: 'Уход за кожей', sortOrder: 2 },
             { nameUz: 'Soch parvarishi', nameRu: 'Уход за волосами', sortOrder: 3 },
+            { nameUz: 'Tirnoq parvarishi', nameRu: 'Маникюр и педикюр', sortOrder: 4 },
+            { nameUz: 'Soch quritgichlar', nameRu: 'Фены и стайлеры', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 9. Parfyumeriya
+    // 10. Parfyumeriya
     prisma.category.create({
       data: {
         nameUz: 'Parfyumeriya',
         nameRu: 'Парфюмерия',
         icon: 'drop',
-        sortOrder: 9,
+        sortOrder: 10,
         subcategories: {
           create: [
             { nameUz: 'Ayollar atiri', nameRu: 'Женская парфюмерия', sortOrder: 1 },
             { nameUz: 'Erkaklar atiri', nameRu: 'Мужская парфюмерия', sortOrder: 2 },
+            { nameUz: 'Atir to\'plamlari', nameRu: 'Парфюмерные наборы', sortOrder: 3 },
           ],
         },
       },
     }),
-    // 10. Gigiena
+    // 11. Shaxsiy gigiena
     prisma.category.create({
       data: {
-        nameUz: 'Gigiena',
-        nameRu: 'Гигиена',
+        nameUz: 'Shaxsiy gigiena',
+        nameRu: 'Личная гигиена',
         icon: 'brush_1',
-        sortOrder: 10,
+        sortOrder: 11,
         subcategories: {
           create: [
-            { nameUz: 'Og\'iz bo\'shlig\'i', nameRu: 'Полость рта', sortOrder: 1 },
-            { nameUz: 'Tana gigienasi', nameRu: 'Гигиена тела', sortOrder: 2 },
+            { nameUz: 'Og\'iz bo\'shlig\'i gigienasi', nameRu: 'Гигиена полости рта', sortOrder: 1 },
+            { nameUz: 'Tana parvarishi', nameRu: 'Уход за телом', sortOrder: 2 },
+            { nameUz: 'Soqol parvarishi', nameRu: 'Уход за бородой', sortOrder: 3 },
+            { nameUz: 'Ustara va malhamlar', nameRu: 'Бритвы и средства для бритья', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 11. Dorixona
+    // 12. Dorixona
     prisma.category.create({
       data: {
         nameUz: 'Dorixona',
         nameRu: 'Аптека',
         icon: 'health',
-        sortOrder: 11,
+        sortOrder: 12,
         subcategories: {
           create: [
             { nameUz: 'Vitaminlar', nameRu: 'Витамины', sortOrder: 1 },
-            { nameUz: 'Tibbiy jihozlar', nameRu: 'Мед. оборудование', sortOrder: 2 },
-            { nameUz: 'Shaxsiy gigiena', nameRu: 'Личная гигиена', sortOrder: 3 },
+            { nameUz: 'Tibbiy jihozlar', nameRu: 'Медицинские приборы', sortOrder: 2 },
+            { nameUz: 'BADlar', nameRu: 'БАДы', sortOrder: 3 },
+            { nameUz: 'Birinchi yordam', nameRu: 'Первая помощь', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 12. Uy
+    // 13. Uy buyumlari
     prisma.category.create({
       data: {
-        nameUz: 'Uy',
-        nameRu: 'Дом',
+        nameUz: 'Uy buyumlari',
+        nameRu: 'Товары для дома',
         icon: 'home_2',
-        sortOrder: 12,
+        sortOrder: 13,
         subcategories: {
           create: [
             { nameUz: 'Uy tekstili', nameRu: 'Домашний текстиль', sortOrder: 1 },
             { nameUz: 'Oshxona buyumlari', nameRu: 'Посуда', sortOrder: 2 },
             { nameUz: 'Dekor', nameRu: 'Декор', sortOrder: 3 },
             { nameUz: 'Yoritish', nameRu: 'Освещение', sortOrder: 4 },
+            { nameUz: 'Hammom buyumlari', nameRu: 'Товары для ванной', sortOrder: 5 },
+            { nameUz: 'Saqlash va tartib', nameRu: 'Хранение и порядок', sortOrder: 6 },
           ],
         },
       },
     }),
-    // 13. Mebel
+    // 14. Mebel
     prisma.category.create({
       data: {
         nameUz: 'Mebel',
         nameRu: 'Мебель',
         icon: 'lamp_charge',
-        sortOrder: 13,
+        sortOrder: 14,
         subcategories: {
           create: [
-            { nameUz: 'Yotoq xona', nameRu: 'Спальня', sortOrder: 1 },
-            { nameUz: 'Mehmon xona', nameRu: 'Гостиная', sortOrder: 2 },
+            { nameUz: 'Yotoqxona', nameRu: 'Спальня', sortOrder: 1 },
+            { nameUz: 'Yashash xonasi', nameRu: 'Гостиная', sortOrder: 2 },
             { nameUz: 'Oshxona mebeli', nameRu: 'Кухонная мебель', sortOrder: 3 },
             { nameUz: 'Ofis mebeli', nameRu: 'Офисная мебель', sortOrder: 4 },
+            { nameUz: 'Bolalar mebeli', nameRu: 'Детская мебель', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 14. Qurilish va ta'mirlash
+    // 15. Qurilish va ta'mirlash
     prisma.category.create({
       data: {
         nameUz: "Qurilish va ta'mirlash",
         nameRu: 'Строительство и ремонт',
         icon: 'ruler',
-        sortOrder: 14,
+        sortOrder: 15,
         subcategories: {
           create: [
             { nameUz: 'Asboblar', nameRu: 'Инструменты', sortOrder: 1 },
             { nameUz: 'Bo\'yoqlar', nameRu: 'Краски', sortOrder: 2 },
             { nameUz: 'Santexnika', nameRu: 'Сантехника', sortOrder: 3 },
             { nameUz: 'Elektrika', nameRu: 'Электрика', sortOrder: 4 },
+            { nameUz: 'Qulflar va dastaklar', nameRu: 'Замки и ручки', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 15. Uy kimyoviy moddalari
+    // 16. Maishiy kimyo
     prisma.category.create({
       data: {
-        nameUz: 'Uy kimyoviy moddalari',
+        nameUz: 'Maishiy kimyo',
         nameRu: 'Бытовая химия',
         icon: 'box_1',
-        sortOrder: 15,
-        subcategories: {
-          create: [
-            { nameUz: 'Kir yuvish', nameRu: 'Стирка', sortOrder: 1 },
-            { nameUz: 'Tozalash', nameRu: 'Уборка', sortOrder: 2 },
-            { nameUz: 'Idish yuvish', nameRu: 'Мытьё посуды', sortOrder: 3 },
-          ],
-        },
-      },
-    }),
-    // 16. Bolalar mahsulotlari
-    prisma.category.create({
-      data: {
-        nameUz: 'Bolalar mahsulotlari',
-        nameRu: 'Детские товары',
-        icon: 'happyemoji',
         sortOrder: 16,
         subcategories: {
           create: [
-            { nameUz: 'Bolalar kiyimi', nameRu: 'Детская одежда', sortOrder: 1 },
-            { nameUz: 'Bolalar oziq-ovqati', nameRu: 'Детское питание', sortOrder: 2 },
-            { nameUz: 'Bolalar gigienasi', nameRu: 'Детская гигиена', sortOrder: 3 },
-            { nameUz: 'Aravachalar', nameRu: 'Коляски', sortOrder: 4 },
+            { nameUz: 'Kir yuvish vositalari', nameRu: 'Средства для стирки', sortOrder: 1 },
+            { nameUz: 'Tozalash vositalari', nameRu: 'Средства для уборки', sortOrder: 2 },
+            { nameUz: 'Idish yuvish vositalari', nameRu: 'Средства для мытья посуды', sortOrder: 3 },
+            { nameUz: 'Xushbo\'ylantirgichlar', nameRu: 'Освежители воздуха', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 17. O'yinchoqlar
+    // 17. Bolalar uchun
+    prisma.category.create({
+      data: {
+        nameUz: 'Bolalar uchun',
+        nameRu: 'Детские товары',
+        icon: 'happyemoji',
+        sortOrder: 17,
+        subcategories: {
+          create: [
+            { nameUz: 'Bolalar kiyimi', nameRu: 'Детская одежда', sortOrder: 1 },
+            { nameUz: 'Bolalar poyabzali', nameRu: 'Детская обувь', sortOrder: 2 },
+            { nameUz: 'Bolalar oziq-ovqati', nameRu: 'Детское питание', sortOrder: 3 },
+            { nameUz: 'Bolalar gigienasi', nameRu: 'Детская гигиена', sortOrder: 4 },
+            { nameUz: 'Aravachalar', nameRu: 'Коляски', sortOrder: 5 },
+            { nameUz: 'Bolalar xonasi', nameRu: 'Детская комната', sortOrder: 6 },
+          ],
+        },
+      },
+    }),
+    // 18. O'yinchoqlar
     prisma.category.create({
       data: {
         nameUz: "O'yinchoqlar",
         nameRu: 'Игрушки',
         icon: 'game',
-        sortOrder: 17,
+        sortOrder: 18,
         subcategories: {
           create: [
             { nameUz: 'Konstruktorlar', nameRu: 'Конструкторы', sortOrder: 1 },
             { nameUz: 'Qo\'g\'irchoqlar', nameRu: 'Куклы', sortOrder: 2 },
             { nameUz: 'Mashinalar', nameRu: 'Машинки', sortOrder: 3 },
             { nameUz: 'Stol o\'yinlari', nameRu: 'Настольные игры', sortOrder: 4 },
+            { nameUz: 'Yumshoq o\'yinchoqlar', nameRu: 'Мягкие игрушки', sortOrder: 5 },
+            { nameUz: 'Rivojlantiruvchi', nameRu: 'Развивающие', sortOrder: 6 },
           ],
         },
       },
     }),
-    // 18. Maktab va ofis uchun
+    // 19. Kanselyariya
     prisma.category.create({
       data: {
-        nameUz: 'Maktab va ofis uchun',
-        nameRu: 'Школа и офис',
+        nameUz: 'Kanselyariya',
+        nameRu: 'Канцелярия',
         icon: 'pen_tool',
-        sortOrder: 18,
-        subcategories: {
-          create: [
-            { nameUz: 'Yozuv buyumlari', nameRu: 'Письменные', sortOrder: 1 },
-            { nameUz: 'Daftarlar', nameRu: 'Тетради', sortOrder: 2 },
-            { nameUz: 'Ofis jihozlari', nameRu: 'Офисная техника', sortOrder: 3 },
-          ],
-        },
-      },
-    }),
-    // 19. Oziq-ovqat mahsulotlari
-    prisma.category.create({
-      data: {
-        nameUz: 'Oziq-ovqat mahsulotlari',
-        nameRu: 'Продукты питания',
-        icon: 'milk',
         sortOrder: 19,
         subcategories: {
           create: [
-            { nameUz: 'Sut mahsulotlari', nameRu: 'Молочные продукты', sortOrder: 1 },
-            { nameUz: 'Non mahsulotlari', nameRu: 'Хлебобулочные', sortOrder: 2 },
-            { nameUz: 'Konservalar', nameRu: 'Консервы', sortOrder: 3 },
-            { nameUz: 'Yog\' va soslar', nameRu: 'Масла и соусы', sortOrder: 4 },
+            { nameUz: 'Yozuv buyumlari', nameRu: 'Письменные принадлежности', sortOrder: 1 },
+            { nameUz: 'Daftarlar va bloknot', nameRu: 'Тетради и блокноты', sortOrder: 2 },
+            { nameUz: 'Maktab buyumlari', nameRu: 'Школьные принадлежности', sortOrder: 3 },
+            { nameUz: 'Ofis buyumlari', nameRu: 'Офисные принадлежности', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 20. Shirinliklar va gazaklar
+    // 20. Oziq-ovqat
+    prisma.category.create({
+      data: {
+        nameUz: 'Oziq-ovqat',
+        nameRu: 'Продукты питания',
+        icon: 'milk',
+        sortOrder: 20,
+        subcategories: {
+          create: [
+            { nameUz: 'Sut mahsulotlari', nameRu: 'Молочные продукты', sortOrder: 1 },
+            { nameUz: 'Non va un mahsulotlari', nameRu: 'Хлебобулочные и мука', sortOrder: 2 },
+            { nameUz: 'Konservalar', nameRu: 'Консервы', sortOrder: 3 },
+            { nameUz: 'Yog\' va soslar', nameRu: 'Масла и соусы', sortOrder: 4 },
+            { nameUz: 'Guruch va yormalar', nameRu: 'Крупы и макароны', sortOrder: 5 },
+            { nameUz: 'Ziravorlar', nameRu: 'Специи и приправы', sortOrder: 6 },
+          ],
+        },
+      },
+    }),
+    // 21. Shirinliklar va gazaklar
     prisma.category.create({
       data: {
         nameUz: 'Shirinliklar va gazaklar',
         nameRu: 'Сладости и снеки',
         icon: 'cake',
-        sortOrder: 20,
+        sortOrder: 21,
         subcategories: {
           create: [
             { nameUz: 'Shokoladlar', nameRu: 'Шоколад', sortOrder: 1 },
             { nameUz: 'Konfetlar', nameRu: 'Конфеты', sortOrder: 2 },
-            { nameUz: 'Gazaklar', nameRu: 'Снеки', sortOrder: 3 },
+            { nameUz: 'Pechenye', nameRu: 'Печенье', sortOrder: 3 },
+            { nameUz: 'Gazaklar', nameRu: 'Снеки', sortOrder: 4 },
+            { nameUz: 'Quritilgan mevalar', nameRu: 'Сухофрукты и орехи', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 21. Ichimliklar
+    // 22. Ichimliklar
     prisma.category.create({
       data: {
         nameUz: 'Ichimliklar',
         nameRu: 'Напитки',
         icon: 'cup',
-        sortOrder: 21,
-        subcategories: {
-          create: [
-            { nameUz: 'Choy va qahva', nameRu: 'Чай и кофе', sortOrder: 1 },
-            { nameUz: 'Sharbatlar', nameRu: 'Соки', sortOrder: 2 },
-            { nameUz: 'Suv', nameRu: 'Вода', sortOrder: 3 },
-          ],
-        },
-      },
-    }),
-    // 22. Avtomobil mahsulotlari
-    prisma.category.create({
-      data: {
-        nameUz: 'Avtomobil mahsulotlari',
-        nameRu: 'Автотовары',
-        icon: 'car',
         sortOrder: 22,
         subcategories: {
           create: [
-            { nameUz: 'Ehtiyot qismlar', nameRu: 'Запчасти', sortOrder: 1 },
-            { nameUz: 'Aksessuarlar', nameRu: 'Аксессуары', sortOrder: 2 },
-            { nameUz: 'Yog\'lar', nameRu: 'Масла', sortOrder: 3 },
-            { nameUz: 'Shinalar', nameRu: 'Шины', sortOrder: 4 },
+            { nameUz: 'Choy', nameRu: 'Чай', sortOrder: 1 },
+            { nameUz: 'Qahva', nameRu: 'Кофе', sortOrder: 2 },
+            { nameUz: 'Sharbat va kompotlar', nameRu: 'Соки и компоты', sortOrder: 3 },
+            { nameUz: 'Suv', nameRu: 'Вода', sortOrder: 4 },
+            { nameUz: 'Gazli ichimliklar', nameRu: 'Газированные напитки', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 23. Sport va dam olish
+    // 23. Avtotovarlar
+    prisma.category.create({
+      data: {
+        nameUz: 'Avtotovarlar',
+        nameRu: 'Автотовары',
+        icon: 'car',
+        sortOrder: 23,
+        subcategories: {
+          create: [
+            { nameUz: 'Ehtiyot qismlar', nameRu: 'Запчасти', sortOrder: 1 },
+            { nameUz: 'Avto aksessuarlar', nameRu: 'Аксессуары', sortOrder: 2 },
+            { nameUz: 'Moy va suyuqliklar', nameRu: 'Масла и жидкости', sortOrder: 3 },
+            { nameUz: 'Shinalar va disklar', nameRu: 'Шины и диски', sortOrder: 4 },
+            { nameUz: 'Avtoelektronika', nameRu: 'Автоэлектроника', sortOrder: 5 },
+          ],
+        },
+      },
+    }),
+    // 24. Sport va dam olish
     prisma.category.create({
       data: {
         nameUz: 'Sport va dam olish',
         nameRu: 'Спорт и отдых',
         icon: 'weight_1',
-        sortOrder: 23,
+        sortOrder: 24,
         subcategories: {
           create: [
             { nameUz: 'Sport kiyimlari', nameRu: 'Спортивная одежда', sortOrder: 1 },
             { nameUz: 'Sport jihozlari', nameRu: 'Спортивный инвентарь', sortOrder: 2 },
-            { nameUz: 'Turizm', nameRu: 'Туризм', sortOrder: 3 },
+            { nameUz: 'Sport poyabzali', nameRu: 'Спортивная обувь', sortOrder: 3 },
+            { nameUz: 'Velosipedlar', nameRu: 'Велосипеды', sortOrder: 4 },
+            { nameUz: 'Turizm va yurish', nameRu: 'Туризм и походы', sortOrder: 5 },
+            { nameUz: 'Baliq ovi', nameRu: 'Рыбалка', sortOrder: 6 },
           ],
         },
       },
     }),
-    // 24. O'yin va konsol
+    // 25. O'yin va konsol
     prisma.category.create({
       data: {
         nameUz: "O'yin va konsol",
         nameRu: 'Игры и консоли',
         icon: 'driver',
-        sortOrder: 24,
+        sortOrder: 25,
         subcategories: {
           create: [
             { nameUz: 'Konsollar', nameRu: 'Консоли', sortOrder: 1 },
             { nameUz: 'O\'yinlar', nameRu: 'Игры', sortOrder: 2 },
-            { nameUz: 'Aksessuarlar', nameRu: 'Аксессуары', sortOrder: 3 },
+            { nameUz: 'Geympad va aksessuarlar', nameRu: 'Геймпады и аксессуары', sortOrder: 3 },
+            { nameUz: 'O\'yin stullari', nameRu: 'Игровые кресла', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 25. Kitoblar
+    // 26. Kitoblar
     prisma.category.create({
       data: {
         nameUz: 'Kitoblar',
         nameRu: 'Книги',
         icon: 'book',
-        sortOrder: 25,
+        sortOrder: 26,
         subcategories: {
           create: [
-            { nameUz: 'Badiiy adabiyot', nameRu: 'Художественная', sortOrder: 1 },
+            { nameUz: 'Badiiy adabiyot', nameRu: 'Художественная литература', sortOrder: 1 },
             { nameUz: 'Darsliklar', nameRu: 'Учебники', sortOrder: 2 },
             { nameUz: 'Bolalar kitoblari', nameRu: 'Детские книги', sortOrder: 3 },
-            { nameUz: 'Biznes kitoblar', nameRu: 'Бизнес книги', sortOrder: 4 },
+            { nameUz: 'Biznes va motivatsiya', nameRu: 'Бизнес и мотивация', sortOrder: 4 },
+            { nameUz: 'Diniy kitoblar', nameRu: 'Религиозная литература', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 26. Xobbi va ijodkorlik
+    // 27. Xobbi va ijodkorlik
     prisma.category.create({
       data: {
         nameUz: 'Xobbi va ijodkorlik',
         nameRu: 'Хобби и творчество',
         icon: 'colorfilter',
-        sortOrder: 26,
+        sortOrder: 27,
         subcategories: {
           create: [
             { nameUz: 'Rassomchilik', nameRu: 'Рисование', sortOrder: 1 },
             { nameUz: 'Tikuvchilik', nameRu: 'Шитьё', sortOrder: 2 },
+            { nameUz: 'Musiqa asboblari', nameRu: 'Музыкальные инструменты', sortOrder: 3 },
+            { nameUz: 'Qo\'lda ishlash', nameRu: 'Рукоделие', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 27. Uy hayvonlari
+    // 28. Uy hayvonlari
     prisma.category.create({
       data: {
         nameUz: 'Uy hayvonlari',
         nameRu: 'Домашние животные',
         icon: 'pet',
-        sortOrder: 27,
+        sortOrder: 28,
         subcategories: {
           create: [
             { nameUz: 'Oziq-ovqat', nameRu: 'Корм', sortOrder: 1 },
             { nameUz: 'Aksessuarlar', nameRu: 'Аксессуары', sortOrder: 2 },
-            { nameUz: 'Gigiyena', nameRu: 'Гигиена', sortOrder: 3 },
+            { nameUz: 'Gigiena vositalari', nameRu: 'Средства гигиены', sortOrder: 3 },
+            { nameUz: 'Vetapteka', nameRu: 'Ветаптека', sortOrder: 4 },
           ],
         },
       },
     }),
-    // 28. Gullar va guldastalar
+    // 29. Bog' va tomorqa
     prisma.category.create({
       data: {
-        nameUz: 'Gullar va guldastalar',
-        nameRu: 'Цветы и букеты',
-        icon: 'lovely',
-        sortOrder: 28,
+        nameUz: "Bog' va tomorqa",
+        nameRu: 'Сад и огород',
+        icon: 'tree',
+        sortOrder: 29,
         subcategories: {
           create: [
-            { nameUz: 'Guldastalar', nameRu: 'Букеты', sortOrder: 1 },
-            { nameUz: 'Uy o\'simliklari', nameRu: 'Комнатные растения', sortOrder: 2 },
+            { nameUz: 'Urug\'lar va ko\'chatlar', nameRu: 'Семена и рассада', sortOrder: 1 },
+            { nameUz: 'Bog\' asboblari', nameRu: 'Садовый инвентарь', sortOrder: 2 },
+            { nameUz: 'O\'g\'itlar', nameRu: 'Удобрения', sortOrder: 3 },
+            { nameUz: 'Sug\'orish tizimlari', nameRu: 'Системы полива', sortOrder: 4 },
+            { nameUz: 'Gullar va o\'simliklar', nameRu: 'Цветы и растения', sortOrder: 5 },
           ],
         },
       },
     }),
-    // 29. Sovg'alar
+    // 30. Sovg'alar
     prisma.category.create({
       data: {
         nameUz: "Sovg'alar",
         nameRu: 'Подарки',
         icon: 'gift',
-        sortOrder: 29,
+        sortOrder: 30,
         subcategories: {
           create: [
             { nameUz: 'Sovg\'a to\'plamlari', nameRu: 'Подарочные наборы', sortOrder: 1 },
             { nameUz: 'Sertifikatlar', nameRu: 'Сертификаты', sortOrder: 2 },
+            { nameUz: 'Bayram bezaklari', nameRu: 'Праздничный декор', sortOrder: 3 },
+            { nameUz: 'Esdalik buyumlar', nameRu: 'Сувениры', sortOrder: 4 },
           ],
         },
       },

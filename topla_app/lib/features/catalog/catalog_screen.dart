@@ -5,7 +5,6 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
-import '../search/search_screen.dart';
 import 'category_detail_screen.dart';
 
 /// Uzum/Ozon uslubidagi Katalog sahifasi
@@ -24,7 +23,6 @@ class CatalogScreen extends StatefulWidget {
 
 class _CatalogScreenState extends State<CatalogScreen> {
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -45,7 +43,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -97,15 +94,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
             return Column(
               children: [
-                // Search bar
-                _buildSearchBar(),
-
-                // Divider
-                Container(
-                  height: 1,
-                  color: Colors.grey.shade200,
-                ),
-
                 // Categories list
                 Expanded(
                   child: ListView.builder(
@@ -122,46 +110,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
               ],
             );
           },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    final isRussian = context.l10n.locale.languageCode == 'ru';
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SearchScreen()),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        height: 44,
-        decoration: BoxDecoration(
-          color: const Color(0xFFECECEC),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: Colors.grey.shade400,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Qidiruv',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -407,11 +355,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
       case 'pet':
         return Icons.pets_outlined;
 
-      // 28. Gullar - yurak
-      case 'lovely':
-        return Icons.local_florist_outlined;
+      // 29. Bog' va tomorqa - daraxt
+      case 'tree':
+        return Icons.park_outlined;
 
-      // 29. Sovg'alar - sovg'a
+      // 30. Sovg'alar - sovg'a
       case 'gift':
         return Icons.card_giftcard_outlined;
 
