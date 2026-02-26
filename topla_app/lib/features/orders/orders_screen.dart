@@ -30,9 +30,12 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
 
-    // Buyurtmalarni yuklash
+    // Buyurtmalarni yuklash (faqat autentifikatsiya bo'lsa)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OrdersProvider>().loadOrders();
+      final ordersProvider = context.read<OrdersProvider>();
+      if (ordersProvider.isAuthenticated) {
+        ordersProvider.loadOrders();
+      }
     });
   }
 
@@ -77,6 +80,11 @@ class _OrdersScreenState extends State<OrdersScreen>
       ),
       body: Consumer<OrdersProvider>(
         builder: (context, ordersProvider, _) {
+          // Autentifikatsiya tekshirish
+          if (!ordersProvider.isAuthenticated) {
+            return _buildLoginRequiredState();
+          }
+
           if (ordersProvider.isLoading) {
             // Shimmer skeleton loading
             return ListView.builder(
@@ -125,6 +133,12 @@ class _OrdersScreenState extends State<OrdersScreen>
     );
   }
 
+  Widget _buildLoginRequiredState() {
+    return EmptyOrdersWidget(
+      onShopNow: () => MainScreenState.switchToTab(0),
+    );
+  }
+
   Widget _buildOrdersList(List<OrderModel> orders) {
     if (orders.isEmpty) {
       return EmptyOrdersWidget(
@@ -154,299 +168,228 @@ class _OrdersScreenState extends State<OrdersScreen>
     final formattedDate =
         '${order.createdAt.day}.${order.createdAt.month.toString().padLeft(2, '0')}.${order.createdAt.year}';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    // Progress hisoblash (0.0 - 1.0)
+    final progress = _getOrderProgress(order.status);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderDetailScreen(orderId: order.id),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.orderNumber,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.xs),
-                    Text(
-                      formattedDate,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.md,
-                    vertical: AppSizes.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        (statusInfo['color'] as Color).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Status + Progress bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status text + icon
+                  Row(
                     children: [
                       Icon(
-                        statusInfo['icon'],
-                        color: statusInfo['color'],
-                        size: 16,
+                        statusInfo['icon'] as IconData,
+                        color: statusInfo['color'] as Color,
+                        size: 18,
                       ),
-                      const SizedBox(width: AppSizes.xs),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          statusInfo['text'] as String,
+                          style: TextStyle(
+                            color: statusInfo['color'] as Color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       Text(
-                        statusInfo['text'],
+                        formattedDate,
                         style: TextStyle(
-                          color: statusInfo['color'],
-                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade400,
                           fontSize: 12,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // Divider
-          Divider(height: 1, color: Colors.grey.shade200),
-
-          // Products
-          Padding(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-                  ),
-                  child: order.items.isNotEmpty &&
-                          order.items.first.productImage != null
-                      ? ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radiusSm),
-                          child: CachedNetworkImage(
-                            imageUrl: order.items.first.productImage!,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => Icon(
-                              Iconsax.box,
-                              color: Colors.grey.shade400,
-                              size: 28,
-                            ),
-                          ),
-                        )
-                      : Icon(
-                          Iconsax.box,
-                          color: Colors.grey.shade400,
-                          size: 28,
+                  const SizedBox(height: 10),
+                  // Progress bar
+                  if (order.status != OrderStatus.cancelled &&
+                      order.status != OrderStatus.delivered)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 4,
+                        backgroundColor: Colors.grey.shade100,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          statusInfo['color'] as Color,
                         ),
-                ),
-                const SizedBox(width: AppSizes.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        order.items.isNotEmpty
-                            ? order.items.first.productName
-                            : context.l10n.translate('product'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                      if (order.items.length > 1) ...[
-                        const SizedBox(height: AppSizes.xs),
-                        Text(
-                          '+${order.items.length - 1} ${context.l10n.translate('more_products')}',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatPrice(order.total.toInt()),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
-                    Text(
-                      context.l10n.translate('currency'),
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 12,
+                  if (order.status == OrderStatus.delivered)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: 1.0,
+                        minHeight: 4,
+                        backgroundColor: Colors.grey.shade100,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(AppColors.success),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            Divider(height: 1, color: Colors.grey.shade100),
+
+            // Product info row
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Product image
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: order.items.isNotEmpty &&
+                            order.items.first.productImage != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: CachedNetworkImage(
+                              imageUrl: order.items.first.productImage!,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Icon(
+                                Iconsax.box,
+                                color: Colors.grey.shade300,
+                                size: 22,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            Iconsax.box,
+                            color: Colors.grey.shade300,
+                            size: 22,
+                          ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Product name + count
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.items.isNotEmpty
+                              ? order.items.first.productName
+                              : 'Mahsulot',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (order.items.length > 1)
+                          Text(
+                            'va yana ${order.items.length - 1} ta',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Price
+                  Text(
+                    '${_formatPrice(order.total.toInt())} so\'m',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Action buttons
+            if (order.status == OrderStatus.pending ||
+                order.status == OrderStatus.confirmed) ...[
+              Divider(height: 1, color: Colors.grey.shade100),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => _showCancelDialog(order),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                        ),
+                        child: const Text(
+                          'Bekor qilish',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          // Actions
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSizes.lg,
-              0,
-              AppSizes.lg,
-              AppSizes.lg,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OrderDetailScreen(
-                            orderId: order.id,
-                          ),
-                        ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: AppSizes.md),
-                      side: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    child: Text(
-                      context.l10n.orderDetails,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-                if (order.status == OrderStatus.shipping) ...[
-                  const SizedBox(width: AppSizes.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderDetailScreen(
-                              orderId: order.id,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: AppSizes.md),
-                        backgroundColor: AppColors.success,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Iconsax.location, size: 18),
-                          const SizedBox(width: AppSizes.xs),
-                          Text(
-                            context.l10n.trackOrder,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                if (order.status == OrderStatus.delivered) ...[
-                  const SizedBox(width: AppSizes.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final cart = context.read<CartProvider>();
-                        int addedCount = 0;
-                        for (final item in order.items) {
-                          if (item.productId != null) {
-                            await cart.addToCart(
-                              item.productId!,
-                              quantity: item.quantity,
-                            );
-                            addedCount++;
-                          }
-                        }
-                        if (mounted && addedCount > 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  '$addedCount ta mahsulot savatga qo\'shildi'),
-                              backgroundColor: AppColors.success,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: AppSizes.md),
-                      ),
-                      child: Text(
-                        context.l10n.translate('reorder'),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ),
-                ],
-                if (order.status == OrderStatus.pending) ...[
-                  const SizedBox(width: AppSizes.md),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _showCancelDialog(order),
-                      style: OutlinedButton.styleFrom(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: AppSizes.md),
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                      ),
-                      child: Text(
-                        context.l10n.translate('cancel'),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
+  }
+
+  double _getOrderProgress(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 0.1;
+      case OrderStatus.confirmed:
+        return 0.25;
+      case OrderStatus.processing:
+        return 0.4;
+      case OrderStatus.readyForPickup:
+        return 0.55;
+      case OrderStatus.courierAssigned:
+        return 0.6;
+      case OrderStatus.courierPickedUp:
+        return 0.7;
+      case OrderStatus.shipping:
+        return 0.8;
+      case OrderStatus.atPickupPoint:
+        return 0.85;
+      case OrderStatus.delivered:
+        return 1.0;
+      case OrderStatus.cancelled:
+        return 0.0;
+    }
   }
 
   void _showCancelDialog(OrderModel order) {
@@ -489,26 +432,26 @@ class _OrdersScreenState extends State<OrdersScreen>
     switch (status) {
       case OrderStatus.pending:
         return {
-          'text': context.l10n.translate('pending'),
+          'text': 'Buyurtma qabul qilindi',
           'color': AppColors.warning,
           'icon': Iconsax.clock,
         };
       case OrderStatus.confirmed:
         return {
-          'text': context.l10n.translate('confirmed'),
-          'color': AppColors.accent,
+          'text': 'Buyurtma tasdiqlandi',
+          'color': const Color(0xFF4CAF50),
           'icon': Iconsax.tick_square,
         };
       case OrderStatus.processing:
         return {
-          'text': context.l10n.translate('processing'),
+          'text': 'Do\'kon tayyorlamoqda',
           'color': AppColors.accent,
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.readyForPickup:
         return {
-          'text': 'Tayyor',
-          'color': AppColors.accent,
+          'text': 'Buyurtma tayyor',
+          'color': const Color(0xFF2196F3),
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.courierAssigned:
@@ -519,25 +462,31 @@ class _OrdersScreenState extends State<OrdersScreen>
         };
       case OrderStatus.courierPickedUp:
         return {
-          'text': 'Kuryer oldi',
+          'text': 'Kuryer oldi, yo\'lga chiqdi',
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.shipping:
         return {
-          'text': context.l10n.translate('on_the_way'),
+          'text': 'Buyurtma yo\'lda',
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.delivered:
         return {
-          'text': context.l10n.translate('delivered'),
+          'text': 'Yetkazib berildi',
           'color': AppColors.success,
           'icon': Iconsax.tick_circle,
         };
+      case OrderStatus.atPickupPoint:
+        return {
+          'text': 'Punktda kutmoqda',
+          'color': const Color(0xFF9C27B0),
+          'icon': Iconsax.building,
+        };
       case OrderStatus.cancelled:
         return {
-          'text': context.l10n.translate('cancelled'),
+          'text': 'Bekor qilingan',
           'color': AppColors.error,
           'icon': Iconsax.close_circle,
         };

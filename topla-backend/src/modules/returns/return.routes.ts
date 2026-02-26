@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
+import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 
 // ============================================
 // Validation Schemas
@@ -200,12 +201,11 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
     '/admin/returns',
     { preHandler: [authMiddleware, requireRole('admin')] },
     async (request, reply) => {
-      const { status, page = '1', limit = '20' } = request.query as Record<string, string>;
+      const { page, limit, skip } = parsePagination(request.query as any);
+      const { status } = request.query as Record<string, string>;
 
       const where: any = {};
       if (status) where.status = status;
-
-      const skip = (parseInt(page) - 1) * parseInt(limit);
 
       const [returns, total] = await Promise.all([
         prisma.return.findMany({
@@ -225,7 +225,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
           },
           orderBy: { createdAt: 'desc' },
           skip,
-          take: parseInt(limit),
+          take: limit,
         }),
         prisma.return.count({ where }),
       ]);
@@ -233,7 +233,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({
         success: true,
         data: returns,
-        meta: { total, page: parseInt(page), limit: parseInt(limit) },
+        meta: paginationMeta(page, limit, total),
       });
     }
   );

@@ -63,15 +63,10 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.05, ease: [0.4, 0, 0.2, 1] }}
-      className={className}
-    >
+    <div className={className}>
       <Link href={`/products/${product.id}`} className="product-card block overflow-hidden group">
         {/* Image */}
-        <div className="relative aspect-square img-zoom">
+        <div className="relative aspect-square">
           {product.images?.[0] ? (
             <Image
               src={product.images[0]}
@@ -81,7 +76,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
           ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center text-3xl">📦</div>
+            <div className="w-full h-full bg-gray-50 flex items-center justify-center text-3xl">📦</div>
           )}
 
           {/* Discount badge */}
@@ -89,16 +84,16 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
 
           {/* Flash sale */}
           {product.flashSalePrice && (
-            <div className="absolute bottom-2 left-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 z-2">
-              <Zap className="w-3 h-3" /> Flash Sale
+            <div className="absolute bottom-1.5 left-1.5 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 z-2">
+              <Zap className="w-2.5 h-2.5" /> Flash
             </div>
           )}
 
           {/* Favorite button */}
           <button
             className={cn(
-              'absolute top-2.5 right-2.5 w-8 h-8 rounded-full glass flex items-center justify-center z-10 transition-all',
-              'opacity-0 group-hover:opacity-100 sm:opacity-100'
+              'absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
+              'sm:opacity-0 sm:group-hover:opacity-100'
             )}
             onClick={(e) => {
               e.preventDefault();
@@ -108,48 +103,42 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           >
             <Heart
               className={cn(
-                'w-4 h-4 transition-colors',
-                isFav ? 'fill-red-500 text-red-500' : 'text-muted-foreground'
+                'w-3.5 h-3.5 transition-colors',
+                isFav ? 'fill-red-500 text-red-500' : 'text-gray-400'
               )}
             />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-3">
-          <p className="text-sm font-medium line-clamp-2 leading-snug mb-1.5 group-hover:text-primary transition-colors">
+        <div className="p-2 sm:p-2.5">
+          <p className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug mb-1 text-gray-800">
             {name}
           </p>
 
-          <div className="flex items-center gap-1 mb-1.5">
-            <Star className="w-3.5 h-3.5 rating-star fill-current" />
-            <span className="text-xs text-muted-foreground">
+          <div className="flex items-center gap-1 mb-1">
+            <Star className="w-3 h-3 text-amber-400 fill-current" />
+            <span className="text-[10px] sm:text-xs text-gray-400">
               {product.rating?.toFixed(1) || '0.0'}
             </span>
             {product.salesCount > 0 && (
-              <span className="text-xs text-muted-foreground">
-                • {product.salesCount} {locale === 'ru' ? 'продано' : 'sotildi'}
+              <span className="text-[10px] sm:text-xs text-gray-400">
+                • {product.salesCount}
               </span>
             )}
           </div>
 
-          <div className="flex items-end gap-2">
-            <span className="font-bold text-base">{formatPrice(product.price)}</span>
+          <div className="flex items-end gap-1.5">
+            <span className="font-bold text-sm sm:text-base text-gray-900">{formatPrice(product.price)}</span>
             {hasDiscount && (
-              <span className="text-xs text-muted-foreground line-through">
+              <span className="text-[10px] sm:text-xs text-gray-400 line-through">
                 {formatPrice(product.compareAtPrice!)}
               </span>
             )}
           </div>
-
-          {product.shop && (
-            <p className="text-[11px] text-muted-foreground mt-1 truncate">
-              {product.shop.name}
-            </p>
-          )}
         </div>
       </Link>
-    </motion.div>
+    </div>
   );
 }
 
@@ -168,7 +157,7 @@ export function ProductGrid({ products, columns = 4 }: ProductGridProps) {
   };
 
   return (
-    <div className={cn('grid gap-3 sm:gap-4', colClasses[columns])}>
+    <div className={cn('grid gap-2 sm:gap-3', colClasses[columns])}>
       {products.map((product, i) => (
         <ProductCard key={product.id} product={product} index={i} />
       ))}

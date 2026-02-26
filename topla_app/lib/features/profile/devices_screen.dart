@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/services/api_client.dart';
+import '../../providers/providers.dart';
 
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
@@ -43,43 +46,17 @@ class _DevicesScreenState extends State<DevicesScreen> {
     }
   }
 
-  Future<void> _removeDevice(String id, int index) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Qurilmani o\'chirish',
-          style: TextStyle(fontSize: 16),
-        ),
-        content: const Text(
-          'Bu qurilmadagi sessiya o\'chiriladi. Davom etasizmi?',
-          style: TextStyle(fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Bekor qilish'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('O\'chirish'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
+  Future<void> _removeDevice(String id) async {
     try {
       await _api.delete('/auth/devices/$id');
+      if (mounted) Navigator.pop(context);
       setState(() {
-        _devices.removeAt(index);
+        _devices.removeWhere((d) => d['id'] == id);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Qurilma o\'chirildi'),
+            content: Text('Sessiya yakunlandi'),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
@@ -98,29 +75,75 @@ class _DevicesScreenState extends State<DevicesScreen> {
     }
   }
 
-  IconData _getPlatformIcon(String? platform) {
-    switch (platform?.toLowerCase()) {
-      case 'android':
-        return Icons.phone_android;
-      case 'ios':
-        return Icons.phone_iphone;
-      case 'web':
-        return Iconsax.monitor;
-      default:
-        return Iconsax.mobile;
-    }
-  }
+  Future<void> _terminateAllOtherSessions() async {
+    if (_devices.length <= 1) return;
 
-  Color _getPlatformColor(String? platform) {
-    switch (platform?.toLowerCase()) {
-      case 'android':
-        return const Color(0xFF3DDC84);
-      case 'ios':
-        return Colors.grey.shade700;
-      case 'web':
-        return AppColors.primary;
-      default:
-        return Colors.grey.shade600;
+    final currentDeviceId = _devices.first['id'] as String?;
+
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(
+          'Boshqa barcha seanslarni tugatmoqchimisiz?',
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Boshqa seanslarni tugatish',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(
+            'Bekor qilish',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _api.post('/auth/devices/terminate-others', body: {
+        'currentDeviceId': currentDeviceId,
+      });
+      setState(() {
+        if (_devices.isNotEmpty) {
+          _devices = [_devices.first];
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Boshqa barcha seanslar yakunlandi'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Xatolik: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -131,7 +154,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
       final now = DateTime.now();
       final diff = now.difference(date);
 
-      if (diff.inMinutes < 1) return 'Hozir';
+      if (diff.inMinutes < 1) return 'onlayn';
       if (diff.inMinutes < 60) return '${diff.inMinutes} daqiqa oldin';
       if (diff.inHours < 24) return '${diff.inHours} soat oldin';
       if (diff.inDays < 7) return '${diff.inDays} kun oldin';
@@ -142,14 +165,111 @@ class _DevicesScreenState extends State<DevicesScreen> {
     }
   }
 
+  bool _isOnline(String? dateStr) {
+    if (dateStr == null) return false;
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateTime.now().difference(date).inMinutes < 5;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _getDeviceApp(Map<String, dynamic> device) {
+    final browser = device['browser'] as String?;
+    final platform = device['platform'] as String?;
+    if (browser != null && browser.isNotEmpty) {
+      return browser;
+    }
+    if (platform == 'android') return 'TOPLA Android';
+    if (platform == 'ios') return 'TOPLA iOS';
+    return 'TOPLA Web';
+  }
+
+  void _showDeviceDetail(Map<String, dynamic> device,
+      {bool isCurrentDevice = false}) {
+    final platform = device['platform'] as String?;
+    final deviceName = device['deviceName'] as String? ?? 'Noma\'lum qurilma';
+    final ipAddress = device['ipAddress'] as String?;
+    final lastActiveAt = device['lastActiveAt'] as String?;
+    final id = device['id'] as String;
+    final isOnline = _isOnline(lastActiveAt);
+    final appName = _getDeviceApp(device);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _DeviceDetailSheet(
+        deviceName: deviceName,
+        platform: platform,
+        appName: appName,
+        ipAddress: ipAddress,
+        isOnline: isOnline,
+        timeAgo: _formatDate(lastActiveAt),
+        isCurrentDevice: isCurrentDevice,
+        onTerminate: () {
+          if (isCurrentDevice) {
+            _logoutCurrentDevice();
+          } else {
+            _removeDevice(id);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _logoutCurrentDevice() async {
+    Navigator.pop(context); // close bottom sheet
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(
+          'Hisobingizdan chiqmoqchimisiz?',
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Hisobdan chiqish',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(
+            'Bekor qilish',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<AuthProvider>().signOut();
+      if (mounted) Navigator.pop(context); // close devices screen
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         title: const Text(
           'Qurilmalar',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
         ),
       ),
       body: _isLoading
@@ -202,7 +322,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Iconsax.mobile, size: 48, color: Colors.grey.shade400),
+          Icon(Iconsax.mobile_copy, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'Hech qanday qurilma topilmadi',
@@ -218,176 +338,489 @@ class _DevicesScreenState extends State<DevicesScreen> {
   }
 
   Widget _buildDevicesList() {
+    final currentDevice = _devices.isNotEmpty ? _devices.first : null;
+    final otherDevices =
+        _devices.length > 1 ? _devices.sublist(1) : <Map<String, dynamic>>[];
+
     return RefreshIndicator(
       onRefresh: _loadDevices,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _devices.length,
-        itemBuilder: (context, index) {
-          final device = _devices[index];
-          return _buildDeviceCard(device, index);
-        },
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          // === BU QURILMA ===
+          if (currentDevice != null) ...[
+            _buildSectionHeader('BU QURILMA'),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  _buildDeviceTile(currentDevice, isCurrentDevice: true),
+                  if (otherDevices.isNotEmpty) ...[
+                    Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: Colors.grey.shade200),
+                    // Boshqa barcha seanslarni yakunlash
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _terminateAllOtherSessions,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              Icon(Iconsax.logout_copy,
+                                  color: Colors.red.shade400, size: 20),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Boshqa barcha seanslarni yakunlash',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (otherDevices.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Bu qurilmadan tashqari barcha qurilmalardan chiqib ketiladi.',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+              ),
+            ],
+          ],
+
+          // === FAOL SEANSLAR ===
+          if (otherDevices.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildSectionHeader('FAOL SEANSLAR'),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < otherDevices.length; i++) ...[
+                    _buildDeviceTile(otherDevices[i]),
+                    if (i < otherDevices.length - 1)
+                      Divider(
+                        height: 1,
+                        indent: 68,
+                        color: Colors.grey.shade200,
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
 
-  Widget _buildDeviceCard(Map<String, dynamic> device, int index) {
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey.shade500,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeviceTile(Map<String, dynamic> device,
+      {bool isCurrentDevice = false}) {
     final platform = device['platform'] as String?;
     final deviceName = device['deviceName'] as String? ?? 'Noma\'lum qurilma';
-    final browser = device['browser'] as String?;
-    final ipAddress = device['ipAddress'] as String?;
-    final isActive = device['isActive'] as bool? ?? false;
     final lastActiveAt = device['lastActiveAt'] as String?;
-    final id = device['id'] as String;
+    final isOnline = _isOnline(lastActiveAt);
+    final appName = _getDeviceApp(device);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: isActive
-            ? Border.all(color: AppColors.success.withValues(alpha: 0.3))
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Platform icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _getPlatformColor(platform).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () =>
+            _showDeviceDetail(device, isCurrentDevice: isCurrentDevice),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              _DeviceIcon(platform: platform, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      deviceName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$appName • ${isOnline ? 'onlayn' : _formatDate(lastActiveAt)}',
+                      style: TextStyle(
+                        color: isOnline
+                            ? const Color(0xFF4FC3F7)
+                            : Colors.grey.shade500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Icon(
-                _getPlatformIcon(platform),
-                color: _getPlatformColor(platform),
-                size: 22,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================
+// Device Detail Bottom Sheet (Light theme)
+// ============================================
+class _DeviceDetailSheet extends StatelessWidget {
+  final String deviceName;
+  final String? platform;
+  final String appName;
+  final String? ipAddress;
+  final bool isOnline;
+  final String timeAgo;
+  final bool isCurrentDevice;
+  final VoidCallback onTerminate;
+
+  const _DeviceDetailSheet({
+    required this.deviceName,
+    required this.platform,
+    required this.appName,
+    required this.ipAddress,
+    required this.isOnline,
+    required this.timeAgo,
+    this.isCurrentDevice = false,
+    required this.onTerminate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(width: 12),
-            // Device info
-            Expanded(
+
+            // Close button (top right)
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8, top: 4),
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close,
+                        color: Colors.grey.shade600, size: 18),
+                  ),
+                ),
+              ),
+            ),
+
+            // Animated device icon
+            _AnimatedDeviceIcon(platform: platform, size: 90),
+
+            const SizedBox(height: 16),
+
+            // Device name
+            Text(
+              deviceName,
+              style: const TextStyle(
+                color: Color(0xFF1A1A2E),
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            // Online status
+            Text(
+              isOnline ? 'onlayn' : timeAgo,
+              style: TextStyle(
+                color:
+                    isOnline ? const Color(0xFF4CAF50) : Colors.grey.shade500,
+                fontSize: 15,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Info rows
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          deviceName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isActive)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'Faol',
-                            style: TextStyle(
-                              color: AppColors.success,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (platform != null) ...[
-                        Text(
-                          platform,
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      if (browser != null && browser.isNotEmpty) ...[
-                        if (platform != null)
-                          Text(
-                            ' • ',
-                            style: TextStyle(color: Colors.grey.shade400),
-                          ),
-                        Text(
-                          browser,
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      if (ipAddress != null) ...[
-                        Icon(Iconsax.global,
-                            size: 12, color: Colors.grey.shade400),
-                        const SizedBox(width: 4),
-                        Text(
-                          ipAddress,
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      if (lastActiveAt != null) ...[
-                        Icon(Iconsax.clock,
-                            size: 12, color: Colors.grey.shade400),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDate(lastActiveAt),
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                  _infoRow('Ilova', appName, showDivider: ipAddress != null),
+                  if (ipAddress != null)
+                    _infoRow('IP manzil', ipAddress!, showDivider: false),
                 ],
               ),
             ),
-            // Delete button
-            IconButton(
-              onPressed: () => _removeDevice(id, index),
-              icon: Icon(
-                Iconsax.trash,
-                color: Colors.red.shade400,
-                size: 20,
+
+            const SizedBox(height: 16),
+
+            // Terminate button (pill-shaped)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: onTerminate,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE53935),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  isCurrentDevice ? 'Hisobdan chiqish' : 'Seansni tugatish',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
-              tooltip: 'O\'chirish',
             ),
+
+            const SizedBox(height: 16),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _infoRow(String label, String value, {bool showDivider = true}) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style:
+                      const TextStyle(color: Color(0xFF1A1A2E), fontSize: 15)),
+              Text(value,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Divider(
+              height: 1,
+              indent: 16,
+              endIndent: 16,
+              color: Colors.grey.shade200),
+      ],
+    );
+  }
+}
+
+// ============================================
+// Static Device Icon (for list tiles)
+// ============================================
+class _DeviceIcon extends StatelessWidget {
+  final String? platform;
+  final double size;
+
+  const _DeviceIcon({required this.platform, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAndroid = platform?.toLowerCase() == 'android';
+    final isIos = platform?.toLowerCase() == 'ios';
+
+    final Color bgColor;
+    final IconData icon;
+
+    if (isAndroid) {
+      bgColor = const Color(0xFF4CAF50);
+      icon = Icons.android;
+    } else if (isIos) {
+      bgColor = const Color(0xFF2196F3);
+      icon = Icons.phone_iphone;
+    } else {
+      bgColor = const Color(0xFF9C27B0);
+      icon = Icons.desktop_windows_rounded;
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(size * 0.25),
+      ),
+      child: Icon(icon, color: Colors.white, size: size * 0.55),
+    );
+  }
+}
+
+// ============================================
+// Animated Device Icon (for bottom sheet detail)
+// ============================================
+class _AnimatedDeviceIcon extends StatefulWidget {
+  final String? platform;
+  final double size;
+
+  const _AnimatedDeviceIcon({required this.platform, required this.size});
+
+  @override
+  State<_AnimatedDeviceIcon> createState() => _AnimatedDeviceIconState();
+}
+
+class _AnimatedDeviceIconState extends State<_AnimatedDeviceIcon>
+    with TickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late AnimationController _bounceController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _bounceAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Pulse glow animation
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Bounce-in animation
+    _bounceController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _bounceAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.elasticOut),
+    );
+
+    _bounceController.forward();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _bounceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAndroid = widget.platform?.toLowerCase() == 'android';
+    final isIos = widget.platform?.toLowerCase() == 'ios';
+
+    final Color bgColor;
+    final IconData icon;
+
+    if (isAndroid) {
+      bgColor = const Color(0xFF4CAF50);
+      icon = Icons.android;
+    } else if (isIos) {
+      bgColor = const Color(0xFF2196F3);
+      icon = Icons.phone_iphone;
+    } else {
+      bgColor = const Color(0xFF9C27B0);
+      icon = Icons.desktop_windows_rounded;
+    }
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([_pulseController, _bounceController]),
+      builder: (context, child) {
+        final scale = _bounceAnimation.value;
+        final glowOpacity = 0.15 + (_pulseAnimation.value * 0.15);
+
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            width: widget.size,
+            height: widget.size,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(widget.size * 0.25),
+              boxShadow: [
+                BoxShadow(
+                  color: bgColor.withValues(alpha: glowOpacity),
+                  blurRadius: 20 + (_pulseAnimation.value * 10),
+                  spreadRadius: 2 + (_pulseAnimation.value * 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: widget.size * 0.55,
+            ),
+          ),
+        );
+      },
     );
   }
 }

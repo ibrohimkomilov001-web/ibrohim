@@ -33,7 +33,15 @@ export async function getBanners(): Promise<Banner[]> {
 }
 
 export async function createBanner(data: Partial<Banner>): Promise<void> {
-  await apiCreateBanner(data);
+  // Backend expects: imageUrl, titleUz, titleRu, actionType, actionValue, sortOrder
+  await apiCreateBanner({
+    imageUrl: data.imageUrl,
+    titleUz: data.title,
+    actionType: data.link ? 'link' : 'none',
+    actionValue: data.link || undefined,
+    sortOrder: data.sortOrder || 0,
+    isActive: data.isActive ?? true,
+  });
 }
 
 export async function updateBanner(id: string, data: Partial<Banner>): Promise<void> {

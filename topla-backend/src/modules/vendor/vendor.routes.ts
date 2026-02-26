@@ -389,11 +389,8 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // To'lovlar tarixi
   // ============================================
   app.get('/vendor/payouts', { preHandler: vendorAuth }, async (request, reply) => {
-    const { page = '1', limit = '20', status } = request.query as {
-      page?: string;
-      limit?: string;
-      status?: string;
-    };
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { status } = request.query as { status?: string };
 
     const shop = await prisma.shop.findUnique({
       where: { ownerId: request.user!.userId },
@@ -403,14 +400,12 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const where: any = { shopId: shop.id };
     if (status) where.status = status;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const [payouts, total] = await Promise.all([
       prisma.payout.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limit,
       }),
       prisma.payout.count({ where }),
     ]);
@@ -420,12 +415,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       data: {
         payouts,
         balance: Number(shop.balance),
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / parseInt(limit)),
-        },
+        meta: paginationMeta(page, limit, total),
       },
     });
   });
@@ -493,24 +483,19 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // Komissiya tarixi
   // ============================================
   app.get('/vendor/commissions', { preHandler: vendorAuth }, async (request, reply) => {
-    const { page = '1', limit = '20' } = request.query as {
-      page?: string;
-      limit?: string;
-    };
+    const { page, limit, skip } = parsePagination(request.query as any);
 
     const shop = await prisma.shop.findUnique({
       where: { ownerId: request.user!.userId },
     });
     if (!shop) throw new NotFoundError('Do\'kon');
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const [transactions, total, totalCommission] = await Promise.all([
       prisma.vendorTransaction.findMany({
         where: { shopId: shop.id, type: 'sale' },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limit,
       }),
       prisma.vendorTransaction.count({
         where: { shopId: shop.id, type: 'sale' },
@@ -527,12 +512,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
         transactions,
         commissionRate: Number(shop.commissionRate),
         totalCommission: Number(totalCommission._sum.commission || 0),
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / parseInt(limit)),
-        },
+        meta: paginationMeta(page, limit, total),
       },
     });
   });
@@ -542,11 +522,8 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // Barcha tranzaksiyalar
   // ============================================
   app.get('/vendor/transactions', { preHandler: vendorAuth }, async (request, reply) => {
-    const { page = '1', limit = '20', type } = request.query as {
-      page?: string;
-      limit?: string;
-      type?: string;
-    };
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { type } = request.query as { type?: string };
 
     const shop = await prisma.shop.findUnique({
       where: { ownerId: request.user!.userId },
@@ -556,14 +533,12 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const where: any = { shopId: shop.id };
     if (type) where.type = type;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const [transactions, total] = await Promise.all([
       prisma.vendorTransaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limit,
       }),
       prisma.vendorTransaction.count({ where }),
     ]);
@@ -572,12 +547,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       success: true,
       data: {
         transactions,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / parseInt(limit)),
-        },
+        meta: paginationMeta(page, limit, total),
       },
     });
   });
@@ -587,8 +557,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
    * Vendor do'koniga yozilgan sharhlar
    */
   app.get('/vendor/reviews', { preHandler: [authMiddleware, requireRole('vendor')] }, async (request, reply) => {
-    const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { page, limit, skip } = parsePagination(request.query as any);
 
     // Vendor do'konini topish
     const shop = await prisma.shop.findFirst({
@@ -613,7 +582,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit),
+        take: limit,
       }),
       prisma.shopReview.count({ where: { shopId: shop.id } }),
     ]);
@@ -622,12 +591,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       success: true,
       data: {
         reviews,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / parseInt(limit)),
-        },
+        meta: paginationMeta(page, limit, total),
       },
     });
   });

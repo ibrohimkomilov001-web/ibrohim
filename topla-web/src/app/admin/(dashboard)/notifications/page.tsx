@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, Plus, Bell, Trash2, Send, CheckCircle } from 'lucide-react'
+import { Loader2, Plus, Bell, Trash2, Send, CheckCircle, Image, Link, Upload, X } from 'lucide-react'
 import { getNotifications, getNotificationStats, createNotification, sendNotification, deleteNotification, type Notification } from './actions'
+import { adminUploadImage } from '@/lib/api/admin'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function AdminNotificationsPage() {
@@ -21,12 +22,16 @@ export default function AdminNotificationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
     title: '',
     body: '',
     type: 'news' as 'system' | 'order' | 'promo' | 'news',
-    target_type: 'all' as 'all' | 'users' | 'vendors' | 'specific'
+    target_type: 'all' as 'all' | 'users' | 'vendors' | 'specific',
+    imageUrl: '',
+    linkUrl: '',
   })
 
   const loadData = async () => {
@@ -67,7 +72,7 @@ export default function AdminNotificationsPage() {
       await loadData()
       toast({ title: "Muvaffaqiyatli", description: "Bildirishnoma yaratildi" })
       setCreateDialogOpen(false)
-      setFormData({ title: '', body: '', type: 'news', target_type: 'all' })
+      setFormData({ title: '', body: '', type: 'news', target_type: 'all', imageUrl: '', linkUrl: '' })
     } catch (error) {
       toast({ title: "Xatolik", description: "Yaratishda xatolik", variant: "destructive" })
     } finally {
@@ -185,6 +190,19 @@ export default function AdminNotificationsPage() {
                         {notification.is_sent && <CheckCircle className="h-4 w-4 text-green-500" />}
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">{notification.body}</p>
+                      {notification.imageUrl && (
+                        <div className="mt-2">
+                          <img src={notification.imageUrl} alt="" className="h-16 rounded-md object-cover" />
+                        </div>
+                      )}
+                      {notification.linkUrl && (
+                        <a href={notification.linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline mt-1 flex items-center gap-1">
+                          <Link className="h-3 w-3" />{notification.linkUrl}
+                        </a>
+                      )}
+                      {notification.sent_count > 0 && (
+                        <p className="text-xs text-green-600 mt-1">{notification.sent_count} ta foydalanuvchiga yuborildi</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {!notification.is_sent && (
@@ -274,6 +292,64 @@ export default function AdminNotificationsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Image className="h-4 w-4" /> Rasm</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    setImageUploading(true)
+                    const url = await adminUploadImage(file, 'notification')
+                    setFormData(prev => ({ ...prev, imageUrl: url }))
+                    toast({ title: "Muvaffaqiyatli", description: "Rasm yuklandi" })
+                  } catch (err) {
+                    toast({ title: "Xatolik", description: "Rasmni yuklashda xatolik", variant: "destructive" })
+                  } finally {
+                    setImageUploading(false)
+                    if (fileInputRef.current) fileInputRef.current.value = ''
+                  }
+                }}
+              />
+              {formData.imageUrl ? (
+                <div className="relative inline-block">
+                  <img src={formData.imageUrl} alt="" className="h-32 rounded-lg object-cover border" />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-20 border-dashed"
+                  disabled={imageUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {imageUploading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yuklanmoqda...</>
+                  ) : (
+                    <><Upload className="mr-2 h-4 w-4" /> Rasm tanlash</>
+                  )}
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Link className="h-4 w-4" /> Havola</Label>
+              <Input
+                placeholder="https://topla.uz/..."
+                value={formData.linkUrl}
+                onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>

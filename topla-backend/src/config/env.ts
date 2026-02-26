@@ -11,9 +11,9 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
 
   JWT_SECRET: z.string(),
-  JWT_REFRESH_SECRET: z.string().optional(),
-  JWT_EXPIRES_IN: z.string().default('30d'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('90d'),
+  JWT_REFRESH_SECRET: z.string().default(''),
+  JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
@@ -37,7 +37,7 @@ const envSchema = z.object({
   TELEGRAM_GATEWAY_TOKEN: z.string().optional(),
 
   // OTP
-  OTP_LENGTH: z.coerce.number().default(4),
+  OTP_LENGTH: z.coerce.number().default(6),
   OTP_TTL_SECONDS: z.coerce.number().default(120),
 
   // Payment Webhooks

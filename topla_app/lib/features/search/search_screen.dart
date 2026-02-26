@@ -39,10 +39,6 @@ class _SearchScreenState extends State<SearchScreen>
   List<String> _searchHistory = [];
   static const String _historyKey = 'search_history';
 
-  // Mashhur qidiruvlar (API dan)
-  List<String> _popularSearches = [];
-  bool _popularLoading = true;
-
   // Auto-suggest
   List<Map<String, dynamic>> _suggestions = [];
   bool _showSuggestions = false;
@@ -56,7 +52,6 @@ class _SearchScreenState extends State<SearchScreen>
   void initState() {
     super.initState();
     _loadSearchHistory();
-    _loadPopularSearches();
 
     _searchFocusNode.addListener(_onFocusChange);
 
@@ -78,6 +73,22 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _loadSearchHistory() async {
+    // Try server first if logged in
+    final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
+    if (isLoggedIn) {
+      try {
+        final serverHistory =
+            await context.read<ProductsProvider>().getSearchHistory();
+        if (serverHistory.isNotEmpty && mounted) {
+          setState(() => _searchHistory = serverHistory);
+          // Also save to local for offline access
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setStringList(_historyKey, serverHistory);
+          return;
+        }
+      } catch (_) {}
+    }
+    // Fallback to local
     final prefs = await SharedPreferences.getInstance();
     final history = prefs.getStringList(_historyKey);
     if (history != null && mounted) {
@@ -88,39 +99,10 @@ class _SearchScreenState extends State<SearchScreen>
   Future<void> _saveSearchHistory() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_historyKey, _searchHistory);
-  }
-
-  Future<void> _loadPopularSearches() async {
-    try {
-      final popular =
-          await context.read<ProductsProvider>().getPopularSearches();
-      if (mounted) {
-        setState(() {
-          _popularSearches = popular.isNotEmpty
-              ? popular
-              : [
-                  'Telefon',
-                  'Noutbuk',
-                  'Quloqchin',
-                  'Smart soat',
-                  'Televizor',
-                  'Planshet',
-                ];
-          _popularLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _popularSearches = [
-            'Telefon',
-            'Noutbuk',
-            'Quloqchin',
-            'Smart soat',
-          ];
-          _popularLoading = false;
-        });
-      }
+    // Sync to server if logged in (async, fire-and-forget)
+    final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
+    if (isLoggedIn && _searchHistory.isNotEmpty) {
+      context.read<ProductsProvider>().saveSearchQuery(_searchHistory.first);
     }
   }
 
@@ -284,12 +266,25 @@ class _SearchScreenState extends State<SearchScreen>
 
   void _clearHistory() {
     setState(() => _searchHistory.clear());
-    _saveSearchHistory();
+    _saveLocalHistory();
+    // Clear on server too
+    if (context.read<AuthProvider>().isLoggedIn) {
+      context.read<ProductsProvider>().clearSearchHistory();
+    }
   }
 
   void _removeHistoryItem(String query) {
     setState(() => _searchHistory.remove(query));
-    _saveSearchHistory();
+    _saveLocalHistory();
+    // Remove on server too
+    if (context.read<AuthProvider>().isLoggedIn) {
+      context.read<ProductsProvider>().removeSearchHistoryItem(query);
+    }
+  }
+
+  Future<void> _saveLocalHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_historyKey, _searchHistory);
   }
 
   // ============ BUILD ============
@@ -320,7 +315,7 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildSearchField(bool isRu) {
     return Container(
-      height: 44,
+      height: 42,
       margin: const EdgeInsets.only(right: 8),
       child: TextField(
         controller: _searchController,
@@ -328,7 +323,7 @@ class _SearchScreenState extends State<SearchScreen>
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           hintText: isRu ? 'Поиск товаров...' : 'Mahsulot qidirish...',
-          prefixIcon: const Icon(Icons.search, size: 22),
+          prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _showClearButton
               ? IconButton(
                   onPressed: () {
@@ -343,17 +338,25 @@ class _SearchScreenState extends State<SearchScreen>
                     });
                     _searchFocusNode.requestFocus();
                   },
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: const Icon(Icons.close, size: 18),
                 )
               : null,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(100),
             borderSide: BorderSide.none,
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(100),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(100),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+          ),
           filled: true,
-          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          fillColor: const Color(0xFFECECEC),
         ),
         onChanged: _onSearchChanged,
         onSubmitted: _performSearch,
@@ -374,97 +377,59 @@ class _SearchScreenState extends State<SearchScreen>
               showWhenUnlinked: false,
               offset: const Offset(0, 48),
               child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(12),
+                elevation: 4,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width - 72,
-                    maxHeight: 300,
+                    maxHeight: 260,
                   ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.grey.shade200,
                     ),
                   ),
-                  child: ListView.separated(
+                  child: ListView.builder(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: _suggestions.length,
-                    separatorBuilder: (_, __) =>
-                        Divider(height: 1, color: Colors.grey.shade100),
                     itemBuilder: (context, index) {
                       final item = _suggestions[index];
                       final name = isRu
                           ? (item['nameRu'] ?? item['name'] ?? '')
                           : (item['name'] ?? '');
-                      final price = item['price'];
-                      final image = item['image'];
 
-                      return ListTile(
-                        dense: true,
-                        leading: image != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  image,
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Iconsax.image,
-                                        size: 20, color: Colors.grey),
-                                  ),
-                                ),
-                              )
-                            : Icon(Iconsax.search_normal,
-                                size: 20, color: Colors.grey.shade500),
-                        title: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        subtitle: price != null
-                            ? Text(
-                                '${_formatPrice(price)} ${isRu ? 'сум' : 'so\'m'}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : null,
+                      return InkWell(
                         onTap: () {
-                          final productId = item['id'];
-                          if (productId != null) {
-                            _removeSuggestionOverlay();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ProductDetailScreen(
-                                  product: {
-                                    'id': productId,
-                                    'name': name,
-                                    'price':
-                                        price is num ? price.toDouble() : 0.0,
-                                    'image': image,
-                                  },
+                          _searchController.text = name;
+                          _showClearButton = true;
+                          _removeSuggestionOverlay();
+                          _performSearch(name);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          child: Row(
+                            children: [
+                              Icon(Iconsax.search_normal,
+                                  size: 16, color: Colors.grey.shade400),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
                               ),
-                            );
-                          } else {
-                            _searchController.text = name;
-                            _performSearch(name);
-                          }
-                        },
+                              Icon(Icons.north_west,
+                                  size: 14, color: Colors.grey.shade400),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -475,20 +440,6 @@ class _SearchScreenState extends State<SearchScreen>
         ),
       ),
     );
-  }
-
-  String _formatPrice(dynamic price) {
-    if (price == null) return '0';
-    final num = price is int ? price : (price as double).toInt();
-    final str = num.toString();
-    final buffer = StringBuffer();
-    int count = 0;
-    for (int i = str.length - 1; i >= 0; i--) {
-      buffer.write(str[i]);
-      count++;
-      if (count % 3 == 0 && i > 0) buffer.write(' ');
-    }
-    return buffer.toString().split('').reversed.join();
   }
 
   Widget _buildBody(bool isRu) {
@@ -520,26 +471,17 @@ class _SearchScreenState extends State<SearchScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Iconsax.clock, size: 18, color: Colors.grey.shade600),
-                  const SizedBox(width: 8),
-                  Text(
-                    isRu ? 'История поиска' : 'Qidiruv tarixi',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              TextButton.icon(
-                onPressed: _clearHistory,
-                icon: const Icon(Iconsax.trash, size: 16),
-                label: Text(isRu ? 'Очистить' : 'Tozalash'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
+              Text(
+                isRu ? 'История поиска' : 'Qidiruv tarixi',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
                 ),
+              ),
+              GestureDetector(
+                onTap: _clearHistory,
+                child: Icon(Icons.close, size: 18, color: Colors.grey.shade500),
               ),
             ],
           ),
@@ -573,86 +515,6 @@ class _SearchScreenState extends State<SearchScreen>
           const Divider(),
           const SizedBox(height: 16),
         ],
-
-        // Mashhur qidiruvlar
-        Row(
-          children: [
-            Icon(Iconsax.trend_up, size: 18, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Text(
-              isRu ? 'Популярные запросы' : 'Mashhur qidiruvlar',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (_popularLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 10,
-            children: _popularSearches.asMap().entries.map((entry) {
-              final index = entry.key;
-              final query = entry.value;
-              final isTop3 = index < 3;
-              return ActionChip(
-                avatar: isTop3
-                    ? Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.accent,
-                            ),
-                          ),
-                        ),
-                      )
-                    : Icon(Iconsax.search_normal,
-                        size: 14, color: Colors.grey.shade600),
-                label: Text(
-                  query,
-                  style: TextStyle(
-                    color: isTop3 ? AppColors.primary : Colors.grey.shade800,
-                    fontWeight: isTop3 ? FontWeight.w600 : FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-                backgroundColor: isTop3
-                    ? AppColors.primary.withValues(alpha: 0.08)
-                    : Colors.grey.shade100,
-                side: BorderSide(
-                  color: isTop3
-                      ? AppColors.primary.withValues(alpha: 0.2)
-                      : Colors.grey.shade200,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                onPressed: () {
-                  _searchController.text = query;
-                  _showClearButton = true;
-                  _performSearch(query);
-                },
-              );
-            }).toList(),
-          ),
       ],
     );
   }

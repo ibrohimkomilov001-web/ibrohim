@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,30 +29,48 @@ class PushNotificationService {
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
 
-  // Notification channels
-  static const AndroidNotificationChannel _orderChannel =
+  // Vibratsiya pattern — [kutish, vibratsiya, pauza, vibratsiya]
+  static final Int64List _vibrationPattern =
+      Int64List.fromList([0, 400, 200, 400]);
+
+  // Notification channels — tovush + vibratsiya + heads-up (Importance.max)
+  static final AndroidNotificationChannel _orderChannel =
       AndroidNotificationChannel(
     'orders_channel',
     'Buyurtmalar',
     description: 'Buyurtma holati haqida bildirishnomalar',
-    importance: Importance.high,
+    importance: Importance.max,
     playSound: true,
+    enableVibration: true,
+    vibrationPattern: _vibrationPattern,
+    enableLights: true,
+    ledColor: const Color(0xFF3B82F6),
   );
 
-  static const AndroidNotificationChannel _promoChannel =
+  static final AndroidNotificationChannel _promoChannel =
       AndroidNotificationChannel(
     'promo_channel',
     'Aksiyalar',
     description: 'Chegirmalar va aksiyalar haqida bildirishnomalar',
-    importance: Importance.defaultImportance,
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+    vibrationPattern: _vibrationPattern,
+    enableLights: true,
+    ledColor: const Color(0xFFFF1744),
   );
 
-  static const AndroidNotificationChannel _generalChannel =
+  static final AndroidNotificationChannel _generalChannel =
       AndroidNotificationChannel(
     'general_channel',
     'Umumiy',
     description: 'Umumiy bildirishnomalar',
-    importance: Importance.defaultImportance,
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+    vibrationPattern: _vibrationPattern,
+    enableLights: true,
+    ledColor: const Color(0xFF4CAF50),
   );
 
   /// Initialize push notifications
@@ -122,6 +142,11 @@ class PushNotificationService {
             AndroidFlutterLocalNotificationsPlugin>();
 
     if (androidPlugin != null) {
+      // Eski channellarni o'chirib, yangi importance bilan qayta yaratish
+      await androidPlugin.deleteNotificationChannel(_orderChannel.id);
+      await androidPlugin.deleteNotificationChannel(_promoChannel.id);
+      await androidPlugin.deleteNotificationChannel(_generalChannel.id);
+
       await androidPlugin.createNotificationChannel(_orderChannel);
       await androidPlugin.createNotificationChannel(_promoChannel);
       await androidPlugin.createNotificationChannel(_generalChannel);
@@ -150,15 +175,7 @@ class PushNotificationService {
   }
 
   String _getPlatform() {
-    // Platform ni aniqlash
-    // Flutter Web uchun 'web', iOS uchun 'ios', boshqa hollarda 'android'
-    try {
-      if (identical(0, 0.0)) {
-        // Web platformada
-        return 'web';
-      }
-    } catch (_) {}
-    // defaultTargetPlatform orqali aniqlash
+    if (kIsWeb) return 'web';
     return defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
   }
 
@@ -168,12 +185,17 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
+    // Rasmni olish (FCM data yoki notification dan)
+    final imageUrl = message.data['imageUrl'] as String? ??
+        notification.android?.imageUrl;
+
     // Show local notification
     _showLocalNotification(
       title: notification.title ?? 'TOPLA',
       body: notification.body ?? '',
       payload: jsonEncode(message.data),
       channelId: _getChannelForType(message.data['type']),
+      imageUrl: imageUrl,
     );
   }
 
@@ -208,6 +230,15 @@ class PushNotificationService {
     switch (type) {
       case 'order':
       case 'order_status':
+      case 'order_new':
+      case 'order_confirmed':
+      case 'order_processing':
+      case 'order_ready':
+      case 'order_assigned':
+      case 'order_picked_up':
+      case 'order_shipping':
+      case 'order_delivered':
+      case 'order_cancelled':
         navigator.pushNamed('/orders');
         break;
       case 'return':
@@ -216,7 +247,7 @@ class PushNotificationService {
         break;
       case 'promo':
       case 'sale':
-        // Ana sahifaga o'tish (aksiyalar tab'iga)
+      case 'admin_broadcast':
         navigator.pushNamed('/main');
         break;
       case 'referral':
@@ -227,23 +258,23 @@ class PushNotificationService {
         navigator.pushNamed('/help');
         break;
       default:
-        // Noma'lum turdagi bildirishnoma — asosiy sahifaga
         navigator.pushNamed('/main');
         break;
     }
   }
 
+  /// Notification type ga qarab kanal tanlash (backend enum qiymatlari bilan mos)
   String _getChannelForType(String? type) {
-    switch (type) {
-      case 'order':
-      case 'order_status':
-        return _orderChannel.id;
-      case 'promo':
-      case 'sale':
-        return _promoChannel.id;
-      default:
-        return _generalChannel.id;
+    if (type == null) return _generalChannel.id;
+    // Buyurtma turlarini tekshirish
+    if (type.startsWith('order') || type == 'courier_new') {
+      return _orderChannel.id;
     }
+    // Aksiya/promo turlarini tekshirish
+    if (type == 'promo' || type == 'sale' || type == 'flash_sale' || type == 'promo_new') {
+      return _promoChannel.id;
+    }
+    return _generalChannel.id;
   }
 
   Future<void> _showLocalNotification({
@@ -251,18 +282,56 @@ class PushNotificationService {
     required String body,
     String? payload,
     String? channelId,
+    String? imageUrl,
   }) async {
+    // Rasm URL ni to'liq qilish (relative → absolute)
+    String? fullImageUrl = imageUrl;
+    if (fullImageUrl != null && fullImageUrl.startsWith('/')) {
+      fullImageUrl = 'https://topla.uz$fullImageUrl';
+    }
+
+    // Rasmni yuklash (agar mavjud bo'lsa)
+    StyleInformation? styleInfo;
+    if (fullImageUrl != null && fullImageUrl.isNotEmpty) {
+      try {
+        final response = await HttpClient().getUrl(Uri.parse(fullImageUrl));
+        final httpResponse = await response.close();
+        final bytes = await consolidateHttpClientResponseBytes(httpResponse);
+        styleInfo = BigPictureStyleInformation(
+          ByteArrayAndroidBitmap(bytes),
+          contentTitle: title,
+          summaryText: body,
+          hideExpandedLargeIcon: true,
+        );
+      } catch (e) {
+        debugPrint('Rasm yuklashda xatolik: $e');
+        styleInfo = BigTextStyleInformation(body);
+      }
+    } else {
+      styleInfo = BigTextStyleInformation(body);
+    }
+
+    final ch = channelId ?? _generalChannel.id;
+    final chName = ch == _orderChannel.id
+        ? _orderChannel.name
+        : ch == _promoChannel.id
+            ? _promoChannel.name
+            : _generalChannel.name;
+
     final androidDetails = AndroidNotificationDetails(
-      channelId ?? _generalChannel.id,
-      channelId == _orderChannel.id
-          ? _orderChannel.name
-          : channelId == _promoChannel.id
-              ? _promoChannel.name
-              : _generalChannel.name,
-      importance: Importance.high,
-      priority: Priority.high,
+      ch,
+      chName,
+      importance: Importance.max,
+      priority: Priority.max,
       icon: '@mipmap/ic_launcher',
       color: const Color(0xFF3B82F6),
+      styleInformation: styleInfo,
+      ticker: title,
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: _vibrationPattern,
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.message,
     );
 
     const iosDetails = DarwinNotificationDetails(

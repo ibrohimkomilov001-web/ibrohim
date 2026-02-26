@@ -6,12 +6,13 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   MapPin, CreditCard, Truck, Check, ChevronRight,
-  ShieldCheck, ArrowRight, ArrowLeft,
+  ShieldCheck, ArrowRight, ArrowLeft, LocateFixed, Package, Banknote,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useTranslation } from '@/store/locale-store';
+import { useAuthStore } from '@/store/auth-store';
 
 type Step = 'address' | 'delivery' | 'payment' | 'confirm';
 
@@ -26,24 +27,37 @@ export default function CheckoutPage() {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const { items, getTotal, getItemCount, clearCart } = useCartStore();
+  const { user } = useAuthStore();
   const [currentStep, setCurrentStep] = useState<Step>('address');
   const [orderPlaced, setOrderPlaced] = useState(false);
 
-  // Form state
+  // Form state — auto-fill from auth
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
     city: '',
     street: '',
-    apartment: '',
     note: '',
   });
-  const [deliveryMethod, setDeliveryMethod] = useState<'standard' | 'express'>('standard');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'payme' | 'click' | 'uzum'>('cash');
+
+  // Auto-fill from logged-in user
+  useEffect(() => {
+    if (user) {
+      setAddress((prev) => ({
+        ...prev,
+        fullName: prev.fullName || user.fullName || '',
+        phone: prev.phone || user.phone || '',
+      }));
+    }
+  }, [user]);
+  const [locatingAddress, setLocatingAddress] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState<'courier' | 'pickup'>('courier');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
+  const [showPickupModal, setShowPickupModal] = useState(false);
 
   const itemCount = getItemCount();
   const subtotal = getTotal();
-  const deliveryFee = deliveryMethod === 'express' ? 25000 : (subtotal > 100000 ? 0 : 15000);
+  const deliveryFee = subtotal > 100000 ? 0 : 15000;
   const total = subtotal + deliveryFee;
 
   const stepIndex = steps.findIndex((s) => s.key === currentStep);
@@ -62,7 +76,11 @@ export default function CheckoutPage() {
 
   const goBack = () => {
     const i = stepIndex;
-    if (i > 0) setCurrentStep(steps[i - 1].key);
+    if (i > 0) {
+      setCurrentStep(steps[i - 1].key);
+    } else {
+      router.back();
+    }
   };
 
   const handlePlaceOrder = () => {
@@ -70,10 +88,54 @@ export default function CheckoutPage() {
     clearCart();
   };
 
-  if (items.length === 0 && !orderPlaced) {
-    return (
-      <RedirectToCart />
+  // Geolocation → reverse geocode
+  const handleLocate = () => {
+    if (!navigator.geolocation) {
+      alert(locale === 'ru' ? 'Геолокация не поддерживается' : 'Geolokatsiya qo\'llab-quvvatlanmaydi');
+      return;
+    }
+    setLocatingAddress(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=${locale === 'ru' ? 'ru' : 'uz'}`,
+            { headers: { 'User-Agent': 'topla.uz/1.0' } }
+          );
+          if (!res.ok) throw new Error('Geocode failed');
+          const data = await res.json();
+          const a = data.address || {};
+          const road = a.road || a.pedestrian || a.street || '';
+          const house = a.house_number || '';
+          const district = a.suburb || a.city_district || a.neighbourhood || '';
+          const city = a.city || a.town || a.village || a.state || '';
+          const streetParts = [road, house, district].filter(Boolean);
+          setAddress((prev) => ({
+            ...prev,
+            street: streetParts.join(', ') || data.display_name?.split(',').slice(0, 3).join(',') || '',
+            city: prev.city || city,
+          }));
+        } catch {
+          alert(locale === 'ru' ? 'Не удалось определить адрес' : 'Manzilni aniqlab bo\'lmadi');
+        } finally {
+          setLocatingAddress(false);
+        }
+      },
+      (err) => {
+        setLocatingAddress(false);
+        if (err.code === 1) {
+          alert(locale === 'ru' ? 'Разрешите доступ к геолокации в настройках браузера' : 'Brauzer sozlamalarida joylashuvga ruxsat bering');
+        } else {
+          alert(locale === 'ru' ? 'Не удалось определить местоположение' : 'Joylashuvni aniqlab bo\'lmadi');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
+  };
+
+  if (items.length === 0 && !orderPlaced) {
+    return <RedirectToCart />;
   }
 
   if (orderPlaced) {
@@ -161,7 +223,7 @@ export default function CheckoutPage() {
         {/* Main content */}
         <div className="lg:col-span-2">
           <AnimatePresence mode="wait">
-            {/* Address step */}
+            {/* ── Address step ── */}
             {currentStep === 'address' && (
               <motion.div
                 key="address"
@@ -175,6 +237,7 @@ export default function CheckoutPage() {
                   {stepLabels.address}
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Full name */}
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">
                       {locale === 'ru' ? 'Полное имя' : 'To\'liq ism'}
@@ -183,45 +246,52 @@ export default function CheckoutPage() {
                       type="text"
                       value={address.fullName}
                       onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-                      className="w-full search-glass px-4 py-3 rounded-xl text-sm outline-none"
+                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
                       placeholder={locale === 'ru' ? 'Иван Иванов' : 'Ism Familiya'}
                     />
                   </div>
+
+                  {/* Phone */}
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">
                       {locale === 'ru' ? 'Телефон' : 'Telefon'}
                     </label>
                     <input
                       type="tel"
+                      inputMode="numeric"
                       value={address.phone}
                       onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                      className="w-full search-glass px-4 py-3 rounded-xl text-sm outline-none"
+                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
                       placeholder="+998 90 123 45 67"
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">
-                      {locale === 'ru' ? 'Город' : 'Shahar'}
-                    </label>
-                    <input
-                      type="text"
-                      value={address.city}
-                      onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                      className="w-full search-glass px-4 py-3 rounded-xl text-sm outline-none"
-                      placeholder={locale === 'ru' ? 'Ташкент' : 'Toshkent'}
-                    />
-                  </div>
+
+                  {/* Street / house with location button */}
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">
                       {locale === 'ru' ? 'Улица, дом' : 'Ko\'cha, uy'}
                     </label>
-                    <input
-                      type="text"
-                      value={address.street}
-                      onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                      className="w-full search-glass px-4 py-3 rounded-xl text-sm outline-none"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={address.street}
+                        onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 pr-12 rounded-xl text-[16px] outline-none transition-all box-border"
+                        placeholder={locale === 'ru' ? 'ул. Навои, д. 10' : 'Navoiy ko\'chasi, 10-uy'}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleLocate}
+                        disabled={locatingAddress}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors"
+                        title={locale === 'ru' ? 'Определить местоположение' : 'Joylashuvni aniqlash'}
+                      >
+                        <LocateFixed className={`w-4.5 h-4.5 text-primary ${locatingAddress ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Note */}
                   <div className="sm:col-span-2">
                     <label className="text-sm font-medium mb-1.5 block">
                       {locale === 'ru' ? 'Комментарий' : 'Izoh'}
@@ -229,7 +299,7 @@ export default function CheckoutPage() {
                     <textarea
                       value={address.note}
                       onChange={(e) => setAddress({ ...address, note: e.target.value })}
-                      className="w-full search-glass px-4 py-3 rounded-xl text-sm outline-none resize-none"
+                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none resize-none transition-all box-border"
                       rows={3}
                       placeholder={locale === 'ru' ? 'Ориентир, подъезд, этаж...' : 'Mo\'ljal, podyezd, qavat...'}
                     />
@@ -238,7 +308,7 @@ export default function CheckoutPage() {
               </motion.div>
             )}
 
-            {/* Delivery step */}
+            {/* ── Delivery step ── */}
             {currentStep === 'delivery' && (
               <motion.div
                 key="delivery"
@@ -252,56 +322,58 @@ export default function CheckoutPage() {
                   {stepLabels.delivery}
                 </h2>
                 <div className="space-y-3">
+                  {/* Topshirish punkti */}
                   <button
-                    onClick={() => setDeliveryMethod('standard')}
-                    className={`w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all ${
-                      deliveryMethod === 'standard' ? 'ring-2 ring-primary' : ''
-                    }`}
+                    type="button"
+                    onClick={() => setShowPickupModal(true)}
+                    className="w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all hover:ring-2 hover:ring-gray-200"
                   >
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      deliveryMethod === 'standard' ? 'border-primary' : 'border-muted-foreground'
-                    }`}>
-                      {deliveryMethod === 'standard' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                    <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                      <Package className="w-5 h-5 text-orange-500" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">
-                        {locale === 'ru' ? 'Стандартная доставка' : 'Oddiy yetkazish'}
+                        {locale === 'ru' ? 'Пункт выдачи' : 'Topshirish punkti'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'ru' ? '2-4 рабочих дня' : '2-4 ish kuni'}
+                        {locale === 'ru' ? 'Заберите заказ самостоятельно' : 'Buyurtmani o\'zingiz olib keting'}
                       </p>
                     </div>
-                    <span className="font-bold text-green-600">
-                      {subtotal > 100000 ? t('free') : formatPrice(15000)}
-                    </span>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </button>
 
+                  {/* Kuryer */}
                   <button
-                    onClick={() => setDeliveryMethod('express')}
+                    type="button"
+                    onClick={() => setDeliveryMethod('courier')}
                     className={`w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all ${
-                      deliveryMethod === 'express' ? 'ring-2 ring-primary' : ''
+                      deliveryMethod === 'courier' ? 'ring-2 ring-primary' : ''
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      deliveryMethod === 'express' ? 'border-primary' : 'border-muted-foreground'
-                    }`}>
-                      {deliveryMethod === 'express' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                      <Truck className="w-5 h-5 text-blue-500" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">
-                        {locale === 'ru' ? 'Экспресс доставка' : 'Tezkor yetkazish'}
+                        {locale === 'ru' ? 'Курьер' : 'Kuryer'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'ru' ? 'В тот же день' : 'O\'sha kuni'}
+                        {locale === 'ru' ? 'Доставка до двери, 2-4 дня' : 'Eshikkacha yetkazish, 2-4 kun'}
                       </p>
                     </div>
-                    <span className="font-bold">{formatPrice(25000)}</span>
+                    <div className="text-right shrink-0">
+                      <span className="font-bold text-green-600 text-sm">
+                        {subtotal > 100000
+                          ? (locale === 'ru' ? 'Бесплатно' : 'Bepul')
+                          : formatPrice(15000)}
+                      </span>
+                    </div>
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {/* Payment step */}
+            {/* ── Payment step ── */}
             {currentStep === 'payment' && (
               <motion.div
                 key="payment"
@@ -315,33 +387,58 @@ export default function CheckoutPage() {
                   {stepLabels.payment}
                 </h2>
                 <div className="space-y-3">
-                  {[
-                    { key: 'cash' as const, label: locale === 'ru' ? 'Наличные' : 'Naqd pul', emoji: '💵' },
-                    { key: 'payme' as const, label: 'Payme', emoji: '💳' },
-                    { key: 'click' as const, label: 'Click', emoji: '📱' },
-                    { key: 'uzum' as const, label: 'Uzum Bank', emoji: '🏦' },
-                  ].map((method) => (
-                    <button
-                      key={method.key}
-                      onClick={() => setPaymentMethod(method.key)}
-                      className={`w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all ${
-                        paymentMethod === method.key ? 'ring-2 ring-primary' : ''
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        paymentMethod === method.key ? 'border-primary' : 'border-muted-foreground'
-                      }`}>
-                        {paymentMethod === method.key && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                      </div>
-                      <span className="text-2xl">{method.emoji}</span>
-                      <span className="font-medium">{method.label}</span>
-                    </button>
-                  ))}
+                  {/* Naqd pul */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all ${
+                      paymentMethod === 'cash' ? 'ring-2 ring-primary' : ''
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      paymentMethod === 'cash' ? 'border-primary' : 'border-muted-foreground'
+                    }`}>
+                      {paymentMethod === 'cash' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                    </div>
+                    <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                      <Banknote className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{locale === 'ru' ? 'Наличные' : 'Naqd pul'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {locale === 'ru' ? 'Оплата при получении' : 'Qabul qilganda to\'lash'}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Karta orqali */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all ${
+                      paymentMethod === 'card' ? 'ring-2 ring-primary' : ''
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      paymentMethod === 'card' ? 'border-primary' : 'border-muted-foreground'
+                    }`}>
+                      {paymentMethod === 'card' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+                    </div>
+                    <div className="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+                      <CreditCard className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{locale === 'ru' ? 'Банковская карта' : 'Karta orqali'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {locale === 'ru' ? 'Онлайн оплата картой' : 'Onlayn karta orqali to\'lash'}
+                      </p>
+                    </div>
+                  </button>
                 </div>
               </motion.div>
             )}
 
-            {/* Confirm step */}
+            {/* ── Confirm step ── */}
             {currentStep === 'confirm' && (
               <motion.div
                 key="confirm"
@@ -366,7 +463,7 @@ export default function CheckoutPage() {
                   </div>
                   <p className="text-sm">{address.fullName || '—'}</p>
                   <p className="text-sm text-muted-foreground">{address.phone}</p>
-                  <p className="text-sm text-muted-foreground">{address.city}, {address.street}</p>
+                  <p className="text-sm text-muted-foreground">{address.city}{address.street ? `, ${address.street}` : ''}</p>
                 </div>
 
                 {/* Delivery summary */}
@@ -384,9 +481,7 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                   <p className="text-sm">
-                    {deliveryMethod === 'express'
-                      ? (locale === 'ru' ? 'Экспресс доставка' : 'Tezkor yetkazish')
-                      : (locale === 'ru' ? 'Стандартная доставка' : 'Oddiy yetkazish')}
+                    {locale === 'ru' ? 'Курьер — доставка до двери' : 'Kuryer — eshikkacha yetkazish'}
                   </p>
                 </div>
 
@@ -405,7 +500,9 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                   <p className="text-sm">
-                    {paymentMethod === 'cash' ? (locale === 'ru' ? 'Наличные' : 'Naqd pul') : paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)}
+                    {paymentMethod === 'cash'
+                      ? (locale === 'ru' ? 'Наличные' : 'Naqd pul')
+                      : (locale === 'ru' ? 'Банковская карта' : 'Karta orqali')}
                   </p>
                 </div>
 
@@ -441,10 +538,7 @@ export default function CheckoutPage() {
           <div className="flex items-center justify-between mt-6">
             <button
               onClick={goBack}
-              disabled={stepIndex === 0}
-              className={`btn-glass px-5 py-2.5 text-sm flex items-center gap-2 ${
-                stepIndex === 0 ? 'opacity-50 pointer-events-none' : ''
-              }`}
+              className="btn-glass px-5 py-2.5 text-sm flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
               {locale === 'ru' ? 'Назад' : 'Ortga'}
@@ -503,6 +597,45 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Pickup modal ── */}
+      <AnimatePresence>
+        {showPickupModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowPickupModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-orange-50 mx-auto flex items-center justify-center mb-4">
+                <Package className="w-8 h-8 text-orange-500" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">
+                {locale === 'ru' ? 'Пункты выдачи' : 'Topshirish punktlari'}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                {locale === 'ru'
+                  ? 'Пункты выдачи откроются в ближайшее время. Следите за обновлениями!'
+                  : 'Topshirish punktlari tez orada ochiladi. Yangiliklarni kuzatib boring!'}
+              </p>
+              <button
+                onClick={() => setShowPickupModal(false)}
+                className="w-full py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
+              >
+                {locale === 'ru' ? 'Понятно' : 'Tushunarli'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

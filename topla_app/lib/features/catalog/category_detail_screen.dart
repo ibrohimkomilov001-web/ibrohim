@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
@@ -237,13 +236,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
-
     // Agar hali ma'lumotlar yuklanmagan bo'lsa - loading ko'rsatish
     // Agar subcategoriya bo'lsa - faqat subcategoriyalar ko'rsatiladi
     // Agar subcategoriya yo'q bo'lsa - mahsulotlar + filter bar

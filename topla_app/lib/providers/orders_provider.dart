@@ -1,15 +1,21 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
+import '../core/services/api_client.dart';
 import '../models/models.dart';
 
 /// Buyurtmalar holati uchun Provider
 class OrdersProvider extends ChangeNotifier {
   final IOrderRepository _orderRepo;
 
-  OrdersProvider(this._orderRepo) {
+  final ApiClient _api;
+
+  OrdersProvider(this._orderRepo) : _api = ApiClient() {
     _init();
   }
+
+  /// Foydalanuvchi tizimga kirganmi
+  bool get isAuthenticated => _api.hasToken;
 
   // State
   List<OrderModel> _orders = [];
@@ -42,6 +48,14 @@ class OrdersProvider extends ChangeNotifier {
       _orders.where((o) => o.status == OrderStatus.cancelled).toList();
 
   void _init() {
+    if (!isAuthenticated) return; // Auth yo'q bo'lsa yuklamaslik
+    loadOrders();
+    _startRealtimeSubscription();
+  }
+
+  /// Foydalanuvchi tizimga kirgandan keyin qayta yuklash
+  void initAfterLogin() {
+    if (!isAuthenticated) return;
     loadOrders();
     _startRealtimeSubscription();
   }
@@ -72,6 +86,13 @@ class OrdersProvider extends ChangeNotifier {
   }
 
   Future<void> loadOrders({String? status}) async {
+    if (!isAuthenticated) {
+      _orders = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -96,6 +117,7 @@ class OrdersProvider extends ChangeNotifier {
     String? recipientName,
     String? recipientPhone,
     String? deliveryMethod,
+    String? pickupPointId,
     required List<Map<String, dynamic>> items,
     required double subtotal,
     required double deliveryFee,
@@ -117,6 +139,7 @@ class OrdersProvider extends ChangeNotifier {
         recipientName: recipientName,
         recipientPhone: recipientPhone,
         deliveryMethod: deliveryMethod,
+        pickupPointId: pickupPointId,
         items: items,
         subtotal: subtotal,
         deliveryFee: deliveryFee,

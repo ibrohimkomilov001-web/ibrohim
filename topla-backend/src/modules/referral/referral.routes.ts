@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error.js';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 
 // ============================================
 // Helpers
@@ -13,7 +13,7 @@ function generateReferralCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // O, 0, I, 1 chiqarib tashlandi
   let code = 'TOPLA';
   for (let i = 0; i < 5; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += chars[randomInt(0, chars.length)];
   }
   return code;
 }

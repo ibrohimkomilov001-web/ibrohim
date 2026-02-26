@@ -178,8 +178,19 @@ class _PurchasedProductsScreenState extends State<PurchasedProductsScreen> {
 
   String _formatPrice(dynamic price) {
     if (price == null) return '0';
-    final num = (price is int) ? price : (price as double).toInt();
-    return num.toString().replaceAllMapped(
+    int value;
+    if (price is int) {
+      value = price;
+    } else if (price is double) {
+      value = price.toInt();
+    } else if (price is String) {
+      value = double.tryParse(price)?.toInt() ?? 0;
+    } else if (price is num) {
+      value = price.toInt();
+    } else {
+      value = 0;
+    }
+    return value.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ');
   }
 }

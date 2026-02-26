@@ -15,7 +15,9 @@ import { generateToken, generateRefreshToken } from '../../utils/jwt.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { checkRateLimit, cacheDelete } from '../../config/redis.js';
+import { sendMulticastPush } from '../../config/firebase.js';
 import bcrypt from 'bcryptjs';
+import { indexProduct, removeProductFromIndex, bulkIndexProducts, clearIndex, initMeilisearch } from '../../services/search.service.js';
 
 // ============================================
 // Analytics date helpers
@@ -336,6 +338,21 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const shop = await prisma.shop.update({ where: { id }, data: { status } });
 
+    // Agar shop active bo'lsa, owner'ga vendor rolini berish
+    if (status === 'active' && shop.ownerId) {
+      await prisma.profile.update({
+        where: { id: shop.ownerId },
+        data: { role: 'vendor' },
+      });
+    }
+    // Agar shop bloklangan bo'lsa, owner'ni user roliga qaytarish
+    if (status === 'blocked' && shop.ownerId) {
+      await prisma.profile.update({
+        where: { id: shop.ownerId },
+        data: { role: 'user' },
+      });
+    }
+
     await prisma.activityLog.create({
       data: {
         userId: request.user!.userId,
@@ -509,6 +526,9 @@ export async function adminRoutes(app: FastifyInstance) {
       });
     }
 
+    // Meilisearch'dan o'chirish
+    removeProductFromIndex(id).catch(() => {});
+
     return { success: true, data: product };
   });
 
@@ -544,6 +564,19 @@ export async function adminRoutes(app: FastifyInstance) {
         ipAddress: request.ip,
       },
     });
+
+    // Meilisearch'ga qayta qo'shish
+    const fullProduct = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: { select: { id: true, nameUz: true, nameRu: true } },
+        brand: { select: { id: true, name: true } },
+        shop: { select: { id: true, name: true, ownerId: true } },
+      },
+    });
+    if (fullProduct) {
+      indexProduct(fullProduct).catch(() => {});
+    }
 
     if (product.shop?.ownerId) {
       await prisma.notification.create({
@@ -1244,7 +1277,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const { page, limit, skip } = parsePagination(query);
     const type = query.type as string | undefined;
 
-    const where: any = {};
+    const where: any = { userId: request.user!.userId };
     if (type) where.type = type;
 
     const [notifications, total] = await Promise.all([
@@ -1265,10 +1298,12 @@ export async function adminRoutes(app: FastifyInstance) {
   app.post('/admin/notifications', {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
-    const { title, body, targetRole } = z.object({
+    const { title, body, targetRole, imageUrl, linkUrl } = z.object({
       title: z.string().min(1),
       body: z.string().min(1),
       targetRole: z.enum(['user', 'vendor', 'courier', 'all']).default('all'),
+      imageUrl: z.string().optional(),
+      linkUrl: z.string().optional(),
     }).parse(request.body);
 
     // Admin o'ziga draft sifatida saqlash
@@ -1278,6 +1313,8 @@ export async function adminRoutes(app: FastifyInstance) {
         type: 'system',
         title,
         body,
+        imageUrl: imageUrl || null,
+        linkUrl: linkUrl || null,
         data: { targetRole, isDraft: true, sentCount: 0 },
       },
     });
@@ -1305,15 +1342,47 @@ export async function adminRoutes(app: FastifyInstance) {
       select: { id: true },
     });
 
-    // Create notifications in bulk
-    await prisma.notification.createMany({
-      data: users.map(u => ({
-        userId: u.id,
-        type: 'system' as const,
-        title: notification.title,
-        body: notification.body,
-      })),
-    });
+    // Har bir foydalanuvchi uchun bildirishnoma yozuvi yaratish
+    const userIds = users.map(u => u.id).filter(uid => uid !== request.user!.userId);
+    if (userIds.length > 0) {
+      await prisma.notification.createMany({
+        data: userIds.map(uid => ({
+          userId: uid,
+          type: notification.type,
+          title: notification.title,
+          body: notification.body,
+          imageUrl: notification.imageUrl || null,
+          linkUrl: notification.linkUrl || null,
+          data: { parentId: id, type: 'admin_notification' },
+        })),
+      });
+    }
+
+    // Push notification yuborish — barcha qurilmalarga
+    try {
+      const devices = await prisma.userDevice.findMany({
+        where: {
+          userId: { in: users.map(u => u.id) },
+          isActive: true,
+        },
+        select: { fcmToken: true },
+      });
+      const tokens = devices.map(d => d.fcmToken).filter(Boolean);
+      if (tokens.length > 0) {
+        const pushData: Record<string, string> = {
+          type: 'admin_notification',
+          notificationId: id,
+        };
+        if (notification.imageUrl) pushData.imageUrl = notification.imageUrl;
+        if (notification.linkUrl) pushData.linkUrl = notification.linkUrl;
+        for (let i = 0; i < tokens.length; i += 500) {
+          const batch = tokens.slice(i, i + 500);
+          await sendMulticastPush(batch, notification.title, notification.body, pushData, notification.imageUrl || undefined);
+        }
+      }
+    } catch (pushErr) {
+      request.log.error({ err: pushErr }, 'Push notification yuborishda xatolik');
+    }
 
     // Draft ni sent deb belgilash
     await prisma.notification.update({
@@ -1340,10 +1409,12 @@ export async function adminRoutes(app: FastifyInstance) {
   app.post('/admin/notifications/broadcast', {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
-    const { title, body, targetRole } = z.object({
+    const { title, body, targetRole, imageUrl, linkUrl } = z.object({
       title: z.string().min(1),
       body: z.string().min(1),
       targetRole: z.enum(['user', 'vendor', 'courier', 'all']).default('all'),
+      imageUrl: z.string().optional(),
+      linkUrl: z.string().optional(),
     }).parse(request.body);
 
     const where: any = {};
@@ -1354,28 +1425,76 @@ export async function adminRoutes(app: FastifyInstance) {
       select: { id: true },
     });
 
-    await prisma.notification.createMany({
-      data: users.map(u => ({
-        userId: u.id,
-        type: 'system' as const,
+    // DB ga admin uchun asosiy yozuv
+    const notification = await prisma.notification.create({
+      data: {
+        userId: request.user!.userId,
+        type: 'system',
         title,
         body,
-      })),
+        imageUrl: imageUrl || null,
+        linkUrl: linkUrl || null,
+        data: { targetRole, isBroadcast: true, sentCount: users.length, sentAt: new Date().toISOString() },
+      },
     });
+
+    // Har bir foydalanuvchi uchun bildirishnoma yozuvi yaratish
+    const userIds = users.map(u => u.id).filter(uid => uid !== request.user!.userId);
+    if (userIds.length > 0) {
+      await prisma.notification.createMany({
+        data: userIds.map(uid => ({
+          userId: uid,
+          type: 'system' as const,
+          title,
+          body,
+          imageUrl: imageUrl || null,
+          linkUrl: linkUrl || null,
+          data: { parentId: notification.id, type: 'admin_broadcast' },
+        })),
+      });
+    }
+
+    // Push notification yuborish — barcha qurilmalarga
+    let pushSentCount = 0;
+    try {
+      const devices = await prisma.userDevice.findMany({
+        where: {
+          userId: { in: users.map(u => u.id) },
+          isActive: true,
+        },
+        select: { fcmToken: true },
+      });
+      const tokens = devices.map(d => d.fcmToken).filter(Boolean);
+      pushSentCount = tokens.length;
+      if (tokens.length > 0) {
+        const pushData: Record<string, string> = {
+          type: 'admin_broadcast',
+          targetRole,
+        };
+        if (imageUrl) pushData.imageUrl = imageUrl;
+        if (linkUrl) pushData.linkUrl = linkUrl;
+        for (let i = 0; i < tokens.length; i += 500) {
+          const batch = tokens.slice(i, i + 500);
+          await sendMulticastPush(batch, title, body, pushData, imageUrl);
+        }
+      }
+    } catch (pushErr) {
+      request.log.error({ err: pushErr }, 'Push notification yuborishda xatolik');
+    }
 
     await prisma.activityLog.create({
       data: {
         userId: request.user!.userId,
         action: 'notification.broadcast',
         entityType: 'notification',
-        details: { title, targetRole, sentCount: users.length },
+        details: { title, targetRole, sentCount: users.length, pushSentCount },
         ipAddress: request.ip,
       },
     });
 
     return {
       success: true,
-      message: `${users.length} ta foydalanuvchiga bildirishnoma yuborildi`,
+      message: `${users.length} ta foydalanuvchiga bildirishnoma yuborildi (${pushSentCount} push)`,
     };
   });
 
@@ -1865,5 +1984,66 @@ export async function adminRoutes(app: FastifyInstance) {
     }
     await prisma.color.delete({ where: { id } });
     return { success: true, message: 'Rang o\'chirildi' };
+  });
+
+  // ============================================
+  // Meilisearch: Bulk Re-index
+  // ============================================
+
+  /**
+   * POST /admin/search/reindex
+   * Barcha aktiv mahsulotlarni Meilisearch'ga qayta indekslash
+   */
+  app.post('/admin/search/reindex', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    // Re-initialize Meilisearch settings
+    await initMeilisearch();
+
+    // Clear existing index
+    await clearIndex();
+
+    // Wait a bit for the clear to process
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Fetch all active products with relations
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        status: 'active',
+      },
+      include: {
+        category: { select: { id: true, nameUz: true, nameRu: true } },
+        brand: { select: { id: true, name: true } },
+        shop: { select: { id: true, name: true } },
+      },
+    });
+
+    const result = await bulkIndexProducts(products);
+
+    await prisma.activityLog.create({
+      data: {
+        userId: request.user!.userId,
+        action: 'search.reindex',
+        entityType: 'system',
+        entityId: 'meilisearch',
+        details: {
+          totalProducts: products.length,
+          indexed: result.indexed,
+          failed: result.failed,
+        },
+        ipAddress: request.ip,
+      },
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        totalProducts: products.length,
+        indexed: result.indexed,
+        failed: result.failed,
+      },
+      message: `${result.indexed} ta mahsulot indekslandi`,
+    });
   });
 }

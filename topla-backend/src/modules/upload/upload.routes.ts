@@ -4,7 +4,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { authMiddleware } from '../../middleware/auth.js';
+import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error.js';
 import { env } from '../../config/env.js';
 import { uploadFile, getStorageClient, deleteFile } from '../../config/storage.js';
@@ -101,7 +101,18 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
           : folder.startsWith('avatar') ? env.S3_BUCKET_AVATARS
           : env.S3_BUCKET_PRODUCTS;
 
-        url = await uploadFile(bucket, filePath, buffer, data.mimetype);
+        try {
+          url = await uploadFile(bucket, filePath, buffer, data.mimetype);
+        } catch (s3Err: any) {
+          // S3 xato bo'lsa — local fallback
+          request.log.warn({ err: s3Err.message }, 'S3 upload failed, falling back to local storage');
+          const dir = path.join(UPLOADS_DIR, folder);
+          if (!existsSync(dir)) {
+            await mkdir(dir, { recursive: true });
+          }
+          await writeFile(path.join(dir, fileName), buffer);
+          url = `/uploads/${folder}/${fileName}`;
+        }
       } else {
         // Local file system (development)
         const dir = path.join(UPLOADS_DIR, folder);
@@ -109,7 +120,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
           await mkdir(dir, { recursive: true });
         }
         await writeFile(path.join(dir, fileName), buffer);
-        url = `http://localhost:${env.PORT}/uploads/${folder}/${fileName}`;
+        url = `/uploads/${folder}/${fileName}`;
       }
 
       return { url, fileName: filePath, size: buffer.length };
@@ -165,14 +176,24 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
             : folder.startsWith('avatar') ? env.S3_BUCKET_AVATARS
             : env.S3_BUCKET_PRODUCTS;
 
-          url = await uploadFile(bucket, filePath, buffer, part.mimetype);
+          try {
+            url = await uploadFile(bucket, filePath, buffer, part.mimetype);
+          } catch (s3Err: any) {
+            request.log.warn({ err: s3Err.message }, 'S3 upload failed, falling back to local storage');
+            const dir = path.join(UPLOADS_DIR, folder);
+            if (!existsSync(dir)) {
+              await mkdir(dir, { recursive: true });
+            }
+            await writeFile(path.join(dir, fileName), buffer);
+            url = `/uploads/${folder}/${fileName}`;
+          }
         } else {
           const dir = path.join(UPLOADS_DIR, folder);
           if (!existsSync(dir)) {
             await mkdir(dir, { recursive: true });
           }
           await writeFile(path.join(dir, fileName), buffer);
-          url = `http://localhost:${env.PORT}/uploads/${folder}/${fileName}`;
+          url = `/uploads/${folder}/${fileName}`;
         }
 
         results.push({ url, fileName: filePath, size: buffer.length });
@@ -192,7 +213,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
    * DELETE /upload/file
    * Faylni o'chirish (S3 yoki lokal)
    */
-  app.delete('/upload/file', { preHandler: authMiddleware }, async (request, reply) => {
+  app.delete('/upload/file', { preHandler: [authMiddleware, requireRole('vendor', 'admin')] }, async (request, reply) => {
     const { url } = request.body as { url?: string };
 
     if (!url || typeof url !== 'string') {
@@ -200,7 +221,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // Xavfsizlik: path traversal oldini olish
-    if (url.includes('..')) {
+    if (url.includes('..') || url.includes('\0')) {
       throw new AppError('Noto\'g\'ri URL', 400);
     }
 
@@ -214,6 +235,13 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
         }
         const bucket = pathParts[0]!;
         const key = pathParts.slice(1).join('/');
+
+        // Xavfsizlik: faqat bizning bucket'lardan o'chirish
+        const allowedBuckets = [env.S3_BUCKET_PRODUCTS, env.S3_BUCKET_SHOPS, env.S3_BUCKET_AVATARS];
+        if (!allowedBuckets.includes(bucket)) {
+          throw new AppError('Noto\'g\'ri bucket', 400);
+        }
+
         await deleteFile(bucket, key);
       } else {
         // Lokal faylni o'chirish

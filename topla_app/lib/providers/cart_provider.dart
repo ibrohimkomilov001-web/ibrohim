@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
+import '../core/services/api_client.dart';
 import '../models/models.dart';
 
 /// Savat holati uchun Provider
 class CartProvider extends ChangeNotifier {
   final ICartRepository _cartRepo;
 
-  CartProvider(this._cartRepo) {
+  final ApiClient _api;
+
+  CartProvider(this._cartRepo) : _api = ApiClient() {
     _init();
   }
 
@@ -37,7 +40,18 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Foydalanuvchi tizimga kirganmi
+  bool get isAuthenticated => _api.hasToken;
+
   void _init() {
+    if (!isAuthenticated) return; // Auth yo'q bo'lsa yuklamaslik
+    loadCart();
+    _startRealtimeSubscription();
+  }
+
+  /// Foydalanuvchi tizimga kirgandan keyin qayta yuklash
+  void initAfterLogin() {
+    if (!isAuthenticated) return;
     loadCart();
     _startRealtimeSubscription();
   }
@@ -71,6 +85,13 @@ class CartProvider extends ChangeNotifier {
   }
 
   Future<void> loadCart() async {
+    if (!isAuthenticated) {
+      _items = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();

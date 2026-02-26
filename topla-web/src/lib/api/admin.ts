@@ -3,7 +3,16 @@
 // Connects to topla-backend admin endpoints
 // ============================================
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+function getApiBase(): string {
+  // Brauzerda bo'lsa — relative URL ishlatamiz (cross-origin muammosi yo'q)
+  if (typeof window !== 'undefined') {
+    return '/api/v1';
+  }
+  // SSR da — to'liq URL kerak
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+}
+
+export const API_BASE = getApiBase();
 
 function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -290,6 +299,23 @@ export async function deleteSubcategory(_categoryId: string, subId: string) {
 }
 
 // ============================================
+// Admin Image Upload
+// ============================================
+export async function adminUploadImage(file: File, folder: string = 'banner'): Promise<string> {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('folder', folder);
+
+  // Upload endpoint returns { url, fileName, size } directly (no {success, data} wrapper)
+  const res = await adminRequest<{ url: string; fileName: string; size: number }>('/upload/image', {
+    method: 'POST',
+    body: formData,
+  });
+
+  return res?.url || '';
+}
+
+// ============================================
 // Banners
 // ============================================
 export async function fetchBanners() {
@@ -408,7 +434,7 @@ export async function deleteNotification(id: string) {
   return adminRequest(`/admin/notifications/${id}`, { method: 'DELETE' });
 }
 
-export async function broadcastNotification(data: { title: string; body: string; type?: string; targetRole?: string }) {
+export async function broadcastNotification(data: { title: string; body: string; type?: string; targetRole?: string; imageUrl?: string; linkUrl?: string }) {
   return adminRequest('/admin/notifications/broadcast', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -947,4 +973,31 @@ function getDemoResponse<T>(endpoint: string, options: RequestInit = {}): T {
 
   // Default
   return { success: true, data: [] } as T;
+}
+
+// ============================================
+// Pickup Points
+// ============================================
+export async function fetchAdminPickupPoints() {
+  return adminRequest<any>('/admin/pickup-points');
+}
+
+export async function createAdminPickupPoint(data: any) {
+  return adminRequest<any>('/admin/pickup-points', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAdminPickupPoint(id: string, data: any) {
+  return adminRequest<any>(`/admin/pickup-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAdminPickupPoint(id: string) {
+  return adminRequest<any>(`/admin/pickup-points/${id}`, {
+    method: 'DELETE',
+  });
 }

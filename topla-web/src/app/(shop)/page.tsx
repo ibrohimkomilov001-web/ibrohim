@@ -1,23 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  ChevronRight, ChevronLeft, Star, Search,
-} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { shopApi, type Banner, type Category, type ProductItem } from '@/lib/api/shop';
-import { formatPrice } from '@/lib/utils';
-import { ProductCard, ProductGrid as ProductGridComponent } from '@/components/shop/product-card';
+import { shopApi, type Banner, type Category } from '@/lib/api/shop';
+import { ProductCard, ProductGrid } from '@/components/shop/product-card';
 import { useTranslation, useLocaleStore } from '@/store/locale-store';
-import { useRouter } from 'next/navigation';
 
-// ============ BANNER CAROUSEL ============
+// ─── BANNER CAROUSEL ────────────────────────────────
 function BannerCarousel({ banners }: { banners: Banner[] }) {
   const [current, setCurrent] = useState(0);
   const { locale } = useLocaleStore();
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
   useEffect(() => {
     if (banners.length <= 1) return;
@@ -25,36 +22,69 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
     return () => clearInterval(timer);
   }, [banners.length]);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        // swipe left → next
+        setCurrent((p) => (p + 1) % banners.length);
+      } else {
+        // swipe right → prev
+        setCurrent((p) => (p - 1 + banners.length) % banners.length);
+      }
+    }
+  }, [banners.length]);
+
   if (!banners.length) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div
+      className="relative overflow-hidden rounded-xl touch-pan-y"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.5 }}
-          className="relative aspect-[2/1] sm:aspect-[2.5/1]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="relative aspect-[2.2/1]"
         >
-          {banners[current].imageUrl && (
+          {banners[current].imageUrl ? (
             <Image
               src={banners[current].imageUrl}
               alt={banners[current].titleUz || ''}
               fill
               className="object-cover"
               priority
+              unoptimized
             />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
+              <span className="text-white text-xl font-bold">
+                {locale === 'ru' && banners[current].titleRu ? banners[current].titleRu : banners[current].titleUz}
+              </span>
+            </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           {(banners[current].titleUz || banners[current].titleRu) && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-              <h2 className="text-white font-bold text-lg sm:text-2xl mb-0.5">
+            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-5">
+              <h2 className="text-white font-bold text-sm sm:text-xl mb-0.5 line-clamp-1">
                 {locale === 'ru' && banners[current].titleRu ? banners[current].titleRu : banners[current].titleUz}
               </h2>
               {(banners[current].subtitleUz || banners[current].subtitleRu) && (
-                <p className="text-white/80 text-sm">
+                <p className="text-white/80 text-xs line-clamp-1">
                   {locale === 'ru' && banners[current].subtitleRu ? banners[current].subtitleRu : banners[current].subtitleUz}
                 </p>
               )}
@@ -63,144 +93,71 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
         </motion.div>
       </AnimatePresence>
       {banners.length > 1 && (
-        <>
-          <button
-            onClick={() => setCurrent((p) => (p - 1 + banners.length) % banners.length)}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-          >
-            <ChevronLeft className="w-4 h-4 text-white" />
-          </button>
-          <button
-            onClick={() => setCurrent((p) => (p + 1) % banners.length)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-          >
-            <ChevronRight className="w-4 h-4 text-white" />
-          </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {banners.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrent(i)}
-                className={`h-1.5 rounded-full transition-all ${i === current ? 'bg-white w-5' : 'bg-white/50 w-1.5'}`}
-              />
-            ))}
-          </div>
-        </>
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrent(i)}
+              className={`h-1 rounded-full transition-all ${i === current ? 'bg-white w-4' : 'bg-white/50 w-1'}`}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-// ============ CATEGORY SCROLL (horizontal like app) ============
-function CategoryScroll({ categories }: { categories: Category[] }) {
-  const { locale } = useLocaleStore();
-
-  if (!categories.length) return null;
-
-  // Inline icon mapping with emojis for category grid
-  const emojiMap: Record<string, string> = {
-    mobile: '📱', monitor: '💻', blend_2: '🏠', screenmirroring: '📺',
-    shirt: '👕', bag_2: '👜', diamonds: '💎', magic_star: '✨',
-    drop: '🧴', brush_1: '🪥', lamp_charge: '🛋️', home_2: '🏡',
-    building_4: '🔧', box_1: '🧪', happyemoji: '👶', game: '🧸',
-    pen_tool: '✏️', milk: '🥛', cake: '🍰', cup: '☕',
-    car: '🚗', weight_1: '🏋️', driver: '🎮', book: '📚',
-    colorfilter: '🎨', pet: '🐾', lovely: '🌸', gift: '🎁',
-  };
-
-  return (
-    <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6">
-      <div className="flex gap-3 sm:gap-4 pb-1">
-        {categories.slice(0, 10).map((cat, i) => (
-          <Link
-            key={cat.id}
-            href={`/categories/${cat.id}`}
-            className="flex flex-col items-center gap-1.5 min-w-[64px] group"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.04 }}
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 flex items-center justify-center text-2xl group-hover:border-primary/30 group-hover:shadow-lg group-hover:shadow-primary/10 transition-all group-active:scale-95"
-            >
-              {emojiMap[cat.icon || ''] || '📦'}
-            </motion.div>
-            <span className="text-[11px] text-center font-medium leading-tight line-clamp-2 w-16 text-gray-600 group-hover:text-primary transition-colors">
-              {locale === 'ru' && cat.nameRu ? cat.nameRu : cat.nameUz}
-            </span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ============ FILTER CHIPS (like app) ============
-type FilterType = 'all' | 'wow' | 'discount' | 'electronics' | 'clothing';
-
-function FilterChips({
-  active,
-  onChange,
-}: {
-  active: FilterType;
-  onChange: (f: FilterType) => void;
-}) {
+// ─── FILTER CHIPS ────────────────────────────────
+function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: string) => void }) {
   const { t } = useTranslation();
 
-  const chips: { key: FilterType; label: string }[] = [
-    { key: 'all', label: t('forYou') },
-    { key: 'wow', label: t('wowPrice') },
-    { key: 'discount', label: t('discounts') },
+  const filters = [
+    { key: 'forYou', label: t('forYou') },
+    { key: 'wowPrice', label: t('wowPrice') },
+    { key: 'discounts', label: t('discounts') },
     { key: 'electronics', label: t('electronics') },
     { key: 'clothing', label: t('clothing') },
   ];
 
   return (
-    <div className="overflow-x-auto no-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6">
-      <div className="flex gap-2 pb-1">
-        {chips.map((chip) => (
+    <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+      {filters.map((f) => {
+        const isActive = selected === f.key;
+        return (
           <button
-            key={chip.key}
-            onClick={() => onChange(chip.key)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
-              active === chip.key
-                ? 'bg-primary text-white shadow-md shadow-primary/25'
-                : 'bg-white/60 backdrop-blur-sm border border-white/50 text-gray-600 hover:bg-white/80'
+            key={f.key}
+            onClick={() => onSelect(f.key)}
+            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              isActive
+                ? 'bg-gray-700 text-white'
+                : 'bg-transparent border border-gray-300 text-gray-600 hover:border-gray-400'
             }`}
           >
-            {chip.label}
+            {f.label}
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
 
-// ============ SKELETON ============
+// ─── SKELETON ────────────────────────────────
 function HomeSkeleton() {
   return (
-    <div className="site-container space-y-6 pt-3 animate-pulse">
-      <div className="h-44 sm:h-56 skeleton rounded-2xl" />
-      <div className="flex gap-3 overflow-hidden">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-1.5 min-w-[64px]">
-            <div className="w-14 h-14 skeleton rounded-2xl" />
-            <div className="w-12 h-3 skeleton rounded" />
-          </div>
-        ))}
-      </div>
+    <div className="site-container space-y-4 pt-1 animate-pulse">
+      <div className="h-36 sm:h-48 skeleton rounded-xl" />
       <div className="flex gap-2">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-9 w-24 skeleton rounded-full" />
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-7 w-20 skeleton rounded-full" />
         ))}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-2 gap-2">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="rounded-xl overflow-hidden">
             <div className="aspect-square skeleton" />
-            <div className="p-3 space-y-2">
-              <div className="h-4 skeleton rounded w-3/4" />
-              <div className="h-5 skeleton rounded w-1/2" />
+            <div className="p-2 space-y-1.5">
+              <div className="h-3 skeleton rounded w-3/4" />
+              <div className="h-4 skeleton rounded w-1/2" />
             </div>
           </div>
         ))}
@@ -209,43 +166,35 @@ function HomeSkeleton() {
   );
 }
 
-// ============ HOME PAGE ============
+// ─── HOME PAGE ────────────────────────────────
 export default function HomePage() {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [selectedFilter, setSelectedFilter] = useState('forYou');
 
   const { data: banners = [] } = useQuery({
     queryKey: ['banners'],
     queryFn: () => shopApi.getBanners(),
   });
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => shopApi.getCategories(),
-  });
+  // Determine product query params based on selected filter
+  const getProductParams = (): Record<string, string> => {
+    switch (selectedFilter) {
+      case 'wowPrice':
+        return { sortBy: 'price_asc', limit: '20', maxPrice: '100000' };
+      case 'discounts':
+        return { sortBy: 'popular', limit: '20', hasDiscount: 'true' };
+      case 'electronics':
+        return { sortBy: 'popular', limit: '20', category: 'elektronika' };
+      case 'clothing':
+        return { sortBy: 'popular', limit: '20', category: 'kiyim' };
+      default: // forYou
+        return { sortBy: 'popular', limit: '20' };
+    }
+  };
 
-  // Fetch products based on filter
   const { data: productsData, isLoading } = useQuery({
-    queryKey: ['home-products', filter],
-    queryFn: () => {
-      switch (filter) {
-        case 'wow':
-          return shopApi.getProducts({ sortBy: 'priceAsc', limit: '20', maxPrice: '100000' });
-        case 'discount':
-          return shopApi.getProducts({ sortBy: 'popular', limit: '20', hasDiscount: 'true' });
-        case 'electronics': {
-          const elCat = categories.find(c => c.nameUz === 'Elektronika');
-          return shopApi.getProducts({ sortBy: 'popular', limit: '20', ...(elCat?.id ? { categoryId: elCat.id } : {}) });
-        }
-        case 'clothing': {
-          const clothCat = categories.find(c => c.nameUz === 'Kiyim va poyabzal');
-          return shopApi.getProducts({ sortBy: 'popular', limit: '20', ...(clothCat?.id ? { categoryId: clothCat.id } : {}) });
-        }
-        default:
-          return shopApi.getProducts({ sortBy: 'popular', limit: '20' });
-      }
-    },
-    enabled: filter !== 'electronics' && filter !== 'clothing' || categories.length > 0,
+    queryKey: ['home-products', selectedFilter],
+    queryFn: () => shopApi.getProducts(getProductParams()),
   });
 
   const products = productsData?.products ?? [];
@@ -253,28 +202,35 @@ export default function HomePage() {
   if (isLoading && !productsData) return <HomeSkeleton />;
 
   return (
-    <div className="space-y-5 sm:space-y-6 pb-8">
-      {/* Banner Carousel */}
-      <section className="site-container pt-2">
+    <div className="space-y-3 pb-8">
+      {/* Banner */}
+      <section className="site-container pt-1">
         <BannerCarousel banners={banners} />
-      </section>
-
-      {/* Categories — horizontal scroll */}
-      <section className="site-container">
-        <CategoryScroll categories={categories} />
       </section>
 
       {/* Filter Chips */}
       <section className="site-container">
-        <FilterChips active={filter} onChange={setFilter} />
+        <FilterChips selected={selectedFilter} onSelect={setSelectedFilter} />
       </section>
 
-      {/* Products Grid */}
+      {/* Products */}
       <section className="site-container">
-        {products.length > 0 ? (
-          <ProductGridComponent products={products} columns={5} />
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="rounded-xl overflow-hidden animate-pulse">
+                <div className="aspect-square skeleton" />
+                <div className="p-2 space-y-1.5">
+                  <div className="h-3 skeleton rounded w-3/4" />
+                  <div className="h-4 skeleton rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : products.length > 0 ? (
+          <ProductGrid products={products} columns={4} />
         ) : (
-          <div className="text-center py-12">
+          <div className="text-center py-8">
             <p className="text-gray-400 text-sm">{t('noResults')}</p>
           </div>
         )}

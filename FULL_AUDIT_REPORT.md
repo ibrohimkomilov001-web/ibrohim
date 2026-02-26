@@ -20,7 +20,7 @@
 ## 1. BACKEND TAHLILI (topla-backend)
 
 ### 1.1 Arxitektura
-| Texnologiya | Versiya | 
+| Texnologiya | Versiya |  
 |---|---|
 | Fastify | TypeScript |
 | Prisma ORM | PostgreSQL |

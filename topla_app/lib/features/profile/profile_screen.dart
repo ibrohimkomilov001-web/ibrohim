@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
@@ -119,75 +120,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildGuestHeader() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [Color(0xFF4A90F7), Color(0xFF2B6DE8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
+          // Avatar
           Container(
-            width: 72,
-            height: 72,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
               border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3), width: 2),
+                  color: Colors.white.withValues(alpha: 0.3), width: 1.5),
             ),
             child:
-                const Icon(Icons.person_rounded, color: Colors.white, size: 36),
+                const Icon(Icons.person_rounded, color: Colors.white, size: 26),
           ),
-          const SizedBox(height: 16),
-          Text(
-            context.l10n.translate('guest'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+          const SizedBox(width: 12),
+          // Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.l10n.translate('guest'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  context.l10n.translate('login_to_see'),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              context.l10n.translate('login_to_see'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(width: 10),
+          // Login button
           SizedBox(
-            width: double.infinity,
-            height: 52,
+            height: 38,
             child: ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/auth'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
                 elevation: 0,
-                shape: const StadiumBorder(),
+                minimumSize: const Size(0, 38),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: Text(
                 context.l10n.login,
                 style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               ),
             ),
           ),
@@ -286,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Iconsax.edit_2,
+              child: const Icon(Iconsax.edit_2_copy,
                   color: AppColors.primary, size: 17),
             ),
           ),
@@ -301,25 +313,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: context.l10n.translate('shopping'),
       children: [
         _buildMenuItem(
-          icon: Iconsax.clipboard_text,
+          icon: Iconsax.clipboard_text_copy,
           label: context.l10n.myOrders,
           onTap: () => Navigator.pushNamed(context, '/orders'),
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.box_tick,
+          icon: Iconsax.box_tick_copy,
           label: context.l10n.translate('purchased_products'),
           onTap: () => Navigator.pushNamed(context, '/purchased-products'),
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.refresh_left_square,
+          icon: Iconsax.refresh_left_square_copy,
           label: context.l10n.translate('returns'),
           onTap: () => Navigator.pushNamed(context, '/returns'),
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.star,
+          icon: Iconsax.star_copy,
           label: context.l10n.translate('reviews_and_questions'),
           onTap: () => Navigator.pushNamed(context, '/reviews-questions'),
         ),
@@ -334,28 +346,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         if (isLoggedIn) ...[
           _buildMenuItem(
-            icon: Iconsax.heart,
+            icon: Iconsax.heart_copy,
             label: context.l10n.favorites,
             onTap: () => Navigator.pushNamed(context, '/favorites'),
           ),
           _divider(),
         ],
         _buildMenuItem(
-          icon: Iconsax.location,
+          icon: Iconsax.location_copy,
           label: context.l10n.myAddresses,
           onTap: () => Navigator.pushNamed(context, '/addresses'),
           showLogin: !isLoggedIn,
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.card,
+          icon: Iconsax.card_copy,
           label: context.l10n.paymentMethod,
           onTap: () => Navigator.pushNamed(context, '/payment-methods'),
           showLogin: !isLoggedIn,
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.people,
+          icon: Iconsax.people_copy,
           label: context.l10n.inviteFriends,
           onTap: () => Navigator.pushNamed(context, '/invite'),
           showLogin: !isLoggedIn,
@@ -363,7 +375,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (isLoggedIn) ...[
           _divider(),
           _buildMenuItem(
-            icon: Iconsax.mobile,
+            icon: Iconsax.mobile_copy,
             label: 'Qurilmalar',
             subtitle: 'Ulangan qurilmalarni boshqarish',
             iconColor: Colors.teal,
@@ -380,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Consumer<SettingsProvider>(
           builder: (context, settings, _) => _buildMenuItem(
-            icon: Iconsax.global,
+            icon: Iconsax.global_copy,
             label: context.l10n.language,
             trailing: Text(
               settings.language == 'uz' ? 'O\'zbek' : 'Русский',
@@ -391,7 +403,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.message_question,
+          icon: Iconsax.message_question_copy,
           label: context.l10n.helpCenter,
           onTap: () => Navigator.pushNamed(context, '/help'),
         ),
@@ -407,7 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               if (role == UserRole.vendor) {
                 return _buildMenuItem(
-                  icon: Iconsax.shop,
+                  icon: Iconsax.shop_copy,
                   label: context.l10n.translate('my_shop'),
                   iconColor: AppColors.accent,
                   onTap: () => Navigator.pushNamed(context, '/mobile-vendor'),
@@ -418,7 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Admin uchun web panel ishlatiladi
               if (!role.isAdmin) {
                 return _buildMenuItem(
-                  icon: Iconsax.shop_add,
+                  icon: Iconsax.shop_add_copy,
                   label: context.l10n.translate('open_shop'),
                   subtitle: context.l10n.translate('become_seller'),
                   iconColor: Colors.orange.shade700,
@@ -555,7 +567,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         height: 42,
         child: OutlinedButton.icon(
           onPressed: () => _showLogoutDialog(),
-          icon: Icon(Iconsax.logout, color: Colors.red.shade400, size: 17),
+          icon: Icon(Iconsax.logout_copy, color: Colors.red.shade400, size: 17),
           label: Text(
             context.l10n.logout,
             style: TextStyle(
@@ -760,28 +772,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showLogoutDialog() {
-    showDialog(
+    showCupertinoModalPopup(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.logout, style: const TextStyle(fontSize: 16)),
-        content: Text(
-          context.l10n.translate('logout_confirm'),
-          style: const TextStyle(fontSize: 13),
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(
+          'Hisobingizdan chiqmoqchimisiz?',
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.cancel),
-          ),
-          ElevatedButton(
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(ctx);
               await context.read<AuthProvider>().signOut();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: Text(context.l10n.logout),
+            child: const Text(
+              'Hisobdan chiqish',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(
+            'Bekor qilish',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+        ),
       ),
     );
   }

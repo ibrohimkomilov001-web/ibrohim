@@ -21,11 +21,18 @@ function extractDeviceInfo(request: any) {
     || request.ip
     || '';
 
+  // Custom header dan qurilma nomi (Flutter app yuboradi)
+  const customDeviceName = request.headers['x-device-name'];
+  const customPlatform = request.headers['x-device-platform'];
+
   // Parse device name from user-agent
   let deviceName = 'Unknown';
   let browser = '';
 
-  if (ua.includes('Android')) {
+  if (customDeviceName) {
+    // Flutter ilovadan kelgan qurilma nomi
+    deviceName = customDeviceName;
+  } else if (ua.includes('Android')) {
     const match = ua.match(/Android[^;]*;\s*([^)]+)\)/);
     deviceName = match ? match[1].trim() : 'Android Device';
   } else if (ua.includes('iPhone')) {
@@ -38,6 +45,9 @@ function extractDeviceInfo(request: any) {
     deviceName = 'Mac';
   } else if (ua.includes('Linux')) {
     deviceName = 'Linux PC';
+  } else if (ua.includes('Dart')) {
+    // Flutter/Dart HTTP client
+    deviceName = customPlatform === 'ios' ? 'iPhone' : 'Android Device';
   }
 
   if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
@@ -45,6 +55,7 @@ function extractDeviceInfo(request: any) {
   else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
   else if (ua.includes('Edg')) browser = 'Edge';
   else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+  else if (ua.includes('Dart')) browser = 'TOPLA App';
 
   return { deviceName, browser, ipAddress: ip };
 }
@@ -98,9 +109,12 @@ const confirmResetSchema = z.object({
 });
 
 const googleLoginSchema = z.object({
-  firebaseToken: z.string().min(1, 'Firebase token kerak'),
+  firebaseToken: z.string().optional(),
+  googleAccessToken: z.string().optional(),
   fcmToken: z.string().optional(),
   platform: z.enum(['android', 'ios', 'web']).default('android'),
+}).refine(data => data.firebaseToken || data.googleAccessToken, {
+  message: 'firebaseToken yoki googleAccessToken kerak',
 });
 
 // === OTP Schemas ===
@@ -733,7 +747,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const RESET_TTL = 15 * 60; // 15 daqiqa
     await setWithExpiry(`password_reset:${resetToken}`, profile.id, RESET_TTL);
 
-    console.log(`[Auth] Password reset token created for: ${body.email} (user: ${profile.id})`);
+    request.log.info({ email: body.email }, 'Password reset token created');
 
     // Development rejimda tokenni javobda qaytaramiz
     if (env.NODE_ENV === 'development') {
@@ -787,7 +801,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // Tokenni o'chirish (bir martalik ishlatish)
     await deleteKey(`password_reset:${body.token}`);
 
-    console.log(`[Auth] Password reset completed for user: ${userId}`);
+    request.log.info({ userId }, 'Password reset completed');
 
     return reply.send({
       success: true,
@@ -803,25 +817,65 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/auth/google', async (request, reply) => {
     const body = googleLoginSchema.parse(request.body);
 
-    // 1. Firebase token tekshirish
-    let firebaseUser;
-    try {
-      firebaseUser = await verifyFirebaseToken(body.firebaseToken);
-    } catch (error) {
-      console.error('Firebase token verification error:', error);
-      throw new AppError('Firebase token yaroqsiz', 401);
+    let email: string | undefined;
+    let name: string = '';
+    let picture: string = '';
+    let phone: string = '';
+    let googleUid: string = '';
+
+    // 1. Token tekshirish - Firebase yoki Google direct
+    if (body.firebaseToken) {
+      // Firebase token orqali
+      try {
+        const firebaseUser = await verifyFirebaseToken(body.firebaseToken);
+        email = firebaseUser.email;
+        name = firebaseUser.name || firebaseUser.displayName || '';
+        picture = firebaseUser.picture || '';
+        phone = firebaseUser.phone_number || '';
+        googleUid = firebaseUser.uid;
+      } catch (error) {
+        console.warn('Firebase token verification failed, trying Google direct...');
+        // Firebase ishlamasa, googleAccessToken bormi tekshiramiz
+        if (!body.googleAccessToken) {
+          throw new AppError('Firebase token yaroqsiz va Google token yuborilmagan', 401);
+        }
+      }
     }
 
-    const email = firebaseUser.email;
-    const name = firebaseUser.name || firebaseUser.displayName || '';
-    const picture = firebaseUser.picture || '';
-    const phone = firebaseUser.phone_number || '';
+    if (!googleUid && body.googleAccessToken) {
+      // Google Access Token orqali to'g'ridan-to'g'ri
+      try {
+        const googleResponse = await fetch(
+          `https://www.googleapis.com/oauth2/v3/userinfo`,
+          {
+            headers: { Authorization: `Bearer ${body.googleAccessToken}` },
+          }
+        );
+
+        if (!googleResponse.ok) {
+          throw new Error(`Google API error: ${googleResponse.status}`);
+        }
+
+        const googleUser = await googleResponse.json() as any;
+        email = googleUser.email;
+        name = googleUser.name || '';
+        picture = googleUser.picture || '';
+        googleUid = googleUser.sub; // Google user ID
+      } catch (error) {
+        console.error('Google token verification error:', error);
+        throw new AppError('Google token yaroqsiz', 401);
+      }
+    }
+
+    if (!googleUid) {
+      throw new AppError('Autentifikatsiya amalga oshmadi', 401);
+    }
 
     // 2. Profilni topish - avval firebaseUid, keyin email bo'yicha
     let profile = await prisma.profile.findFirst({
       where: {
         OR: [
-          { firebaseUid: firebaseUser.uid },
+          { firebaseUid: googleUid },
           ...(email ? [{ email }] : []),
         ],
       },
@@ -830,12 +884,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!profile) {
       // phone maydoni majburiy va unique, Google foydalanuvchilarda telefon yo'q bo'lishi mumkin
       // Shuning uchun vaqtincha unique placeholder yaratamiz
-      const tempPhone = phone || `google_${firebaseUser.uid}`;
+      const tempPhone = phone || `google_${googleUid}`;
 
       // Yangi foydalanuvchi yaratish
       profile = await prisma.profile.create({
         data: {
-          firebaseUid: firebaseUser.uid,
+          firebaseUid: googleUid,
           email: email || null,
           fullName: name || null,
           avatarUrl: picture || null,
@@ -848,7 +902,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       profile = await prisma.profile.update({
         where: { id: profile.id },
         data: {
-          firebaseUid: firebaseUser.uid,
+          firebaseUid: googleUid,
           ...(email && !profile.email ? { email } : {}),
           ...(name && !profile.fullName ? { fullName: name } : {}),
           ...(picture && !profile.avatarUrl ? { avatarUrl: picture } : {}),
@@ -959,6 +1013,27 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  /**
+   * POST /auth/devices/terminate-others
+   * Boshqa barcha qurilmalarni o'chirish (joriy qurilmadan tashqari)
+   */
+  app.post('/auth/devices/terminate-others', { preHandler: authMiddleware }, async (request, reply) => {
+    const { currentDeviceId } = (request.body || {}) as { currentDeviceId?: string };
+
+    const where: any = { userId: request.user!.userId };
+    if (currentDeviceId) {
+      where.id = { not: currentDeviceId };
+    }
+
+    const result = await prisma.userDevice.deleteMany({ where });
+
+    return reply.send({
+      success: true,
+      message: `${result.count} ta qurilma o'chirildi`,
+      data: { count: result.count },
+    });
+  });
+
   // ============================================
   // Account Deletion (GDPR)
   // ============================================
@@ -1054,7 +1129,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       }
     });
 
-    console.log(`[Auth] Account deleted: ${userId}`);
+    // Joriy tokenni blacklist qilish
+    const authHeader = request.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.substring(7);
+      await blacklistToken(token);
+    }
+
+    request.log.info({ userId }, 'Account deleted');
 
     return reply.send({
       success: true,

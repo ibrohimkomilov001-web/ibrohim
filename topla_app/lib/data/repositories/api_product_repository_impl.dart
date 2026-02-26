@@ -109,6 +109,41 @@ class ApiProductRepositoryImpl implements IProductRepository {
   }
 
   @override
+  Future<List<String>> getSearchHistory() async {
+    try {
+      final response = await _api.get('/search/history');
+      return response.dataList
+          .map((e) => (e as Map<String, dynamic>)['query'] as String)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Future<void> saveSearchQuery(String query) async {
+    try {
+      await _api.post('/search/history', body: {'query': query});
+    } catch (_) {
+      // Silently fail — local history is the fallback
+    }
+  }
+
+  @override
+  Future<void> clearSearchHistory() async {
+    try {
+      await _api.delete('/search/history');
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> removeSearchHistoryItem(String query) async {
+    try {
+      await _api.delete('/search/history/${Uri.encodeComponent(query)}');
+    } catch (_) {}
+  }
+
+  @override
   Future<List<ProductModel>> getProductsByCategory(
     String categoryId, {
     int limit = 20,

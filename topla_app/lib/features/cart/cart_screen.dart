@@ -32,9 +32,12 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
-    // Savatni yuklash
+    // Savatni yuklash (faqat autentifikatsiya bo'lsa)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CartProvider>().loadCart();
+      final cartProvider = context.read<CartProvider>();
+      if (cartProvider.isAuthenticated) {
+        cartProvider.loadCart();
+      }
     });
   }
 
@@ -45,6 +48,11 @@ class _CartScreenState extends State<CartScreen> {
       body: SafeArea(
         child: Consumer<CartProvider>(
           builder: (context, cart, _) {
+            // Autentifikatsiya tekshirish
+            if (!cart.isAuthenticated) {
+              return _buildLoginRequiredState();
+            }
+
             if (cart.isLoading) {
               // Shimmer skeleton loading
               return ListView.separated(
@@ -198,6 +206,12 @@ class _CartScreenState extends State<CartScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLoginRequiredState() {
+    return EmptyCartWidget(
+      onShopNow: () => MainScreenState.switchToTab(0),
     );
   }
 

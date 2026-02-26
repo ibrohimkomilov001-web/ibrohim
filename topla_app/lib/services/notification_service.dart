@@ -76,7 +76,7 @@ class NotificationService {
 
       await _api.post('/auth/fcm-token', body: {
         'fcmToken': token,
-        'platform': 'mobile',
+        'platform': _api.devicePlatform,
       });
 
       debugPrint('✅ FCM token saqlandi: ${token.substring(0, 20)}...');

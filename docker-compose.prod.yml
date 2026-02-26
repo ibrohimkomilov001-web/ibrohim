@@ -37,7 +37,7 @@ services:
       - TELEGRAM_GATEWAY_TOKEN=${TELEGRAM_GATEWAY_TOKEN}
       - PAYME_WEBHOOK_SECRET=${PAYME_WEBHOOK_SECRET}
       - CLICK_WEBHOOK_SECRET=${CLICK_WEBHOOK_SECRET}
-      - CORS_ORIGINS=https://topla.uz,https://admin.topla.uz,https://vendor.topla.uz
+      - CORS_ORIGINS=https://topla.uz,https://admin.topla.uz,https://vendor.topla.uz,https://pickup.topla.uz
       - MEILISEARCH_URL=http://meilisearch:7700
       - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY}
     depends_on:
@@ -157,8 +157,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - certbot_certs:/etc/nginx/ssl:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
+      - ./nginx/htpasswd:/etc/nginx/htpasswd:ro
     depends_on:
       - api
       - web
@@ -172,7 +173,7 @@ services:
     image: certbot/certbot:latest
     container_name: topla-certbot
     volumes:
-      - certbot_certs:/etc/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt
       - certbot_www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
     networks:
@@ -211,7 +212,6 @@ volumes:
   postgres_data:
   redis_data:
   meilisearch_data:
-  certbot_certs:
   certbot_www:
 
 networks:

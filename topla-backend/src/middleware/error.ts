@@ -41,9 +41,10 @@ export function errorHandler(
     switch (error.code) {
       case 'P2002': { // Unique constraint violation
         const target = (error.meta?.target as string[])?.join(', ') || 'field';
+        request.log.warn({ target, prismaCode: error.code }, 'Unique constraint violation');
         reply.status(409).send({
           error: 'Conflict',
-          message: `Bu ${target} allaqachon mavjud`,
+          message: 'Bu ma\'lumot allaqachon mavjud',
         });
         return;
       }
@@ -93,7 +94,7 @@ export function errorHandler(
     err: error,
     method: request.method,
     url: request.url,
-    userId: (request as any).user?.id,
+    userId: (request as any).user?.userId,
   }, 'Unhandled server error');
   
   reply.status(500).send({

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
@@ -31,6 +30,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Har doim kategoriyalarni yuklashga harakat qilish (agar bo'sh bo'lsa)
+      final productsProvider = context.read<ProductsProvider>();
+      if (productsProvider.categories.isEmpty &&
+          !productsProvider.isCategoriesLoading) {
+        productsProvider.loadCategories();
+      }
       if (widget.initialCategoryId != null) {
         _navigateToCategory(widget.initialCategoryId!);
       }
@@ -75,14 +80,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
-    );
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -141,27 +138,30 @@ class _CatalogScreenState extends State<CatalogScreen> {
       },
       child: Container(
         margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        height: 44,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFFECECEC),
+          borderRadius: BorderRadius.circular(100),
         ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.search_rounded,
-              size: 22,
-              color: Colors.grey.shade500,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              isRussian ? 'Найти товары' : 'Mahsulotlarni toping',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade500,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: Colors.grey.shade400,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                'Qidiruv',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -274,6 +274,22 @@ class _CatalogScreenState extends State<CatalogScreen> {
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              context.read<ProductsProvider>().loadCategories();
+            },
+            icon: const Icon(Iconsax.refresh),
+            label: Text(
+              context.l10n.locale.languageCode == 'ru'
+                  ? 'Обновить'
+                  : 'Yangilash',
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
             ),
           ),
         ],

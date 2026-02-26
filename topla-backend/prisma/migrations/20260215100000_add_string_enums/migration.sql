@@ -51,11 +51,11 @@ ALTER TABLE "admin_settings" ALTER COLUMN "type" DROP DEFAULT;
 ALTER TABLE "admin_settings" ALTER COLUMN "type" TYPE "SettingValueType" USING "type"::"SettingValueType";
 ALTER TABLE "admin_settings" ALTER COLUMN "type" SET DEFAULT 'string';
 
--- AlterTable: product_moderation_logs
-ALTER TABLE "product_moderation_logs" ALTER COLUMN "action" TYPE "ModerationAction" USING "action"::"ModerationAction";
+-- AlterTable: product_moderation_logs (skipped — table created in later migration)
+-- ALTER TABLE "product_moderation_logs" ALTER COLUMN "action" TYPE "ModerationAction" USING "action"::"ModerationAction";
 
--- AlterTable: chat_messages
-ALTER TABLE "chat_messages" ALTER COLUMN "sender_role" TYPE "ChatSenderRole" USING "sender_role"::"ChatSenderRole";
+-- AlterTable: chat_messages (skipped — table created in later migration)
+-- ALTER TABLE "chat_messages" ALTER COLUMN "sender_role" TYPE "ChatSenderRole" USING "sender_role"::"ChatSenderRole";
 
 -- AlterTable: user_devices
 ALTER TABLE "user_devices" ALTER COLUMN "platform" TYPE "DevicePlatform" USING "platform"::"DevicePlatform";

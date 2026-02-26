@@ -112,34 +112,44 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
 
     // 2. Google auth tokenlarini olish
     final googleAuth = await googleUser.authentication;
+    final googleAccessToken = googleAuth.accessToken;
 
-    // 3. Firebase credential yaratish
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
+    // 3. Firebase credential yaratish va kirish (token olish uchun)
+    String? firebaseToken;
+    try {
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-    // 4. Firebase'ga kirish
-    final userCredential =
-        await FirebaseAuth.instance.signInWithCredential(credential);
-    final firebaseUser = userCredential.user;
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
 
-    if (firebaseUser == null) {
-      throw Exception('Firebase foydalanuvchi topilmadi');
+      if (firebaseUser != null) {
+        firebaseToken = await firebaseUser.getIdToken();
+      }
+    } catch (e) {
+      debugPrint('Firebase sign-in failed (using Google direct): $e');
+      // Firebase ishlamasa ham davom etamiz - Google access token bilan
     }
 
-    // 5. Firebase ID token olish
-    final firebaseToken = await firebaseUser.getIdToken();
-    if (firebaseToken == null) {
-      throw Exception('Firebase token olinmadi');
+    // 4. Backend'ga yuborish - Firebase token VA Google access token
+    final body = <String, dynamic>{};
+    if (firebaseToken != null) {
+      body['firebaseToken'] = firebaseToken;
+    }
+    if (googleAccessToken != null) {
+      body['googleAccessToken'] = googleAccessToken;
     }
 
-    // 6. Backend'ga yuborish
+    if (body.isEmpty) {
+      throw Exception('Google tokenlar olinmadi');
+    }
+
     final response = await _api.post(
       '/auth/google',
-      body: {
-        'firebaseToken': firebaseToken,
-      },
+      body: body,
       auth: false,
     );
 

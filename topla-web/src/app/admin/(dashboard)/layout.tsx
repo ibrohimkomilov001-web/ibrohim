@@ -38,6 +38,7 @@ import {
   Sun,
   Menu,
   FileCheck,
+  MapPin,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { isAdminAuthenticated, removeAdminToken } from "@/lib/api/admin";
@@ -54,6 +55,7 @@ const sidebarItems = [
   { icon: Image, label: "Bannerlar", href: "/admin/banners" },
   { icon: Ticket, label: "Promo kodlar", href: "/admin/promo-codes" },
   { icon: Truck, label: "Yetkazib berish", href: "/admin/delivery-zones" },
+  { icon: MapPin, label: "Topshirish punktlari", href: "/admin/pickup-points" },
   { icon: FileCheck, label: "Hujjatlar", href: "/admin/documents" },
   { icon: Bell, label: "Bildirishnomalar", href: "/admin/notifications" },
   { icon: LineChart, label: "Analitika", href: "/admin/analytics" },

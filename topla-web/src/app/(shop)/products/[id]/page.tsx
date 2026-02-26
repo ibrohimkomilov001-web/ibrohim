@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import {
   Share2, Heart, Star, ShoppingCart, Plus, Minus,
-  Store, ChevronRight, Truck, Shield, RotateCcw, Check,
+  Store, ChevronRight, Truck, Shield, RotateCcw,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { shopApi } from '@/lib/api/shop';
@@ -25,7 +25,6 @@ export default function ProductDetailPage() {
   const [currentImage, setCurrentImage] = useState(0);
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description');
-  const [addedToCart, setAddedToCart] = useState(false);
 
   const { addItem } = useCartStore();
   const { toggleFavorite, isFavorite } = useFavoritesStore();
@@ -98,8 +97,7 @@ export default function ProductDetailPage() {
       shopId: product.shop?.id,
       shopName: product.shop?.name,
     });
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
+    router.push('/cart');
   };
 
   const tabs = [
@@ -160,7 +158,21 @@ export default function ProductDetailPage() {
                 >
                   <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
                 </button>
-                <button className="w-10 h-10 rounded-full glass flex items-center justify-center transition-all hover:scale-110">
+                <button
+                  onClick={async () => {
+                    const url = window.location.href;
+                    const title = name;
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({ title, url });
+                      } catch {}
+                    } else {
+                      await navigator.clipboard.writeText(url);
+                      alert(locale === 'ru' ? 'Ссылка скопирована' : 'Havola nusxalandi');
+                    }
+                  }}
+                  className="w-10 h-10 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
+                >
                   <Share2 className="w-5 h-5" />
                 </button>
               </div>
@@ -271,21 +283,12 @@ export default function ProductDetailPage() {
             </div>
 
             <button
-              className="flex-1 liquid-btn flex items-center justify-center gap-2 !py-3 text-base"
+              className="flex-1 liquid-btn flex items-center justify-center gap-2 !py-2.5 text-sm whitespace-nowrap"
               disabled={product.stock <= 0}
               onClick={handleAddToCart}
             >
-              {addedToCart ? (
-                <>
-                  <Check className="w-5 h-5" />
-                  <span>{locale === 'ru' ? 'Добавлено!' : 'Qo\'shildi!'}</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="w-5 h-5" />
-                  <span>{t('addToCart')}</span>
-                </>
-              )}
+              <ShoppingCart className="w-4 h-4 shrink-0" />
+              <span>{t('addToCart')}</span>
             </button>
           </div>
 

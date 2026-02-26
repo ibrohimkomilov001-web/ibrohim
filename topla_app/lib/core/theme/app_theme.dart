@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
-/// TOPLA App Light Theme
+/// TOPLA App Theme (faqat Light Mode)
 class AppTheme {
   AppTheme._();
 
@@ -32,6 +33,13 @@ class AppTheme {
         backgroundColor: AppColors.surfaceLight,
         foregroundColor: AppColors.textPrimaryLight,
         centerTitle: true,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
         titleTextStyle: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w600,
@@ -206,214 +214,6 @@ class AppTheme {
       // Bottom Sheet Theme
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.surfaceLight,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppSizes.radiusXl),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // === DARK THEME ===
-  static ThemeData get darkTheme {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      primaryColor: AppColors.primary,
-      scaffoldBackgroundColor: AppColors.backgroundDark,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
-        secondary: AppColors.accent,
-        surface: AppColors.surfaceDark,
-        error: AppColors.error,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: AppColors.textPrimaryDark,
-        onError: Colors.white,
-      ),
-
-      // AppBar Theme
-      appBarTheme: AppBarTheme(
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        backgroundColor: AppColors.surfaceDark,
-        foregroundColor: AppColors.textPrimaryDark,
-        centerTitle: true,
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimaryDark,
-        ),
-        iconTheme: const IconThemeData(
-          color: AppColors.textPrimaryDark,
-          size: AppSizes.iconMd,
-        ),
-      ),
-
-      // Bottom Navigation Bar Theme
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surfaceDark,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textTertiaryDark,
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-        selectedLabelStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-
-      // Card Theme
-      cardTheme: CardTheme(
-        color: AppColors.cardDark,
-        elevation: AppSizes.cardElevation,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppSizes.borderRadiusMd,
-        ),
-        clipBehavior: Clip.antiAlias,
-      ),
-
-      // Elevated Button Theme
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          minimumSize: const Size(double.infinity, AppSizes.buttonHeightLg),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppSizes.borderRadiusMd,
-          ),
-          textStyle: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-
-      // Outlined Button Theme
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
-          minimumSize: const Size(double.infinity, AppSizes.buttonHeightLg),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppSizes.borderRadiusMd,
-          ),
-          textStyle: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-
-      // Text Button Theme
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          textStyle: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-
-      // Input Decoration Theme
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppColors.cardDark,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.lg,
-          vertical: AppSizes.md,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: AppSizes.borderRadiusMd,
-          borderSide: const BorderSide(color: AppColors.dividerDark),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppSizes.borderRadiusMd,
-          borderSide: const BorderSide(color: AppColors.dividerDark),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: AppSizes.borderRadiusMd,
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: AppSizes.borderRadiusMd,
-          borderSide: const BorderSide(color: AppColors.error),
-        ),
-        hintStyle: GoogleFonts.inter(
-          color: AppColors.textHintDark,
-          fontSize: 14,
-        ),
-        labelStyle: GoogleFonts.inter(
-          color: AppColors.textSecondaryDark,
-          fontSize: 14,
-        ),
-      ),
-
-      // Chip Theme
-      chipTheme: ChipThemeData(
-        backgroundColor: AppColors.cardDark,
-        selectedColor: AppColors.primary.withValues(alpha: 0.2),
-        labelStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: AppSizes.borderRadiusSm,
-          side: const BorderSide(color: AppColors.dividerDark),
-        ),
-      ),
-
-      // Divider Theme
-      dividerTheme: const DividerThemeData(
-        color: AppColors.dividerDark,
-        thickness: 1,
-        space: 0,
-      ),
-
-      // Text Theme
-      textTheme:
-          _textTheme(AppColors.textPrimaryDark, AppColors.textSecondaryDark),
-
-      // Floating Action Button Theme
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-      ),
-
-      // Snackbar Theme
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surfaceDark,
-        contentTextStyle: GoogleFonts.inter(color: AppColors.textPrimaryDark),
-        shape: RoundedRectangleBorder(
-          borderRadius: AppSizes.borderRadiusSm,
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-
-      // Dialog Theme
-      dialogTheme: DialogTheme(
-        backgroundColor: AppColors.surfaceDark,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppSizes.borderRadiusLg,
-        ),
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimaryDark,
-        ),
-      ),
-
-      // Bottom Sheet Theme
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.surfaceDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppSizes.radiusXl),

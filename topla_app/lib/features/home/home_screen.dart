@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:provider/provider.dart';
@@ -51,15 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Status bar qora matn bilan
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
-    );
-
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -106,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSearchHeader() {
     return Container(
-      padding: const EdgeInsets.all(AppSizes.lg),
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: 8),
       child: Row(
         children: [
           // Search Field
@@ -122,27 +112,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Container(
-                height: 48,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  color: const Color(0xFFECECEC),
+                  borderRadius: BorderRadius.circular(100),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Row(
                   children: [
                     Icon(
                       Icons.search,
-                      color: Colors.grey.shade500,
-                      size: 22,
+                      color: Colors.grey.shade400,
+                      size: 20,
                     ),
-                    const SizedBox(width: AppSizes.md),
-                    Expanded(
-                      child: Text(
-                        AppStrings.searchHint,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                        ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Mahsulotlarni qidirish',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -164,16 +152,16 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
             child: Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                color: const Color(0xFFECECEC),
+                borderRadius: BorderRadius.circular(100),
               ),
               child: Icon(
                 Icons.notifications_none_rounded,
-                color: Colors.grey.shade700,
-                size: 24,
+                color: Colors.grey.shade500,
+                size: 22,
               ),
             ),
           ),

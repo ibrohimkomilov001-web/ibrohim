@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/orders_provider.dart';
 import '../../services/connectivity_service.dart';
+import '../../services/push_notification_service.dart';
 import '../home/home_screen.dart';
 import '../catalog/catalog_screen.dart';
 import '../cart/cart_screen.dart';
@@ -49,7 +51,10 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   void _startRealtimeSubscriptions() {
     if (context.read<AuthProvider>().isLoggedIn) {
-      context.read<CartProvider>().startRealtimeSubscription();
+      context.read<CartProvider>().initAfterLogin();
+      context.read<OrdersProvider>().initAfterLogin();
+      // Push notification xizmatini to'liq ishga tushirish (FCM token, foreground, background, local notifications)
+      PushNotificationService().initialize();
     }
   }
 
@@ -63,6 +68,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         ConnectivityService().checkNow();
         if (context.read<AuthProvider>().isLoggedIn) {
           context.read<CartProvider>().startRealtimeSubscription();
+          context.read<OrdersProvider>().startRealtimeSubscription();
         }
         break;
       case AppLifecycleState.paused:
@@ -130,7 +136,6 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cartCount = context.watch<CartProvider>().totalQuantity;
 
     return PopScope(
       canPop: false,
@@ -181,12 +186,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     activeIcon: Iconsax.category,
                     label: l10n?.catalog ?? 'Katalog',
                   ),
-                  _buildNavItem(
-                    index: 2,
-                    icon: Iconsax.bag,
-                    activeIcon: Iconsax.bag,
-                    label: l10n?.cart ?? 'Savat',
-                    badge: cartCount,
+                  // Cart badge faqat o'zi yangilanadi
+                  Selector<CartProvider, int>(
+                    selector: (_, cart) => cart.totalQuantity,
+                    builder: (_, cartCount, __) => _buildNavItem(
+                      index: 2,
+                      icon: Iconsax.bag,
+                      activeIcon: Iconsax.bag,
+                      label: l10n?.cart ?? 'Savat',
+                      badge: cartCount,
+                    ),
                   ),
                   _buildNavItem(
                     index: 3,

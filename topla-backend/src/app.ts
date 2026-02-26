@@ -31,6 +31,8 @@ import { adminRoutes } from './modules/admin/admin.routes.js';
 import { chatRoutes } from './modules/chat/chat.routes.js';
 import { returnRoutes } from './modules/returns/return.routes.js';
 import { referralRoutes } from './modules/referral/referral.routes.js';
+import { pickupPointRoutes } from './modules/pickup-points/pickup-point.routes.js';
+import { supportRoutes } from './modules/support/support.routes.js';
 import { initRedis } from './config/redis.js';
 import { initMeilisearch } from './services/search.service.js';
 import fastifyStatic from '@fastify/static';
@@ -162,6 +164,8 @@ await app.register(
     await api.register(chatRoutes);
     await api.register(returnRoutes);
     await api.register(referralRoutes);
+    await api.register(pickupPointRoutes);
+    await api.register(supportRoutes);
   },
   { prefix: '/api/v1' },
 );

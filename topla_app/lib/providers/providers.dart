@@ -5,5 +5,5 @@ export 'settings_provider.dart';
 export 'orders_provider.dart';
 export 'addresses_provider.dart';
 export 'vendor_provider.dart';
-export 'theme_provider.dart';
+// theme_provider.dart - dark mode o'chirilgan
 export 'shop_provider.dart';

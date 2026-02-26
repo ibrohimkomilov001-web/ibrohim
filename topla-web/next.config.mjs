@@ -12,6 +12,14 @@ const nextConfig = {
         hostname: 'storage.yandexcloud.net',
       },
       {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'topla.uz',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },

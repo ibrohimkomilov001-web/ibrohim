@@ -323,6 +323,37 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
+  /// Server qidiruv tarixi
+  Future<List<String>> getSearchHistory() async {
+    try {
+      return await _productRepo.getSearchHistory();
+    } catch (e) {
+      AppLogger.e(_tag, 'getSearchHistory error', e);
+      return [];
+    }
+  }
+
+  /// Server qidiruv tarixiga qo'shish
+  Future<void> saveSearchQuery(String query) async {
+    try {
+      await _productRepo.saveSearchQuery(query);
+    } catch (_) {}
+  }
+
+  /// Server qidiruv tarixini tozalash
+  Future<void> clearSearchHistory() async {
+    try {
+      await _productRepo.clearSearchHistory();
+    } catch (_) {}
+  }
+
+  /// Server qidiruv tarixidan bitta so'z o'chirish
+  Future<void> removeSearchHistoryItem(String query) async {
+    try {
+      await _productRepo.removeSearchHistoryItem(query);
+    } catch (_) {}
+  }
+
   /// Kategoriya bo'yicha mahsulotlar
   Future<List<ProductModel>> getProductsByCategory(String categoryId) async {
     try {

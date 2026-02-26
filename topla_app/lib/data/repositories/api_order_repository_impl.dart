@@ -47,6 +47,7 @@ class ApiOrderRepositoryImpl implements IOrderRepository {
     String? recipientName,
     String? recipientPhone,
     String? deliveryMethod,
+    String? pickupPointId,
     required List<Map<String, dynamic>> items,
     required double subtotal,
     required double deliveryFee,
@@ -55,10 +56,19 @@ class ApiOrderRepositoryImpl implements IOrderRepository {
   }) async {
     // Backend creates order from cart - sends selected items with productId & quantity
     final body = <String, dynamic>{
-      'addressId': addressId,
       'paymentMethod': paymentMethod,
       'deliveryMethod': deliveryMethod ?? 'courier',
     };
+
+    // Courier uchun manzil
+    if ((deliveryMethod ?? 'courier') == 'courier' && addressId.isNotEmpty) {
+      body['addressId'] = addressId;
+    }
+
+    // Pickup point uchun
+    if (pickupPointId != null) {
+      body['pickupPointId'] = pickupPointId;
+    }
 
     // Tanlangan mahsulotlarni yuborish (backend faqat shu items'larni buyurtma qiladi)
     if (items.isNotEmpty) {

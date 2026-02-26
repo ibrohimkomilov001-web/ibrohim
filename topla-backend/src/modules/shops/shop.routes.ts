@@ -209,13 +209,8 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
           } as any,
         });
 
-        // Foydalanuvchi rolini vendor ga o'zgartirish
-        if (profile.status !== 'blocked') {
-          await tx.profile.update({
-            where: { id: userId },
-            data: { role: 'vendor' },
-          });
-        }
+        // Vendor rolini admin tasdiqlagandan keyin beriladi
+        // Hozircha foydalanuvchi o'z rolini saqlaydi
 
         return shop;
       });

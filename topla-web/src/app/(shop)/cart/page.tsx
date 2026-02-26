@@ -192,15 +192,15 @@ export default function CartPage() {
                 {/* Promo code */}
                 <div className="pt-2">
                   <div className="flex gap-2">
-                    <div className="flex-1 search-glass flex items-center gap-2 px-3 py-2 rounded-xl">
+                    <div className="flex-1 bg-gray-50 border border-gray-200 flex items-center gap-2 px-3 py-2 rounded-xl box-border">
                       <Tag className="w-4 h-4 text-muted-foreground shrink-0" />
                       <input
                         type="text"
                         placeholder={t('promoCode')}
-                        className="flex-1 bg-transparent text-sm outline-none"
+                        className="flex-1 bg-transparent text-[16px] outline-none"
                       />
                     </div>
-                    <button className="btn-glass px-4 text-sm font-medium text-primary">
+                    <button className="btn-glass px-4 text-sm font-medium text-primary shrink-0">
                       {t('apply')}
                     </button>
                   </div>
@@ -219,12 +219,7 @@ export default function CartPage() {
                 </button>
               </Link>
 
-              {/* Payment methods hint */}
-              <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground pt-1">
-                <span>💳 Payme</span>
-                <span>💰 Click</span>
-                <span>🏦 Uzum</span>
-              </div>
+
             </div>
           </div>
         </div>

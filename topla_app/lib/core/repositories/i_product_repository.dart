@@ -31,6 +31,18 @@ abstract class IProductRepository {
   /// Auto-suggest (debounce bilan)
   Future<List<Map<String, dynamic>>> getSearchSuggestions(String query);
 
+  /// Qidiruv tarixini serverdan olish
+  Future<List<String>> getSearchHistory();
+
+  /// Qidiruv tarixiga qo'shish
+  Future<void> saveSearchQuery(String query);
+
+  /// Barcha qidiruv tarixini tozalash
+  Future<void> clearSearchHistory();
+
+  /// Bitta qidiruv so'zini tarixdan o'chirish
+  Future<void> removeSearchHistoryItem(String query);
+
   /// Kategoriya bo'yicha mahsulotlar
   Future<List<ProductModel>> getProductsByCategory(
     String categoryId, {

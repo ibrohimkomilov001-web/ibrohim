@@ -54,14 +54,32 @@ class _AddressesScreenState extends State<AddressesScreen> {
           return _buildAddressList(provider.addresses);
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddAddressSheet,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Iconsax.add),
-        label: Text(context.l10n.locale.languageCode == 'ru'
-            ? 'Новый адрес'
-            : 'Yangi manzil'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _showAddAddressSheet,
+            icon: const Icon(Iconsax.add, size: 20),
+            label: Text(
+              context.l10n.locale.languageCode == 'ru'
+                  ? 'Новый адрес'
+                  : 'Yangi manzil',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(26),
+              ),
+            ),
+          ),
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -142,7 +160,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
     return ToplaRefreshIndicator(
       onRefresh: () => context.read<AddressesProvider>().loadAddresses(),
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
         itemCount: addresses.length,
         itemBuilder: (context, index) {
           final address = addresses[index];
@@ -165,72 +183,42 @@ class _AddressesScreenState extends State<AddressesScreen> {
         icon = Iconsax.location;
     }
 
+    final isSelected = address.isDefault;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: address.isDefault
-            ? Border.all(color: AppColors.primary, width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: isSelected
+            ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5)
+            : Border.all(color: Colors.grey.shade200, width: 1),
       ),
       child: InkWell(
         onTap: () => _setAsDefault(address.id),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              // Selection radio
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: address.isDefault
-                      ? AppColors.primary
-                      : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: address.isDefault
-                        ? AppColors.primary
-                        : Colors.grey.shade400,
-                    width: 2,
-                  ),
-                ),
-                child: address.isDefault
-                    ? const Icon(Icons.check, color: Colors.white, size: 14)
-                    : null,
-              ),
-
-              const SizedBox(width: 12),
-
               // Icon
               Container(
-                width: 56,
-                height: 56,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: address.isDefault
+                  color: isSelected
                       ? AppColors.primary.withValues(alpha: 0.1)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
-                  color: address.isDefault
-                      ? AppColors.primary
-                      : Colors.grey.shade600,
-                  size: 26,
+                  color: isSelected ? AppColors.primary : Colors.grey.shade500,
+                  size: 22,
                 ),
               ),
 
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
 
               // Address Info
               Expanded(
@@ -241,27 +229,28 @@ class _AddressesScreenState extends State<AddressesScreen> {
                       children: [
                         Text(
                           address.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: isSelected ? AppColors.primary : Colors.black87,
                           ),
                         ),
-                        if (address.isDefault) ...[
+                        if (isSelected) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
-                              vertical: 3,
+                              vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(6),
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Asosiy',
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
+                                color: AppColors.primary,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -269,20 +258,22 @@ class _AddressesScreenState extends State<AddressesScreen> {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       address.fullAddress,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: Colors.grey.shade500,
                         fontSize: 13,
-                        height: 1.4,
+                        height: 1.3,
                       ),
                     ),
                   ],
                 ),
               ),
+
+              const SizedBox(width: 8),
 
               // Actions
               PopupMenuButton<String>(
@@ -318,14 +309,10 @@ class _AddressesScreenState extends State<AddressesScreen> {
                     ),
                   ),
                 ],
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Iconsax.more, size: 20),
+                child: Icon(
+                  Iconsax.more,
+                  size: 20,
+                  color: Colors.grey.shade400,
                 ),
               ),
             ],

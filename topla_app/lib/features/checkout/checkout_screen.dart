@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +13,7 @@ import '../../providers/providers.dart';
 import '../../services/payment_service.dart';
 import '../addresses/map_picker_screen.dart';
 import 'order_success_screen.dart';
+import 'pickup_points_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final double promoDiscount;
@@ -51,6 +53,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // Yetkazish usuli
   String _deliveryMethod = 'courier'; // courier, pickup
 
+  // Topshirish punkti
+  PickupPointModel? _selectedPickupPoint;
+
   // Qabul qiluvchi
   final TextEditingController _recipientNameController =
       TextEditingController();
@@ -89,7 +94,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         // google_ placeholder telefon raqamini ko'rsatmaslik
         final phone = profile.phone ?? '';
         _recipientPhoneController.text =
-            phone.startsWith('google_') ? '' : phone;
+            phone.startsWith('google_') ? '' : _formatPhoneForInput(phone);
       }
 
       // Saqlangan kartalarni yuklash
@@ -152,8 +157,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                       const SizedBox(height: 8),
 
-                      // 2. Manzil — oddiy qator
-                      _buildAddressRow(),
+                      // 2. Manzil yoki Topshirish punkti
+                      if (_deliveryMethod == 'pickup')
+                        _buildPickupPointRow()
+                      else
+                        _buildAddressRow(),
 
                       // 3. Qabul qiluvchi — oddiy qator
                       _buildRecipientRow(),
@@ -209,10 +217,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: _buildDeliveryCard(
               value: 'pickup',
               title: 'Topshirish punkti',
-              subtitle: 'Ertaga',
+              subtitle: _selectedPickupPoint?.name ?? 'Punktni tanlang',
               extraInfo: 'bepul',
               extraInfoColor: AppColors.success,
-              isEnabled: false,
+              isEnabled: true,
             ),
           ),
           const SizedBox(width: 10),
@@ -247,6 +255,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? () {
               HapticUtils.lightImpact();
               setState(() => _deliveryMethod = value);
+              // Pickup tanlanganda punktlar sahifasini ochish
+              if (value == 'pickup') {
+                _openPickupPointSelector();
+              }
             }
           : null,
       child: Opacity(
@@ -322,6 +334,85 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ========== Topshirish punkti tanlash ==========
+  Future<void> _openPickupPointSelector() async {
+    final result = await Navigator.push<PickupPointModel>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PickupPointsScreen(
+          selectedPointId: _selectedPickupPoint?.id,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _selectedPickupPoint = result;
+        _deliveryMethod = 'pickup';
+      });
+    }
+  }
+
+  // ========== Topshirish punkti qatori ==========
+  Widget _buildPickupPointRow() {
+    return GestureDetector(
+      onTap: _openPickupPointSelector,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Iconsax.building, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Topshirish punkti',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _selectedPickupPoint?.name ?? 'Punktni tanlang',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _selectedPickupPoint != null
+                          ? Colors.black87
+                          : Colors.red.shade400,
+                    ),
+                  ),
+                  if (_selectedPickupPoint != null)
+                    Text(
+                      _selectedPickupPoint!.address,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+          ],
         ),
       ),
     );
@@ -524,7 +615,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             _recipientNameController.text =
                                 profile?.fullName ?? '';
                             _recipientPhoneController.text =
-                                phone.startsWith('google_') ? '' : phone;
+                                phone.startsWith('google_') ? '' : _formatPhoneForInput(phone);
                           });
                           Navigator.pop(ctx);
                         },
@@ -607,10 +698,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               onTap: () {
                                 tempNameController.text =
                                     profile?.fullName ?? '';
+                                final rawPhone = profile?.phone ?? '';
                                 tempPhoneController.text =
-                                    (profile?.phone ?? '').startsWith('google_')
+                                    rawPhone.startsWith('google_')
                                         ? ''
-                                        : (profile?.phone ?? '');
+                                        : _formatPhoneForInput(rawPhone);
                                 setModalState(() => isEditing = true);
                               },
                               child: Icon(
@@ -682,9 +774,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       TextField(
                         controller: tempPhoneController,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          _UzPhoneFormatter(),
+                        ],
                         decoration: InputDecoration(
                           labelText: 'Telefon raqam',
+                          hintText: 'XX XXX XX XX',
                           prefixIcon: const Icon(Iconsax.call, size: 20),
+                          prefixText: '+998 ',
+                          prefixStyle: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
                           filled: true,
                           fillColor: Colors.grey.shade50,
                           border: OutlineInputBorder(
@@ -1912,11 +2014,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _handlePlaceOrder(CartProvider cartProvider) async {
-    // Manzil validatsiyasi
-    if (_selectedAddressId == null) {
+    // Manzil validatsiyasi (faqat kuryer uchun)
+    if (_deliveryMethod == 'courier' && _selectedAddressId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Iltimos, manzilni tanlang')),
       );
+      return;
+    }
+
+    // Pickup punkt validatsiyasi
+    if (_deliveryMethod == 'pickup' && _selectedPickupPoint == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Iltimos, topshirish punktini tanlang')),
+      );
+      _openPickupPointSelector();
       return;
     }
 
@@ -1996,7 +2107,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } else {
         // Naqd pul - oddiy buyurtma
         final order = await context.read<OrdersProvider>().createOrder(
-              addressId: _selectedAddressId!,
+              addressId: _selectedAddressId ?? '',
               paymentMethod: _paymentMethod,
               deliveryTime: _deliveryTime,
               scheduledDate: _scheduledDate,
@@ -2008,9 +2119,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ? _recipientNameController.text
                   : null,
               recipientPhone: _recipientPhoneController.text.isNotEmpty
-                  ? _recipientPhoneController.text
+                  ? '+998${_recipientPhoneController.text.replaceAll(' ', '')}'
                   : null,
               deliveryMethod: _deliveryMethod,
+              pickupPointId: _selectedPickupPoint?.id,
               items: orderItems,
               subtotal: cartProvider.subtotal,
               deliveryFee: cartProvider.deliveryFee,
@@ -2061,7 +2173,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ) async {
     try {
       return await context.read<OrdersProvider>().createOrder(
-            addressId: _selectedAddressId!,
+            addressId: _selectedAddressId ?? '',
             paymentMethod: 'card',
             deliveryTime: _deliveryTime,
             scheduledDate: _scheduledDate,
@@ -2073,9 +2185,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ? _recipientNameController.text
                 : null,
             recipientPhone: _recipientPhoneController.text.isNotEmpty
-                ? _recipientPhoneController.text
+                ? '+998${_recipientPhoneController.text.replaceAll(' ', '')}'
                 : null,
             deliveryMethod: _deliveryMethod,
+            pickupPointId: _selectedPickupPoint?.id,
             items: orderItems,
             subtotal: cartProvider.subtotal,
             deliveryFee: cartProvider.deliveryFee,
@@ -2211,10 +2324,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Strip +998 prefix and format for input field (XX XXX XX XX)
+  String _formatPhoneForInput(String phone) {
+    String digits = phone.replaceAll(RegExp(r'\D'), '');
+    // Strip 998 prefix if present
+    if (digits.startsWith('998') && digits.length > 9) {
+      digits = digits.substring(3);
+    }
+    if (digits.length > 9) digits = digits.substring(0, 9);
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 2 || i == 5 || i == 7) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]} ',
         );
+  }
+}
+
+/// Phone number formatter: XX XXX XX XX (9 digits, spaces auto-inserted)
+class _UzPhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Faqat raqamlarni olish
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+
+    // Maximum 9 ta raqam
+    final trimmed = digits.length > 9 ? digits.substring(0, 9) : digits;
+
+    // Format: XX XXX XX XX
+    final buffer = StringBuffer();
+    for (int i = 0; i < trimmed.length; i++) {
+      if (i == 2 || i == 5 || i == 7) buffer.write(' ');
+      buffer.write(trimmed[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
 }

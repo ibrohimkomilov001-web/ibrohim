@@ -37,7 +37,7 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
   // GET /vendor/documents — List vendor's documents
   // ============================================
   app.get('/vendor/documents', { preHandler: vendorAuth }, async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = request.user!.userId;
 
     const shop = await prisma.shop.findFirst({
       where: { ownerId: userId },
@@ -60,7 +60,7 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
   // POST /vendor/documents — Upload a document
   // ============================================
   app.post('/vendor/documents', { preHandler: vendorAuth }, async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = request.user!.userId;
     const body = createDocumentSchema.parse(request.body);
 
     const shop = await prisma.shop.findFirst({
@@ -98,7 +98,7 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
   // DELETE /vendor/documents/:id — Delete own document
   // ============================================
   app.delete('/vendor/documents/:id', { preHandler: vendorAuth }, async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = request.user!.userId;
     const { id } = request.params as { id: string };
 
     const shop = await prisma.shop.findFirst({
@@ -131,7 +131,7 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
   // PUT /vendor/documents/:id — Re-upload rejected document
   // ============================================
   app.put('/vendor/documents/:id', { preHandler: vendorAuth }, async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = request.user!.userId;
     const { id } = request.params as { id: string };
     const body = createDocumentSchema.parse(request.body);
 
@@ -201,7 +201,7 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({
       success: true,
       data: documents,
-      meta: paginationMeta(total, page, limit),
+      meta: paginationMeta(page, limit, total),
     });
   });
 
@@ -267,7 +267,7 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
       }
     } catch (e) {
       // Don't fail the review if notification fails
-      console.error('Failed to send document review notification:', e);
+      request.log.error(e, 'Failed to send document review notification');
     }
 
     return reply.send({ success: true, data: updated });

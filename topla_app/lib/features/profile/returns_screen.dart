@@ -149,7 +149,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
             label: Text(status['label'] as String),
             selected: isActive,
             onSelected: (_) {
-              setState(() => _selectedStatus = status['value'] as String?);
+              setState(() => _selectedStatus = status['value']);
               _loadReturns();
             },
             selectedColor: AppColors.primary,

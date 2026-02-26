@@ -137,9 +137,34 @@ class MockProductRepository implements IProductRepository {
 
   @override
   Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20}) async {
+      {int limit = 20, String? sort}) async {
     return getProducts(search: query, limit: limit);
   }
+
+  @override
+  Future<List<String>> getPopularSearches() async {
+    return ['olma', 'banan', 'sabzi'];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSearchSuggestions(String query) async {
+    final products = await searchProducts(query);
+    return products.map((p) => {'id': p.id, 'name': p.nameUz}).toList();
+  }
+
+  @override
+  Future<List<String>> getSearchHistory() async {
+    return [];
+  }
+
+  @override
+  Future<void> saveSearchQuery(String query) async {}
+
+  @override
+  Future<void> clearSearchHistory() async {}
+
+  @override
+  Future<void> removeSearchHistoryItem(String query) async {}
 
   @override
   Future<List<ProductModel>> getProductsByCategory(
@@ -209,7 +234,8 @@ class MockProductRepository implements IProductRepository {
   }
 
   @override
-  Future<List<CategoryFilterAttribute>> getCategoryFilters(String categoryId) async {
+  Future<List<CategoryFilterAttribute>> getCategoryFilters(
+      String categoryId) async {
     return [];
   }
 

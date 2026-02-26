@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
@@ -61,32 +62,61 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Avatar Section
-            _buildAvatarSection(),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Avatar Section
+                  _buildAvatarSection(),
 
-            const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
-            // Form
-            _buildForm(),
+                  // Form
+                  _buildForm(),
 
-            const SizedBox(height: 32),
-
-            // Save Button
-            SizedBox(
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+          // Save Button — always visible above keyboard
+          Container(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SizedBox(
               width: double.infinity,
+              height: 48,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveProfile,
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
+                        width: 22,
+                        height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
@@ -95,14 +125,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     : const Text(
                         'Saqlash',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -114,8 +144,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Stack(
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 90,
+            height: 90,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -128,9 +158,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -139,7 +169,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 initials,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 40,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -151,22 +181,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: GestureDetector(
               onTap: _pickImage,
               child: Container(
-                width: 40,
-                height: 40,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
+                      blurRadius: 8,
                     ),
                   ],
                 ),
-                child: Icon(
-                  Iconsax.camera,
+                child: const Icon(
+                  Iconsax.camera_copy,
                   color: AppColors.primary,
-                  size: 20,
+                  size: 16,
                 ),
               ),
             ),
@@ -198,28 +228,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             controller: _fullNameController,
             label: 'Ism va familiya',
             hint: 'To\'liq ismingizni kiriting',
-            icon: Iconsax.user,
+            icon: Iconsax.user_copy,
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Email
           _buildTextField(
             controller: _emailController,
             label: 'Email (ixtiyoriy)',
             hint: 'Email manzilingiz',
-            icon: Iconsax.sms,
+            icon: Iconsax.sms_copy,
             keyboardType: TextInputType.emailAddress,
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Phone - editable if no phone, read-only if has phone
           if (_hasPhone)
             _buildReadOnlyField(
               label: 'Telefon raqam',
               value: widget.profile?['phone'] ?? '',
-              icon: Iconsax.call,
+              icon: Iconsax.call_copy,
             )
           else
             _buildPhoneField(),
@@ -243,14 +273,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
+          inputFormatters: [
+            _ProfilePhoneFormatter(),
+          ],
           decoration: InputDecoration(
             hintText: '90 123 45 67',
+            hintStyle: TextStyle(color: Colors.grey.shade400),
             prefixIcon: Container(
               padding: const EdgeInsets.only(left: 16, right: 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Iconsax.call, color: Colors.grey.shade500),
+                  Icon(Iconsax.call_copy,
+                      color: Colors.grey.shade500, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     '+998',
@@ -259,6 +294,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 1,
+                    height: 24,
+                    color: Colors.grey.shade300,
                   ),
                 ],
               ),
@@ -273,7 +314,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
           onChanged: (_) => setState(() {}),
@@ -305,7 +346,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: Icon(icon, color: Colors.grey.shade500),
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 20),
             filled: true,
             fillColor: Colors.grey.shade100,
             border: OutlineInputBorder(
@@ -314,7 +356,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
           onChanged: (_) => setState(() {}),
@@ -349,14 +391,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon, color: Colors.grey.shade500),
+              Icon(icon, color: Colors.grey.shade500, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   value,
                   style: TextStyle(
                     color: Colors.grey.shade600,
-                    fontSize: 16,
+                    fontSize: 15,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -426,7 +468,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildImageOption(
-                      icon: Iconsax.camera,
+                      icon: Iconsax.camera_copy,
                       label: 'Kamera',
                       onTap: () {
                         Navigator.pop(context);
@@ -438,7 +480,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       },
                     ),
                     _buildImageOption(
-                      icon: Iconsax.gallery,
+                      icon: Iconsax.gallery_copy,
                       label: 'Galereya',
                       onTap: () {
                         Navigator.pop(context);
@@ -478,7 +520,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Icon(
               icon,
               color: AppColors.primary,
-              size: 30,
+              size: 28,
             ),
           ),
           const SizedBox(height: 8),
@@ -722,6 +764,29 @@ class _OtpVerifySheetState extends State<_OtpVerifySheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Telefon raqam formatlash (XX XXX XX XX)
+class _ProfilePhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length > 9) return oldValue;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 2 || i == 5 || i == 7) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    final result = buffer.toString();
+    return TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
     );
   }
 }

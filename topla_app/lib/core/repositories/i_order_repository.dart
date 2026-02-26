@@ -19,6 +19,7 @@ abstract class IOrderRepository {
     String? recipientName,
     String? recipientPhone,
     String? deliveryMethod,
+    String? pickupPointId,
     required List<Map<String, dynamic>> items,
     required double subtotal,
     required double deliveryFee,

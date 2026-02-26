@@ -21,6 +21,11 @@ export async function middleware(request: NextRequest) {
       url.pathname = `/vendor${url.pathname}`
       return NextResponse.rewrite(url)
     }
+  } else if (currentHost === 'pickup') {
+    if (!url.pathname.startsWith('/pickup')) {
+      url.pathname = `/pickup${url.pathname}`
+      return NextResponse.rewrite(url)
+    }
   }
   
   return NextResponse.next()

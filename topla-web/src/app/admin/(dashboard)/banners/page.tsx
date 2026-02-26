@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBanners, createBanner, updateBanner, deleteBanner, type Banner } from './actions'
+import { adminUploadImage } from '@/lib/api/admin'
 
 const positionLabels: Record<string, string> = {
   home_top: 'Bosh sahifa (yuqori)',
@@ -32,6 +33,10 @@ export default function AdminBannersPage() {
     startDate: '',
     endDate: '',
   })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploadLoading, setUploadLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadBanners = useCallback(async () => {
     try {
@@ -47,12 +52,71 @@ export default function AdminBannersPage() {
 
   useEffect(() => { loadBanners() }, [loadBanners])
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      toast.error('Faqat rasm fayllari ruxsat etilgan (JPG, PNG, WebP, GIF)')
+      return
+    }
+
+    // Validate size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Rasm hajmi 5MB dan oshmasligi kerak')
+      return
+    }
+
+    setSelectedFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      const fakeEvent = { target: { files: [file] } } as any
+      handleFileSelect(fakeEvent)
+    }
+  }
+
   const handleAdd = async () => {
     if (!formData.title.trim()) { toast.error('Sarlavha kiritilishi kerak'); return }
+    if (!selectedFile) { toast.error('Rasm tanlash shart'); return }
+
     try {
       setActionLoading(true)
+
+      // 1. Rasmni upload qilish
+      setUploadLoading(true)
+      let imageUrl: string
+      try {
+        imageUrl = await adminUploadImage(selectedFile, 'banner')
+      } catch (uploadErr: any) {
+        toast.error(`Rasm yuklashda xatolik: ${uploadErr.message || 'Noma\'lum xato'}`)
+        return
+      } finally {
+        setUploadLoading(false)
+      }
+
+      if (!imageUrl) {
+        toast.error('Rasm URL olinmadi')
+        return
+      }
+
+      // 2. Bannerni yaratish
       await createBanner({
         title: formData.title.trim(),
+        imageUrl,
         link: formData.link.trim() || undefined,
         position: formData.position || 'home_top',
         startDate: formData.startDate || undefined,
@@ -62,6 +126,7 @@ export default function AdminBannersPage() {
       toast.success('Banner yaratildi')
       setAddDialogOpen(false)
       setFormData({ title: '', link: '', position: '', startDate: '', endDate: '' })
+      handleRemoveImage()
       loadBanners()
     } catch {
       toast.error('Banner yaratishda xatolik')
@@ -130,17 +195,57 @@ export default function AdminBannersPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Rasm</Label>
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                  <div className="text-4xl mb-2">🖼️</div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Rasmni bu yerga tashlang yoki
-                  </p>
-                  <Button variant="outline" size="sm">Fayl tanlash</Button>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Tavsiya: 1200x400 px, max 2MB
-                  </p>
-                </div>
+                <Label>Rasm *</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {imagePreview ? (
+                  <div className="relative border rounded-lg overflow-hidden">
+                    <img
+                      src={imagePreview}
+                      alt="Banner preview"
+                      className="w-full h-40 object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8"
+                      onClick={handleRemoveImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-muted/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                  >
+                    <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Rasmni bu yerga tashlang yoki
+                    </p>
+                    <Button type="button" variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}>
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Fayl tanlash
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      JPG, PNG, WebP — max 5MB, tavsiya: 1200x400 px
+                    </p>
+                  </div>
+                )}
+                {uploadLoading && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Rasm yuklanmoqda...
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

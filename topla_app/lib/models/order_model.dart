@@ -1,3 +1,11 @@
+/// Xavfsiz double parse (Prisma Decimal string sifatida keladi)
+double _safeDouble(dynamic v) {
+  if (v == null) return 0;
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v) ?? 0;
+  return 0;
+}
+
 /// Buyurtma modeli
 class OrderModel {
   final String id;
@@ -21,6 +29,12 @@ class OrderModel {
   final DateTime createdAt;
   final List<OrderItemModel> items;
 
+  // Pickup point fields
+  final String? pickupPointId;
+  final String? pickupCode;
+  final String? pickupToken;
+  final PickupPointModel? pickupPoint;
+
   OrderModel({
     required this.id,
     required this.orderNumber,
@@ -42,6 +56,10 @@ class OrderModel {
     this.deliveryMethod,
     required this.createdAt,
     this.items = const [],
+    this.pickupPointId,
+    this.pickupCode,
+    this.pickupToken,
+    this.pickupPoint,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -54,15 +72,13 @@ class OrderModel {
       userId: (json['user_id'] ?? json['userId']) as String?,
       addressId: (json['address_id'] ?? json['addressId']) as String?,
       status: OrderStatus.fromString(json['status'] as String? ?? 'pending'),
-      subtotal: (json['subtotal'] as num).toDouble(),
+      subtotal: _safeDouble(json['subtotal']),
       deliveryFee:
-          ((json['delivery_fee'] ?? json['deliveryFee']) as num?)?.toDouble() ??
-              0,
-      discount: (json['discount'] as num?)?.toDouble() ?? 0,
-      cashbackUsed: ((json['cashback_used'] ?? json['cashbackUsed']) as num?)
-              ?.toDouble() ??
-          0,
-      total: (json['total'] as num).toDouble(),
+          _safeDouble(json['delivery_fee'] ?? json['deliveryFee']),
+      discount: _safeDouble(json['discount']),
+      cashbackUsed:
+          _safeDouble(json['cashback_used'] ?? json['cashbackUsed']),
+      total: _safeDouble(json['total']),
       paymentMethod:
           (json['payment_method'] ?? json['paymentMethod']) as String?,
       paymentStatus: PaymentStatus.fromString(
@@ -81,6 +97,13 @@ class OrderModel {
       deliveryMethod:
           (json['delivery_method'] ?? json['deliveryMethod']) as String?,
       createdAt: DateTime.parse((json['created_at'] ?? json['createdAt'])),
+      pickupPointId:
+          (json['pickup_point_id'] ?? json['pickupPointId']) as String?,
+      pickupCode: (json['pickup_code'] ?? json['pickupCode']) as String?,
+      pickupToken: (json['pickup_token'] ?? json['pickupToken']) as String?,
+      pickupPoint: json['pickupPoint'] != null
+          ? PickupPointModel.fromJson(json['pickupPoint'])
+          : null,
       items: itemsList != null
           ? (itemsList as List)
               .map((item) => OrderItemModel.fromJson(item))
@@ -113,8 +136,10 @@ class OrderItemModel {
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
-    final qty = json['quantity'] as int;
-    final prc = (json['price'] as num).toDouble();
+    final qty = json['quantity'] is int
+        ? json['quantity'] as int
+        : int.tryParse(json['quantity'].toString()) ?? 1;
+    final prc = _safeDouble(json['price']);
     return OrderItemModel(
       id: json['id'] as String,
       orderId: (json['order_id'] ?? json['orderId']) as String? ?? '',
@@ -124,7 +149,7 @@ class OrderItemModel {
           json['product_image'] ?? json['imageUrl'] ?? json['image_url'],
       price: prc,
       quantity: qty,
-      total: (json['total'] as num?)?.toDouble() ?? (prc * qty),
+      total: _safeDouble(json['total'] ?? (prc * qty)),
     );
   }
 }
@@ -138,6 +163,7 @@ enum OrderStatus {
   courierAssigned,
   courierPickedUp,
   shipping,
+  atPickupPoint,
   delivered,
   cancelled;
 
@@ -149,6 +175,8 @@ enum OrderStatus {
         return OrderStatus.courierAssigned;
       case 'courier_picked_up':
         return OrderStatus.courierPickedUp;
+      case 'at_pickup_point':
+        return OrderStatus.atPickupPoint;
       default:
         return OrderStatus.values.firstWhere(
           (e) => e.name == value,
@@ -173,6 +201,8 @@ enum OrderStatus {
         return 'Kuryer oldi';
       case OrderStatus.shipping:
         return 'Yetkazilmoqda';
+      case OrderStatus.atPickupPoint:
+        return 'Punktda kutmoqda';
       case OrderStatus.delivered:
         return 'Yetkazildi';
       case OrderStatus.cancelled:
@@ -196,6 +226,8 @@ enum OrderStatus {
         return 'Курьер забрал';
       case OrderStatus.shipping:
         return 'Доставляется';
+      case OrderStatus.atPickupPoint:
+        return 'Ожидает в пункте';
       case OrderStatus.delivered:
         return 'Доставлен';
       case OrderStatus.cancelled:
@@ -214,6 +246,39 @@ enum PaymentStatus {
     return PaymentStatus.values.firstWhere(
       (e) => e.name == value,
       orElse: () => PaymentStatus.pending,
+    );
+  }
+}
+
+/// Topshirish punkti modeli
+class PickupPointModel {
+  final String id;
+  final String name;
+  final String address;
+  final double latitude;
+  final double longitude;
+  final String? phone;
+  final Map<String, dynamic>? workingHours;
+
+  PickupPointModel({
+    required this.id,
+    required this.name,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+    this.phone,
+    this.workingHours,
+  });
+
+  factory PickupPointModel.fromJson(Map<String, dynamic> json) {
+    return PickupPointModel(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      address: json['address'] as String,
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      phone: json['phone'] as String?,
+      workingHours: json['workingHours'] as Map<String, dynamic>?,
     );
   }
 }

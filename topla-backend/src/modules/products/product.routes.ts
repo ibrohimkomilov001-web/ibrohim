@@ -5,7 +5,7 @@ import { authMiddleware, requireRole, optionalAuth } from '../../middleware/auth
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { validateProduct, calculateQualityScore } from '../../services/product-validation.service.js';
 import { indexProduct, removeProductFromIndex, searchProducts } from '../../services/search.service.js';
-import { cacheGet, cacheSet } from '../../config/redis.js';
+import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js';
 
 // ============================================
 // Validation Schemas
@@ -89,6 +89,16 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const { q } = request.query as { q?: string };
     if (!q || q.length < 2) return reply.send({ success: true, data: [] });
 
+    // Track suggest query (3+ characters only, async)
+    if (q.length >= 3) {
+      const normalizedQ = q.toLowerCase().trim();
+      prisma.searchQuery.upsert({
+        where: { query: normalizedQ },
+        create: { query: normalizedQ, count: 1 },
+        update: { count: { increment: 1 }, lastSearchedAt: new Date() },
+      }).catch(() => {});
+    }
+
     // Avval Meilisearch'dan qidirish
     const meiliResult = await searchProducts(q, { limit: 5 });
     if (meiliResult && meiliResult.hits.length > 0) {
@@ -159,6 +169,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const params = searchSchema.parse(request.query);
     const offset = (params.page - 1) * params.limit;
 
+    // Check Redis cache first
+    const cacheKey = `search:${params.q.toLowerCase().trim()}:${params.page}:${params.limit}:${params.sort || 'default'}:${params.categoryId || ''}:${params.shopId || ''}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) return reply.send(cached);
+
     // Track search query (async, xatolik bo'lsa ham davom etadi)
     const normalizedQuery = params.q.toLowerCase().trim();
     prisma.searchQuery.upsert({
@@ -193,7 +208,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (meiliResult) {
-      return reply.send({
+      const response = {
         success: true,
         data: meiliResult.hits,
         meta: {
@@ -204,13 +219,17 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           query: meiliResult.query,
           engine: 'meilisearch',
         },
-      });
+      };
+      // Cache for 45 seconds
+      cacheSet(cacheKey, response, 45).catch(() => {});
+      return reply.send(response);
     }
 
     // Database fallback
     const where: any = {
       isActive: true,
       status: 'active',
+      stock: { gt: 0 },
       OR: [
         { name: { contains: params.q, mode: 'insensitive' } },
         { nameUz: { contains: params.q, mode: 'insensitive' } },
@@ -247,7 +266,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       prisma.product.count({ where }),
     ]);
 
-    return reply.send({
+    const response = {
       success: true,
       data: products,
       meta: {
@@ -258,7 +277,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         query: params.q,
         engine: 'database',
       },
-    });
+    };
+    // Cache for 45 seconds
+    cacheSet(cacheKey, response, 45).catch(() => {});
+    return reply.send(response);
   });
 
   /**
@@ -306,6 +328,8 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     if (filters.search) {
       where.OR = [
         { name: { contains: filters.search, mode: 'insensitive' } },
+        { nameUz: { contains: filters.search, mode: 'insensitive' } },
+        { nameRu: { contains: filters.search, mode: 'insensitive' } },
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
@@ -969,5 +993,79 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     await prisma.productReview.delete({ where: { id: existing.id } });
     return reply.send({ success: true, message: 'Sharh o\'chirildi' });
+  });
+
+  // ============================================
+  // Search history: Server-side sync
+  // ============================================
+
+  /**
+   * GET /search/history
+   * Foydalanuvchi qidiruv tarixi
+   */
+  app.get('/search/history', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const history = await prisma.userSearchHistory.findMany({
+      where: { userId },
+      orderBy: { searchedAt: 'desc' },
+      take: 20,
+      select: { query: true, searchedAt: true },
+    });
+    return reply.send({ success: true, data: history });
+  });
+
+  /**
+   * POST /search/history
+   * Qidiruv tarixiga qo'shish
+   */
+  app.post('/search/history', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { query } = z.object({ query: z.string().min(1).max(200) }).parse(request.body);
+    const normalizedQuery = query.toLowerCase().trim();
+
+    // Upsert - agar mavjud bo'lsa yangilash
+    await prisma.userSearchHistory.upsert({
+      where: { userId_query: { userId, query: normalizedQuery } },
+      create: { userId, query: normalizedQuery },
+      update: { searchedAt: new Date() },
+    });
+
+    // Maksimal 20 ta saqlash — eng eskilerini o'chirish
+    const allHistory = await prisma.userSearchHistory.findMany({
+      where: { userId },
+      orderBy: { searchedAt: 'desc' },
+      select: { id: true },
+    });
+    if (allHistory.length > 20) {
+      const toDelete = allHistory.slice(20).map(h => h.id);
+      await prisma.userSearchHistory.deleteMany({
+        where: { id: { in: toDelete } },
+      });
+    }
+
+    return reply.send({ success: true });
+  });
+
+  /**
+   * DELETE /search/history
+   * Barcha qidiruv tarixini tozalash
+   */
+  app.delete('/search/history', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    await prisma.userSearchHistory.deleteMany({ where: { userId } });
+    return reply.send({ success: true, message: 'Qidiruv tarixi tozalandi' });
+  });
+
+  /**
+   * DELETE /search/history/:query
+   * Bitta qidiruv so'zini o'chirish
+   */
+  app.delete('/search/history/:query', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { query } = request.params as { query: string };
+    await prisma.userSearchHistory.deleteMany({
+      where: { userId, query: query.toLowerCase().trim() },
+    });
+    return reply.send({ success: true });
   });
 }

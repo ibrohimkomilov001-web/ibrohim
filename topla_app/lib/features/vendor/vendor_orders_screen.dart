@@ -173,6 +173,9 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
       case OrderStatus.delivered:
         color = Colors.green;
         break;
+      case OrderStatus.atPickupPoint:
+        color = Colors.deepOrange;
+        break;
       case OrderStatus.cancelled:
         color = Colors.red;
         break;

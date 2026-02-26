@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/constants/constants.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
@@ -56,7 +58,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 const SizedBox(height: 16),
 
                 // Timeline
-                _buildTimeline(order.status),
+                _buildTimeline(order),
+
+                const SizedBox(height: 16),
+
+                // QR Code (faqat pickup buyurtmalar uchun, at_pickup_point holatda)
+                if (order.deliveryMethod == 'pickup' &&
+                    order.status == OrderStatus.atPickupPoint &&
+                    order.pickupToken != null)
+                  _buildQrCodeSection(order),
+
+                if (order.deliveryMethod == 'pickup' &&
+                    order.status == OrderStatus.atPickupPoint &&
+                    order.pickupToken != null)
+                  const SizedBox(height: 16),
 
                 const SizedBox(height: 16),
 
@@ -65,8 +80,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
                 const SizedBox(height: 16),
 
-                // Address
-                _buildAddressSection(order),
+                // Address or Pickup Point
+                if (order.deliveryMethod == 'pickup')
+                  _buildPickupPointSection(order)
+                else
+                  _buildAddressSection(order),
 
                 const SizedBox(height: 16),
 
@@ -89,6 +107,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget _buildStatusCard(OrderModel order, Map<String, dynamic> statusInfo) {
     final formattedDate =
         '${order.createdAt.day}.${order.createdAt.month.toString().padLeft(2, '0')}.${order.createdAt.year}';
+    final progress = _getOrderProgress(order.status);
+    final statusColor = statusInfo['color'] as Color;
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -108,75 +128,101 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           // Status icon
           Container(
-            width: 80,
-            height: 80,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: statusInfo['color'].withValues(alpha: 0.1),
+              color: statusColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              statusInfo['icon'],
-              color: statusInfo['color'],
-              size: 40,
+              statusInfo['icon'] as IconData,
+              color: statusColor,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Status text
+          Text(
+            statusInfo['text'] as String,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Order number + date
+          Text(
+            '${order.orderNumber} • $formattedDate',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 13,
             ),
           ),
           const SizedBox(height: 16),
 
-          // Status text
-          Text(
-            statusInfo['text'],
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: statusInfo['color'],
+          // Progress bar
+          if (order.status != OrderStatus.cancelled)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade100,
+                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-
-          // Date
-          Text(
-            formattedDate,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildTimeline(OrderStatus currentStatus) {
-    final steps = [
-      {
-        'status': OrderStatus.pending,
-        'label': 'Kutilmoqda',
-        'icon': Iconsax.clock
-      },
-      {
-        'status': OrderStatus.confirmed,
-        'label': 'Tasdiqlandi',
-        'icon': Iconsax.tick_square
-      },
-      {
-        'status': OrderStatus.processing,
-        'label': 'Tayyorlanmoqda',
-        'icon': Iconsax.box_tick
-      },
-      {
-        'status': OrderStatus.shipping,
-        'label': 'Yo\'lda',
-        'icon': Iconsax.truck_fast
-      },
-      {
-        'status': OrderStatus.delivered,
-        'label': 'Yetkazildi',
-        'icon': Iconsax.tick_circle
-      },
-    ];
+  double _getOrderProgress(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 0.1;
+      case OrderStatus.confirmed:
+        return 0.25;
+      case OrderStatus.processing:
+        return 0.4;
+      case OrderStatus.readyForPickup:
+        return 0.55;
+      case OrderStatus.courierAssigned:
+        return 0.6;
+      case OrderStatus.courierPickedUp:
+        return 0.7;
+      case OrderStatus.shipping:
+        return 0.8;
+      case OrderStatus.atPickupPoint:
+        return 0.85;
+      case OrderStatus.delivered:
+        return 1.0;
+      case OrderStatus.cancelled:
+        return 0.0;
+    }
+  }
 
-    final currentIndex = steps.indexWhere((s) => s['status'] == currentStatus);
-    final isCancelled = currentStatus == OrderStatus.cancelled;
+  Widget _buildTimeline(OrderModel order) {
+    final isPickup = order.deliveryMethod == 'pickup';
+
+    final steps = isPickup
+        ? [
+            {'status': OrderStatus.confirmed, 'label': 'Tasdiqlandi', 'icon': Iconsax.tick_square},
+            {'status': OrderStatus.processing, 'label': 'Do\'kon tayyorlamoqda', 'icon': Iconsax.box_tick},
+            {'status': OrderStatus.atPickupPoint, 'label': 'Punktda kutmoqda', 'icon': Iconsax.building},
+            {'status': OrderStatus.delivered, 'label': 'Olib ketildi', 'icon': Iconsax.tick_circle},
+          ]
+        : [
+            {'status': OrderStatus.confirmed, 'label': 'Tasdiqlandi', 'icon': Iconsax.tick_square},
+            {'status': OrderStatus.processing, 'label': 'Do\'kon tayyorlamoqda', 'icon': Iconsax.box_tick},
+            {'status': OrderStatus.shipping, 'label': 'Buyurtma yo\'lda', 'icon': Iconsax.truck_fast},
+            {'status': OrderStatus.delivered, 'label': 'Yetkazib berildi', 'icon': Iconsax.tick_circle},
+          ];
+
+    final currentIndex = steps.indexWhere((s) => s['status'] == order.status);
+    final isCancelled = order.status == OrderStatus.cancelled;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -371,6 +417,209 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Text(
             '${_formatPrice(item.total.toInt())} ${AppStrings.currency}',
             style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ========== QR Kod bo'limi ==========
+  Widget _buildQrCodeSection(OrderModel order) {
+    final qrData = jsonEncode({
+      'orderId': order.id,
+      'token': order.pickupToken,
+    });
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Iconsax.scan_barcode, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'QR kodni ko\'rsating',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Topshirish punktida shu QR kodni skanerga ko\'rsating',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // QR Code
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: QrImageView(
+              data: qrData,
+              version: QrVersions.auto,
+              size: 200.0,
+              backgroundColor: Colors.white,
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Pickup code (qo'lda kiritish uchun)
+          if (order.pickupCode != null) ...[
+            Text(
+              'Yoki kodni ayting:',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                order.pickupCode!,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 6,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+
+          // Punkt ma'lumotlari
+          if (order.pickupPoint != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Iconsax.building, color: AppColors.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.pickupPoint!.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          order.pickupPoint!.address,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ========== Topshirish punkti ma'lumotlari ==========
+  Widget _buildPickupPointSection(OrderModel order) {
+    final point = order.pickupPoint;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Topshirish punkti',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Iconsax.building,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      point?.name ?? 'Topshirish punkti',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      point?.address ?? '',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    if (point?.phone != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        point!.phone!,
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -639,26 +888,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     switch (status) {
       case OrderStatus.pending:
         return {
-          'text': 'Kutilmoqda',
+          'text': 'Buyurtma qabul qilindi',
           'color': AppColors.warning,
           'icon': Iconsax.clock,
         };
       case OrderStatus.confirmed:
         return {
-          'text': 'Tasdiqlandi',
-          'color': AppColors.accent,
+          'text': 'Buyurtma tasdiqlandi',
+          'color': const Color(0xFF4CAF50),
           'icon': Iconsax.tick_square,
         };
       case OrderStatus.processing:
         return {
-          'text': 'Tayyorlanmoqda',
+          'text': 'Do\'kon tayyorlamoqda',
           'color': AppColors.accent,
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.readyForPickup:
         return {
-          'text': 'Tayyor',
-          'color': AppColors.accent,
+          'text': 'Buyurtma tayyor',
+          'color': const Color(0xFF2196F3),
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.courierAssigned:
@@ -669,25 +918,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         };
       case OrderStatus.courierPickedUp:
         return {
-          'text': 'Kuryer oldi',
+          'text': 'Kuryer oldi, yo\'lga chiqdi',
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.shipping:
         return {
-          'text': 'Yo\'lda',
+          'text': 'Buyurtma yo\'lda',
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
+      case OrderStatus.atPickupPoint:
+        return {
+          'text': 'Punktda kutmoqda',
+          'color': const Color(0xFF9C27B0),
+          'icon': Iconsax.building,
+        };
       case OrderStatus.delivered:
         return {
-          'text': 'Yetkazildi',
+          'text': 'Yetkazib berildi',
           'color': AppColors.success,
           'icon': Iconsax.tick_circle,
         };
       case OrderStatus.cancelled:
         return {
-          'text': 'Bekor qilindi',
+          'text': 'Bekor qilingan',
           'color': AppColors.error,
           'icon': Iconsax.close_circle,
         };

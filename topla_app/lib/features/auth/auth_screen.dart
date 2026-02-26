@@ -23,8 +23,6 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _isOtpSent = false;
   bool _isGoogleLoading = false;
-  String _otpChannel = 'sms'; // 'sms' yoki 'telegram'
-  String _sentViaChannel = 'sms'; // Qaysi kanal orqali yuborildi
 
   // Countdown timer
   int _resendCountdown = 0;
@@ -84,7 +82,7 @@ class _AuthScreenState extends State<AuthScreen> {
         '/auth/send-otp',
         body: {
           'phone': phone,
-          'channel': _otpChannel,
+          'channel': 'sms',
         },
         auth: false,
       );
@@ -93,17 +91,12 @@ class _AuthScreenState extends State<AuthScreen> {
         setState(() {
           _isOtpSent = true;
           _isLoading = false;
-          _sentViaChannel = _otpChannel;
         });
         _startResendCountdown();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _sentViaChannel == 'telegram'
-                  ? 'Telegram orqali kod yuborildi'
-                  : 'SMS kod yuborildi',
-            ),
+          const SnackBar(
+            content: Text('SMS kod yuborildi'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -272,444 +265,316 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+
+                // Back button
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // Logo
+                _buildLogo(),
+
+                const SizedBox(height: 32),
+
+                // Title
+                Text(
+                  _isOtpSent ? 'Kodni kiriting' : 'Kirish',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  _isOtpSent
+                      ? 'SMS orqali yuborilgan\n4 xonali kodni kiriting'
+                      : 'Telefon raqamingizni kiriting',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade500,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 36),
+
+                // Phone field
+                if (!_isOtpSent) ...[
+                  // Phone input - modern style
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.grey.shade50,
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.done,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      inputFormatters: [
+                        UzPhoneInputFormatter(),
+                      ],
+                      decoration: InputDecoration(
+                        hintText: '90 123 45 67',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        prefixIcon: Container(
+                          padding: const EdgeInsets.only(left: 16, right: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Iconsax.call,
+                                  size: 20, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                '+998',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 1,
+                                height: 24,
+                                color: Colors.grey.shade300,
+                              ),
+                            ],
+                          ),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Telefon raqamni kiriting';
+                        }
+                        final digits = value.replaceAll(' ', '');
+                        if (digits.length != 9) {
+                          return 'Telefon raqam to\'liq emas';
+                        }
+                        return null;
+                      },
+                      onFieldSubmitted: (_) => _sendOtp(),
+                    ),
+                  ),
+                ] else ...[
+                  // OTP field - modern
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.grey.shade50,
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: TextFormField(
+                      controller: _otpController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 16,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      decoration: InputDecoration(
+                        hintText: '••••',
+                        hintStyle: TextStyle(
+                          fontSize: 28,
+                          letterSpacing: 16,
+                          color: Colors.grey.shade300,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 18,
+                        ),
+                      ),
+                      onFieldSubmitted: (_) => _verifyOtp(),
+                    ),
+                  ),
+
                   const SizedBox(height: 16),
 
-                  // Back button
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.arrow_back_ios_new, size: 18),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Logo
-                  _buildLogo(),
-
-                  const SizedBox(height: 32),
-
-                  // Title
-                  Text(
-                    _isOtpSent ? 'Kodni kiriting' : 'Kirish',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    _isOtpSent
-                        ? (_sentViaChannel == 'telegram'
-                            ? 'Telegram ilovasiga yuborilgan\n4 xonali kodni kiriting'
-                            : 'SMS orqali yuborilgan\n4 xonali kodni kiriting')
-                        : 'Telefon raqamingizni kiriting',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade500,
-                      height: 1.4,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 36),
-
-                  // Phone field
-                  if (!_isOtpSent) ...[
-                    // Channel selector (SMS / Telegram) - pill shaped
-                    Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(100),
-                        color: Colors.grey.shade100,
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildChannelTab(
-                              label: 'SMS',
-                              icon: Iconsax.message,
-                              isSelected: _otpChannel == 'sms',
-                              onTap: () => setState(() => _otpChannel = 'sms'),
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildChannelTab(
-                              label: 'Telegram',
-                              icon: Iconsax.send_2,
-                              isSelected: _otpChannel == 'telegram',
-                              onTap: () =>
-                                  setState(() => _otpChannel = 'telegram'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Telegram tanlanganda animatsiyali transition
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.3),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: _otpChannel == 'telegram'
-                          ? Padding(
-                              key: const ValueKey('telegram_hint'),
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Iconsax.shield_tick,
-                                      size: 14, color: Colors.green.shade600),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Bepul va xavfsiz',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.green.shade600,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : const SizedBox.shrink(key: ValueKey('empty_hint')),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Phone input - modern style
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.grey.shade50,
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: TextFormField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.done,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        inputFormatters: [
-                          UzPhoneInputFormatter(),
-                        ],
-                        decoration: InputDecoration(
-                          hintText: '90 123 45 67',
-                          hintStyle: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          prefixIcon: Container(
-                            padding: const EdgeInsets.only(left: 16, right: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Iconsax.call,
-                                    size: 20, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '+998',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 1,
-                                  height: 24,
-                                  color: Colors.grey.shade300,
-                                ),
-                              ],
-                            ),
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Telefon raqamni kiriting';
-                          }
-                          final digits = value.replaceAll(' ', '');
-                          if (digits.length != 9) {
-                            return 'Telefon raqam to\'liq emas';
-                          }
-                          return null;
-                        },
-                        onFieldSubmitted: (_) => _sendOtp(),
-                      ),
-                    ),
-                  ] else ...[
-                    // OTP field - modern
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.grey.shade50,
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: TextFormField(
-                        controller: _otpController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.done,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 16,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(4),
-                        ],
-                        decoration: InputDecoration(
-                          hintText: '••••',
-                          hintStyle: TextStyle(
-                            fontSize: 28,
-                            letterSpacing: 16,
-                            color: Colors.grey.shade300,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 18,
-                          ),
-                        ),
-                        onFieldSubmitted: (_) => _verifyOtp(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Qayta yuborish + telefon o'zgartirish
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _isOtpSent = false;
-                                    _otpController.clear();
-                                  });
-                                  _resendTimer?.cancel();
-                                },
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.grey.shade600,
-                          ),
-                          child: const Text('Raqamni o\'zgartirish'),
-                        ),
-                        TextButton(
-                          onPressed: (_isLoading || _resendCountdown > 0)
-                              ? null
-                              : _sendOtp,
-                          child: Text(
-                            _resendCountdown > 0
-                                ? 'Qayta yuborish (${_resendCountdown}s)'
-                                : 'Qayta yuborish',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
-
-                  // Submit button - pill-shaped
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : (_isOtpSent ? _verifyOtp : _sendOtp),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppColors.primary.withValues(alpha: 0.6),
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _isOtpSent ? 'Tasdiqlash' : 'Davom etish',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Divider
+                  // Qayta yuborish + telefon o'zgartirish
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                          child:
-                              Divider(color: Colors.grey.shade200, height: 1)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _isOtpSent = false;
+                                  _otpController.clear();
+                                });
+                                _resendTimer?.cancel();
+                              },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey.shade600,
+                        ),
+                        child: const Text('Raqamni o\'zgartirish'),
+                      ),
+                      TextButton(
+                        onPressed: (_isLoading || _resendCountdown > 0)
+                            ? null
+                            : _sendOtp,
                         child: Text(
-                          'yoki',
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 13,
-                          ),
+                          _resendCountdown > 0
+                              ? 'Qayta yuborish (${_resendCountdown}s)'
+                              : 'Qayta yuborish',
                         ),
                       ),
-                      Expanded(
-                          child:
-                              Divider(color: Colors.grey.shade200, height: 1)),
                     ],
                   ),
-
-                  const SizedBox(height: 28),
-
-                  // Google Sign In Button - pill-shaped
-                  SizedBox(
-                    height: 56,
-                    child: OutlinedButton(
-                      onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        side: BorderSide(color: Colors.grey.shade200),
-                        elevation: 0,
-                      ),
-                      child: _isGoogleLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildGoogleLogo(),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Google orqali kirish',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
                 ],
-              ),
+
+                const SizedBox(height: 24),
+
+                // Submit button - pill-shaped
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : (_isOtpSent ? _verifyOtp : _sendOtp),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          AppColors.primary.withValues(alpha: 0.6),
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _isOtpSent ? 'Tasdiqlash' : 'Davom etish',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Divider
+                Row(
+                  children: [
+                    Expanded(
+                        child: Divider(color: Colors.grey.shade200, height: 1)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'yoki',
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                        child: Divider(color: Colors.grey.shade200, height: 1)),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Google Sign In Button - pill-shaped
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: _isGoogleLoading ? null : _signInWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      side: BorderSide(color: Colors.grey.shade200),
+                      elevation: 0,
+                    ),
+                    child: _isGoogleLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildGoogleLogo(),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Google orqali kirish',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+              ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChannelTab({
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? AppColors.primary : Colors.grey.shade400,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? AppColors.primary : Colors.grey.shade500,
-              ),
-            ),
-          ],
         ),
       ),
     );

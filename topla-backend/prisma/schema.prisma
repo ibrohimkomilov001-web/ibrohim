@@ -146,6 +146,9 @@ model Profile {
   referralsMade   Referral[] @relation("ReferrerReferrals")
   referralsReceived Referral[] @relation("ReferredReferrals")
   referralCode    String?    @unique @map("referral_code")
+  searchHistory   UserSearchHistory[]
+  supportTicket   SupportTicket?
+  supportMessages SupportMessage[] @relation("SupportSender")
 
   @@map("profiles")
 }
@@ -492,6 +495,7 @@ enum OrderStatus {
   courier_assigned  // Kuryer tayinlandi
   courier_picked_up // Kuryer oldi
   shipping          // Yetkazilmoqda (GPS tracking)
+  at_pickup_point   // Topshirish punktida kutmoqda
   delivered         // Yetkazildi
   cancelled         // Bekor qilindi
 }
@@ -527,6 +531,13 @@ model Order {
   paymentMethod   PaymentMethod  @default(cash) @map("payment_method")
   deliveryMethod  DeliveryMethod @default(courier) @map("delivery_method")
   
+  // Pickup point
+  pickupPointId   String?        @map("pickup_point_id") @db.Uuid
+  pickupCode      String?        @map("pickup_code")     // 6 xonali raqam
+  pickupToken     String?        @unique @map("pickup_token") // UUID - QR uchun
+  pickupReadyAt   DateTime?      @map("pickup_ready_at")
+  pickedUpAt2     DateTime?      @map("picked_up_by_customer_at")
+  
   // Amounts
   subtotal        Decimal        @db.Decimal(12, 2)
   deliveryFee     Decimal        @default(0) @map("delivery_fee") @db.Decimal(12, 2)
@@ -559,9 +570,10 @@ model Order {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
-  user    Profile  @relation(fields: [userId], references: [id])
-  address Address? @relation(fields: [addressId], references: [id])
-  courier Courier? @relation(fields: [courierId], references: [id])
+  user    Profile      @relation(fields: [userId], references: [id])
+  address Address?     @relation(fields: [addressId], references: [id])
+  courier Courier?     @relation(fields: [courierId], references: [id])
+  pickupPoint PickupPoint? @relation(fields: [pickupPointId], references: [id])
   items   OrderItem[]
   statusHistory OrderStatusHistory[]
   deliveryRating DeliveryRating?
@@ -571,6 +583,7 @@ model Order {
   @@index([userId, status])
   @@index([courierId, status])
   @@index([status, createdAt])
+  @@index([pickupPointId])
   @@map("orders")
 }
 
@@ -740,18 +753,19 @@ model CourierPayout {
 // ============================================
 
 enum NotificationType {
-  order_new         // Vendor: yangi buyurtma
-  order_confirmed   // Mijoz: vendor qabul qildi
-  order_processing  // Mijoz: tayyorlanmoqda
-  order_ready       // Kuryer: tayyor, olib ketish
-  order_assigned    // Mijoz: kuryer tayinlandi
-  order_picked_up   // Mijoz: kuryer oldi
-  order_shipping    // Mijoz: yo'lda
-  order_delivered   // Hammaga: yetkazildi
-  order_cancelled   // Tegishli: bekor qilindi
-  courier_new       // Kuryer: yangi yetkazma taklifi
-  promo             // Mijoz: reklama/aksiya
-  system            // Hammaga: tizim xabari
+  order_new              // Vendor: yangi buyurtma
+  order_confirmed        // Mijoz: vendor qabul qildi
+  order_processing       // Mijoz: tayyorlanmoqda
+  order_ready            // Kuryer: tayyor, olib ketish
+  order_assigned         // Mijoz: kuryer tayinlandi
+  order_picked_up        // Mijoz: kuryer oldi
+  order_shipping         // Mijoz: yo'lda
+  order_at_pickup_point  // Mijoz: punktda tayyor
+  order_delivered        // Hammaga: yetkazildi
+  order_cancelled        // Tegishli: bekor qilindi
+  courier_new            // Kuryer: yangi yetkazma taklifi
+  promo                  // Mijoz: reklama/aksiya
+  system                 // Hammaga: tizim xabari
 }
 
 model Notification {
@@ -760,6 +774,8 @@ model Notification {
   type      NotificationType
   title     String
   body      String
+  imageUrl  String?          @map("image_url")
+  linkUrl   String?          @map("link_url")
   data      Json?            // Additional payload
   isRead    Boolean          @default(false) @map("is_read")
   createdAt DateTime         @default(now()) @map("created_at")
@@ -1078,6 +1094,23 @@ model SearchQuery {
 }
 
 // ============================================
+// 18.1 USER SEARCH HISTORY (Foydalanuvchi qidiruv tarixi)
+// ============================================
+
+model UserSearchHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  query      String
+  searchedAt DateTime @default(now()) @map("searched_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, query])
+  @@index([userId, searchedAt(sort: Desc)])
+  @@map("user_search_history")
+}
+
+// ============================================
 // 19. RETURNS (Qaytarishlar)
 // ============================================
 
@@ -1129,4 +1162,70 @@ model Referral {
   @@index([referrerId])
   @@index([referredId])
   @@map("referrals")
+}
+
+// ============================================
+// PICKUP POINTS (Topshirish punktlari)
+// ============================================
+
+model PickupPoint {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String                            // "TOPLA Punkt #1 - Chilanzar"
+  address       String                            // "Chilanzar 9, Mega Planet yonida"
+  latitude      Float
+  longitude     Float
+  phone         String?
+  workingHours  Json?    @map("working_hours")    // {"mon":"09:00-21:00",...}
+  isActive      Boolean  @default(true) @map("is_active")
+  
+  // Punkt xodimi login
+  loginCode     String?  @unique @map("login_code")      // "punkt-001"
+  pinCode       String?  @map("pin_code")                 // hashed pin
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  orders        Order[]
+
+  @@map("pickup_points")
+}
+
+// ============================================
+// SUPPORT CHAT (Customer <-> Admin)
+// ============================================
+
+enum SupportSenderType {
+  user
+  admin
+  bot
+}
+
+model SupportTicket {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  status    String   @default("open") // open, closed
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user     Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id         String            @id @default(uuid()) @db.Uuid
+  ticketId   String            @map("ticket_id") @db.Uuid
+  senderId   String?           @map("sender_id") @db.Uuid
+  senderType SupportSenderType @map("sender_type")
+  message    String
+  imageUrl   String?           @map("image_url")
+  isRead     Boolean           @default(false) @map("is_read")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender Profile?      @relation("SupportSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
 }

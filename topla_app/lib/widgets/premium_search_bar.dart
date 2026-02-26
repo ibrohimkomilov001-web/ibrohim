@@ -53,14 +53,13 @@ class _PremiumSearchBarState extends State<PremiumSearchBar> {
       onTap: widget.readOnly ? widget.onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 52,
+        height: 48,
         decoration: BoxDecoration(
-          color: _isFocused ? Colors.white : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: _isFocused ? AppColors.primary : Colors.transparent,
-            width: 2,
-          ),
+          color: _isFocused ? Colors.white : const Color(0xFFECECEC),
+          borderRadius: BorderRadius.circular(100),
+          border: _isFocused
+              ? Border.all(color: AppColors.primary, width: 2)
+              : null,
           boxShadow: _isFocused
               ? [
                   BoxShadow(
@@ -71,28 +70,42 @@ class _PremiumSearchBarState extends State<PremiumSearchBar> {
                 ]
               : null,
         ),
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                Iconsax.search_normal,
-                color: _isFocused ? AppColors.primary : Colors.grey.shade400,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: widget.readOnly
-                  ? Text(
-                      widget.hintText,
+        child: widget.readOnly
+            ? Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Iconsax.search_normal,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      context.l10n.translate('search'),
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 15,
                       ),
-                    )
-                  : TextField(
+                    ),
+                  ],
+                ),
+              )
+            : Row(
+                children: [
+                  const SizedBox(width: 16),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Iconsax.search_normal,
+                      color:
+                          _isFocused ? AppColors.primary : Colors.grey.shade400,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
                       controller: widget.controller,
                       focusNode: _focusNode,
                       autofocus: widget.autofocus,
@@ -112,9 +125,9 @@ class _PremiumSearchBarState extends State<PremiumSearchBar> {
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
-            ),
-          ],
-        ),
+                  ),
+                ],
+              ),
       ),
     );
   }

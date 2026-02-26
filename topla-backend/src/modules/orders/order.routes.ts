@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { randomInt } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware } from '../../middleware/auth.js';
@@ -38,6 +38,7 @@ async function getDeliveryFee(): Promise<number> {
 
 const createOrderSchema = z.object({
   addressId: z.string().uuid().optional(),
+  pickupPointId: z.string().uuid().optional(),
   deliveryMethod: z.enum(['courier', 'pickup']).default('courier'),
   paymentMethod: z.enum(['cash', 'card', 'payme', 'click']).default('cash'),
   recipientName: z.string().optional(),
@@ -58,6 +59,7 @@ const updateStatusSchema = z.object({
     'confirmed',
     'processing',
     'ready_for_pickup',
+    'at_pickup_point',
     'courier_assigned',
     'courier_picked_up',
     'shipping',
@@ -86,7 +88,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['processing', 'cancelled'],
   processing: ['ready_for_pickup', 'cancelled'],
-  ready_for_pickup: ['courier_assigned', 'cancelled'],
+  ready_for_pickup: ['courier_assigned', 'at_pickup_point', 'cancelled'],
+  at_pickup_point: ['delivered', 'cancelled'],
   courier_assigned: ['courier_picked_up', 'cancelled'],
   courier_picked_up: ['shipping'],
   shipping: ['delivered'],
@@ -229,6 +232,10 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       if (!item.product.isActive) {
         throw new AppError(`"${item.product.name}" mahsuloti sotuvda mavjud emas`);
       }
+      // Do'kon statusi tekshirish
+      if (item.product.shop.status !== 'active') {
+        throw new AppError(`"${item.product.name}" mahsulotining do'koni faol emas`);
+      }
     }
 
     // 3. Manzilni tekshirish (courier bo'lsa)
@@ -241,6 +248,19 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       });
       if (!address) {
         throw new AppError('Manzil topilmadi');
+      }
+    }
+
+    // 3.1 Pickup point tekshirish
+    if (body.deliveryMethod === 'pickup') {
+      if (!body.pickupPointId) {
+        throw new AppError('Topshirish punktini tanlang');
+      }
+      const pickupPoint = await prisma.pickupPoint.findFirst({
+        where: { id: body.pickupPointId, isActive: true },
+      });
+      if (!pickupPoint) {
+        throw new AppError('Topshirish punkti topilmadi yoki faol emas');
       }
     }
 
@@ -329,16 +349,17 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      // Buyurtma yaratish
+      // Buyurtma yaratish (darhol confirmed — auto-confirm)
       const newOrder = await tx.order.create({
         data: {
           orderNumber: generateOrderNumber(),
           userId,
           addressId: body.addressId || null,
-          status: 'pending',
+          status: 'confirmed',
           paymentStatus: body.paymentMethod === 'cash' ? 'pending' : 'pending',
           paymentMethod: body.paymentMethod,
           deliveryMethod: body.deliveryMethod,
+          pickupPointId: body.deliveryMethod === 'pickup' ? body.pickupPointId : null,
           subtotal,
           deliveryFee,
           discount,
@@ -382,12 +403,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Status history
+      // Status history (confirmed — auto)
       await tx.orderStatusHistory.create({
         data: {
           orderId: newOrder.id,
-          status: 'pending',
+          status: 'confirmed',
           changedBy: userId,
+          note: 'Avtomatik tasdiqlandi',
         },
       });
 
@@ -510,6 +532,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           },
         },
         address: true,
+        pickupPoint: { select: { id: true, name: true, address: true, latitude: true, longitude: true, phone: true, workingHours: true } },
         statusHistory: { orderBy: { createdAt: 'asc' } },
         courier: {
           include: {
@@ -732,16 +755,24 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Vendor faqat o'z bosqichlarigacha o'zgartira oladi
-      const vendorAllowed = ['confirmed', 'processing', 'ready_for_pickup', 'cancelled'];
+      const vendorAllowed = ['confirmed', 'processing', 'ready_for_pickup', 'at_pickup_point', 'cancelled'];
       if (!vendorAllowed.includes(body.status)) {
         throw new AppError('Vendor bu statusni o\'zgartira olmaydi');
       }
 
       // Status yangilash
       const timestamps: Record<string, Date> = {};
+      const extraData: Record<string, any> = {};
       if (body.status === 'confirmed') timestamps.confirmedAt = new Date();
       if (body.status === 'ready_for_pickup') timestamps.readyAt = new Date();
       if (body.status === 'cancelled') timestamps.cancelledAt = new Date();
+
+      // QR kod generatsiya — buyurtma pickup punktiga yetganda
+      if (body.status === 'at_pickup_point') {
+        extraData.pickupReadyAt = new Date();
+        extraData.pickupCode = randomInt(100000, 999999).toString();
+        extraData.pickupToken = randomUUID();
+      }
 
       await prisma.$transaction(async (tx) => {
         await tx.order.update({
@@ -750,6 +781,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             status: body.status as any,
             cancelReason: body.cancelReason,
             ...timestamps,
+            ...extraData,
           },
         });
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
 import '../../core/services/api_client.dart';
@@ -20,14 +19,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    // Status bar ni shaffof qilish
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
 
     // Animatsiya controller
     _animationController = AnimationController(
@@ -82,13 +73,16 @@ class _SplashScreenState extends State<SplashScreen>
           Navigator.pushReplacementNamed(context, '/main');
         } catch (e) {
           debugPrint('Token validation failed: $e');
-          // Token yaroqsiz — auth sahifaga yo'naltirish
+          // Token yaroqsiz — tokenni tozalash
           api.clearTokens();
           if (!mounted) return;
-          Navigator.pushReplacementNamed(context, '/auth');
+          // Asosiy sahifaga o'tish — foydalanuvchi ro'yxatdan o'tmasdan ham ko'ra oladi
+          Navigator.pushReplacementNamed(context, '/main');
         }
       } else {
-        Navigator.pushReplacementNamed(context, '/auth');
+        // Token yo'q bo'lsa ham asosiy sahifaga o'tish
+        // Foydalanuvchi mahsulotlarni ko'ra oladi, savat/buyurtma uchun auth kerak
+        Navigator.pushReplacementNamed(context, '/main');
       }
     }
   }

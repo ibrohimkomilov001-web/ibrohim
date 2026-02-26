@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
+import 'services/push_notification_service.dart';
 import 'core/services/api_client.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/app_localizations.dart';
@@ -42,11 +44,15 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     debugPrint('=== TOPLA: Firebase initialized ===');
+
+    // Background message handler ro'yxatdan o'tkazish
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (e) {
     debugPrint('Firebase init error: $e');
     // google-services.json / GoogleService-Info.plist orqali fallback
     try {
       await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     } catch (_) {
       debugPrint('Firebase fallback init also failed');
     }
@@ -55,6 +61,7 @@ void main() async {
   // API Client - saqlangan tokenlarni yuklash
   try {
     await ApiClient().loadTokens();
+    await ApiClient().loadDeviceInfo();
   } catch (e) {
     debugPrint('API Client init error: $e');
   }
@@ -89,11 +96,12 @@ void main() async {
     debugPrint('Connectivity init error: $e');
   }
 
-  // Status bar va navigation bar ni sozlash
+  // Status bar va navigation bar ni yagona joydan boshqarish
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
       systemNavigationBarColor: Colors.white,
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
@@ -139,10 +147,9 @@ class ToplaApp extends StatelessWidget {
             title: 'TOPLA',
             debugShowCheckedModeBanner: false,
 
-            // Theme
+            // Theme - faqat light mode
             theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: settings.themeMode,
+            themeMode: ThemeMode.light,
 
             // Localization
             locale: settings.locale,

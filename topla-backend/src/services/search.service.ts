@@ -170,6 +170,45 @@ export async function searchProducts(query: string, options?: {
 }
 
 // ============================================
+// Clear entire index
+// ============================================
+export async function clearIndex(): Promise<void> {
+  await meiliRequest(`/indexes/${INDEX_NAME}/documents`, 'DELETE');
+}
+
+// ============================================
+// Bulk index products (re-index entire catalog)
+// ============================================
+export async function bulkIndexProducts(products: any[]): Promise<{ indexed: number; failed: number }> {
+  const BATCH_SIZE = 500;
+  let indexed = 0;
+  let failed = 0;
+
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const batch = products.slice(i, i + BATCH_SIZE);
+    const docs = batch.map(p => {
+      try {
+        return buildMeiliDocument(p);
+      } catch {
+        failed++;
+        return null;
+      }
+    }).filter(Boolean);
+
+    if (docs.length > 0) {
+      const result = await meiliRequest(`/indexes/${INDEX_NAME}/documents`, 'POST', docs);
+      if (result) {
+        indexed += docs.length;
+      } else {
+        failed += docs.length;
+      }
+    }
+  }
+
+  return { indexed, failed };
+}
+
+// ============================================
 // Build Meilisearch document from Prisma product
 // ============================================
 export function buildMeiliDocument(product: any): MeiliProduct {

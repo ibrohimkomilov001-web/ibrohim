@@ -17,7 +17,7 @@ export function generateToken(payload: JwtPayload): string {
 
 export function generateRefreshToken(payload: JwtPayload): string {
   const { iat, exp, ...cleanPayload } = payload;
-  const refreshSecret = env.JWT_REFRESH_SECRET || env.JWT_SECRET + '-refresh';
+  const refreshSecret = env.JWT_REFRESH_SECRET || (env.JWT_SECRET + '-refresh-' + env.JWT_SECRET.slice(-8));
   return jwt.sign(cleanPayload, refreshSecret, { expiresIn: env.JWT_REFRESH_EXPIRES_IN as any });
 }
 
@@ -26,7 +26,7 @@ export function verifyToken(token: string): JwtPayload {
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {
-  const refreshSecret = env.JWT_REFRESH_SECRET || env.JWT_SECRET + '-refresh';
+  const refreshSecret = env.JWT_REFRESH_SECRET || (env.JWT_SECRET + '-refresh-' + env.JWT_SECRET.slice(-8));
   return jwt.verify(token, refreshSecret) as JwtPayload;
 }
 

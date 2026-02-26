@@ -58,6 +58,10 @@ const NOTIFICATION_MESSAGES: Record<string, Record<string, (orderNum: string, ex
       title: '🚀 Yetkazilmoqda',
       body: `Buyurtma #${orderNum} sizga yo'lda!`,
     }),
+    order_at_pickup_point: (orderNum, pointName) => ({
+      title: '📦 Punktda tayyor!',
+      body: `Buyurtma #${orderNum} ${pointName || 'topshirish punkti'}da kutmoqda. QR kodni ko'rsating!`,
+    }),
     order_delivered: (orderNum) => ({
       title: '🎉 Yetkazildi!',
       body: `Buyurtma #${orderNum} yetkazildi. Baholang!`,
@@ -162,6 +166,7 @@ export async function notifyOrderStatusChange(
           profile: { select: { id: true } },
         },
       },
+      pickupPoint: { select: { name: true } },
     },
   });
 
@@ -172,13 +177,17 @@ export async function notifyOrderStatusChange(
   const shopName = order.items[0]?.shop?.name;
   const customerId = order.userId;
   const courierId = order.courier?.profile?.id;
+  const pickupPointName = (order as any).pickupPoint?.name;
 
   const notifications: Promise<void>[] = [];
 
   // --- Mijozga ---
   const customerMsg = NOTIFICATION_MESSAGES.customer?.[newStatus];
   if (customerMsg) {
-    const msg = customerMsg(orderNum, extra?.courierName || extra?.cancelReason);
+    const extraStr = newStatus === 'order_at_pickup_point'
+      ? pickupPointName
+      : (extra?.courierName || extra?.cancelReason);
+    const msg = customerMsg(orderNum, extraStr);
     notifications.push(
       createNotification(customerId, newStatus as NotificationType, msg.title, msg.body, {
         orderId,

@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
             Maxfiylik Siyosati
           </h1>
           <p className="text-center mt-2 text-orange-100">
-            So'nggi yangilanish: 2026-yil, 5-fevral
+            So'nggi yangilanish: 2026-yil, 25-fevral
           </p>
         </div>
       </header>
@@ -37,9 +37,8 @@ export default function PrivacyPolicyPage() {
             </p>
             <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100">
               <p className="text-sm text-gray-700">
-                <strong>Ilova operatori:</strong> TOPLA MCHJ<br />
-                <strong>STIR:</strong> 123456789<br />
-                <strong>Manzil:</strong> Toshkent shahri, O&apos;zbekiston
+                  <strong>Ilova operatori:</strong> TOPLA yakka tartibdagi tadbirkor<br />
+                  <strong>Manzil:</strong> Nukus shahri, O&apos;zbekiston
               </p>
             </div>
           </section>
@@ -278,8 +277,8 @@ export default function PrivacyPolicyPage() {
                   <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
-                  <a href="tel:+998901234567" className="text-orange-600 hover:underline font-medium">
-                    +998 90 123 45 67
+                  <a href="tel:+998950009416" className="text-orange-600 hover:underline font-medium">
+                    +998 95 000 94 16
                   </a>
                 </div>
                 <div className="flex items-center gap-3">
@@ -297,7 +296,7 @@ export default function PrivacyPolicyPage() {
           {/* Footer note */}
           <div className="pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-500 text-center">
-              Ushbu maxfiylik siyosati 2026-yil 5-fevraldan kuchga kiradi va oldingi barcha versiyalarni bekor qiladi.
+              Ushbu maxfiylik siyosati 2026-yil 25-fevraldan kuchga kiradi va oldingi barcha versiyalarni bekor qiladi.
               Siyosatga o&apos;zgartirishlar kiritilganda, ilovada xabar beramiz.
             </p>
           </div>

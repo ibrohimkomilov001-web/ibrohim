@@ -82,20 +82,21 @@ class EmptyStateWidget extends StatelessWidget {
 
             // Action button
             if (actionText != null && onAction != null) ...[
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: onAction,
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: const Color(0xFFFF6D00),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 14,
+                    horizontal: 28,
+                    vertical: 10,
                   ),
+                  minimumSize: const Size(0, 40),
                   shape: const StadiumBorder(),
                   textStyle: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.3,
                   ),
@@ -855,13 +856,16 @@ class EmptyCartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EmptyStateWidget(
-      lottieAsset: 'assets/lottie/empty_cart.json',
-      iconSize: 200,
-      title: 'Savatingiz bo\'sh',
-      subtitle: 'Mahsulotlarni savatga qo\'shing va buyurtma bering',
-      actionText: 'Xarid qilish',
-      onAction: onShopNow,
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: EmptyStateWidget(
+        lottieAsset: 'assets/lottie/empty_cart.json',
+        iconSize: 180,
+        title: 'Savatingiz bo\'sh',
+        subtitle: 'Mahsulotlarni savatga qo\'shing va buyurtma bering',
+        actionText: 'Xarid qilish',
+        onAction: onShopNow,
+      ),
     );
   }
 }

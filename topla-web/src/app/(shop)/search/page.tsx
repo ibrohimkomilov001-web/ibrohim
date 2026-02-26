@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Search as SearchIcon, X, Clock, TrendingUp } from 'lucide-react';
+import { Search as SearchIcon, Clock, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { shopApi } from '@/lib/api/shop';
 import { ProductCard, ProductGrid } from '@/components/shop/product-card';
@@ -30,13 +30,20 @@ function SearchContent() {
   const initialQuery = searchParams.get('q') || '';
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
-  const inputRef = useRef<HTMLInputElement>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Sync with URL query param from header search
+  useEffect(() => {
+    if (initialQuery && initialQuery !== query) {
+      setQuery(initialQuery);
+      setDebouncedQuery(initialQuery);
+      if (initialQuery.length >= 2) saveSearch(initialQuery);
+    }
+  }, [initialQuery]);
 
   useEffect(() => {
     const saved = localStorage.getItem('recent_searches');
     if (saved) setRecentSearches(JSON.parse(saved));
-    inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -81,28 +88,12 @@ function SearchContent() {
         <span className="text-foreground font-medium">{t('search')}</span>
       </nav>
 
-      {/* Search bar */}
-      <div className="max-w-2xl mx-auto mb-8">
-        <div className="search-glass flex items-center gap-3 px-5 py-3.5 rounded-2xl">
-          <SearchIcon className="w-5 h-5 text-muted-foreground shrink-0" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && query.length >= 2) saveSearch(query);
-            }}
-            placeholder={t('searchPlaceholder')}
-            className="flex-1 bg-transparent text-base outline-none"
-          />
-          {query && (
-            <button onClick={() => { setQuery(''); inputRef.current?.focus(); }}>
-              <X className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Results count */}
+      {debouncedQuery.length >= 2 && !isLoading && products.length > 0 && (
+        <p className="text-sm text-muted-foreground mb-4">
+          {data?.pagination?.total ?? 0} {locale === 'ru' ? 'результатов' : 'natija'}
+        </p>
+      )}
 
       {/* Default state - recent & trending */}
       {showDefault && (
@@ -192,9 +183,6 @@ function SearchContent() {
       {/* Results */}
       {!showDefault && products.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-sm text-muted-foreground mb-4">
-            {data?.pagination?.total ?? 0} {t('results')}
-          </p>
           <ProductGrid products={products} columns={5} />
         </motion.div>
       )}

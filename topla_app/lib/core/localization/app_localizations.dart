@@ -173,7 +173,7 @@ class AppLocalizations {
       'cvv': 'CVV',
 
       // Search
-      'search': 'Qidirish',
+      'search': 'Qidiruv',
       'search_results': 'Qidiruv natijalari',
       'no_results': 'Hech narsa topilmadi',
       'search_history': 'Qidiruv tarixi',

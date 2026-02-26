@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// API konfiguratsiya fayli
 ///
 /// Backend server manzili va sozlamalari
@@ -17,14 +15,9 @@ class ApiConfig {
     const url = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     if (url.isNotEmpty) return url;
 
-    // Release buildda production URL, debug da localhost
-    if (kReleaseMode) {
-      return 'https://api.topla.uz';
-    }
-
-    // adb reverse tcp:3001 tcp:3001 bilan localhost ishlaydi
-    // Emulator va real qurilma uchun bir xil
-    return 'http://localhost:3001';
+    // Har doim production URL ishlatamiz
+    // Local dev uchun: flutter run --dart-define=API_BASE_URL=http://localhost:3001
+    return 'https://topla.uz';
   }
 
   /// API versiya prefix

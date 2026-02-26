@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -20,6 +21,34 @@ class ApiClient {
 
   String? _accessToken;
   String? _refreshToken;
+  String? _deviceName;
+  String? _devicePlatform;
+
+  /// Qurilma ma'lumotlarini yuklash
+  Future<void> loadDeviceInfo() async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final android = await deviceInfo.androidInfo;
+        _deviceName = '${android.brand} ${android.model}';
+        _devicePlatform = 'android';
+      } else if (Platform.isIOS) {
+        final ios = await deviceInfo.iosInfo;
+        _deviceName = ios.utsname.machine;
+        _devicePlatform = 'ios';
+      } else {
+        _deviceName = 'Unknown';
+        _devicePlatform = 'web';
+      }
+    } catch (e) {
+      _deviceName = 'Unknown';
+      _devicePlatform = 'android';
+    }
+  }
+
+  /// Qurilma nomi
+  String get deviceName => _deviceName ?? 'Unknown';
+  String get devicePlatform => _devicePlatform ?? 'android';
 
   /// Token'larni saqlash
   Future<void> setTokens({
@@ -61,6 +90,13 @@ class ApiClient {
     }
     if (auth && _accessToken != null) {
       headers['Authorization'] = 'Bearer $_accessToken';
+    }
+    // Qurilma ma'lumotlari
+    if (_deviceName != null) {
+      headers['X-Device-Name'] = _deviceName!;
+    }
+    if (_devicePlatform != null) {
+      headers['X-Device-Platform'] = _devicePlatform!;
     }
     return headers;
   }
@@ -214,9 +250,33 @@ class ApiClient {
   // ==================== RESPONSE HANDLING ====================
 
   ApiResponse _handleResponse(http.Response response) {
-    final body = response.body.isNotEmpty
-        ? jsonDecode(response.body) as Map<String, dynamic>
-        : <String, dynamic>{};
+    Map<String, dynamic> body;
+    try {
+      body = response.body.isNotEmpty
+          ? jsonDecode(response.body) as Map<String, dynamic>
+          : <String, dynamic>{};
+    } catch (e) {
+      // Server HTML javob qaytargan bo'lishi mumkin (nginx xato sahifasi)
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return ApiResponse(
+          success: true,
+          data: null,
+          message: null,
+          statusCode: response.statusCode,
+        );
+      }
+      String errorMsg = 'Server xatosi';
+      if (response.statusCode == 502) {
+        errorMsg = 'Server vaqtincha ishlamayapti';
+      }
+      if (response.statusCode == 503) errorMsg = 'Server yuklanmoqda';
+      if (response.statusCode == 504) errorMsg = 'Server javob bermayapti';
+      if (response.statusCode == 413) errorMsg = 'So\'rov hajmi katta';
+      throw ApiException(
+        errorMsg,
+        statusCode: response.statusCode,
+      );
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return ApiResponse(
