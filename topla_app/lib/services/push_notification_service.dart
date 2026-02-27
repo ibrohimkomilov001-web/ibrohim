@@ -186,8 +186,8 @@ class PushNotificationService {
     if (notification == null) return;
 
     // Rasmni olish (FCM data yoki notification dan)
-    final imageUrl = message.data['imageUrl'] as String? ??
-        notification.android?.imageUrl;
+    final imageUrl =
+        message.data['imageUrl'] as String? ?? notification.android?.imageUrl;
 
     // Show local notification
     _showLocalNotification(
@@ -271,7 +271,7 @@ class PushNotificationService {
       return _orderChannel.id;
     }
     // Aksiya/promo turlarini tekshirish
-    if (type == 'promo' || type == 'sale' || type == 'flash_sale' || type == 'promo_new') {
+    if (type == 'promo' || type == 'sale' || type == 'promo_new') {
       return _promoChannel.id;
     }
     return _generalChannel.id;
@@ -407,7 +407,6 @@ class NotificationTypes {
   static const String orderDelivered = 'order_delivered';
   static const String orderCancelled = 'order_cancelled';
   static const String promoNew = 'promo_new';
-  static const String flashSale = 'flash_sale';
   static const String newProduct = 'new_product';
   static const String review = 'review';
   static const String message = 'message';

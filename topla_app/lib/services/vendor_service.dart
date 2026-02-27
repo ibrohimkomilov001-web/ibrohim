@@ -295,4 +295,97 @@ class VendorService {
     );
     return response.dataMap['url'] as String;
   }
+
+  // ==================== DOCUMENTS ====================
+
+  /// Hujjatlar ro'yxatini olish
+  static Future<List<Map<String, dynamic>>> getDocuments() async {
+    final response = await _api.get('/vendor/documents');
+    final data = response.data;
+    if (data is List) {
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  /// Hujjat yuklash
+  static Future<Map<String, dynamic>> uploadDocument({
+    required String type,
+    required String name,
+    required String fileUrl,
+  }) async {
+    final response = await _api.post('/vendor/documents', body: {
+      'type': type,
+      'name': name,
+      'fileUrl': fileUrl,
+    });
+    return response.dataMap;
+  }
+
+  /// Hujjatni o'chirish
+  static Future<void> deleteDocument(String id) async {
+    await _api.delete('/vendor/documents/$id');
+  }
+
+  // ============================================
+  // Reviews (Do'kon sharhlari)
+  // ============================================
+
+  static Future<Map<String, dynamic>> getReviews(
+      {int page = 1, int limit = 20}) async {
+    final response = await _api.get('/vendor/reviews?page=$page&limit=$limit');
+    return response.dataMap;
+  }
+
+  static Future<Map<String, dynamic>> replyToReview(
+      String reviewId, String replyText) async {
+    final response = await _api
+        .post('/vendor/reviews/$reviewId/reply', body: {'reply': replyText});
+    return response.dataMap;
+  }
+
+  // ============================================
+  // Returns (Qaytarishlar)
+  // ============================================
+
+  static Future<Map<String, dynamic>> getReturns(
+      {int page = 1, int limit = 20, String? status}) async {
+    String url = '/vendor/returns?page=$page&limit=$limit';
+    if (status != null) url += '&status=$status';
+    final response = await _api.get(url);
+    return {
+      'returns': response.dataList,
+      'meta': <String, dynamic>{},
+    };
+  }
+
+  // ============================================
+  // Promo Codes (Promo kodlar)
+  // ============================================
+
+  static Future<Map<String, dynamic>> getPromoCodes(
+      {int page = 1, int limit = 20}) async {
+    final response =
+        await _api.get('/vendor/promo-codes?page=$page&limit=$limit');
+    return {
+      'promoCodes': response.dataList,
+      'meta': <String, dynamic>{},
+    };
+  }
+
+  static Future<Map<String, dynamic>> createPromoCode(
+      Map<String, dynamic> data) async {
+    final response = await _api.post('/vendor/promo-codes', body: data);
+    return response.dataMap;
+  }
+
+  static Future<Map<String, dynamic>> updatePromoCode(
+      String id, Map<String, dynamic> data) async {
+    final response = await _api.put('/vendor/promo-codes/$id', body: data);
+    return response.dataMap;
+  }
+
+  static Future<void> deletePromoCode(String id) async {
+    await _api.delete('/vendor/promo-codes/$id');
+  }
 }

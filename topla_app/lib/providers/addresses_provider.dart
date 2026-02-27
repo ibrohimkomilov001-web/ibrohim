@@ -6,20 +6,25 @@ import '../models/models.dart';
 class AddressesProvider extends ChangeNotifier {
   final IAddressRepository _addressRepo;
 
-  AddressesProvider(this._addressRepo) {
-    loadAddresses();
-  }
+  AddressesProvider(this._addressRepo);
 
   // State
   List<AddressModel> _addresses = [];
   bool _isLoading = false;
   String? _error;
+  bool _isInitialized = false;
 
   // Getters
   List<AddressModel> get addresses => _addresses;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isEmpty => _addresses.isEmpty;
+  bool get isInitialized => _isInitialized;
+
+  /// Birinchi marta manzillarni yuklash (agar hali yuklanmagan bo'lsa)
+  Future<void> ensureLoaded() async {
+    if (!_isInitialized) await loadAddresses();
+  }
 
   AddressModel? get defaultAddress {
     try {
@@ -36,6 +41,7 @@ class AddressesProvider extends ChangeNotifier {
 
     try {
       _addresses = await _addressRepo.getAddresses();
+      _isInitialized = true;
     } catch (e) {
       _error = e.toString();
     }
@@ -102,7 +108,11 @@ class AddressesProvider extends ChangeNotifier {
 
     try {
       // Mavjud manzilni topamiz
-      final existing = _addresses.firstWhere((a) => a.id == id);
+      final idx = _addresses.indexWhere((a) => a.id == id);
+      final existing = idx >= 0 ? _addresses[idx] : null;
+      if (existing == null) {
+        throw Exception('Manzil topilmadi (id: $id)');
+      }
 
       final addressModel = AddressModel(
         id: id,

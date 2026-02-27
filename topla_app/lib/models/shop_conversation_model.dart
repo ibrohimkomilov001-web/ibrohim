@@ -27,23 +27,36 @@ class ShopConversationModel {
   });
 
   factory ShopConversationModel.fromJson(Map<String, dynamic> json) {
-    final shop = json['shops'];
-    final customer = json['customer_profile'];
+    // Backend returns: { id, shopId, customerId, lastMessageAt, createdAt,
+    //   customer: { id, fullName, avatarUrl, phone },
+    //   shop: { id, name, logoUrl },
+    //   messages: [ { message, createdAt, senderRole, isRead } ],
+    //   unreadCount }
+    final shop = json['shop'] ?? json['shops'];
+    final customer = json['customer'] ?? json['customer_profile'];
+    final messages = json['messages'] as List?;
+    final lastMsg =
+        (messages != null && messages.isNotEmpty) ? messages[0] : null;
 
     return ShopConversationModel(
-      id: json['id'],
-      shopId: json['shop_id'],
+      id: json['id'] ?? '',
+      shopId: json['shopId'] ?? json['shop_id'] ?? shop?['id'] ?? '',
       shopName: shop?['name'] ?? 'Do\'kon',
-      shopLogoUrl: shop?['logo_url'],
-      customerId: json['customer_id'],
-      customerName: customer?['full_name'],
-      customerAvatar: customer?['avatar_url'],
-      lastMessage: json['last_message'],
-      lastMessageAt: json['last_message_at'] != null
-          ? DateTime.parse(json['last_message_at'])
+      shopLogoUrl: shop?['logoUrl'] ?? shop?['logo_url'],
+      customerId:
+          json['customerId'] ?? json['customer_id'] ?? customer?['id'] ?? '',
+      customerName: customer?['fullName'] ?? customer?['full_name'],
+      customerAvatar: customer?['avatarUrl'] ?? customer?['avatar_url'],
+      lastMessage: lastMsg?['message'] ?? json['last_message'],
+      lastMessageAt: (json['lastMessageAt'] ?? json['last_message_at']) != null
+          ? DateTime.parse(
+              (json['lastMessageAt'] ?? json['last_message_at']).toString())
           : null,
-      unreadCount: json['unread_count'] ?? 0,
-      createdAt: DateTime.parse(json['created_at']),
+      unreadCount: json['unreadCount'] ?? json['unread_count'] ?? 0,
+      createdAt: DateTime.parse((json['createdAt'] ??
+              json['created_at'] ??
+              DateTime.now().toIso8601String())
+          .toString()),
     );
   }
 

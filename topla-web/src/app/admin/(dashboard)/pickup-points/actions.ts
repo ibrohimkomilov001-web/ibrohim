@@ -20,25 +20,17 @@ export type PickupPoint = {
 };
 
 export async function getPickupPoints(): Promise<PickupPoint[]> {
-  try {
-    const data = await fetchAdminPickupPoints();
-    return data?.pickupPoints || data || [];
-  } catch {
-    return [];
-  }
+  const data = await fetchAdminPickupPoints();
+  return Array.isArray(data) ? data : data?.pickupPoints || data?.items || [];
 }
 
 export async function getPickupPointStats(): Promise<{ total: number; active: number; inactive: number }> {
-  try {
-    const points = await getPickupPoints();
-    return {
-      total: points.length,
-      active: points.filter((p) => p.isActive).length,
-      inactive: points.filter((p) => !p.isActive).length,
-    };
-  } catch {
-    return { total: 0, active: 0, inactive: 0 };
-  }
+  const points = await getPickupPoints();
+  return {
+    total: points.length,
+    active: points.filter((p) => p.isActive).length,
+    inactive: points.filter((p) => !p.isActive).length,
+  };
 }
 
 export async function createPickupPoint(data: {

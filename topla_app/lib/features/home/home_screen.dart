@@ -25,7 +25,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   String _selectedFilter = 'Siz uchun';
 
   // Filter ID lari - backend bilan ishlash uchun
@@ -49,7 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -827,19 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ProductDetailScreen(
-          product: {
-            'id': product.id,
-            'name': product.nameUz,
-            'price': product.price,
-            'oldPrice': product.oldPrice,
-            'discount': product.discountPercent,
-            'rating': product.rating,
-            'sold': product.soldCount,
-            'image': product.firstImage,
-            'images': product.images,
-            'cashback': product.cashbackPercent,
-            'description': product.descriptionUz,
-          },
+          product: product.toMap(),
         ),
       ),
     );

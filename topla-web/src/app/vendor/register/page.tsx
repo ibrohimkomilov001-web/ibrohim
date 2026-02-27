@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -16,11 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { authApi } from "@/lib/api/auth";
 import { setToken } from "@/lib/api/client";
 import {
-  ShoppingBag,
   Loader2,
   CheckCircle,
   ArrowRight,
@@ -31,6 +30,8 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Shield,
+  Clock,
 } from "lucide-react";
 
 const cities = [
@@ -68,6 +69,12 @@ const businessTypes = [
   { value: "llc", label: "MChJ" },
 ];
 
+const stepVariants = {
+  enter: { opacity: 0, x: 20 },
+  center: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -20 },
+};
+
 export default function VendorRegisterPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -77,8 +84,32 @@ export default function VendorRegisterPage() {
 
   // Step 1: Personal Info
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+998 ");
   const [email, setEmail] = useState("");
+
+  const formatPhone = (value: string) => {
+    // Always keep +998 prefix
+    let digits = value.replace(/\D/g, "");
+    // Ensure starts with 998
+    if (!digits.startsWith("998")) {
+      digits = "998" + digits.replace(/^998*/, "");
+    }
+    // Limit to 12 digits (998 + 9 digits)
+    digits = digits.slice(0, 12);
+    // Format: +998 XX XXX XX XX
+    let formatted = "+998";
+    const rest = digits.slice(3);
+    if (rest.length > 0) formatted += " " + rest.slice(0, 2);
+    if (rest.length > 2) formatted += " " + rest.slice(2, 5);
+    if (rest.length > 5) formatted += " " + rest.slice(5, 7);
+    if (rest.length > 7) formatted += " " + rest.slice(7, 9);
+    return formatted;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setPhone(formatted);
+  };
   const [password, setPassword] = useState("");
 
   // Step 2: Shop Info
@@ -94,9 +125,11 @@ export default function VendorRegisterPage() {
 
   const validateStep1 = () => {
     if (!fullName.trim()) return "Ism-familiyangizni kiriting";
-    if (!phone.trim()) return "Telefon raqamingizni kiriting";
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 12) return "Telefon raqamni to'liq kiriting";
     if (!email.trim()) return "Email manzilingizni kiriting";
-    if (!password || password.length < 6) return "Parol kamida 6 belgidan iborat bo'lishi kerak";
+    if (!password || password.length < 6)
+      return "Parol kamida 6 belgidan iborat bo'lishi kerak";
     return null;
   };
 
@@ -111,10 +144,16 @@ export default function VendorRegisterPage() {
     setError(null);
     if (step === 1) {
       const err = validateStep1();
-      if (err) { setError(err); return; }
+      if (err) {
+        setError(err);
+        return;
+      }
     } else if (step === 2) {
       const err = validateStep2();
-      if (err) { setError(err); return; }
+      if (err) {
+        setError(err);
+        return;
+      }
     }
     setStep(step + 1);
   };
@@ -137,9 +176,10 @@ export default function VendorRegisterPage() {
         password,
         shopName: shopName.trim(),
         shopDescription: shopDescription.trim(),
+        shopPhone: phone.trim(),
+        shopAddress: address.trim(),
         category,
         city,
-        address: address.trim(),
         businessType,
         inn: inn.trim(),
       });
@@ -158,145 +198,219 @@ export default function VendorRegisterPage() {
   // Success State
   if (step === 4) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
-        <div>
-          <Card className="w-full max-w-md text-center">
-            <CardContent className="pt-10 pb-8">
-              <div
-                className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6"
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-full max-w-md"
+        >
+          <Card className="border-0 shadow-2xl shadow-emerald-500/10 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-emerald-400 via-green-500 to-teal-500" />
+            <CardContent className="pt-10 pb-8 px-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
               >
-                <CheckCircle className="h-8 w-8 text-green-500" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Ariza qabul qilindi!</h2>
-              <p className="text-muted-foreground mb-6">
-                Arizangiz muvaffaqiyatli yuborildi. Adminlar tekshirib chiqqanidan so&apos;ng sizga xabar beramiz.
-                Bu odatda 1-2 ish kunini oladi.
+                <CheckCircle className="h-10 w-10 text-white" />
+              </motion.div>
+              <h2 className="text-2xl font-bold mb-2 text-center">
+                Ariza qabul qilindi!
+              </h2>
+              <p className="text-muted-foreground text-center mb-8 leading-relaxed">
+                Arizangiz muvaffaqiyatli yuborildi. Adminlar tekshirib
+                chiqqanidan so&apos;ng sizga xabar beramiz.
               </p>
+
+              <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-6">
+                <Clock className="h-5 w-5 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-700">
+                  Tasdiqlash 1-2 ish kunini oladi
+                </p>
+              </div>
+
               <div className="space-y-3">
-                <Button asChild className="w-full rounded-full">
+                <Button
+                  asChild
+                  className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all font-semibold"
+                >
                   <Link href="/vendor/login">Kabinetga o&apos;tish</Link>
                 </Button>
-                <Button variant="outline" asChild className="w-full rounded-full">
-                  <Link href="/">Bosh sahifaga qaytish</Link>
+                <Button
+                  variant="ghost"
+                  asChild
+                  className="w-full h-12 rounded-xl text-muted-foreground hover:text-foreground"
+                >
+                  <Link href="/">← Bosh sahifaga qaytish</Link>
                 </Button>
               </div>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
+  const stepInfo = [
+    { num: 1, label: "Shaxsiy", icon: User, title: "Shaxsiy ma\u2018lumotlar", desc: "Bog\u2018lanish uchun ma\u2018lumotlaringiz" },
+    { num: 2, label: "Do\u2018kon", icon: Store, title: "Do\u2018kon ma\u2018lumotlari", desc: "Do\u2018koningiz haqida batafsil" },
+    { num: 3, label: "Hujjatlar", icon: FileText, title: "Biznes ma\u2018lumotlari", desc: "Yuridik ma\u2018lumotlar (ixtiyoriy)" },
+  ];
+
+  const currentStep = stepInfo[step - 1];
+
   return (
-    <div className="min-h-screen bg-muted/50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-xl mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <ShoppingBag className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">TOPLA.UZ</span>
-          </Link>
-          <h1 className="text-2xl font-bold">Sotuvchi bo&apos;lish</h1>
-          <p className="text-muted-foreground">Do&apos;koningizni ro&apos;yxatdan o&apos;tkazing</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Sotuvchi bo&apos;lish
+          </h1>
+          <p className="text-muted-foreground mt-1.5">
+            {step} / 3 — {currentStep.title}
+          </p>
         </div>
 
-        {/* Stepper */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[
-            { num: 1, label: "Shaxsiy", icon: User },
-            { num: 2, label: "Do'kon", icon: Store },
-            { num: 3, label: "Hujjatlar", icon: FileText },
-          ].map((s, i) => (
-            <div key={s.num} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                    step >= s.num
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {step > s.num ? (
-                    <CheckCircle className="h-5 w-5" />
-                  ) : (
-                    <s.icon className="h-5 w-5" />
-                  )}
+        {/* Progress bar */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center mb-3">
+            {stepInfo.map((s, i) => (
+              <div key={s.num} className="flex items-center">
+                <div className="flex flex-col items-center relative z-10 w-16">
+                  <motion.div
+                    animate={{
+                      scale: step === s.num ? 1.1 : 1,
+                    }}
+                    className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                      step > s.num
+                        ? "bg-gradient-to-br from-emerald-400 to-green-500 text-white shadow-md shadow-emerald-500/30"
+                        : step === s.num
+                        ? "bg-gradient-to-br from-primary to-primary/90 text-white shadow-lg shadow-primary/30 ring-4 ring-primary/10"
+                        : "bg-slate-100 text-slate-400"
+                    }`}
+                  >
+                    {step > s.num ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : (
+                      <s.icon className="h-4 w-4" />
+                    )}
+                  </motion.div>
+                  <span
+                    className={`text-xs mt-1.5 font-medium transition-colors ${
+                      step >= s.num
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {s.label}
+                  </span>
                 </div>
-                <span className="text-xs mt-1 text-muted-foreground hidden sm:block">{s.label}</span>
+                {i < 2 && (
+                  <div className="w-16 sm:w-24 mx-1 mt-[-18px]">
+                    <div className="h-[3px] rounded-full bg-slate-100 overflow-hidden">
+                      <motion.div
+                        initial={false}
+                        animate={{ width: step > s.num ? "100%" : "0%" }}
+                        transition={{ duration: 0.4, ease: "easeInOut" }}
+                        className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-              {i < 2 && (
-                <div className={`w-12 sm:w-20 h-0.5 mx-2 ${step > s.num ? "bg-primary" : "bg-muted"}`} />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        {/* Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {step === 1 && "Shaxsiy ma'lumotlar"}
-              {step === 2 && "Do'kon ma'lumotlari"}
-              {step === 3 && "Biznes ma'lumotlari"}
-            </CardTitle>
-            <CardDescription>
-              {step === 1 && "Bog'lanish uchun ma'lumotlaringizni kiriting"}
-              {step === 2 && "Do'koningiz haqida batafsil ma'lumot"}
-              {step === 3 && "Yuridik ma'lumotlaringizni kiriting (ixtiyoriy)"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Form Card */}
+        <Card className="border shadow-sm overflow-hidden">
+          <CardContent className="p-6 sm:p-8">
+            {/* Step Title inside card */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-foreground">
+                {currentStep.title}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {currentStep.desc}
+              </p>
+            </div>
+
             <form onSubmit={handleSubmit}>
               {error && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <Alert
+                    variant="destructive"
+                    className="mb-5 border-red-200 bg-red-50"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                </motion.div>
               )}
 
               <AnimatePresence mode="wait">
                 {/* Step 1: Personal Info */}
                 {step === 1 && (
-                  <div
+                  <motion.div
                     key="step1"
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.25 }}
                     className="space-y-4"
                   >
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">Ism-familiya *</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fullName" className="text-sm font-medium">
+                        Ism-familiya <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="fullName"
                         placeholder="Abdullayev Jasur"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefon raqam *</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-sm font-medium">
+                        Telefon raqam <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="phone"
                         type="tel"
                         placeholder="+998 90 123 45 67"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={handlePhoneChange}
+                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-sm font-medium">
+                        Email <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="email"
                         type="email"
                         placeholder="jasur@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Parol *</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="password" className="text-sm font-medium">
+                        Parol <span className="text-red-500">*</span>
+                      </Label>
                       <div className="relative">
                         <Input
                           id="password"
@@ -304,146 +418,233 @@ export default function VendorRegisterPage() {
                           placeholder="Kamida 6 belgi"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
+                          className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 pr-11 text-[16px]"
                           required
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                           onClick={() => setShowPassword(!showPassword)}
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Kamida 6 belgi bo&apos;lishi kerak
+                      </p>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 2: Shop Info */}
                 {step === 2 && (
-                  <div
+                  <motion.div
                     key="step2"
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.25 }}
                     className="space-y-4"
                   >
-                    <div className="space-y-2">
-                      <Label htmlFor="shopName">Do&apos;kon nomi *</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="shopName" className="text-sm font-medium">
+                        Do&apos;kon nomi{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="shopName"
                         placeholder="Masalan: TechStore"
                         value={shopName}
                         onChange={(e) => setShopName(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="shopDescription">Tavsif</Label>
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="shopDescription"
+                        className="text-sm font-medium"
+                      >
+                        Tavsif{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (ixtiyoriy)
+                        </span>
+                      </Label>
                       <Textarea
                         id="shopDescription"
                         placeholder="Do'koningiz haqida qisqacha..."
                         value={shopDescription}
                         onChange={(e) => setShopDescription(e.target.value)}
                         rows={3}
+                        className="rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 resize-none text-[16px]"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Kategoriya *</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">
+                          Kategoriya <span className="text-red-500">*</span>
+                        </Label>
                         <Select value={category} onValueChange={setCategory}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 text-[16px]">
                             <SelectValue placeholder="Tanlang" />
                           </SelectTrigger>
                           <SelectContent>
                             {categories.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Shahar *</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">
+                          Shahar <span className="text-red-500">*</span>
+                        </Label>
                         <Select value={city} onValueChange={setCity}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 text-[16px]">
                             <SelectValue placeholder="Tanlang" />
                           </SelectTrigger>
                           <SelectContent>
                             {cities.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Manzil</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="address" className="text-sm font-medium">
+                        Manzil{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (ixtiyoriy)
+                        </span>
+                      </Label>
                       <Input
                         id="address"
                         placeholder="To'liq manzil"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
                       />
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 3: Business Info */}
                 {step === 3 && (
-                  <div
+                  <motion.div
                     key="step3"
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.25 }}
                     className="space-y-4"
                   >
-                    <div className="space-y-2">
-                      <Label>Biznes turi</Label>
-                      <Select value={businessType} onValueChange={setBusinessType}>
-                        <SelectTrigger>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">
+                        Biznes turi
+                      </Label>
+                      <Select
+                        value={businessType}
+                        onValueChange={setBusinessType}
+                      >
+                        <SelectTrigger className="h-11 rounded-xl border-slate-200 text-[16px]">
                           <SelectValue placeholder="Tanlang" />
                         </SelectTrigger>
                         <SelectContent>
                           {businessTypes.map((bt) => (
-                            <SelectItem key={bt.value} value={bt.value}>{bt.label}</SelectItem>
+                            <SelectItem key={bt.value} value={bt.value}>
+                              {bt.label}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="inn">INN (ixtiyoriy)</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="inn" className="text-sm font-medium">
+                        INN{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (ixtiyoriy)
+                        </span>
+                      </Label>
                       <Input
                         id="inn"
                         placeholder="123456789"
                         value={inn}
                         onChange={(e) => setInn(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
                       />
                     </div>
-                    <div className="p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground mb-2">Eslatma:</p>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Hujjatlarni keyinroq ham yuklashingiz mumkin</li>
-                        <li>Ariza administrator tomonidan tekshiriladi</li>
-                        <li>Tasdiqlash 1-2 ish kunini oladi</li>
-                      </ul>
+
+                    {/* Info cards */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-start gap-3 p-3.5 bg-blue-50/80 border border-blue-100 rounded-xl">
+                        <Shield className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">
+                            Ma&apos;lumotlaringiz xavfsiz
+                          </p>
+                          <p className="text-xs text-blue-600 mt-0.5">
+                            Hujjatlarni keyinroq ham yuklashingiz mumkin
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 p-3.5 bg-amber-50/80 border border-amber-100 rounded-xl">
+                        <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-900">
+                            Tez tasdiqlash
+                          </p>
+                          <p className="text-xs text-amber-600 mt-0.5">
+                            Ariza 1-2 ish kunida ko&apos;rib chiqiladi
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Actions */}
-              <div className="flex justify-between mt-6">
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
                 {step > 1 ? (
-                  <Button type="button" variant="outline" onClick={handleBack} className="rounded-full">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleBack}
+                    className="h-11 px-5 rounded-xl text-muted-foreground hover:text-foreground"
+                  >
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Orqaga
                   </Button>
                 ) : (
-                  <Button type="button" variant="ghost" asChild className="rounded-full">
-                    <Link href="/vendor/login">Kirish</Link>
-                  </Button>
+                  <div />
                 )}
 
                 {step < 3 ? (
-                  <Button type="button" onClick={handleNext} className="rounded-full">
+                  <Button
+                    type="button"
+                    onClick={handleNext}
+                    className="h-11 px-6 rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all font-medium"
+                  >
                     Keyingi
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button type="submit" disabled={isLoading} className="rounded-full">
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="h-11 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 transition-all font-medium"
+                  >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -459,14 +660,27 @@ export default function VendorRegisterPage() {
                 )}
               </div>
             </form>
-
-            <div className="mt-6 text-center">
-              <Link href="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                ← Bosh sahifaga qaytish
-              </Link>
-            </div>
           </CardContent>
         </Card>
+
+        {/* Bottom links */}
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            Allaqachon hisobingiz bormi?{" "}
+            <Link
+              href="/vendor/login"
+              className="text-primary font-medium hover:underline"
+            >
+              Kirish
+            </Link>
+          </p>
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Bosh sahifaga qaytish
+          </Link>
+        </div>
       </div>
     </div>
   );

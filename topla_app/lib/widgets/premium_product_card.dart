@@ -12,7 +12,6 @@ class PremiumProductCard extends StatefulWidget {
   final double rating;
   final int sold;
   final String imageUrl;
-  final bool isFlashSale;
   final bool isFavorite;
   final VoidCallback? onTap;
   final VoidCallback? onAddToCart;
@@ -27,7 +26,6 @@ class PremiumProductCard extends StatefulWidget {
     required this.rating,
     required this.sold,
     required this.imageUrl,
-    this.isFlashSale = false,
     this.isFavorite = false,
     this.onTap,
     this.onAddToCart,
@@ -297,9 +295,7 @@ class _PremiumProductCardState extends State<PremiumProductCard>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                gradient: widget.isFlashSale
-                    ? AppColors.flashSaleGradient
-                    : AppColors.saleGradient,
+                gradient: AppColors.saleGradient,
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -351,45 +347,6 @@ class _PremiumProductCardState extends State<PremiumProductCard>
             ),
           ),
         ),
-
-        // Flash Sale Timer
-        if (widget.isFlashSale)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.8),
-                    Colors.black.withValues(alpha: 0.6),
-                  ],
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Iconsax.flash_1,
-                    size: 14,
-                    color: Colors.amber.shade400,
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    '02:45:30',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }

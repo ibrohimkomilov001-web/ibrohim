@@ -1,13 +1,11 @@
 export 'product_card.dart';
 export 'category_item.dart';
 export 'section_header.dart';
-export 'flash_sale_banner.dart';
 
 // Premium Widgets
 export 'premium_product_card.dart';
 export 'premium_category_item.dart';
 export 'premium_banner_carousel.dart';
-export 'premium_flash_sale.dart';
 export 'premium_search_bar.dart';
 export 'shimmer_loading.dart';
 export 'animated_gradient_button.dart';

@@ -7,6 +7,7 @@ import { requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { notifyOrderStatusChange } from '../notifications/notification.service.js';
+import { enqueueNotification } from '../../services/queue.service.js';
 import { findAndAssignCourier } from '../courier/courier.service.js';
 import {
   emitOrderStatusUpdate,
@@ -434,10 +435,10 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       return newOrder;
     });
 
-    // 6. Bildirishnomalar (transaction tashqarisida)
+    // 6. Bildirishnomalar (BullMQ orqali non-blocking)
     // Vendorga: "Yangi buyurtma!"
     // Adminga: "Yangi buyurtma tushdi"
-    await notifyOrderStatusChange(order.id, 'order_new');
+    enqueueNotification({ type: 'order_status', orderId: order.id, newStatus: 'order_new' }).catch(() => {});
 
     // 7. Javob
     const fullOrder = await prisma.order.findUnique({
@@ -600,7 +601,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       });
     });
 
-    await notifyOrderStatusChange(id, 'order_cancelled', { cancelReason: reason });
+    enqueueNotification({ type: 'order_status', orderId: id, newStatus: 'order_cancelled', extra: { cancelReason: reason } }).catch(() => {});
 
     // Real-time: Buyurtma kuzatuvchilariga
     emitOrderStatusUpdate(id, 'cancelled', { cancelReason: reason });
@@ -639,7 +640,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       };
       if (status) where.status = status;
 
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const cappedLimit = Math.min(parseInt(limit) || 20, 100);
+      const skip = (parseInt(page) - 1) * cappedLimit;
 
       const [orders, total] = await Promise.all([
         prisma.order.findMany({
@@ -660,7 +662,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           },
           orderBy: { createdAt: 'desc' },
           skip,
-          take: parseInt(limit),
+          take: cappedLimit,
         }),
         prisma.order.count({ where }),
       ]);
@@ -814,10 +816,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         }
       });
 
-      // Bildirishnomalar
-      await notifyOrderStatusChange(id, body.status, {
-        cancelReason: body.cancelReason,
-      });
+      // Bildirishnomalar (BullMQ — non-blocking)
+      enqueueNotification({
+        type: 'order_status',
+        orderId: id,
+        newStatus: body.status,
+        extra: { cancelReason: body.cancelReason },
+      }).catch(() => {});
 
       // Real-time: Buyurtma kuzatuvchilariga
       emitOrderStatusUpdate(id, body.status, {

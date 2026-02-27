@@ -4,6 +4,7 @@ import { prisma } from '../../config/database.js';
 import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
+import { getVendorShop } from '../../utils/shop.js';
 
 // ============================================
 // Validation Schemas
@@ -82,10 +83,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       isActive?: string;
     };
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     const where: any = { shopId: shop.id };
     if (isActive !== undefined) {
@@ -131,10 +129,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vendor/products/:id', { preHandler: vendorAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     const product = await prisma.product.findFirst({
       where: { id, shopId: shop.id },
@@ -162,10 +157,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       isFeatured: z.boolean().optional(),
     }).parse(request.body);
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     // Ownership tekshiruvi
     const existing = await prisma.product.findFirst({
@@ -186,10 +178,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // Kengaytirilgan statistika
   // ============================================
   app.get('/vendor/stats', { preHandler: vendorAuth }, async (request, reply) => {
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -277,10 +266,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vendor/analytics', { preHandler: vendorAuth }, async (request, reply) => {
     const { period = 'month' } = request.query as { period?: string };
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     // Davr boshini aniqlash
     const now = new Date();
@@ -392,10 +378,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const { page, limit, skip } = parsePagination(request.query as any);
     const { status } = request.query as { status?: string };
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     const where: any = { shopId: shop.id };
     if (status) where.status = status;
@@ -427,10 +410,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.post('/vendor/payouts', { preHandler: vendorAuth }, async (request, reply) => {
     const body = payoutRequestSchema.parse(request.body);
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     if (Number(shop.balance) < body.amount) {
       throw new AppError(`Balans yetarli emas. Joriy balans: ${shop.balance} so'm`);
@@ -485,10 +465,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vendor/commissions', { preHandler: vendorAuth }, async (request, reply) => {
     const { page, limit, skip } = parsePagination(request.query as any);
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     const [transactions, total, totalCommission] = await Promise.all([
       prisma.vendorTransaction.findMany({
@@ -525,10 +502,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const { page, limit, skip } = parsePagination(request.query as any);
     const { type } = request.query as { type?: string };
 
-    const shop = await prisma.shop.findUnique({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     const where: any = { shopId: shop.id };
     if (type) where.type = type;
@@ -560,13 +534,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const { page, limit, skip } = parsePagination(request.query as any);
 
     // Vendor do'konini topish
-    const shop = await prisma.shop.findFirst({
-      where: { ownerId: request.user!.userId },
-    });
-
-    if (!shop) {
-      throw new AppError('Do\'kon topilmadi', 404);
-    }
+    const shop = await getVendorShop(request.user!.userId);
 
     const [reviews, total] = await Promise.all([
       prisma.shopReview.findMany({
@@ -606,10 +574,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       reply: z.string().min(1, 'Javob matnini kiriting'),
     }).parse(request.body);
 
-    const shop = await prisma.shop.findFirst({
-      where: { ownerId: request.user!.userId },
-    });
-    if (!shop) throw new NotFoundError('Do\'kon');
+    const shop = await getVendorShop(request.user!.userId);
 
     // Sharh vendor do'konigami tekshirish
     const review = await prisma.shopReview.findFirst({
@@ -617,14 +582,12 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!review) throw new NotFoundError('Sharh');
 
-    // ShopReview modelda reply field yo'q — notification orqali javob yuborish
-    // va review comment'ga vendor javobini qo'shish
+    // vendorReply maydoniga saqlash (original comment saqlanadi)
     const updatedReview = await prisma.shopReview.update({
       where: { id },
       data: {
-        comment: review.comment
-          ? `${review.comment}\n\n💬 Sotuvchi javobi: ${replyText}`
-          : `💬 Sotuvchi javobi: ${replyText}`,
+        vendorReply: replyText,
+        vendorRepliedAt: new Date(),
       },
     });
 
@@ -655,6 +618,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const rooms = await prisma.chatRoom.findMany({
       where: { shopId: shop.id },
       orderBy: { lastMessageAt: 'desc' },
+      take: 50,
       include: {
         customer: { select: { id: true, fullName: true, avatarUrl: true, phone: true } },
         shop: { select: { id: true, name: true, logoUrl: true } },
@@ -687,8 +651,8 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vendor/chats/:id/messages', { preHandler: vendorAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const query = request.query as any;
-    const skip = ((parseInt(query.page || '1') - 1) * parseInt(query.limit || '50'));
-    const limit = parseInt(query.limit || '50');
+    const limit = Math.min(parseInt(query.limit || '50') || 50, 100);
+    const skip = ((parseInt(query.page || '1') - 1) * limit);
     const userId = request.user!.userId;
 
     const room = await prisma.chatRoom.findUnique({
@@ -752,5 +716,170 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     });
 
     return reply.send({ success: true, data: chatMessage });
+  });
+
+  // ============================================
+  // VENDOR RETURNS (Qaytarishlar)
+  // ============================================
+
+  /**
+   * GET /vendor/returns
+   * Vendor do'koniga tegishli buyurtmalar qaytarishlari
+   */
+  app.get('/vendor/returns', { preHandler: vendorAuth }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { status } = request.query as Record<string, string>;
+    const userId = request.user!.userId;
+
+    const shop = await getVendorShop(userId);
+
+    const where: any = {
+      order: { items: { some: { shopId: shop.id } } },
+    };
+    if (status) where.status = status;
+
+    const [returns, total] = await Promise.all([
+      prisma.return.findMany({
+        where,
+        include: {
+          user: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              total: true,
+              createdAt: true,
+              items: {
+                where: { shopId: shop.id },
+                select: { name: true, quantity: true, price: true, imageUrl: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.return.count({ where }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: returns,
+      meta: paginationMeta(page, limit, total),
+    });
+  });
+
+  // ============================================
+  // VENDOR PROMO CODES
+  // ============================================
+
+  const vendorPromoSchema = z.object({
+    code: z.string().min(3).max(20).toUpperCase(),
+    discountType: z.enum(['percentage', 'fixed']),
+    discountValue: z.number().positive(),
+    minOrderAmount: z.number().min(0).optional(),
+    maxUses: z.number().int().min(1).optional(),
+    expiresAt: z.string().datetime().optional(),
+  });
+
+  /**
+   * GET /vendor/promo-codes
+   */
+  app.get('/vendor/promo-codes', { preHandler: vendorAuth }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const userId = request.user!.userId;
+
+    const shop = await getVendorShop(userId);
+
+    const [promoCodes, total] = await Promise.all([
+      prisma.promoCode.findMany({
+        where: { shopId: shop.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.promoCode.count({ where: { shopId: shop.id } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: promoCodes,
+      meta: paginationMeta(page, limit, total),
+    });
+  });
+
+  /**
+   * POST /vendor/promo-codes
+   */
+  app.post('/vendor/promo-codes', { preHandler: vendorAuth }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const data = vendorPromoSchema.parse(request.body);
+
+    const shop = await getVendorShop(userId);
+
+    // Max 20 promo codes per vendor
+    const count = await prisma.promoCode.count({ where: { shopId: shop.id } });
+    if (count >= 20) throw new AppError('Maksimal 20 ta promo kod yaratish mumkin', 400);
+
+    // Check code uniqueness
+    const existing = await prisma.promoCode.findUnique({ where: { code: data.code } });
+    if (existing) throw new AppError('Bu kod allaqachon mavjud', 409);
+
+    const promo = await prisma.promoCode.create({
+      data: {
+        shopId: shop.id,
+        code: data.code,
+        discountType: data.discountType,
+        discountValue: data.discountValue,
+        minOrderAmount: data.minOrderAmount ?? 0,
+        maxUses: data.maxUses,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+      },
+    });
+
+    return reply.send({ success: true, data: promo });
+  });
+
+  /**
+   * PUT /vendor/promo-codes/:id
+   */
+  app.put('/vendor/promo-codes/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+    const data = vendorPromoSchema.partial().extend({
+      isActive: z.boolean().optional(),
+    }).parse(request.body);
+
+    const shop = await getVendorShop(userId);
+
+    const promo = await prisma.promoCode.findFirst({ where: { id, shopId: shop.id } });
+    if (!promo) throw new NotFoundError('Promo kod');
+
+    const updated = await prisma.promoCode.update({
+      where: { id },
+      data: {
+        ...data,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
+      },
+    });
+
+    return reply.send({ success: true, data: updated });
+  });
+
+  /**
+   * DELETE /vendor/promo-codes/:id
+   */
+  app.delete('/vendor/promo-codes/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const userId = request.user!.userId;
+
+    const shop = await getVendorShop(userId);
+
+    const promo = await prisma.promoCode.findFirst({ where: { id, shopId: shop.id } });
+    if (!promo) throw new NotFoundError('Promo kod');
+
+    await prisma.promoCode.delete({ where: { id } });
+    return reply.send({ success: true, message: 'Promo kod o\'chirildi' });
   });
 }

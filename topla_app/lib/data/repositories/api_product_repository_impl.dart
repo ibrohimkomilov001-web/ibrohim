@@ -12,7 +12,6 @@ class ApiProductRepositoryImpl implements IProductRepository {
   Future<List<ProductModel>> getProducts({
     String? categoryId,
     bool? isFeatured,
-    bool? isFlashSale,
     String? search,
     int limit = 20,
     int offset = 0,
@@ -24,7 +23,6 @@ class ApiProductRepositoryImpl implements IProductRepository {
     };
     if (categoryId != null) params['categoryId'] = categoryId;
     if (isFeatured == true) params['isFeatured'] = 'true';
-    if (isFlashSale == true) params['isFlashSale'] = 'true';
     if (search != null && search.isNotEmpty) params['search'] = search;
 
     final response =
@@ -51,19 +49,6 @@ class ApiProductRepositoryImpl implements IProductRepository {
     final response = await _api.get(
       '/products/featured',
       queryParams: {'limit': limit},
-      auth: false,
-    );
-    return response
-        .nestedList('products')
-        .map((e) => ProductModel.fromJson(e))
-        .toList();
-  }
-
-  @override
-  Future<List<ProductModel>> getFlashSaleProducts({int limit = 10}) async {
-    final response = await _api.get(
-      '/products',
-      queryParams: {'isFlashSale': 'true', 'limit': limit},
       auth: false,
     );
     return response

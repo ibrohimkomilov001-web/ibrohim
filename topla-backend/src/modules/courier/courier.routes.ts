@@ -343,7 +343,8 @@ export async function courierRoutes(app: FastifyInstance): Promise<void> {
 
       if (!courier) throw new NotFoundError('Kuryer profili');
 
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const cappedLimit = Math.min(parseInt(limit) || 20, 100);
+      const skip = (parseInt(page) - 1) * cappedLimit;
 
       const [orders, total] = await Promise.all([
         prisma.order.findMany({
@@ -362,7 +363,7 @@ export async function courierRoutes(app: FastifyInstance): Promise<void> {
           },
           orderBy: { createdAt: 'desc' },
           skip,
-          take: parseInt(limit),
+          take: cappedLimit,
         }),
         prisma.order.count({
           where: {

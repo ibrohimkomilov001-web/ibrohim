@@ -5,6 +5,7 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import 'category_detail_screen.dart';
 
 /// Uzum/Ozon uslubidagi Katalog sahifasi
@@ -21,7 +22,8 @@ class CatalogScreen extends StatefulWidget {
   State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
-class _CatalogScreenState extends State<CatalogScreen> {
+class _CatalogScreenState extends State<CatalogScreen>
+    with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -76,7 +78,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -96,15 +102,21 @@ class _CatalogScreenState extends State<CatalogScreen> {
               children: [
                 // Categories list
                 Expanded(
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
-                      final category = categories[index];
-                      return _buildCategoryItem(category, index);
-                    },
+                  child: ToplaRefreshIndicator(
+                    onRefresh: () =>
+                        context.read<ProductsProvider>().loadCategories(),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: EdgeInsets.zero,
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final category = categories[index];
+                        return _buildCategoryItem(category, index);
+                      },
+                    ),
                   ),
                 ),
               ],

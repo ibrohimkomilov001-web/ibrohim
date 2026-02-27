@@ -12,7 +12,7 @@ class AppColors {
   static const Color primaryLight = Color(0xFF60A5FA);
 
   // === AKSENT RANGLAR ===
-  /// To'q sariq - chegirmalar, flash sale
+  /// To'q sariq - chegirmalar
   static const Color accent = Color(0xFFFF6B35);
   static const Color accentDark = Color(0xFFE55A2B);
   static const Color accentLight = Color(0xFFFF8F6B);
@@ -93,12 +93,6 @@ class AppColors {
     colors: [Color(0xFFFF4444), Color(0xFFFF6B35)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-  );
-
-  static const LinearGradient flashSaleGradient = LinearGradient(
-    colors: [Color(0xFFFF1744), Color(0xFFFF9100)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
   );
 
   static const LinearGradient cashbackGradient = LinearGradient(

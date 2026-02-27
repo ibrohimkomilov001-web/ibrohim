@@ -117,6 +117,27 @@ export async function cacheDelete(key: string): Promise<void> {
   await deleteKey(`cache:${key}`);
 }
 
+/**
+ * Pattern bo'yicha cache'larni o'chirish (SCAN ishlatadi, KEYS emas)
+ * O(1) per iteration — production-safe
+ */
+export async function cacheDeletePattern(pattern: string): Promise<number> {
+  const redis = getRedis();
+  if (!redis) return 0;
+
+  let deleted = 0;
+  try {
+    // SCAN iterator — non-blocking, O(1) per page
+    for await (const key of redis.scanIterator({ MATCH: `cache:${pattern}`, COUNT: 100 })) {
+      await redis.del(key);
+      deleted++;
+    }
+  } catch (err) {
+    console.warn('⚠️ cacheDeletePattern xatolik:', err);
+  }
+  return deleted;
+}
+
 // ============================================
 // Rate Limiting
 // ============================================

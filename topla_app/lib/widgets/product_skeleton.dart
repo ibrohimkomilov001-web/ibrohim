@@ -1,153 +1,107 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../core/constants/constants.dart';
 
-/// Shimmer loading effekti uchun widget
-/// Mahsulotlar yuklanayotganda ko'rsatiladi
-class ShimmerLoading extends StatefulWidget {
-  final Widget child;
-
-  const ShimmerLoading({super.key, required this.child});
-
-  @override
-  State<ShimmerLoading> createState() => _ShimmerLoadingState();
+/// Shimmer placeholder — oddiy rounded container
+Widget _bone({
+  double? width,
+  double height = 14,
+  double radius = 6,
+  Color? color,
+}) {
+  return Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: color ?? Colors.white,
+      borderRadius: BorderRadius.circular(radius),
+    ),
+  );
 }
 
-class _ShimmerLoadingState extends State<ShimmerLoading>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat();
-
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return ShaderMask(
-          shaderCallback: (bounds) {
-            return LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.grey.shade300,
-                Colors.grey.shade100,
-                Colors.grey.shade300,
-              ],
-              stops: [
-                _animation.value - 1,
-                _animation.value,
-                _animation.value + 1,
-              ].map((e) => e.clamp(0.0, 1.0)).toList(),
-            ).createShader(bounds);
-          },
-          blendMode: BlendMode.srcATop,
-          child: widget.child,
-        );
-      },
-    );
-  }
-}
-
-/// Product skeleton - bitta mahsulot yuklanish skeleti
+/// Product skeleton — bitta mahsulot karta skeleti (grid uchun)
 class ProductSkeleton extends StatelessWidget {
   const ProductSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerLoading(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final highlightColor = isDark ? Colors.grey.shade700 : Colors.grey.shade50;
+    final cardColor = isDark ? Colors.grey.shade900 : Colors.white;
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 0.5,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image placeholder
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppSizes.radiusMd),
+            // Rasm placeholder
+            Expanded(
+              flex: 5,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: baseColor.withValues(alpha: 0.4),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppSizes.radiusMd),
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.image_outlined,
+                    size: 40,
+                    color: baseColor.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(AppSizes.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title skeleton
-                  Container(
-                    height: 14,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
+            // Kontent
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSizes.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Title — 2 qator
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _bone(height: 12, width: double.infinity),
+                        const SizedBox(height: 6),
+                        _bone(height: 12, width: 80),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 14,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Rating skeleton
-                  Row(
-                    children: [
-                      Container(
-                        height: 12,
-                        width: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(4),
+                    // Rating yulduzchalar
+                    Row(
+                      children: List.generate(
+                        5,
+                        (i) => Padding(
+                          padding: const EdgeInsets.only(right: 2),
+                          child: _bone(width: 12, height: 12, radius: 2),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Price skeleton
-                  Container(
-                    height: 18,
-                    width: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Button skeleton
-                  Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                    // Narx
+                    _bone(height: 16, width: 90, radius: 4),
+                    // Tugma
+                    _bone(
+                      height: 34,
+                      width: double.infinity,
+                      radius: AppSizes.radiusSm,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -157,7 +111,7 @@ class ProductSkeleton extends StatelessWidget {
   }
 }
 
-/// Products skeleton grid - bir nechta mahsulot skeleti
+/// Products skeleton grid — bir nechta mahsulot skeleti
 class ProductsSkeletonGrid extends StatelessWidget {
   final int itemCount;
   final int crossAxisCount;
@@ -186,16 +140,19 @@ class ProductsSkeletonGrid extends StatelessWidget {
   }
 }
 
-/// Category skeleton - bitta kategoriya yuklanish skeleti
+/// Category skeleton — bitta kategoriya yuklanish skeleti
 class CategorySkeleton extends StatelessWidget {
   const CategorySkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerLoading(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+      highlightColor: isDark ? Colors.grey.shade700 : Colors.grey.shade50,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.grey.shade300,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppSizes.radiusLg),
         ),
       ),
@@ -209,13 +166,16 @@ class SubcategoryChipSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerLoading(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+      highlightColor: isDark ? Colors.grey.shade700 : Colors.grey.shade50,
       child: Container(
         width: 80,
         height: 36,
         margin: const EdgeInsets.only(right: AppSizes.sm),
         decoration: BoxDecoration(
-          color: Colors.grey.shade300,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppSizes.radiusFull),
         ),
       ),
@@ -243,13 +203,19 @@ class SubcategoryChipsSkeletonRow extends StatelessWidget {
   }
 }
 
-/// List item skeleton - list view uchun
+/// List item skeleton — list view uchun
 class ProductListSkeleton extends StatelessWidget {
   const ProductListSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerLoading(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey.shade800 : Colors.grey.shade200;
+    final highlightColor = isDark ? Colors.grey.shade700 : Colors.grey.shade50;
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSizes.md,
@@ -257,61 +223,53 @@ class ProductListSkeleton extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(AppSizes.sm),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? Colors.grey.shade900 : Colors.white,
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          border: Border.all(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+            width: 0.5,
+          ),
         ),
         child: Row(
           children: [
-            // Image
+            // Rasm
             Container(
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: baseColor.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.image_outlined,
+                  size: 28,
+                  color: baseColor.withValues(alpha: 0.5),
+                ),
               ),
             ),
             const SizedBox(width: AppSizes.md),
-            // Content
+            // Kontent
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 14,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
+                  _bone(height: 13, width: double.infinity),
                   const SizedBox(height: 8),
-                  Container(
-                    height: 14,
-                    width: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
+                  _bone(height: 13, width: 120),
+                  const SizedBox(height: 10),
+                  // Yulduzchalar
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Padding(
+                        padding: const EdgeInsets.only(right: 2),
+                        child: _bone(width: 10, height: 10, radius: 2),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 12,
-                    width: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 18,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
+                  const SizedBox(height: 10),
+                  _bone(height: 16, width: 100, radius: 4),
                 ],
               ),
             ),

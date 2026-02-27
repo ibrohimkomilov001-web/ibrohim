@@ -372,29 +372,29 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       ? env.PAYME_WEBHOOK_SECRET
       : env.CLICK_WEBHOOK_SECRET;
 
-    if (webhookSecret) {
-      // Signature tekshiruvi: HMAC-SHA256(transactionId + status + amount, secret)
-      if (!signature) {
-        throw new AppError('Webhook signature kerak', 401);
-      }
-      const expectedPayload = `${transactionId}:${status}:${amount || ''}`;
-      const expectedSignature = createHmac('sha256', webhookSecret)
-        .update(expectedPayload)
-        .digest('hex');
-      
-      try {
-        const sigBuffer = Buffer.from(signature, 'hex');
-        const expectedBuffer = Buffer.from(expectedSignature, 'hex');
-        if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
-          throw new AppError('Webhook signature yaroqsiz', 401);
-        }
-      } catch (e) {
-        if (e instanceof AppError) throw e;
+    if (!webhookSecret) {
+      // Webhook secret barcha muhitlarda majburiy — xavfsizlik uchun
+      throw new AppError('Webhook secret sozlanmagan. PAYME_WEBHOOK_SECRET yoki CLICK_WEBHOOK_SECRET o\'rnating.', 500);
+    }
+
+    // Signature tekshiruvi: HMAC-SHA256(transactionId + status + amount, secret)
+    if (!signature) {
+      throw new AppError('Webhook signature kerak', 401);
+    }
+    const expectedPayload = `${transactionId}:${status}:${amount || ''}`;
+    const expectedSignature = createHmac('sha256', webhookSecret)
+      .update(expectedPayload)
+      .digest('hex');
+    
+    try {
+      const sigBuffer = Buffer.from(signature, 'hex');
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+      if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
         throw new AppError('Webhook signature yaroqsiz', 401);
       }
-    } else if (env.NODE_ENV === 'production') {
-      // Production da secret majburiy
-      throw new AppError('Webhook secret sozlanmagan', 500);
+    } catch (e) {
+      if (e instanceof AppError) throw e;
+      throw new AppError('Webhook signature yaroqsiz', 401);
     }
 
     const transaction = await prisma.transaction.findUnique({

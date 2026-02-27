@@ -4,7 +4,13 @@
 // ============================================
 
 const MEILI_URL = process.env.MEILISEARCH_URL || 'http://localhost:7700';
-const MEILI_KEY = process.env.MEILISEARCH_API_KEY || '';
+const MEILI_KEY = (() => {
+  const key = process.env.MEILISEARCH_API_KEY || '';
+  if (!key && process.env.NODE_ENV === 'production') {
+    console.error('❌ MEILISEARCH_API_KEY production muhitda majburiy! Xavfsizlik xavfi.');
+  }
+  return key;
+})();
 const INDEX_NAME = 'products';
 
 interface MeiliProduct {

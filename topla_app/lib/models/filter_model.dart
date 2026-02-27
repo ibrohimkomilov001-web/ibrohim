@@ -10,7 +10,6 @@ class ProductFilter {
   final double? minRating;
   final bool onlyInStock;
   final bool onlyWithDiscount;
-  final bool onlyFlashSale;
   final String? sortBy;
   final bool sortAscending;
 
@@ -45,7 +44,6 @@ class ProductFilter {
     this.minRating,
     this.onlyInStock = false,
     this.onlyWithDiscount = false,
-    this.onlyFlashSale = false,
     this.sortBy,
     this.sortAscending = true,
     this.brandIds = const {},
@@ -67,7 +65,6 @@ class ProductFilter {
       minRating != null ||
       onlyInStock ||
       onlyWithDiscount ||
-      onlyFlashSale ||
       brandIds.isNotEmpty ||
       colorIds.isNotEmpty ||
       deliveryHours != null ||
@@ -82,7 +79,6 @@ class ProductFilter {
     if (minRating != null) count++;
     if (onlyInStock) count++;
     if (onlyWithDiscount) count++;
-    if (onlyFlashSale) count++;
     if (brandIds.isNotEmpty) count++;
     if (colorIds.isNotEmpty) count++;
     if (deliveryHours != null) count++;
@@ -99,7 +95,6 @@ class ProductFilter {
     double? minRating,
     bool? onlyInStock,
     bool? onlyWithDiscount,
-    bool? onlyFlashSale,
     String? sortBy,
     bool? sortAscending,
     Set<String>? brandIds,
@@ -123,7 +118,6 @@ class ProductFilter {
       minRating: clearMinRating ? null : (minRating ?? this.minRating),
       onlyInStock: onlyInStock ?? this.onlyInStock,
       onlyWithDiscount: onlyWithDiscount ?? this.onlyWithDiscount,
-      onlyFlashSale: onlyFlashSale ?? this.onlyFlashSale,
       sortBy: sortBy ?? this.sortBy,
       sortAscending: sortAscending ?? this.sortAscending,
       brandIds: brandIds ?? this.brandIds,
@@ -207,7 +201,6 @@ class ProductFilter {
     if (minRating != null) map['min_rating'] = minRating;
     if (onlyInStock) map['in_stock'] = true;
     if (onlyWithDiscount) map['has_discount'] = true;
-    if (onlyFlashSale) map['flash_sale'] = true;
     if (brandIds.isNotEmpty) map['brand_ids'] = brandIds.toList();
     if (colorIds.isNotEmpty) map['color_ids'] = colorIds.toList();
     if (deliveryHours != null) map['delivery_hours'] = deliveryHours;
@@ -226,7 +219,7 @@ class ProductFilter {
   @override
   String toString() {
     return 'ProductFilter(minPrice: $minPrice, maxPrice: $maxPrice, minRating: $minRating, '
-        'onlyInStock: $onlyInStock, onlyWithDiscount: $onlyWithDiscount, onlyFlashSale: $onlyFlashSale, '
+        'onlyInStock: $onlyInStock, onlyWithDiscount: $onlyWithDiscount, '
         'sortBy: $sortBy, sortAscending: $sortAscending, brands: ${brandIds.length}, colors: ${colorIds.length}, '
         'deliveryHours: $deliveryHours, isClickDelivery: $isClickDelivery, isOriginal: $isOriginal, '
         'attributes: ${attributes.length})';
@@ -241,7 +234,6 @@ class ProductFilter {
         other.minRating == minRating &&
         other.onlyInStock == onlyInStock &&
         other.onlyWithDiscount == onlyWithDiscount &&
-        other.onlyFlashSale == onlyFlashSale &&
         other.sortBy == sortBy &&
         other.sortAscending == sortAscending &&
         _setEquals(other.brandIds, brandIds) &&
@@ -268,7 +260,6 @@ class ProductFilter {
       minRating,
       onlyInStock,
       onlyWithDiscount,
-      onlyFlashSale,
       sortBy,
       sortAscending,
       Object.hashAll(brandIds),

@@ -8,6 +8,7 @@ import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import '../checkout/checkout_screen.dart';
 import '../main/main_screen.dart';
 
@@ -18,7 +19,8 @@ class CartScreen extends StatefulWidget {
   State<CartScreen> createState() => _CartScreenState();
 }
 
-class _CartScreenState extends State<CartScreen> {
+class _CartScreenState extends State<CartScreen>
+    with AutomaticKeepAliveClientMixin {
   String _promoCode = '';
   double _discount = 0;
   // ignore: unused_field
@@ -42,7 +44,11 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
@@ -257,16 +263,46 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildCartContent(CartProvider cart) {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 16),
-      children: [
-        // Cart items
-        ...cart.items.map((item) => Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.lg, vertical: AppSizes.sm),
-              child: _buildCartItem(item),
-            )),
-      ],
+    return ToplaRefreshIndicator(
+      onRefresh: () => context.read<CartProvider>().loadCart(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.only(bottom: 16),
+        children: [
+          // Cart items
+          ...cart.items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.lg, vertical: AppSizes.sm),
+                child: Dismissible(
+                  key: Key('cart_item_${item.id}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                    ),
+                    child: Icon(
+                      Iconsax.trash,
+                      color: Colors.red.shade400,
+                      size: 24,
+                    ),
+                  ),
+                  confirmDismiss: (_) async {
+                    return true;
+                  },
+                  onDismissed: (_) {
+                    context.read<CartProvider>().removeFromCart(item.productId);
+                  },
+                  child: _buildCartItem(item),
+                ),
+              )),
+        ],
+      ),
     );
   }
 

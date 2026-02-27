@@ -5,10 +5,21 @@ import { setWithExpiry, getValue } from '../config/redis.js';
 export interface JwtPayload {
   userId: string;
   role: string;
-  phone: string;
+  phone?: string;
+  pickupPointId?: string;
   iat?: number;
   exp?: number;
 }
+
+// Refresh secret — must be independent from access token secret
+const REFRESH_SECRET = env.JWT_REFRESH_SECRET || (() => {
+  if (env.NODE_ENV === 'production') {
+    throw new Error('JWT_REFRESH_SECRET muhitda majburiy (production). Alohida secret o\'rnating.');
+  }
+  // Development/test uchun auto-generate (production'da ishlamaydi)
+  console.warn('⚠️  JWT_REFRESH_SECRET o\'rnatilmagan — development uchun auto-generated secret ishlatilmoqda');
+  return require('crypto').randomBytes(32).toString('hex');
+})();
 
 export function generateToken(payload: JwtPayload): string {
   const { iat, exp, ...cleanPayload } = payload;
@@ -17,8 +28,7 @@ export function generateToken(payload: JwtPayload): string {
 
 export function generateRefreshToken(payload: JwtPayload): string {
   const { iat, exp, ...cleanPayload } = payload;
-  const refreshSecret = env.JWT_REFRESH_SECRET || (env.JWT_SECRET + '-refresh-' + env.JWT_SECRET.slice(-8));
-  return jwt.sign(cleanPayload, refreshSecret, { expiresIn: env.JWT_REFRESH_EXPIRES_IN as any });
+  return jwt.sign(cleanPayload, REFRESH_SECRET, { expiresIn: env.JWT_REFRESH_EXPIRES_IN as any });
 }
 
 export function verifyToken(token: string): JwtPayload {
@@ -26,8 +36,7 @@ export function verifyToken(token: string): JwtPayload {
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {
-  const refreshSecret = env.JWT_REFRESH_SECRET || (env.JWT_SECRET + '-refresh-' + env.JWT_SECRET.slice(-8));
-  return jwt.verify(token, refreshSecret) as JwtPayload;
+  return jwt.verify(token, REFRESH_SECRET) as JwtPayload;
 }
 
 // ============================================

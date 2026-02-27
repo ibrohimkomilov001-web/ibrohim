@@ -399,18 +399,6 @@ class _CatalogFilterSheetState extends State<CatalogFilterSheet> {
           },
           accentColor: AppColors.sale,
         ),
-        _buildToggleItem(
-          icon: Iconsax.flash_1,
-          title: _isUzbek ? 'Flash sale' : 'Флеш распродажа',
-          subtitle: _isUzbek ? 'Vaqtinchalik aksiyalar' : 'Временные акции',
-          value: _filter.onlyFlashSale,
-          onChanged: (val) {
-            setState(() {
-              _filter = _filter.copyWith(onlyFlashSale: val);
-            });
-          },
-          accentColor: AppColors.accent,
-        ),
       ],
     );
   }

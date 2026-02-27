@@ -9,7 +9,6 @@ import '../../providers/products_provider.dart';
 import '../../widgets/premium_product_card.dart';
 import '../../widgets/premium_category_item.dart';
 import '../../widgets/premium_banner_carousel.dart';
-import '../../widgets/premium_flash_sale.dart';
 import '../../widgets/premium_search_bar.dart';
 import '../product/product_detail_screen.dart';
 import '../search/search_screen.dart';
@@ -30,7 +29,7 @@ class _HomeScreenNewState extends State<HomeScreenNew>
   // Demo data
   final List<BannerItem> _banners = [
     BannerItem(
-      title: 'FLASH SALE',
+      title: 'MEGA CHEGIRMA',
       subtitle: '50% gacha chegirma!',
       primaryColor: const Color(0xFFFF4444),
       secondaryColor: const Color(0xFFFF6B35),
@@ -93,7 +92,7 @@ class _HomeScreenNewState extends State<HomeScreenNew>
     },
   ];
 
-  // Flash sale va popular uchun bo'sh holatni ko'rsatish
+  // Popular uchun bo'sh holatni ko'rsatish
   // Demo ma'lumotlar olib tashlandi — faqat real API ma'lumotlari ko'rsatiladi
 
   @override
@@ -220,84 +219,6 @@ class _HomeScreenNewState extends State<HomeScreenNew>
 
             SliverToBoxAdapter(
               child: _buildCategoriesGrid(),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            // Flash Sale Section
-            SliverToBoxAdapter(
-              child: PremiumFlashSaleBanner(
-                endTime:
-                    DateTime.now().add(const Duration(hours: 5, minutes: 30)),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-            // Flash Sale Products from Provider
-            SliverToBoxAdapter(
-              child: Consumer<ProductsProvider>(
-                builder: (context, productsProvider, child) {
-                  final flashProducts = productsProvider.flashSaleProducts;
-
-                  if (productsProvider.isLoading && flashProducts.isEmpty) {
-                    return const SizedBox(
-                      height: 300,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  // Bo'sh holat — mahsulotlar hali yuklanmagan
-                  if (flashProducts.isEmpty) {
-                    return const SizedBox(
-                      height: 200,
-                      child: Center(
-                        child: Text(
-                          'Hozircha aksiya mahsulotlari yo\'q',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return SizedBox(
-                    height: 300,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: flashProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = flashProducts[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 14),
-                          child: PremiumProductCard(
-                            name: product.name,
-                            price: product.price.toInt(),
-                            oldPrice: product.originalPrice?.toInt(),
-                            discount: product.discountPercent,
-                            rating: product.rating,
-                            sold: product.soldCount,
-                            imageUrl: product.imageUrl ?? '',
-                            isFlashSale: true,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ProductDetailScreen(
-                                    product: product.toMap(),
-                                  ),
-                                ),
-                              );
-                            },
-                            onAddToCart: () =>
-                                _addProductToCart(context, product),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -461,8 +382,8 @@ class _HomeScreenNewState extends State<HomeScreenNew>
   Widget _buildQuickActions() {
     final actions = [
       {
-        'icon': Iconsax.flash_1,
-        'label': context.l10n.flashSale,
+        'icon': Iconsax.discount_shape,
+        'label': context.l10n.translate('discounts'),
         'color': const Color(0xFFFF4444),
         'badge': 'HOT'
       },
@@ -511,22 +432,7 @@ class _HomeScreenNewState extends State<HomeScreenNew>
     return GestureDetector(
       onTap: () {
         // Navigate based on label
-        if (label == context.l10n.flashSale) {
-          // Flash sale - tez orada
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(Iconsax.flash_1, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Text('${context.l10n.flashSale} - pastga aylantiring!'),
-                ],
-              ),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: const Color(0xFFFF4444),
-            ),
-          );
-        } else if (label == context.l10n.translate('coupons')) {
+        if (label == context.l10n.translate('coupons')) {
           // Kuponlar - tez orada
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

@@ -31,9 +31,11 @@ class CategoryModel {
         [];
 
     return CategoryModel(
-      id: json['id'] as String,
-      nameUz: (json['name_uz'] ?? json['nameUz']) as String,
-      nameRu: (json['name_ru'] ?? json['nameRu']) as String,
+      id: (json['id'] as String?) ?? '',
+      nameUz:
+          (json['name_uz'] ?? json['nameUz'] ?? json['name'] ?? '') as String,
+      nameRu:
+          (json['name_ru'] ?? json['nameRu'] ?? json['name'] ?? '') as String,
       icon: json['icon'] as String?,
       imageUrl: (json['image_url'] ?? json['imageUrl']) as String?,
       parentId: (json['parent_id'] ?? json['parentId'] ?? json['categoryId'])

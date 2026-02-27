@@ -65,7 +65,7 @@ class AppLocalizations {
       // Home
       'search_hint': 'Mahsulot qidirish...',
       'categories': 'Kategoriyalar',
-      'flash_sale': 'Chegirma',
+      'discounts': 'Chegirmalar',
       'popular': 'Mashhur',
       'new_arrivals': 'Yangi kelganlar',
       'see_all': 'Hammasini ko\'rish',
@@ -362,8 +362,6 @@ class AppLocalizations {
       'call': 'Qo\'ng\'iroq',
       'faq_title': 'Ko\'p so\'raladigan savollar',
       'terms_of_use': 'Foydalanish shartlari',
-      'privacy_policy': 'Maxfiylik siyosati',
-      'about_app': 'Ilova haqida',
       'call_error': 'Qo\'ng\'iroq qilishda xatolik',
       'telegram_error': 'Telegramni ochishda xatolik',
       'faq_q1': 'Qanday buyurtma beraman?',
@@ -442,7 +440,7 @@ class AppLocalizations {
       // Главная
       'search_hint': 'Поиск товаров...',
       'categories': 'Категории',
-      'flash_sale': 'Скидки',
+      'discounts': 'Скидки',
       'popular': 'Популярное',
       'new_arrivals': 'Новинки',
       'see_all': 'Все',
@@ -735,8 +733,6 @@ class AppLocalizations {
       'call': 'Позвонить',
       'faq_title': 'Часто задаваемые вопросы',
       'terms_of_use': 'Условия использования',
-      'privacy_policy': 'Политика конфиденциальности',
-      'about_app': 'О приложении',
       'call_error': 'Ошибка при звонке',
       'telegram_error': 'Ошибка при открытии Telegram',
       'faq_q1': 'Как сделать заказ?',
@@ -812,7 +808,7 @@ class AppLocalizations {
   // Home
   String get searchHint => translate('search_hint');
   String get categories => translate('categories');
-  String get flashSale => translate('flash_sale');
+  String get discounts => translate('discounts');
   String get popular => translate('popular');
   String get newArrivals => translate('new_arrivals');
   String get seeAll => translate('see_all');

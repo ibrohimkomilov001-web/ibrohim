@@ -25,6 +25,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static MainScreenState? _instance;
   int _currentIndex = 0;
   DateTime? _lastBackPressTime;
+  late final PageController _pageController;
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -45,6 +46,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _instance = this;
+    _pageController = PageController();
     WidgetsBinding.instance.addObserver(this);
     _startRealtimeSubscriptions();
   }
@@ -83,6 +85,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _pageController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     if (_instance == this) {
       _instance = null;
@@ -93,7 +96,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
     HapticFeedback.selectionClick();
-    setState(() => _currentIndex = index);
+    // Yonma-yon sahifalar — smooth animatsiya, uzoq sahifalar — darhol o'tish
+    if ((index - _currentIndex).abs() == 1) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _pageController.jumpToPage(index);
+    }
   }
 
   /// Orqaga tugmasi - boshqa tabda bo'lsa Home'ga qaytaradi, Home'da 2 marta bosish kerak
@@ -147,8 +159,11 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         }
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: _currentIndex,
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() => _currentIndex = index);
+          },
           children: _screens,
         ),
         bottomNavigationBar: Container(

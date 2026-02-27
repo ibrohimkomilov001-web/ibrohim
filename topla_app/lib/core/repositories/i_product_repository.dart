@@ -6,7 +6,6 @@ abstract class IProductRepository {
   Future<List<ProductModel>> getProducts({
     String? categoryId,
     bool? isFeatured,
-    bool? isFlashSale,
     String? search,
     int limit = 20,
     int offset = 0,
@@ -17,9 +16,6 @@ abstract class IProductRepository {
 
   /// Tavsiya etilgan mahsulotlar
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10});
-
-  /// Flash sale mahsulotlar
-  Future<List<ProductModel>> getFlashSaleProducts({int limit = 10});
 
   /// Mahsulot qidirish (Meilisearch)
   Future<List<ProductModel>> searchProducts(String query,

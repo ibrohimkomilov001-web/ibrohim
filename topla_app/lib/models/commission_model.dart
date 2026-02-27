@@ -31,16 +31,23 @@ class CommissionModel {
 
   factory CommissionModel.fromJson(Map<String, dynamic> json) {
     return CommissionModel(
-      id: json['id'],
-      shopId: json['shop_id'],
-      orderId: json['order_id'],
-      orderAmount: (json['order_amount'] ?? 0).toDouble(),
-      commissionRate: (json['commission_rate'] ?? 0).toDouble(),
-      commissionAmount: (json['commission_amount'] ?? 0).toDouble(),
+      id: (json['id'] ?? json['commissionId'])?.toString() ?? '',
+      shopId: (json['shopId'] ?? json['shop_id'])?.toString() ?? '',
+      orderId: (json['orderId'] ?? json['order_id'])?.toString(),
+      orderAmount:
+          (json['orderAmount'] ?? json['order_amount'] ?? 0).toDouble(),
+      commissionRate:
+          (json['commissionRate'] ?? json['commission_rate'] ?? 0).toDouble(),
+      commissionAmount:
+          (json['commissionAmount'] ?? json['commission_amount'] ?? 0)
+              .toDouble(),
       status: _parseStatus(json['status']),
-      createdAt: DateTime.parse(json['created_at']),
-      shopName: json['shops']?['name'],
-      orderNumber: json['orders']?['order_number'],
+      createdAt: DateTime.tryParse(
+              (json['createdAt'] ?? json['created_at'] ?? '').toString()) ??
+          DateTime.now(),
+      shopName: json['shops']?['name'] ?? json['shop']?['name'],
+      orderNumber:
+          json['orders']?['order_number'] ?? json['orders']?['orderNumber'],
     );
   }
 

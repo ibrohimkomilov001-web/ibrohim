@@ -5,7 +5,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { authMiddleware } from '../../middleware/auth.js';
+import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { parsePagination } from '../../utils/pagination.js';
 
 // ============================================
@@ -418,12 +418,8 @@ export async function supportRoutes(app: FastifyInstance) {
   // ADMIN: GET /support/admin/tickets — all support tickets
   // ==========================================
   app.get('/support/admin/tickets', {
-    preHandler: [authMiddleware],
+    preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
-    if (request.user!.role !== 'admin') {
-      return { success: false, error: 'Faqat admin uchun' };
-    }
-
     const query = request.query as any;
     const { page, limit, skip } = parsePagination(query);
     const status = query.status || 'open';
@@ -465,12 +461,8 @@ export async function supportRoutes(app: FastifyInstance) {
   // ADMIN: POST /support/admin/tickets/:id/reply — admin reply
   // ==========================================
   app.post('/support/admin/tickets/:id/reply', {
-    preHandler: [authMiddleware],
+    preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
-    if (request.user!.role !== 'admin') {
-      return { success: false, error: 'Faqat admin uchun' };
-    }
-
     const { id } = request.params as { id: string };
     const { message } = z.object({
       message: z.string().min(1).max(2000),
@@ -495,12 +487,8 @@ export async function supportRoutes(app: FastifyInstance) {
   // ADMIN: GET /support/admin/tickets/:id/messages
   // ==========================================
   app.get('/support/admin/tickets/:id/messages', {
-    preHandler: [authMiddleware],
+    preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
-    if (request.user!.role !== 'admin') {
-      return { success: false, error: 'Faqat admin uchun' };
-    }
-
     const { id } = request.params as { id: string };
     const query = request.query as any;
     const { page, limit, skip } = parsePagination(query);

@@ -34,7 +34,6 @@ class ProductsProvider extends ChangeNotifier {
   // State
   List<CategoryModel> _categories = [];
   List<ProductModel> _featuredProducts = [];
-  List<ProductModel> _flashSaleProducts = [];
   List<ProductModel> _allProducts = [];
   List<BannerModel> _banners = [];
   List<ProductModel> _favorites = [];
@@ -44,7 +43,6 @@ class ProductsProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isCategoriesLoading = false;
   bool _isFeaturedLoading = false;
-  bool _isFlashSaleLoading = false;
   bool _isBannersLoading = false;
   bool _isFavoritesLoading = false;
   bool _isFilteredLoading = false;
@@ -53,14 +51,12 @@ class ProductsProvider extends ChangeNotifier {
   // Lazy loading uchun flag'lar
   bool _categoriesLoaded = false;
   bool _featuredLoaded = false;
-  bool _flashSaleLoaded = false;
   bool _bannersLoaded = false;
   bool _favoritesLoaded = false;
 
   // Getters
   List<CategoryModel> get categories => _categories;
   List<ProductModel> get featuredProducts => _featuredProducts;
-  List<ProductModel> get flashSaleProducts => _flashSaleProducts;
   List<ProductModel> get allProducts => _allProducts;
   List<BannerModel> get banners => _banners;
   List<ProductModel> get favorites => _favorites;
@@ -68,7 +64,6 @@ class ProductsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isCategoriesLoading => _isCategoriesLoading;
   bool get isFeaturedLoading => _isFeaturedLoading;
-  bool get isFlashSaleLoading => _isFlashSaleLoading;
   bool get isBannersLoading => _isBannersLoading;
   bool get isFavoritesLoading => _isFavoritesLoading;
   bool get isFilteredLoading => _isFilteredLoading;
@@ -91,7 +86,6 @@ class ProductsProvider extends ChangeNotifier {
     if (forceReload) {
       _categoriesLoaded = false;
       _featuredLoaded = false;
-      _flashSaleLoaded = false;
       _bannersLoaded = false;
       _favoritesLoaded = false;
     }
@@ -99,7 +93,6 @@ class ProductsProvider extends ChangeNotifier {
     await Future.wait([
       loadCategories(),
       loadFeaturedProducts(),
-      loadFlashSaleProducts(),
       loadBanners(),
       loadFavorites(),
     ]);
@@ -114,7 +107,6 @@ class ProductsProvider extends ChangeNotifier {
     await Future.wait([
       loadBanners(),
       loadFeaturedProducts(),
-      loadFlashSaleProducts(),
     ]);
   }
 
@@ -184,27 +176,6 @@ class ProductsProvider extends ChangeNotifier {
     }
 
     _isFeaturedLoading = false;
-    notifyListeners();
-  }
-
-  /// Flash Sale mahsulotlarni yuklash (lazy)
-  Future<void> loadFlashSaleProducts() async {
-    if (_flashSaleLoaded && _flashSaleProducts.isNotEmpty) return;
-
-    _isFlashSaleLoading = true;
-    notifyListeners();
-
-    try {
-      _flashSaleProducts = await _productRepo.getFlashSaleProducts();
-      _flashSaleLoaded = true;
-      AppLogger.d(
-          _tag, 'Flash sale products loaded: ${_flashSaleProducts.length}');
-    } catch (e) {
-      AppLogger.e(_tag, 'loadFlashSaleProducts error', e);
-      _error = e.toString();
-    }
-
-    _isFlashSaleLoading = false;
     notifyListeners();
   }
 
@@ -407,7 +378,7 @@ class ProductsProvider extends ChangeNotifier {
           _filteredProducts.where((p) => p.discountPercent > 0).toList();
 
       if (_filteredProducts.isEmpty) {
-        _filteredProducts = await _productRepo.getFlashSaleProducts();
+        _filteredProducts = await _productRepo.getProducts(limit: 20);
       }
     } catch (e) {
       _error = e.toString();

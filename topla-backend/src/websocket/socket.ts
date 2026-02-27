@@ -121,6 +121,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Mijoz buyurtmani kuzata boshlaydi (ownership check bilan)
     socket.on('track:order', async (orderId: string) => {
+      try {
       // Input validation
       if (!orderId || typeof orderId !== 'string') {
         socket.emit('error', { message: 'orderId kerak' });
@@ -150,6 +151,10 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       }
       orderWatchers.get(orderId)!.add(socket.id);
       socket.join(`order:${orderId}`);
+      } catch (err) {
+        console.error('WS track:order xatolik:', err);
+        socket.emit('error', { message: 'Server xatosi' });
+      }
     });
 
     // Mijoz kuzatishni to'xtatdi
@@ -173,6 +178,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     // ============================================
 
     socket.on('vendor:watch-orders', async () => {
+      try {
       if (user.role !== 'vendor' && user.role !== 'admin') return;
 
       const shop = await prisma.shop.findUnique({
@@ -183,6 +189,10 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       if (shop) {
         socket.join(`shop:${shop.id}`);
       }
+      } catch (err) {
+        console.error('WS vendor:watch-orders xatolik:', err);
+        socket.emit('error', { message: 'Server xatosi' });
+      }
     });
 
     // ============================================
@@ -191,6 +201,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Chat roomga qo'shilish
     socket.on('chat:join', async (roomId: string) => {
+      try {
       if (!roomId || typeof roomId !== 'string') return;
       if (!wsRateLimit(socket.id, 'chat:join', 20)) return;
 
@@ -212,6 +223,10 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       }
 
       socket.join(`chat:${roomId}`);
+      } catch (err) {
+        console.error('WS chat:join xatolik:', err);
+        socket.emit('error', { message: 'Server xatosi' });
+      }
     });
 
     // Chat roomdan chiqish
@@ -222,6 +237,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Xabar yuborish (real-time)
     socket.on('chat:message', async (data: unknown) => {
+      try {
       if (!wsRateLimit(socket.id, 'chat:message', 30)) {
         socket.emit('error', { message: 'Juda ko\'p xabar' });
         return;
@@ -288,6 +304,10 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
         message: content,
         createdAt: message.createdAt.toISOString(),
       });
+      } catch (err) {
+        console.error('WS chat:message xatolik:', err);
+        socket.emit('error', { message: 'Server xatosi' });
+      }
     });
 
     // Typing indicator
@@ -347,6 +367,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 function handleCourierConnection(socket: Socket, user: any): void {
   // Kuryerni track qilish
   socket.on('courier:online', async (courierId: string) => {
+    try {
     // Tekshirish: courierId shu userga tegishlimi?
     const courier = await prisma.courier.findFirst({
       where: { id: courierId, profileId: user.userId },
@@ -357,12 +378,17 @@ function handleCourierConnection(socket: Socket, user: any): void {
     }
     courierSockets.set(courierId, socket.id);
     socket.join(`courier:${courierId}`);
+    } catch (err) {
+      console.error('WS courier:online xatolik:', err);
+      socket.emit('error', { message: 'Server xatosi' });
+    }
   });
 
   // GPS joylashuvni yangilash (har 5 soniya)
   socket.on(
     'courier:location',
     async (data: unknown) => {
+      try {
       // Rate limit: max 15 per minute (har 4 sekundda 1)
       if (!wsRateLimit(socket.id, 'courier:location', 15)) {
         return; // Quietly drop — sekin yuborish kerak
@@ -416,6 +442,10 @@ function handleCourierConnection(socket: Socket, user: any): void {
           heading: validData.heading,
           timestamp: new Date().toISOString(),
         });
+      }
+      } catch (err) {
+        console.error('WS courier:location xatolik:', err);
+        socket.emit('error', { message: 'Server xatosi' });
       }
     },
   );

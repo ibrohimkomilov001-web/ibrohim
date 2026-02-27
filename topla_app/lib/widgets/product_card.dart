@@ -11,7 +11,6 @@ class ProductCard extends StatefulWidget {
   final double? rating;
   final int? sold;
   final String? imageUrl;
-  final bool isFlashSale;
   final bool isFavorite;
   final bool isFreeDelivery;
   final String? deliveryTime;
@@ -29,7 +28,6 @@ class ProductCard extends StatefulWidget {
     this.rating,
     this.sold,
     this.imageUrl,
-    this.isFlashSale = false,
     this.isFavorite = false,
     this.isFreeDelivery = false,
     this.deliveryTime,
@@ -179,11 +177,9 @@ class _ProductCardState extends State<ProductCard>
                           vertical: AppSizes.xs,
                         ),
                         decoration: BoxDecoration(
-                          gradient: widget.isFlashSale
-                              ? AppColors.flashSaleGradient
-                              : const LinearGradient(
-                                  colors: [AppColors.sale, AppColors.accent],
-                                ),
+                          gradient: const LinearGradient(
+                            colors: [AppColors.sale, AppColors.accent],
+                          ),
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusSm),
                         ),
@@ -226,46 +222,6 @@ class _ProductCardState extends State<ProductCard>
                       ),
                     ),
                   ),
-
-                  // Flash sale timer
-                  if (widget.isFlashSale)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSizes.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.7),
-                              Colors.black.withValues(alpha: 0.5),
-                            ],
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Iconsax.timer_1,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                            SizedBox(width: AppSizes.xs),
-                            Text(
-                              '02:45:30',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                 ],
               ),
 

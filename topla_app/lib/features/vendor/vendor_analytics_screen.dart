@@ -25,17 +25,17 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
     try {
       final analytics =
           await VendorService.getAnalytics(period: _selectedPeriod);
+      if (!mounted) return;
       setState(() {
         _analytics = analytics;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 

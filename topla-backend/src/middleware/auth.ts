@@ -76,6 +76,11 @@ export async function optionalAuth(
 
   try {
     const token = authHeader.substring(7);
+
+    // Blacklist tekshirish (logout qilingan token bilan kirishni oldini olish)
+    const blacklisted = await isTokenBlacklisted(token);
+    if (blacklisted) return;
+
     request.user = verifyToken(token);
   } catch {
     // Token invalid — just skip, don't fail

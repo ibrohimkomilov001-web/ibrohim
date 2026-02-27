@@ -18,6 +18,7 @@ import { checkRateLimit, cacheDelete } from '../../config/redis.js';
 import { sendMulticastPush } from '../../config/firebase.js';
 import bcrypt from 'bcryptjs';
 import { indexProduct, removeProductFromIndex, bulkIndexProducts, clearIndex, initMeilisearch } from '../../services/search.service.js';
+import { CacheKeys } from '../../utils/constants.js';
 
 // ============================================
 // Analytics date helpers
@@ -910,7 +911,7 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(request.body);
 
     const category = await prisma.category.create({ data: data as any });
-    await cacheDelete('categories:all');
+    await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, data: category };
   });
 
@@ -928,7 +929,7 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(request.body);
 
     const category = await prisma.category.update({ where: { id }, data });
-    await cacheDelete('categories:all');
+    await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, data: category };
   });
 
@@ -936,8 +937,15 @@ export async function adminRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
     const { id } = request.params as { id: string };
+
+    // Tegishli mahsulotlar borligini tekshirish
+    const productCount = await prisma.product.count({ where: { categoryId: id } });
+    if (productCount > 0) {
+      throw new AppError(`Bu kategoriyada ${productCount} ta mahsulot bor. Avval mahsulotlarni ko'chiring.`, 400);
+    }
+
     await prisma.category.delete({ where: { id } });
-    await cacheDelete('categories:all');
+    await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, message: 'Kategoriya o\'chirildi' };
   });
 
@@ -953,7 +961,7 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(request.body);
 
     const sub = await prisma.subcategory.create({ data: data as any });
-    await cacheDelete('categories:all');
+    await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, data: sub };
   });
 
@@ -969,7 +977,7 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(request.body);
 
     const sub = await prisma.subcategory.update({ where: { id }, data });
-    await cacheDelete('categories:all');
+    await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, data: sub };
   });
 
@@ -977,8 +985,15 @@ export async function adminRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
     const { id } = request.params as { id: string };
+
+    // Tegishli mahsulotlar borligini tekshirish
+    const productCount = await prisma.product.count({ where: { subcategoryId: id } });
+    if (productCount > 0) {
+      throw new AppError(`Bu subkategoriyada ${productCount} ta mahsulot bor. Avval mahsulotlarni ko'chiring.`, 400);
+    }
+
     await prisma.subcategory.delete({ where: { id } });
-    await cacheDelete('categories:all');
+    await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, message: 'Subkategoriya o\'chirildi' };
   });
 
@@ -1003,7 +1018,7 @@ export async function adminRoutes(app: FastifyInstance) {
       logoUrl: z.string().optional(),
     }).parse(request.body);
     const brand = await prisma.brand.create({ data: data as any });
-    await cacheDelete('brands:all');
+    await cacheDelete(CacheKeys.BRANDS_ALL);
     return { success: true, data: brand };
   });
 
@@ -1016,7 +1031,7 @@ export async function adminRoutes(app: FastifyInstance) {
       logoUrl: z.string().optional(),
     }).parse(request.body);
     const brand = await prisma.brand.update({ where: { id }, data });
-    await cacheDelete('brands:all');
+    await cacheDelete(CacheKeys.BRANDS_ALL);
     return { success: true, data: brand };
   });
 
@@ -1024,8 +1039,15 @@ export async function adminRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
     const { id } = request.params as { id: string };
+
+    // Tegishli mahsulotlar borligini tekshirish
+    const productCount = await prisma.product.count({ where: { brandId: id } });
+    if (productCount > 0) {
+      throw new AppError(`Bu brendda ${productCount} ta mahsulot bor. Avval mahsulotlarni ko'chiring.`, 400);
+    }
+
     await prisma.brand.delete({ where: { id } });
-    await cacheDelete('brands:all');
+    await cacheDelete(CacheKeys.BRANDS_ALL);
     return { success: true, message: 'Brend o\'chirildi' };
   });
 
@@ -1358,7 +1380,7 @@ export async function adminRoutes(app: FastifyInstance) {
       });
     }
 
-    // Push notification yuborish — barcha qurilmalarga
+    // Push notification yuborish — BullMQ orqali (non-blocking)
     try {
       const devices = await prisma.userDevice.findMany({
         where: {
@@ -1375,10 +1397,14 @@ export async function adminRoutes(app: FastifyInstance) {
         };
         if (notification.imageUrl) pushData.imageUrl = notification.imageUrl;
         if (notification.linkUrl) pushData.linkUrl = notification.linkUrl;
-        for (let i = 0; i < tokens.length; i += 500) {
-          const batch = tokens.slice(i, i + 500);
-          await sendMulticastPush(batch, notification.title, notification.body, pushData, notification.imageUrl || undefined);
-        }
+        const { enqueueNotification } = await import('../../services/queue.service.js');
+        await enqueueNotification({
+          type: 'push_multicast',
+          tokens,
+          title: notification.title,
+          body: notification.body,
+          data: pushData,
+        });
       }
     } catch (pushErr) {
       request.log.error({ err: pushErr }, 'Push notification yuborishda xatolik');
@@ -1454,7 +1480,7 @@ export async function adminRoutes(app: FastifyInstance) {
       });
     }
 
-    // Push notification yuborish — barcha qurilmalarga
+    // Push notification yuborish — BullMQ orqali (non-blocking)
     let pushSentCount = 0;
     try {
       const devices = await prisma.userDevice.findMany({
@@ -1473,10 +1499,14 @@ export async function adminRoutes(app: FastifyInstance) {
         };
         if (imageUrl) pushData.imageUrl = imageUrl;
         if (linkUrl) pushData.linkUrl = linkUrl;
-        for (let i = 0; i < tokens.length; i += 500) {
-          const batch = tokens.slice(i, i + 500);
-          await sendMulticastPush(batch, title, body, pushData, imageUrl);
-        }
+        const { enqueueNotification } = await import('../../services/queue.service.js');
+        await enqueueNotification({
+          type: 'push_multicast',
+          tokens,
+          title,
+          body,
+          data: pushData,
+        });
       }
     } catch (pushErr) {
       request.log.error({ err: pushErr }, 'Push notification yuborishda xatolik');
@@ -2003,23 +2033,9 @@ export async function adminRoutes(app: FastifyInstance) {
     // Clear existing index
     await clearIndex();
 
-    // Wait a bit for the clear to process
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Fetch all active products with relations
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        status: 'active',
-      },
-      include: {
-        category: { select: { id: true, nameUz: true, nameRu: true } },
-        brand: { select: { id: true, name: true } },
-        shop: { select: { id: true, name: true } },
-      },
-    });
-
-    const result = await bulkIndexProducts(products);
+    // Enqueue bulk reindex via BullMQ (non-blocking)
+    const { enqueueSearchIndex } = await import('../../services/queue.service.js');
+    await enqueueSearchIndex({ type: 'bulk_reindex' });
 
     await prisma.activityLog.create({
       data: {
@@ -2027,23 +2043,14 @@ export async function adminRoutes(app: FastifyInstance) {
         action: 'search.reindex',
         entityType: 'system',
         entityId: 'meilisearch',
-        details: {
-          totalProducts: products.length,
-          indexed: result.indexed,
-          failed: result.failed,
-        },
+        details: { message: 'Bulk reindex queued via BullMQ' },
         ipAddress: request.ip,
       },
     });
 
     return reply.send({
       success: true,
-      data: {
-        totalProducts: products.length,
-        indexed: result.indexed,
-        failed: result.failed,
-      },
-      message: `${result.indexed} ta mahsulot indekslandi`,
+      data: { message: 'Re-index jarayoni BullMQ orqali boshlandi. Bir necha daqiqada tugaydi.' },
     });
   });
 }

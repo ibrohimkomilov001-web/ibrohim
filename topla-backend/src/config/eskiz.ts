@@ -74,6 +74,7 @@ async function getEskizToken(): Promise<string> {
 export async function sendSmsViaEskiz(
   phone: string,
   message: string,
+  _retryCount = 0,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const token = await getEskizToken();
@@ -97,13 +98,17 @@ export async function sendSmsViaEskiz(
     const responseText = await response.text();
 
     if (!response.ok) {
-      // Token eskirgan bo'lsa yangilash
-      if (response.status === 401) {
+      // Token eskirgan bo'lsa yangilash (maksimum 1 marta)
+      if (response.status === 401 && _retryCount < 1) {
         cachedToken = null;
         tokenExpiresAt = 0;
         console.log('🔄 Eskiz token eskirdi, qayta olinmoqda...');
-        // Qayta urinish
-        return sendSmsViaEskiz(phone, message);
+        // Qayta urinish (cheklangan)
+        return sendSmsViaEskiz(phone, message, _retryCount + 1);
+      }
+      if (response.status === 401) {
+        console.error('❌ Eskiz: token yangilangandan keyin ham 401 — credentials tekshiring');
+        return { success: false, error: 'Eskiz autentifikatsiya xatoligi. Credentials tekshiring.' };
       }
 
       console.error(`❌ Eskiz SMS xatolik: ${response.status} — ${responseText}`);

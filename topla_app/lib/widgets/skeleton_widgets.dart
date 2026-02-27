@@ -543,27 +543,6 @@ class HomeScreenSkeleton extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Flash sale
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SkeletonLoading(height: 60, borderRadius: 16),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 240,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: 3,
-              itemBuilder: (_, __) => Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: ProductCardSkeleton(width: 160),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
           // Popular products
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

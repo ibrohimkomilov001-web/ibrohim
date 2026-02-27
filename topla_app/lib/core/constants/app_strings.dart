@@ -71,8 +71,6 @@ class AppStrings {
   static const String searchHintRu = 'Поиск товаров...';
   static const String categories = 'Kategoriyalar';
   static const String categoriesRu = 'Категории';
-  static const String flashSale = 'Flash Sale';
-  static const String flashSaleRu = 'Молниеносная распродажа';
   static const String popular = 'Ommabop';
   static const String popularRu = 'Популярное';
   static const String newArrivals = 'Yangi mahsulotlar';

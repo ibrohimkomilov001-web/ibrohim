@@ -11,6 +11,7 @@ import { initFirebase } from './config/firebase.js';
 import { initStorage } from './config/storage.js';
 import { initWebSocket } from './websocket/socket.js';
 import { errorHandler } from './middleware/error.js';
+import { registerRequestLogging } from './middleware/logging.js';
 
 // Route modules
 import { authRoutes } from './modules/auth/auth.routes.js';
@@ -35,6 +36,7 @@ import { pickupPointRoutes } from './modules/pickup-points/pickup-point.routes.j
 import { supportRoutes } from './modules/support/support.routes.js';
 import { initRedis } from './config/redis.js';
 import { initMeilisearch } from './services/search.service.js';
+import { startWorkers, closeQueues } from './services/queue.service.js';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 
@@ -124,6 +126,12 @@ await app.register(fastifyStatic, {
 });
 
 // ============================================
+// Request Logging
+// ============================================
+
+registerRequestLogging(app);
+
+// ============================================
 // Error Handler
 // ============================================
 
@@ -191,6 +199,13 @@ async function start(): Promise<void> {
     // 5. Meilisearch (product search)
     await initMeilisearch();
 
+    // 5.5 BullMQ Workers (background jobs)
+    try {
+      await startWorkers();
+    } catch (err) {
+      console.warn('⚠️ BullMQ workers not started:', (err as Error).message);
+    }
+
     // 6. Start HTTP server
     const address = await app.listen({
       port: env.PORT,
@@ -228,6 +243,7 @@ async function start(): Promise<void> {
 async function shutdown(signal: string): Promise<void> {
   console.log(`\n${signal} received. Shutting down gracefully...`);
   await app.close();
+  await closeQueues();
   await disconnectDatabase();
   process.exit(0);
 }

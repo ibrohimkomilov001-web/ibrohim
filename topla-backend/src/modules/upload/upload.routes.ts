@@ -8,6 +8,7 @@ import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error.js';
 import { env } from '../../config/env.js';
 import { uploadFile, getStorageClient, deleteFile } from '../../config/storage.js';
+import { processImageVariants, optimizeSingleImage } from '../../services/image.service.js';
 
 // Magic byte signatures for allowed image types
 const MAGIC_BYTES: Record<string, Buffer[]> = {
@@ -54,9 +55,9 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
   const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 
   /**
-   * Upload single image
+   * Upload single image — auto-optimized to WebP with 3 variants
    * POST /upload/image
-   * Body: multipart/form-data with field "file" and optional "folder" text field
+   * Returns: { url, mediumUrl, thumbnailUrl, fileName, originalSize, optimizedSize }
    */
   app.post('/upload/image', {
     preHandler: [authMiddleware],
@@ -83,47 +84,59 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const ext = data.mimetype.split('/')[1] === 'jpeg' ? 'jpg' : data.mimetype.split('/')[1];
-    const fileName = `${randomUUID()}.${ext}`;
+    const originalSize = buffer.length;
+    const baseName = randomUUID();
 
-    // Get folder from fields (if sent before file in multipart)
+    // Get folder from fields
     const rawFolder = (data.fields as any)?.folder?.value as string || 'general';
     const folder = sanitizeFolder(rawFolder);
-    const filePath = `${folder}/${fileName}`;
+
+    // Determine if this is an avatar/logo (single variant) or product image (3 variants)
+    const isAvatar = folder.startsWith('avatar') || folder.startsWith('shop');
 
     try {
       let url: string;
+      let mediumUrl: string | undefined;
+      let thumbnailUrl: string | undefined;
+      let optimizedSize = 0;
 
-      if (getStorageClient()) {
-        // S3/MinIO upload
-        const bucket = folder.startsWith('shop') ? env.S3_BUCKET_SHOPS
-          : folder.startsWith('product') ? env.S3_BUCKET_PRODUCTS
-          : folder.startsWith('avatar') ? env.S3_BUCKET_AVATARS
-          : env.S3_BUCKET_PRODUCTS;
+      if (isAvatar) {
+        // Single optimized variant for avatars/logos (max 800px)
+        const optimized = await optimizeSingleImage(buffer, 800, 80);
+        const fileName = `${baseName}.webp`;
+        const filePath = `${folder}/${fileName}`;
+        optimizedSize = optimized.length;
 
-        try {
-          url = await uploadFile(bucket, filePath, buffer, data.mimetype);
-        } catch (s3Err: any) {
-          // S3 xato bo'lsa — local fallback
-          request.log.warn({ err: s3Err.message }, 'S3 upload failed, falling back to local storage');
-          const dir = path.join(UPLOADS_DIR, folder);
-          if (!existsSync(dir)) {
-            await mkdir(dir, { recursive: true });
-          }
-          await writeFile(path.join(dir, fileName), buffer);
-          url = `/uploads/${folder}/${fileName}`;
-        }
+        url = await _uploadBuffer(request, filePath, optimized, 'image/webp', folder);
       } else {
-        // Local file system (development)
-        const dir = path.join(UPLOADS_DIR, folder);
-        if (!existsSync(dir)) {
-          await mkdir(dir, { recursive: true });
+        // Product images: 3 variants (original 1200px, medium 600px, thumb 200px)
+        const variants = await processImageVariants(buffer);
+
+        const urls: string[] = [];
+        for (const variant of variants) {
+          const fileName = `${baseName}${variant.suffix}.webp`;
+          const filePath = `${folder}/${fileName}`;
+          const variantUrl = await _uploadBuffer(request, filePath, variant.buffer, 'image/webp', folder);
+          urls.push(variantUrl);
+          optimizedSize += variant.buffer.length;
         }
-        await writeFile(path.join(dir, fileName), buffer);
-        url = `/uploads/${folder}/${fileName}`;
+
+        url = urls[0]!;          // original (1200px)
+        mediumUrl = urls[1]!;    // medium (600px)
+        thumbnailUrl = urls[2]!; // thumbnail (200px)
       }
 
-      return { url, fileName: filePath, size: buffer.length };
+      const savings = Math.round((1 - optimizedSize / originalSize) * 100);
+
+      return {
+        url,
+        mediumUrl,
+        thumbnailUrl,
+        fileName: `${folder}/${baseName}.webp`,
+        originalSize,
+        optimizedSize,
+        savings: `${savings}%`,
+      };
     } catch (error: any) {
       request.log.error(error, 'File upload failed');
       return reply.status(500).send({ error: 'File upload failed' });
@@ -131,15 +144,54 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * Upload multiple images
+   * Helper: upload buffer to S3 or local filesystem
+   */
+  async function _uploadBuffer(
+    request: FastifyRequest,
+    filePath: string,
+    buffer: Buffer,
+    contentType: string,
+    folder: string,
+  ): Promise<string> {
+    if (getStorageClient()) {
+      const bucket = folder.startsWith('shop') ? env.S3_BUCKET_SHOPS
+        : folder.startsWith('product') ? env.S3_BUCKET_PRODUCTS
+        : folder.startsWith('avatar') ? env.S3_BUCKET_AVATARS
+        : env.S3_BUCKET_PRODUCTS;
+
+      try {
+        return await uploadFile(bucket, filePath, buffer, contentType);
+      } catch (s3Err: any) {
+        request.log.warn({ err: s3Err.message }, 'S3 upload failed, falling back to local storage');
+      }
+    }
+
+    // Local filesystem fallback
+    const dir = path.join(UPLOADS_DIR, path.dirname(filePath));
+    if (!existsSync(dir)) {
+      await mkdir(dir, { recursive: true });
+    }
+    await writeFile(path.join(UPLOADS_DIR, filePath), buffer);
+    return `/uploads/${filePath}`;
+  }
+
+  /**
+   * Upload multiple images — auto-optimized to WebP
    * POST /upload/images
-   * Body: multipart/form-data with multiple "files" fields and optional "folder"
+   * Returns: { files: [{ url, mediumUrl, thumbnailUrl, originalSize, optimizedSize }], count }
    */
   app.post('/upload/images', {
     preHandler: [authMiddleware],
   }, async (request: FastifyRequest, reply) => {
     const parts = request.parts();
-    const results: Array<{ url: string; fileName: string; size: number }> = [];
+    const results: Array<{
+      url: string;
+      mediumUrl?: string;
+      thumbnailUrl?: string;
+      fileName: string;
+      originalSize: number;
+      optimizedSize: number;
+    }> = [];
     let folder = 'general';
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -152,51 +204,50 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // File part
-      if (!allowedTypes.includes(part.mimetype)) {
-        continue; // Skip invalid files
-      }
+      if (!allowedTypes.includes(part.mimetype)) continue;
 
       const buffer = await part.toBuffer();
+      if (!validateMagicBytes(buffer, part.mimetype)) continue;
 
-      // Validate magic bytes
-      if (!validateMagicBytes(buffer, part.mimetype)) {
-        continue; // Skip files with spoofed MIME types
-      }
-
-      const ext = part.mimetype.split('/')[1] === 'jpeg' ? 'jpg' : part.mimetype.split('/')[1];
-      const fileName = `${randomUUID()}.${ext}`;
-      const filePath = `${folder}/${fileName}`;
+      const baseName = randomUUID();
+      const originalSize = buffer.length;
+      const isAvatar = folder.startsWith('avatar') || folder.startsWith('shop');
 
       try {
         let url: string;
+        let mediumUrl: string | undefined;
+        let thumbnailUrl: string | undefined;
+        let optimizedSize = 0;
 
-        if (getStorageClient()) {
-          const bucket = folder.startsWith('shop') ? env.S3_BUCKET_SHOPS
-            : folder.startsWith('product') ? env.S3_BUCKET_PRODUCTS
-            : folder.startsWith('avatar') ? env.S3_BUCKET_AVATARS
-            : env.S3_BUCKET_PRODUCTS;
-
-          try {
-            url = await uploadFile(bucket, filePath, buffer, part.mimetype);
-          } catch (s3Err: any) {
-            request.log.warn({ err: s3Err.message }, 'S3 upload failed, falling back to local storage');
-            const dir = path.join(UPLOADS_DIR, folder);
-            if (!existsSync(dir)) {
-              await mkdir(dir, { recursive: true });
-            }
-            await writeFile(path.join(dir, fileName), buffer);
-            url = `/uploads/${folder}/${fileName}`;
-          }
+        if (isAvatar) {
+          const optimized = await optimizeSingleImage(buffer, 800, 80);
+          const filePath = `${folder}/${baseName}.webp`;
+          optimizedSize = optimized.length;
+          url = await _uploadBuffer(request, filePath, optimized, 'image/webp', folder);
         } else {
-          const dir = path.join(UPLOADS_DIR, folder);
-          if (!existsSync(dir)) {
-            await mkdir(dir, { recursive: true });
+          const variants = await processImageVariants(buffer);
+          const urls: string[] = [];
+
+          for (const variant of variants) {
+            const filePath = `${folder}/${baseName}${variant.suffix}.webp`;
+            const variantUrl = await _uploadBuffer(request, filePath, variant.buffer, 'image/webp', folder);
+            urls.push(variantUrl);
+            optimizedSize += variant.buffer.length;
           }
-          await writeFile(path.join(dir, fileName), buffer);
-          url = `/uploads/${folder}/${fileName}`;
+
+          url = urls[0]!;
+          mediumUrl = urls[1]!;
+          thumbnailUrl = urls[2]!;
         }
 
-        results.push({ url, fileName: filePath, size: buffer.length });
+        results.push({
+          url,
+          mediumUrl,
+          thumbnailUrl,
+          fileName: `${folder}/${baseName}.webp`,
+          originalSize,
+          optimizedSize,
+        });
       } catch (error: any) {
         request.log.error(error, `Failed to upload ${part.filename}`);
       }

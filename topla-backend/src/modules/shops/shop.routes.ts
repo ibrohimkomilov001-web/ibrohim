@@ -4,6 +4,7 @@ import { prisma } from '../../config/database.js';
 import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
+import { cacheGet, cacheSet } from '../../config/redis.js';
 
 const createShopSchema = z.object({
   name: z.string().min(2).max(200),
@@ -45,6 +46,11 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
 
     const { page: pg, limit: lim, skip } = parsePagination({ page, limit });
 
+    // Cache: do'konlar ro'yxati (120 sek)
+    const shopsCacheKey = `shops:list:${pg}:${lim}:${search || ''}`;
+    const cachedShops = await cacheGet<any>(shopsCacheKey);
+    if (cachedShops) return reply.send(cachedShops);
+
     const [shops, total] = await Promise.all([
       prisma.shop.findMany({
         where,
@@ -61,7 +67,9 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
       prisma.shop.count({ where }),
     ]);
 
-    return reply.send({ success: true, data: { shops, total } });
+    const shopsResponse = { success: true, data: { shops, total } };
+    cacheSet(shopsCacheKey, shopsResponse, 120).catch(() => {});
+    return reply.send(shopsResponse);
   });
 
   /**
@@ -237,6 +245,12 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
         where: { ownerId: request.user!.userId },
         data: body,
       });
+
+      // Invalidate shops cache (SCAN-based, production-safe)
+      try {
+        const { cacheDeletePattern } = await import('../../config/redis.js');
+        await cacheDeletePattern('shops:*');
+      } catch { /* non-blocking */ }
 
       return reply.send({ success: true, data: shop });
     },

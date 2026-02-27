@@ -44,7 +44,7 @@ class PayoutModel {
     final amount = (json['amount'] ?? 0).toDouble();
     final commission = (json['commission'] ?? 0).toDouble();
     return PayoutModel(
-      id: json['id'],
+      id: (json['id'])?.toString() ?? '',
       shopId: (json['shop_id'] ?? json['shopId']) as String? ?? '',
       amount: amount,
       commission: commission,
@@ -60,7 +60,9 @@ class PayoutModel {
           ? DateTime.parse((json['processed_at'] ?? json['processedAt']))
           : null,
       notes: json['notes'],
-      createdAt: DateTime.parse((json['created_at'] ?? json['createdAt'])),
+      createdAt: DateTime.tryParse(
+              (json['created_at'] ?? json['createdAt'] ?? '').toString()) ??
+          DateTime.now(),
       shopName: json['shops']?['name'] ?? json['shop']?['name'],
       processedByName:
           json['profiles']?['full_name'] ?? json['profiles']?['fullName'],

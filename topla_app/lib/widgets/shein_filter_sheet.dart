@@ -638,11 +638,6 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
               (val) => _updateFilter(_filter.copyWith(onlyWithDiscount: val)),
             ),
             _buildStatusChip(
-              '🔥 Sotuvda',
-              _filter.onlyFlashSale,
-              (val) => _updateFilter(_filter.copyWith(onlyFlashSale: val)),
-            ),
-            _buildStatusChip(
               '✓ Original',
               _filter.isOriginal ?? false,
               (val) => _updateFilter(_filter.copyWith(isOriginal: val)),

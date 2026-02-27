@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -82,8 +83,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     setState(() => _isLoading = true);
 
     try {
-      final productsProvider = context.read<ProductsProvider>();
-
       // Subcategoriyalarni category modeldan olish (API allaqachon qaytargan)
       _subCategories = widget.category.subcategories;
 
@@ -259,12 +258,21 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     return Column(
       children: [
         _buildSimpleAppBar(),
-        const Expanded(
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+        Expanded(
+          child: _buildShimmerList(),
         ),
       ],
+    );
+  }
+
+  /// Shimmer skeleton list - kategoriya/subkategoriya yuklanayotganda
+  Widget _buildShimmerList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSizes.md),
+      itemCount: 8,
+      itemBuilder: (context, index) {
+        return _ShimmerListItem(index: index);
+      },
     );
   }
 
@@ -277,7 +285,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
         // Subcategoriyalar ro'yxati
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? _buildShimmerList()
               : ListView(
                   padding: const EdgeInsets.only(top: AppSizes.sm),
                   children: [
@@ -1473,63 +1481,62 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Iconsax.box_1,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
-          ),
-          const SizedBox(height: AppSizes.lg),
-          Text(
-            _isUzbek ? 'Mahsulotlar topilmadi' : 'Товары не найдены',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          const SizedBox(height: AppSizes.sm),
-          Text(
-            _filter.hasActiveFilters
-                ? (_isUzbek
-                    ? 'Boshqa filterlarni sinab ko\'ring'
-                    : 'Попробуйте изменить фильтры')
-                : (_isUzbek
-                    ? 'Bu kategoriyada mahsulotlar yo\'q'
-                    : 'В этой категории нет товаров'),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (_filter.hasActiveFilters) ...[
-            const SizedBox(height: AppSizes.lg),
-            OutlinedButton.icon(
-              onPressed: () {
-                setState(() => _filter = ProductFilter.empty());
-                _applyFilters();
-              },
-              icon: const Icon(Iconsax.refresh),
-              label:
-                  Text(_isUzbek ? 'Filterlarni tozalash' : 'Сбросить фильтры'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: widget.categoryColor,
-                side: BorderSide(color: widget.categoryColor),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated illustration
+            _EmptyStateIllustration(color: widget.categoryColor),
+            const SizedBox(height: 24),
+            Text(
+              _isUzbek ? 'Mahsulotlar topilmadi' : 'Товары не найдены',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A2E),
+                letterSpacing: -0.3,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              _filter.hasActiveFilters
+                  ? (_isUzbek
+                      ? 'Boshqa filterlarni sinab ko\'ring'
+                      : 'Попробуйте изменить фильтры')
+                  : (_isUzbek
+                      ? 'Tez orada yangi mahsulotlar qo\'shiladi'
+                      : 'Скоро появятся новые товары'),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (_filter.hasActiveFilters) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () {
+                  setState(() => _filter = ProductFilter.empty());
+                  _applyFilters();
+                },
+                icon: const Icon(Iconsax.refresh, size: 18),
+                label: Text(
+                    _isUzbek ? 'Filterlarni tozalash' : 'Сбросить фильтры'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: widget.categoryColor,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1728,25 +1735,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       context,
       MaterialPageRoute(
         builder: (context) => ProductDetailScreen(
-          product: {
-            'id': product.id,
-            'name': productName,
-            'nameUz': product.nameUz,
-            'nameRu': product.nameRu,
-            'price': product.price,
-            'oldPrice': product.oldPrice,
-            'discount': product.discountPercent,
-            'rating': product.rating,
-            'sold': product.soldCount,
-            'image': product.firstImage,
-            'images': product.images,
-            'cashback': product.cashbackPercent,
-            'description': productDescription,
-            'descriptionUz': product.descriptionUz,
-            'descriptionRu': product.descriptionRu,
-            'categoryId': product.categoryId,
-            'stock': product.stock,
-          },
+          product: product.toMap(),
         ),
       ),
     );
@@ -2059,6 +2048,261 @@ class _SheinPriceFilterSheetState extends State<_SheinPriceFilterSheet> {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+}
+
+// ============================================================
+// Shimmer list item — loading placeholder for subcategories
+// ============================================================
+class _ShimmerListItem extends StatefulWidget {
+  final int index;
+  const _ShimmerListItem({required this.index});
+
+  @override
+  State<_ShimmerListItem> createState() => _ShimmerListItemState();
+}
+
+class _ShimmerListItemState extends State<_ShimmerListItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final shimmerValue = _controller.value;
+        return Container(
+          margin: EdgeInsets.only(
+            bottom: 10,
+            left: 0,
+            right: 0,
+            top: widget.index == 0 ? 4 : 0,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              // Icon placeholder
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment(-1.0 + 2.0 * shimmerValue, 0),
+                    end: Alignment(1.0 + 2.0 * shimmerValue, 0),
+                    colors: [
+                      Colors.grey.shade200,
+                      Colors.grey.shade100,
+                      Colors.grey.shade200,
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 14,
+                      width: 80.0 + (widget.index % 3) * 30,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        gradient: LinearGradient(
+                          begin: Alignment(-1.0 + 2.0 * shimmerValue, 0),
+                          end: Alignment(1.0 + 2.0 * shimmerValue, 0),
+                          colors: [
+                            Colors.grey.shade200,
+                            Colors.grey.shade100,
+                            Colors.grey.shade200,
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 10,
+                      width: 50.0 + (widget.index % 2) * 20,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        gradient: LinearGradient(
+                          begin: Alignment(-1.0 + 2.0 * shimmerValue, 0),
+                          end: Alignment(1.0 + 2.0 * shimmerValue, 0),
+                          colors: [
+                            Colors.grey.shade200,
+                            Colors.grey.shade50,
+                            Colors.grey.shade200,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    begin: Alignment(-1.0 + 2.0 * shimmerValue, 0),
+                    end: Alignment(1.0 + 2.0 * shimmerValue, 0),
+                    colors: [
+                      Colors.grey.shade200,
+                      Colors.grey.shade100,
+                      Colors.grey.shade200,
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// Empty state illustration — animated floating box with sparkles
+// ============================================================
+class _EmptyStateIllustration extends StatefulWidget {
+  final Color color;
+  const _EmptyStateIllustration({required this.color});
+
+  @override
+  State<_EmptyStateIllustration> createState() =>
+      _EmptyStateIllustrationState();
+}
+
+class _EmptyStateIllustrationState extends State<_EmptyStateIllustration>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 180,
+      height: 180,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final bounce = math.sin(_controller.value * math.pi) * 8;
+          final sparkle1 = (_controller.value * 2 * math.pi);
+          final sparkle2 = (_controller.value * 2 * math.pi + math.pi / 2);
+
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Shadow
+              Positioned(
+                bottom: 10,
+                child: Container(
+                  width: 80 - bounce.abs() * 0.5,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.black
+                        .withValues(alpha: 0.06 + bounce.abs() * 0.002),
+                  ),
+                ),
+              ),
+              // Main box
+              Transform.translate(
+                offset: Offset(0, -bounce),
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: widget.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: widget.color.withValues(alpha: 0.2),
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    Iconsax.box_1,
+                    size: 44,
+                    color: widget.color.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              // Sparkle 1
+              Positioned(
+                top: 20 + math.sin(sparkle1) * 6,
+                right: 20 + math.cos(sparkle1) * 4,
+                child: _buildSparkle(
+                  size: 10,
+                  opacity: 0.3 + math.sin(sparkle1).abs() * 0.5,
+                ),
+              ),
+              // Sparkle 2
+              Positioned(
+                top: 45 + math.cos(sparkle2) * 5,
+                left: 15 + math.sin(sparkle2) * 3,
+                child: _buildSparkle(
+                  size: 7,
+                  opacity: 0.2 + math.cos(sparkle2).abs() * 0.4,
+                ),
+              ),
+              // Sparkle 3
+              Positioned(
+                bottom: 35 + math.sin(sparkle1 + 1) * 4,
+                right: 30 + math.cos(sparkle2) * 3,
+                child: _buildSparkle(
+                  size: 6,
+                  opacity: 0.25 + math.sin(sparkle2).abs() * 0.35,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSparkle({required double size, required double opacity}) {
+    return Icon(
+      Icons.auto_awesome,
+      size: size,
+      color: widget.color.withValues(alpha: opacity),
     );
   }
 }

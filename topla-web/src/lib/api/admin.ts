@@ -979,7 +979,8 @@ function getDemoResponse<T>(endpoint: string, options: RequestInit = {}): T {
 // Pickup Points
 // ============================================
 export async function fetchAdminPickupPoints() {
-  return adminRequest<any>('/admin/pickup-points');
+  const res = await adminRequest<{ success: boolean; data: any }>('/admin/pickup-points');
+  return res.data;
 }
 
 export async function createAdminPickupPoint(data: any) {

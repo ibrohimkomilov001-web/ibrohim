@@ -254,7 +254,7 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
       userId: point.id,
       role: 'pickup_staff',
       pickupPointId: point.id,
-    } as any);
+    });
 
     return reply.send({
       success: true,
@@ -274,7 +274,7 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
    * Punkt xodimi: shu punktdagi buyurtmalar
    */
   app.get('/pickup/orders', { preHandler: authMiddleware }, async (request, reply) => {
-    const pickupPointId = (request.user as any)?.pickupPointId || (request.user as any)?.userId;
+    const pickupPointId = request.user?.pickupPointId || request.user?.userId;
     
     // Admin ham ko'ra oladi
     if (request.user?.role !== 'admin') {
@@ -374,7 +374,7 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
           orderId: order!.id,
           status: 'delivered',
           note: 'Topshirish punktida QR kod bilan tasdiqlandi',
-          changedBy: (request.user as any)?.pickupPointId || request.user!.userId,
+          changedBy: request.user?.pickupPointId || request.user!.userId,
         },
       });
     });

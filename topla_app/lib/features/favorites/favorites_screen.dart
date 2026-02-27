@@ -93,18 +93,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _buildFavoriteCard(ProductModel product) {
-    final productMap = {
-      'id': product.id,
-      'name': product.nameUz,
-      'price': product.price,
-      'oldPrice': product.oldPrice,
-      'discount': product.discountPercent,
-      'rating': product.rating,
-      'sold': product.soldCount,
-      'image': product.firstImage,
-      'cashback': product.cashbackPercent,
-      'description': product.descriptionUz,
-    };
+    final productMap = product.toMap();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

@@ -10,6 +10,10 @@ import 'vendor_payouts_screen.dart';
 import 'vendor_analytics_screen.dart';
 import 'vendor_commissions_screen.dart';
 import 'vendor_documents_screen.dart';
+import 'vendor_chats_screen.dart';
+import 'vendor_reviews_screen.dart';
+import 'vendor_returns_screen.dart';
+import 'vendor_promo_codes_screen.dart';
 import 'shop_settings_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -340,6 +344,17 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
+                    'Xabarlar',
+                    Iconsax.message,
+                    Colors.cyan,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VendorChatsScreen(),
+                      ),
+                    ),
+                  ),
+                  _buildActionCard(
                     'To\'lovlar',
                     Iconsax.wallet,
                     Colors.green,
@@ -369,6 +384,39 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const VendorCommissionsScreen(),
+                      ),
+                    ),
+                  ),
+                  _buildActionCard(
+                    'Sharhlar',
+                    Iconsax.star,
+                    Colors.amber,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VendorReviewsScreen(),
+                      ),
+                    ),
+                  ),
+                  _buildActionCard(
+                    'Qaytarishlar',
+                    Iconsax.box_remove,
+                    Colors.red.shade400,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VendorReturnsScreen(),
+                      ),
+                    ),
+                  ),
+                  _buildActionCard(
+                    'Promo kodlar',
+                    Iconsax.ticket_discount,
+                    Colors.deepPurple,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VendorPromoCodesScreen(),
                       ),
                     ),
                   ),

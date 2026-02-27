@@ -25,7 +25,7 @@ _NotifTypeInfo _getTypeInfo(String type) {
       label: 'Buyurtma',
     );
   }
-  if (type == 'promo' || type == 'sale' || type == 'flash_sale' || type == 'promo_new') {
+  if (type == 'promo' || type == 'sale' || type == 'promo_new') {
     return const _NotifTypeInfo(
       icon: Iconsax.flash_1,
       color: AppColors.accent,
@@ -100,7 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         case 1:
           return type.startsWith('order') || type == 'courier_new';
         case 2:
-          return type == 'promo' || type == 'sale' || type == 'flash_sale' || type == 'promo_new';
+          return type == 'promo' || type == 'sale' || type == 'promo_new';
         case 3:
           return type == 'system' || type == 'admin_broadcast';
         default:
@@ -116,7 +116,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
 
     try {
-      final response = await _api.get('/notifications', queryParams: {'page': '1', 'limit': '20'});
+      final response = await _api
+          .get('/notifications', queryParams: {'page': '1', 'limit': '20'});
       if (response.success) {
         final data = response.dataMap;
         final list = (data['notifications'] as List? ?? [])
@@ -147,7 +148,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final nextPage = _page + 1;
 
     try {
-      final response = await _api.get('/notifications', queryParams: {'page': '$nextPage', 'limit': '20'});
+      final response = await _api.get('/notifications',
+          queryParams: {'page': '$nextPage', 'limit': '20'});
       if (response.success) {
         final data = response.dataMap;
         final list = (data['notifications'] as List? ?? [])
@@ -316,7 +318,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             );
           }
           final group = grouped[index];
-          return _buildDateGroup(group['label'] as String, group['items'] as List);
+          return _buildDateGroup(
+              group['label'] as String, group['items'] as List);
         },
       ),
     );
@@ -342,14 +345,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       } else if (date == yesterday) {
         label = 'Kecha';
       } else {
-        label = '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+        label =
+            '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
       }
 
       groups.putIfAbsent(label, () => []);
       groups[label]!.add(item);
     }
 
-    return groups.entries.map((e) => {'label': e.key, 'items': e.value}).toList();
+    return groups.entries
+        .map((e) => {'label': e.key, 'items': e.value})
+        .toList();
   }
 
   Widget _buildDateGroup(String label, List items) {
@@ -438,7 +444,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         height: 40,
                         decoration: BoxDecoration(
                           color: typeInfo.color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radiusMd),
                         ),
                         child: Icon(
                           typeInfo.icon,
@@ -459,7 +466,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                                   child: Text(
                                     notification['title'] ?? 'Bildirishnoma',
                                     style: TextStyle(
-                                      fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                                      fontWeight: isUnread
+                                          ? FontWeight.w700
+                                          : FontWeight.w600,
                                       fontSize: 14,
                                       color: const Color(0xFF1A1A2E),
                                       height: 1.3,
@@ -494,7 +503,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             // Pastki qism: vaqt + tur + havola
                             Row(
                               children: [
-                                Icon(Iconsax.clock, size: 12, color: Colors.grey.shade400),
+                                Icon(Iconsax.clock,
+                                    size: 12, color: Colors.grey.shade400),
                                 const SizedBox(width: 4),
                                 Text(
                                   _formatTime(createdAt),
@@ -506,7 +516,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: typeInfo.color.withOpacity(0.08),
                                     borderRadius: BorderRadius.circular(6),
@@ -531,7 +542,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 2),
-                                  Icon(Iconsax.arrow_right_3, size: 12, color: AppColors.primary),
+                                  Icon(Iconsax.arrow_right_3,
+                                      size: 12, color: AppColors.primary),
                                 ],
                               ],
                             ),

@@ -17,10 +17,10 @@ class ProductModel {
   final int reviewCount;
   final bool isActive;
   final bool isFeatured;
-  final bool isFlashSale;
-  final DateTime? flashSaleEnd;
   final int? cashbackPercent;
   final DateTime? createdAt;
+  // Do'kon ma'lumotlari (backend'dan kelgan raw data)
+  final Map<String, dynamic>? shopData;
   // Moderatsiya uchun
   final String? moderationStatus;
   final String? rejectionReason;
@@ -43,10 +43,9 @@ class ProductModel {
     this.reviewCount = 0,
     this.isActive = true,
     this.isFeatured = false,
-    this.isFlashSale = false,
-    this.flashSaleEnd,
     this.cashbackPercent = 0,
     this.createdAt,
+    this.shopData,
     this.moderationStatus,
     this.rejectionReason,
   });
@@ -91,7 +90,12 @@ class ProductModel {
       categoryId: (json['categoryId'] ?? json['category_id']) as String?,
       subcategoryId:
           (json['subcategoryId'] ?? json['subcategory_id']) as String?,
-      shopId: (json['shopId'] ?? json['shop_id']) as String?,
+      shopId: (json['shopId'] ??
+          json['shop_id'] ??
+          (json['shop'] is Map ? json['shop']['id'] : null)) as String?,
+      shopData: json['shop'] is Map<String, dynamic>
+          ? json['shop'] as Map<String, dynamic>
+          : null,
       images: json['images'] != null ? List<String>.from(json['images']) : [],
       stock: _parseInt(json['stock']),
       soldCount: _parseInt(
@@ -100,12 +104,6 @@ class ProductModel {
       reviewCount: _parseInt(json['reviewCount'] ?? json['review_count']),
       isActive: (json['isActive'] ?? json['is_active']) as bool? ?? true,
       isFeatured: (json['isFeatured'] ?? json['is_featured']) as bool? ?? false,
-      isFlashSale:
-          (json['isFlashSale'] ?? json['is_flash_sale']) as bool? ?? false,
-      flashSaleEnd: (json['flashSaleEnd'] ?? json['flash_sale_end']) != null
-          ? DateTime.tryParse(
-              (json['flashSaleEnd'] ?? json['flash_sale_end']).toString())
-          : null,
       cashbackPercent: _parseInt(json['discountPercent'] ??
           json['cashback_percent'] ??
           json['cashbackPercent']),
@@ -188,7 +186,10 @@ class ProductModel {
       'cashback': cashbackPercent,
       'stock': stock,
       'category_id': categoryId,
+      'shopId': shopId,
       'shop_id': shopId,
+      'shop': shopData ??
+          (shopId != null ? {'id': shopId, 'name': '', 'logoUrl': null} : null),
     };
   }
 }

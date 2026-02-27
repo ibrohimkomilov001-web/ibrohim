@@ -7,6 +7,7 @@ class ShopMessageModel {
   final String? senderAvatar;
   final bool isFromShop;
   final String content;
+  final String? imageUrl;
   final bool isRead;
   final DateTime createdAt;
 
@@ -18,23 +19,31 @@ class ShopMessageModel {
     this.senderAvatar,
     required this.isFromShop,
     required this.content,
+    this.imageUrl,
     this.isRead = false,
     required this.createdAt,
   });
 
   factory ShopMessageModel.fromJson(Map<String, dynamic> json) {
-    final sender = json['sender_profile'];
+    // Backend returns: { id, roomId, senderId, senderRole, message, imageUrl, isRead, createdAt,
+    //   sender: { id, fullName, avatarUrl } }
+    final sender = json['sender'] ?? json['sender_profile'];
 
     return ShopMessageModel(
-      id: json['id'],
-      conversationId: json['conversation_id'],
-      senderId: json['sender_id'],
-      senderName: sender?['full_name'],
-      senderAvatar: sender?['avatar_url'],
-      isFromShop: json['is_from_shop'] ?? false,
-      content: json['content'],
-      isRead: json['is_read'] ?? false,
-      createdAt: DateTime.parse(json['created_at']),
+      id: json['id'] ?? '',
+      conversationId: json['roomId'] ?? json['conversation_id'] ?? '',
+      senderId: json['senderId'] ?? json['sender_id'] ?? sender?['id'] ?? '',
+      senderName: sender?['fullName'] ?? sender?['full_name'],
+      senderAvatar: sender?['avatarUrl'] ?? sender?['avatar_url'],
+      isFromShop: (json['senderRole'] ?? json['is_from_shop']) == 'vendor' ||
+          json['is_from_shop'] == true,
+      content: json['message'] ?? json['content'] ?? '',
+      imageUrl: json['imageUrl'],
+      isRead: json['isRead'] ?? json['is_read'] ?? false,
+      createdAt: DateTime.parse((json['createdAt'] ??
+              json['created_at'] ??
+              DateTime.now().toIso8601String())
+          .toString()),
     );
   }
 

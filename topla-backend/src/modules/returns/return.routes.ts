@@ -60,6 +60,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
 
     return reply.send({ success: true, data: returns });

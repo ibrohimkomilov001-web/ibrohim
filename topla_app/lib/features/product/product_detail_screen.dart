@@ -1,5 +1,4 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -34,10 +33,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _selectedSizeIndex = -1;
   // ignore: unused_field
   String? _selectedVariant;
-
-  // Flash Sale timer
-  Timer? _flashSaleTimer;
-  Duration _remainingTime = Duration.zero;
 
   // Dinamik variantlar - mahsulotdan olinadi
   List<Map<String, dynamic>> _colors = [];
@@ -76,8 +71,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (shop != null && shop is Map<String, dynamic>) {
       return shop;
     }
+    // Fallback: shopId dan foydalanish
+    final shopId = widget.product['shopId'] ?? widget.product['shop_id'] ?? '';
     return {
-      'id': '',
+      'id': shopId,
       'name': 'TOPLA Market',
       'logo': '',
       'rating': 4.8,
@@ -96,9 +93,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     // Mahsulot variantlarini yuklash
     _loadProductVariants();
-
-    // Flash Sale timer boshlash
-    _initFlashSaleTimer();
   }
 
   /// Mahsulot kategoriyasi va ma'lumotlariga qarab variantlarni yuklash
@@ -231,27 +225,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Colors.grey;
   }
 
-  void _initFlashSaleTimer() {
-    final isFlashSale = widget.product['isFlashSale'] ?? false;
-    if (isFlashSale) {
-      // Demo: 5 soat qolgan
-      _remainingTime = const Duration(hours: 5, minutes: 30, seconds: 45);
-      _flashSaleTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingTime.inSeconds > 0) {
-          setState(() {
-            _remainingTime = _remainingTime - const Duration(seconds: 1);
-          });
-        } else {
-          timer.cancel();
-        }
-      });
-    }
-  }
-
   @override
   void dispose() {
     _pageController.dispose();
-    _flashSaleTimer?.cancel();
     super.dispose();
   }
 
@@ -272,7 +248,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final product = widget.product;
     final hasDiscount = product['oldPrice'] != null;
     final discountPercent = product['discount'] ?? 0;
-    final isFlashSale = product['isFlashSale'] ?? false;
     final stock = product['stock'] ?? 100;
 
     return Scaffold(
@@ -298,9 +273,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   _buildNameAndRating(product),
 
                   const SizedBox(height: 16),
-
-                  // ⚡ FLASH SALE TIMER
-                  if (isFlashSale) _buildFlashSaleTimer(),
 
                   // 💰 Price Section
                   _buildPriceSection(product, hasDiscount),
@@ -565,69 +537,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  // ============ FLASH SALE TIMER ============
-  Widget _buildFlashSaleTimer() {
-    final hours = _remainingTime.inHours;
-    final minutes = _remainingTime.inMinutes.remainder(60);
-    final seconds = _remainingTime.inSeconds.remainder(60);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF4444), Color(0xFFFF6B35)],
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Iconsax.flash_1, color: Colors.white, size: 24),
-          const SizedBox(width: 12),
-          const Text(
-            'Flash Sale tugashiga:',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Spacer(),
-          _buildTimeBox(hours.toString().padLeft(2, '0')),
-          const Text(' : ',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18)),
-          _buildTimeBox(minutes.toString().padLeft(2, '0')),
-          const Text(' : ',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18)),
-          _buildTimeBox(seconds.toString().padLeft(2, '0')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeBox(String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        value,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
       ),
     );
   }

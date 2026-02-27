@@ -22,7 +22,7 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
 
   @override
@@ -46,7 +46,11 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: widget.showBackButton,
@@ -252,8 +256,8 @@ class _OrdersScreenState extends State<OrdersScreen>
                         value: 1.0,
                         minHeight: 4,
                         backgroundColor: Colors.grey.shade100,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(AppColors.success),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.success),
                       ),
                     ),
                 ],
@@ -336,31 +340,7 @@ class _OrdersScreenState extends State<OrdersScreen>
               ),
             ),
 
-            // Action buttons
-            if (order.status == OrderStatus.pending ||
-                order.status == OrderStatus.confirmed) ...[
-              Divider(height: 1, color: Colors.grey.shade100),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => _showCancelDialog(order),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                        ),
-                        child: const Text(
-                          'Bekor qilish',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            // "Bekor qilish" tugmasi faqat detail sahifada ko'rsatiladi
           ],
         ),
       ),
@@ -390,42 +370,6 @@ class _OrdersScreenState extends State<OrdersScreen>
       case OrderStatus.cancelled:
         return 0.0;
     }
-  }
-
-  void _showCancelDialog(OrderModel order) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.translate('cancel_order')),
-        content: Text(context.l10n.translate('cancel_order_confirm')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.translate('no')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              final ordersProvider = context.read<OrdersProvider>();
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              final success = await ordersProvider.cancelOrder(order.id);
-              if (mounted && success) {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text(context.l10n.translate('order_cancelled')),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
-            child: Text(context.l10n.translate('yes_cancel')),
-          ),
-        ],
-      ),
-    );
   }
 
   Map<String, dynamic> _getStatusInfo(OrderStatus status) {

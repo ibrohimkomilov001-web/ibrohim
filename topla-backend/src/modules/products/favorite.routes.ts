@@ -25,6 +25,7 @@ export async function favoriteRoutes(app: FastifyInstance): Promise<void> {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
 
     return reply.send({ success: true, data: favorites });

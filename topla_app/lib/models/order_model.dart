@@ -73,11 +73,9 @@ class OrderModel {
       addressId: (json['address_id'] ?? json['addressId']) as String?,
       status: OrderStatus.fromString(json['status'] as String? ?? 'pending'),
       subtotal: _safeDouble(json['subtotal']),
-      deliveryFee:
-          _safeDouble(json['delivery_fee'] ?? json['deliveryFee']),
+      deliveryFee: _safeDouble(json['delivery_fee'] ?? json['deliveryFee']),
       discount: _safeDouble(json['discount']),
-      cashbackUsed:
-          _safeDouble(json['cashback_used'] ?? json['cashbackUsed']),
+      cashbackUsed: _safeDouble(json['cashback_used'] ?? json['cashbackUsed']),
       total: _safeDouble(json['total']),
       paymentMethod:
           (json['payment_method'] ?? json['paymentMethod']) as String?,
@@ -96,7 +94,9 @@ class OrderModel {
           (json['recipient_phone'] ?? json['recipientPhone']) as String?,
       deliveryMethod:
           (json['delivery_method'] ?? json['deliveryMethod']) as String?,
-      createdAt: DateTime.parse((json['created_at'] ?? json['createdAt'])),
+      createdAt: DateTime.tryParse(
+              (json['created_at'] ?? json['createdAt'] ?? '').toString()) ??
+          DateTime.now(),
       pickupPointId:
           (json['pickup_point_id'] ?? json['pickupPointId']) as String?,
       pickupCode: (json['pickup_code'] ?? json['pickupCode']) as String?,
@@ -272,11 +272,11 @@ class PickupPointModel {
 
   factory PickupPointModel.fromJson(Map<String, dynamic> json) {
     return PickupPointModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      address: json['address'] as String,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      id: (json['id'] as String?) ?? '',
+      name: (json['name'] as String?) ?? '',
+      address: (json['address'] as String?) ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       phone: json['phone'] as String?,
       workingHours: json['workingHours'] as Map<String, dynamic>?,
     );

@@ -37,6 +37,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const rooms = await prisma.chatRoom.findMany({
       where,
       orderBy: { lastMessageAt: 'desc' },
+      take: 50,
       include: {
         customer: { select: { id: true, fullName: true, avatarUrl: true, phone: true } },
         shop: { select: { id: true, name: true, logoUrl: true } },

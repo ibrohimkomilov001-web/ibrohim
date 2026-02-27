@@ -15,6 +15,7 @@ export interface RegisterRequest {
   shopName: string;
   shopDescription?: string;
   shopPhone?: string;
+  shopAddress?: string;
   category?: string;
   city?: string;
   address?: string;

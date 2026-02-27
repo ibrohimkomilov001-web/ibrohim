@@ -6,9 +6,7 @@ import '../models/models.dart';
 class VendorProvider extends ChangeNotifier {
   final IVendorRepository _vendorRepo;
 
-  VendorProvider(this._vendorRepo) {
-    _init();
-  }
+  VendorProvider(this._vendorRepo);
 
   // State
   ShopModel? _shop;
@@ -17,6 +15,7 @@ class VendorProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isProductsLoading = false;
   String? _error;
+  bool _isInitialized = false;
 
   // Getters
   ShopModel? get shop => _shop;
@@ -26,9 +25,11 @@ class VendorProvider extends ChangeNotifier {
   bool get isProductsLoading => _isProductsLoading;
   String? get error => _error;
   bool get hasShop => _shop != null;
+  bool get isInitialized => _isInitialized;
 
-  void _init() {
-    loadShop();
+  /// Birinchi marta do'konni yuklash (agar hali yuklanmagan bo'lsa)
+  Future<void> ensureLoaded() async {
+    if (!_isInitialized) await loadShop();
   }
 
   Future<void> loadShop() async {
@@ -38,6 +39,7 @@ class VendorProvider extends ChangeNotifier {
 
     try {
       _shop = await _vendorRepo.getMyShop();
+      _isInitialized = true;
       if (_shop != null) {
         await Future.wait([
           loadStats(),

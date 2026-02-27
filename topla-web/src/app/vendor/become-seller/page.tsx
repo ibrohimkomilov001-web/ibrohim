@@ -676,7 +676,7 @@ const faqItems = [
   },
   {
     q: "Mahsulotlarni omborga topshirish kerakmi?",
-    a: "Ixtiyoriy! 3 ta model mavjud:\n• FBO — TOPLA omborda saqlaydi va yetkazadi\n• FBS — o'zingiz saqlaysiz, TOPLA yetkazadi\n• DBS — o'zingiz saqlaysiz va yetkazasiz\nO'zingizga qulayini tanlang.",
+    a: "Ha, mahsulotlarni omborimizga topshirasiz — saqlash, qadoqlash va yetkazib berishni TOPLA.UZ o'zi bajaradi. Siz faqat sotishga e'tibor bering!",
   },
   {
     q: "Pul qachon hisobga tushadi?",
@@ -786,30 +786,6 @@ const steps = [
   },
 ];
 
-const models = [
-  {
-    icon: Package,
-    title: "FBO — Biz yetkazamiz",
-    desc: "Mahsulotlarni omborga topshirasiz. Biz saqlaymiz, qadoqlaymiz va yetkazamiz.",
-    tag: "Mashhur",
-    color: "border-green-200 dark:border-green-800",
-  },
-  {
-    icon: Truck,
-    title: "FBS — Siz saqlaysiz, biz yetkazamiz",
-    desc: "Mahsulotlar sizda saqlanadi. Sortlash markaziga olib kelasiz, biz yetkazamiz.",
-    tag: "Moslashuvchan",
-    color: "border-blue-200 dark:border-blue-800",
-  },
-  {
-    icon: Zap,
-    title: "Express — Tezkor",
-    desc: "1 soatda yig'asiz, biz 1-2 soatda xaridorga yetkazamiz.",
-    tag: "Tez",
-    color: "border-orange-200 dark:border-orange-800",
-  },
-];
-
 const testimonials = [
   {
     name: "Aziz Karimov",
@@ -848,10 +824,10 @@ export default function BecomeSellerPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ━━━ NAVBAR ━━━ */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? 'bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg'
-          : 'bg-white backdrop-blur-md shadow-sm'
+          ? 'bg-white/60 backdrop-blur-2xl border-b border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.08)]'
+          : 'bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
@@ -1174,26 +1150,34 @@ export default function BecomeSellerPage() {
         </div>
       </section>
 
-      {/* ━━━ DELIVERY MODELS ━━━ */}
+      {/* ━━━ YETKAZIB BERISH ━━━ */}
       <section className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
-            className="text-center mb-14"
+            className="text-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold mb-4 dark:bg-orange-950 dark:text-orange-400">
-              <Truck className="h-3.5 w-3.5" /> ISHLASH MODELLARI
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold mb-4 dark:bg-green-950 dark:text-green-400">
+              <Truck className="h-3.5 w-3.5" /> YETKAZIB BERISH
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              O&apos;zingizga qulay{" "}
-              <span className="text-[#2563EB]">modelni tanlang</span>
+              TOPLA<span className="text-[#2563EB]">.UZ</span> o&apos;zi{" "}
+              <span className="text-[#2563EB]">yetkazib beradi</span>
             </h2>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-base sm:text-lg">
+              Mahsulotlaringizni omborga topshiring — saqlash, qadoqlash va yetkazib berishni biz o&apos;z zimmamizga olamiz.
+              Siz faqat sotishga e&apos;tibor bering!
+            </p>
           </motion.div>
 
-          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {models.map((m, i) => (
+          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto mt-12">
+            {[
+              { icon: Package, title: "Qabul qilamiz", desc: "Mahsulotlarni omborimizga topshirasiz", color: "border-green-200 dark:border-green-800" },
+              { icon: Package, title: "Saqlaymiz va qadoqlaymiz", desc: "Professional saqlash va qadoqlash", color: "border-blue-200 dark:border-blue-800" },
+              { icon: Truck, title: "Yetkazamiz", desc: "Xaridorga tez va ishonchli yetkazib beramiz", color: "border-orange-200 dark:border-orange-800" },
+            ].map((m, i) => (
               <motion.div
                 key={m.title}
                 initial={{ opacity: 0, y: 25 }}
@@ -1204,11 +1188,8 @@ export default function BecomeSellerPage() {
                 <Card
                   className={`h-full hover:shadow-xl transition-all duration-300 border-2 ${m.color} relative overflow-hidden group`}
                 >
-                  <CardContent className="p-6 pt-10">
-                    <span className="absolute top-3 right-3 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#2563EB]/10 text-[#2563EB]">
-                      {m.tag}
-                    </span>
-                    <div className="h-12 w-12 rounded-xl bg-[#2563EB]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <CardContent className="p-6 text-center">
+                    <div className="h-12 w-12 rounded-xl bg-[#2563EB]/10 flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform">
                       <m.icon className="h-6 w-6 text-[#2563EB]" />
                     </div>
                     <h3 className="font-bold mb-2">{m.title}</h3>
@@ -1424,60 +1405,6 @@ export default function BecomeSellerPage() {
                 ))}
               </CardContent>
             </Card>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ━━━ CTA ━━━ */}
-      <section className="py-20 sm:py-28 bg-[#2563EB] relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-white/5 rounded-full blur-3xl" />
-        </div>
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white mb-4">
-              Sizning tarixingiz hozir boshlanadi
-            </h2>
-            <p className="text-blue-100 mb-10 text-lg max-w-2xl mx-auto">
-              TOPLA.UZ ga bugun qo&apos;shiling — ertaga eng yaxshi
-              sotuvchiga aylaning
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                size="lg"
-                asChild
-                className="rounded-full text-base px-10 h-12 bg-white text-[#2563EB] hover:bg-blue-50 shadow-xl font-bold"
-              >
-                <Link href="/vendor/register">
-                  Sotuvchi bo&apos;lish
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                asChild
-                className="rounded-full text-base px-10 h-12 border-2 border-white text-white hover:bg-white/20 font-bold bg-transparent"
-              >
-                <Link href="/vendor/login">Kabinetga kirish</Link>
-              </Button>
-            </div>
-            <p className="mt-8 text-blue-200 text-sm flex items-center justify-center gap-4 flex-wrap">
-              <span className="flex items-center gap-1">
-                <CheckCircle className="h-4 w-4" /> Bepul ro&apos;yxat
-              </span>
-              <span className="flex items-center gap-1">
-                <CheckCircle className="h-4 w-4" /> Oylik to&apos;lov
-                yo&apos;q
-              </span>
-              <span className="flex items-center gap-1">
-                <CheckCircle className="h-4 w-4" /> 5 daqiqada
-              </span>
-            </p>
           </motion.div>
         </div>
       </section>

@@ -3,8 +3,9 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
 import '../../models/order_model.dart';
 import '../../services/vendor_service.dart';
+import 'vendor_order_detail_screen.dart';
 
-/// Vendor - Buyurtmalar ro'yxati
+/// Vendor - Buyurtmalar ro'yxati (tab filter + detail navigation)
 class VendorOrdersScreen extends StatefulWidget {
   const VendorOrdersScreen({super.key});
 
@@ -12,26 +13,66 @@ class VendorOrdersScreen extends StatefulWidget {
   State<VendorOrdersScreen> createState() => _VendorOrdersScreenState();
 }
 
-class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
+class _VendorOrdersScreenState extends State<VendorOrdersScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   List<OrderModel> _orders = [];
   bool _isLoading = true;
+  String? _statusFilter;
+
+  static const _tabs = [
+    {'label': 'Barchasi', 'status': null},
+    {'label': 'Yangi', 'status': 'pending'},
+    {'label': 'Tasdiqlangan', 'status': 'confirmed'},
+    {'label': 'Tayyorlanmoqda', 'status': 'processing'},
+    {'label': 'Tayyor', 'status': 'ready_for_pickup'},
+    {'label': 'Yetkazildi', 'status': 'delivered'},
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadOrders();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    final newStatus = _tabs[_tabController.index]['status'];
+    if (newStatus != _statusFilter) {
+      _statusFilter = newStatus;
+      _loadOrders();
+    }
   }
 
   Future<void> _loadOrders() async {
     setState(() => _isLoading = true);
     try {
-      final orders = await VendorService.getMyOrders();
+      final orders = await VendorService.getMyOrders(status: _statusFilter);
       setState(() => _orders = orders);
     } catch (e) {
       debugPrint('Error loading orders: $e');
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _openOrderDetail(OrderModel order) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VendorOrderDetailScreen(order: order),
+      ),
+    );
+    // Return dan keyin ro'yxatni yangilash
+    _loadOrders();
   }
 
   @override
@@ -41,6 +82,18 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
         title: const Text('Buyurtmalarim'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          tabAlignment: TabAlignment.start,
+          tabs: _tabs.map((t) => Tab(text: t['label'] as String)).toList(),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -78,69 +131,94 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
   Widget _buildOrderCard(OrderModel order) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '#${order.orderNumber}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+      child: InkWell(
+        onTap: () => _openOrderDetail(order),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '#${order.orderNumber}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                _buildStatusChip(order.status),
-              ],
-            ),
-            const Divider(height: 24),
-            ...order.items.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Text(
-                      item.productName,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'x${item.quantity}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      '${item.total.toStringAsFixed(0)} so\'m',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ],
+                  _buildStatusChip(order.status),
+                ],
+              ),
+              const Divider(height: 24),
+              ...order.items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        item.productName,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'x${item.quantity}',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        '${item.total.toStringAsFixed(0)} so\'m',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _formatDate(order.createdAt),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
+              const Divider(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _formatDate(order.createdAt),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  Text(
+                    '${order.total.toStringAsFixed(0)} so\'m',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              // Quick action hint
+              if (order.status == OrderStatus.pending ||
+                  order.status == OrderStatus.confirmed ||
+                  order.status == OrderStatus.processing)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(Iconsax.arrow_right_3,
+                          size: 16, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text('Boshqarish',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          )),
+                    ],
                   ),
                 ),
-                Text(
-                  '${order.total.toStringAsFixed(0)} so\'m',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

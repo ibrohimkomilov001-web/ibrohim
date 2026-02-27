@@ -27,7 +27,6 @@ class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  final LayerLink _layerLink = LayerLink();
 
   List<ProductModel> _searchResults = [];
   bool _isSearching = false;
@@ -156,9 +155,8 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   void _showSuggestionOverlay() {
-    _removeSuggestionOverlay();
-    _overlayEntry = OverlayEntry(builder: (_) => _buildSuggestionOverlay());
-    Overlay.of(context).insert(_overlayEntry!);
+    // Suggestions are now shown inline in the body, no overlay needed
+    setState(() {});
   }
 
   void _removeSuggestionOverlay() {
@@ -296,10 +294,7 @@ class _SearchScreenState extends State<SearchScreen>
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: CompositedTransformTarget(
-          link: _layerLink,
-          child: _buildSearchField(isRu),
-        ),
+        title: _buildSearchField(isRu),
         actions: [
           if (_hasSearched && _searchResults.isNotEmpty)
             IconButton(
@@ -364,80 +359,82 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildSuggestionOverlay() {
-    final isRu = context.l10n.locale.languageCode == 'ru';
-    return Positioned.fill(
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: _removeSuggestionOverlay,
-        child: Stack(
-          children: [
-            CompositedTransformFollower(
-              link: _layerLink,
-              showWhenUnlinked: false,
-              offset: const Offset(0, 48),
-              child: Material(
-                elevation: 4,
-                shadowColor: Colors.black26,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width - 72,
-                    maxHeight: 260,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey.shade200,
-                    ),
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: _suggestions.length,
-                    itemBuilder: (context, index) {
-                      final item = _suggestions[index];
-                      final name = isRu
-                          ? (item['nameRu'] ?? item['name'] ?? '')
-                          : (item['name'] ?? '');
+  Widget _buildInlineSuggestions(bool isRu) {
+    final query = _searchController.text.trim().toLowerCase();
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: _suggestions.length,
+      separatorBuilder: (_, __) => Divider(
+        height: 1,
+        color: Colors.grey.shade200,
+      ),
+      itemBuilder: (context, index) {
+        final item = _suggestions[index];
+        final name = isRu
+            ? (item['nameRu'] ?? item['name'] ?? '')
+            : (item['name'] ?? '');
 
-                      return InkWell(
-                        onTap: () {
-                          _searchController.text = name;
-                          _showClearButton = true;
-                          _removeSuggestionOverlay();
-                          _performSearch(name);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 10),
-                          child: Row(
-                            children: [
-                              Icon(Iconsax.search_normal,
-                                  size: 16, color: Colors.grey.shade400),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                              Icon(Icons.north_west,
-                                  size: 14, color: Colors.grey.shade400),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],
+        return InkWell(
+          onTap: () {
+            _searchController.text = name;
+            _searchController.selection = TextSelection.fromPosition(
+              TextPosition(offset: name.length),
+            );
+            _showClearButton = true;
+            _removeSuggestionOverlay();
+            _performSearch(name);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: _buildHighlightedText(name, query),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHighlightedText(String text, String query) {
+    if (query.isEmpty) {
+      return Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 15),
+      );
+    }
+
+    final lowerText = text.toLowerCase();
+    final matchIndex = lowerText.indexOf(query);
+
+    if (matchIndex == -1) {
+      return Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 15),
+      );
+    }
+
+    final before = text.substring(0, matchIndex);
+    final match = text.substring(matchIndex, matchIndex + query.length);
+    final after = text.substring(matchIndex + query.length);
+
+    return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: TextStyle(
+          fontSize: 15,
+          color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
         ),
+        children: [
+          if (before.isNotEmpty) TextSpan(text: before),
+          TextSpan(
+            text: match,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          if (after.isNotEmpty) TextSpan(text: after),
+        ],
       ),
     );
   }
@@ -458,6 +455,11 @@ class _SearchScreenState extends State<SearchScreen>
     }
 
     if (_hasSearched) return _buildSearchResults(isRu);
+
+    // Show inline suggestions if available
+    if (_showSuggestions && _suggestions.isNotEmpty) {
+      return _buildInlineSuggestions(isRu);
+    }
 
     return _buildSuggestionsPage(isRu);
   }
@@ -623,18 +625,7 @@ class _SearchScreenState extends State<SearchScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => ProductDetailScreen(
-                        product: {
-                          'id': product.id,
-                          'name': product.getName(locale),
-                          'price': product.price,
-                          'oldPrice': product.oldPrice,
-                          'discount': product.discountPercent,
-                          'rating': product.rating,
-                          'sold': product.soldCount,
-                          'image': product.firstImage,
-                          'cashback': product.cashbackPercent,
-                          'description': product.getDescription(locale),
-                        },
+                        product: product.toMap(),
                       ),
                     ),
                   );

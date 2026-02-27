@@ -150,6 +150,9 @@ model Profile {
   supportTicket   SupportTicket?
   supportMessages SupportMessage[] @relation("SupportSender")
 
+  @@index([role, status])
+  @@index([phone])
+  @@index([createdAt(sort: Desc)])
   @@map("profiles")
 }
 
@@ -270,12 +273,14 @@ model Shop {
 }
 
 model ShopReview {
-  id        String   @id @default(uuid()) @db.Uuid
-  shopId    String   @map("shop_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  rating    Int      // 1-5
-  comment   String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String    @id @default(uuid()) @db.Uuid
+  shopId         String    @map("shop_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  rating         Int       // 1-5
+  comment        String?
+  vendorReply    String?   @map("vendor_reply")
+  vendorRepliedAt DateTime? @map("vendor_replied_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   shop Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -336,6 +341,7 @@ model Subcategory {
   category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   products Product[]
 
+  @@index([categoryId, isActive])
   @@map("subcategories")
 }
 
@@ -426,12 +432,16 @@ model Product {
   productReviews ProductReview[]
 
   @@index([shopId])
+  @@index([shopId, isActive, status])
   @@index([categoryId])
+  @@index([categoryId, isActive, status])
+  @@index([subcategoryId, isActive, status])
   @@index([price])
   @@index([status])
   @@index([qualityScore(sort: Desc)])
   @@index([isActive, isFeatured])
-  @@index([subcategoryId])
+  @@index([isActive, status, createdAt(sort: Desc)])
+  @@index([isFlashSale, flashSaleEnd])
   @@index([brandId])
   @@map("products")
 }
@@ -581,9 +591,12 @@ model Order {
   returns        Return[]
 
   @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
   @@index([courierId, status])
   @@index([status, createdAt])
+  @@index([createdAt(sort: Desc)])
   @@index([pickupPointId])
+  @@index([paymentStatus])
   @@map("orders")
 }
 
@@ -604,6 +617,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([shopId])
+  @@index([shopId, orderId])
   @@index([productId])
   @@map("order_items")
 }
@@ -860,6 +874,7 @@ model SavedCard {
 model PromoCode {
   id             String   @id @default(uuid()) @db.Uuid
   code           String   @unique
+  shopId         String?  @map("shop_id") @db.Uuid
   discountType   DiscountType @map("discount_type") // percentage, fixed
   discountValue  Decimal  @map("discount_value") @db.Decimal(12, 2)
   minOrderAmount Decimal? @map("min_order_amount") @db.Decimal(12, 2)
@@ -871,6 +886,7 @@ model PromoCode {
 
   usages PromoCodeUsage[]
 
+  @@index([shopId])
   @@map("promo_codes")
 }
 
@@ -978,6 +994,7 @@ model ChatRoom {
 
   @@unique([customerId, shopId])
   @@index([shopId, lastMessageAt(sort: Desc)])
+  @@index([customerId, lastMessageAt(sort: Desc)])
   @@map("chat_rooms")
 }
 
@@ -1049,6 +1066,7 @@ model VendorDocument {
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
+  @@index([shopId, status])
   @@map("vendor_documents")
 }
 
@@ -1132,6 +1150,8 @@ model Return {
 
   @@index([userId])
   @@index([orderId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
   @@map("returns")
 }
 

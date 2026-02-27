@@ -5,7 +5,9 @@ import { authMiddleware, requireRole, optionalAuth } from '../../middleware/auth
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { validateProduct, calculateQualityScore } from '../../services/product-validation.service.js';
 import { indexProduct, removeProductFromIndex, searchProducts } from '../../services/search.service.js';
+import { enqueueSearchIndex } from '../../services/queue.service.js';
 import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js';
+import { CacheKeys } from '../../utils/constants.js';
 
 // ============================================
 // Validation Schemas
@@ -50,7 +52,7 @@ const productFilterSchema = z.object({
   hasDiscount: z.coerce.boolean().optional(),
   sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'popular', 'rating']).optional(),
   page: z.coerce.number().default(1),
-  limit: z.coerce.number().default(20),
+  limit: z.coerce.number().min(1).max(100).default(20),
 });
 
 // ============================================
@@ -68,7 +70,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
    * Mashhur qidiruv so'zlari (top 10)
    */
   app.get('/search/popular', async (_request, reply) => {
-    const cached = await cacheGet<any>('search:popular');
+    const cached = await cacheGet<any>(CacheKeys.SEARCH_POPULAR);
     if (cached) return reply.send({ success: true, data: cached });
 
     const popular = await prisma.searchQuery.findMany({
@@ -77,7 +79,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       select: { query: true, count: true },
     });
 
-    await cacheSet('search:popular', popular, 300); // 5 min
+    await cacheSet(CacheKeys.SEARCH_POPULAR, popular, 300); // 5 min
     return reply.send({ success: true, data: popular });
   });
 
@@ -183,7 +185,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }).catch(() => {});
 
     // Build Meilisearch filters
-    const filters: string[] = ['status = active', 'stock > 0'];
+    const filters: string[] = ['status = active'];
     if (params.categoryId) filters.push(`categoryId = "${params.categoryId}"`);
     if (params.shopId) filters.push(`shopId = "${params.shopId}"`);
     if (params.minPrice !== undefined) filters.push(`price >= ${params.minPrice}`);
@@ -229,7 +231,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const where: any = {
       isActive: true,
       status: 'active',
-      stock: { gt: 0 },
       OR: [
         { name: { contains: params.q, mode: 'insensitive' } },
         { nameUz: { contains: params.q, mode: 'insensitive' } },
@@ -346,6 +347,13 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     const skip = (filters.page - 1) * filters.limit;
 
+    // Cache: mahsulotlar ro'yxati (60 sek)
+    const prodCacheKey = `products:${JSON.stringify({w: where, o: orderBy, s: skip, l: filters.limit})}`;
+    const cachedProducts = await cacheGet<any>(prodCacheKey);
+    if (cachedProducts) {
+      return reply.send(cachedProducts);
+    }
+
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
@@ -363,7 +371,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       prisma.product.count({ where }),
     ]);
 
-    return reply.send({
+    const prodResponse = {
       success: true,
       data: {
         products,
@@ -374,7 +382,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           totalPages: Math.ceil(total / filters.limit),
         },
       },
-    });
+    };
+
+    cacheSet(prodCacheKey, prodResponse, 60).catch(() => {});
+    return reply.send(prodResponse);
   });
 
   /**
@@ -385,6 +396,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   app.get('/products/featured', async (request, reply) => {
     const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(100).default(20) }).parse(request.query);
 
+    // Cache: featured mahsulotlar (120 sek)
+    const featCacheKey = `products:featured:${limit}`;
+    const cachedFeat = await cacheGet<any>(featCacheKey);
+    if (cachedFeat) return reply.send(cachedFeat);
+
     const products = await prisma.product.findMany({
       where: { isActive: true, isFeatured: true },
       include: {
@@ -394,13 +410,16 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       take: limit,
     });
 
-    return reply.send({
+    const featResponse = {
       success: true,
       data: {
         products,
         pagination: { page: 1, limit, total: products.length, totalPages: 1 },
       },
-    });
+    };
+
+    cacheSet(featCacheKey, featResponse, 120).catch(() => {});
+    return reply.send(featResponse);
   });
 
   /**
@@ -410,18 +429,25 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   app.get('/products/:id', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        shop: {
-          select: { id: true, name: true, logoUrl: true, rating: true, reviewCount: true, phone: true },
+    // Cache: mahsulot tafsilotlari (60 sek)
+    const prodDetailKey = `product:detail:${id}`;
+    let product = await cacheGet<any>(prodDetailKey);
+
+    if (!product) {
+      product = await prisma.product.findUnique({
+        where: { id },
+        include: {
+          shop: {
+            select: { id: true, name: true, logoUrl: true, rating: true, reviewCount: true, phone: true },
+          },
+          category: true,
+          subcategory: true,
+          brand: true,
+          color: true,
         },
-        category: true,
-        subcategory: true,
-        brand: true,
-        color: true,
-      },
-    });
+      });
+      if (product) cacheSet(prodDetailKey, product, 60).catch(() => {});
+    }
 
     if (!product) throw new NotFoundError('Mahsulot');
 
@@ -522,7 +548,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // Redis cache — 5 daqiqa (kategoriyalar kamdan-kam o'zgaradi)
-    const cached = await cacheGet<any>('categories:all');
+    const cached = await cacheGet<any>(CacheKeys.CATEGORIES_ALL);
     if (cached) return reply.send({ success: true, data: cached });
 
     const categories = await prisma.category.findMany({
@@ -537,7 +563,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { sortOrder: 'asc' },
     });
 
-    await cacheSet('categories:all', categories, 300); // 5 min
+    await cacheSet(CacheKeys.CATEGORIES_ALL, categories, 300); // 5 min
     return reply.send({ success: true, data: categories });
   });
 
@@ -567,7 +593,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get('/brands', async (request, reply) => {
     const { categoryId } = request.query as { categoryId?: string };
-    const cacheKey = categoryId ? `brands:cat:${categoryId}` : 'brands:all';
+    const cacheKey = categoryId ? CacheKeys.brandsForCategory(categoryId) : CacheKeys.BRANDS_ALL;
 
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return reply.send({ success: true, data: cached });
@@ -590,11 +616,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
    * GET /colors
    */
   app.get('/colors', async (request, reply) => {
-    const cached = await cacheGet<any>('colors:all');
+    const cached = await cacheGet<any>(CacheKeys.COLORS_ALL);
     if (cached) return reply.send({ success: true, data: cached });
 
     const colors = await prisma.color.findMany({ orderBy: { nameUz: 'asc' } });
-    await cacheSet('colors:all', colors, 600); // 10 min
+    await cacheSet(CacheKeys.COLORS_ALL, colors, 600); // 10 min
     return reply.send({ success: true, data: colors });
   });
 
@@ -680,9 +706,9 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Index in Meilisearch if active
+      // Index in Meilisearch if active (via BullMQ — non-blocking)
       if (status === 'active') {
-        try { await indexProduct(product); } catch (e) { /* non-blocking */ }
+        enqueueSearchIndex({ type: 'index_product', product }).catch(() => {});
       }
 
       // Create moderation log
@@ -707,6 +733,17 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       });
     },
   );
+
+  // Cache invalidation helper (SCAN-based, production-safe)
+  async function invalidateProductCaches(productId?: string) {
+    try {
+      const { cacheDeletePattern } = await import('../../config/redis.js');
+      // Delete specific product cache
+      if (productId) await cacheDelete(`product:detail:${productId}`);
+      // Delete list/featured caches (SCAN-based pattern)
+      await cacheDeletePattern('products:*');
+    } catch { /* non-blocking */ }
+  }
 
   /**
    * PUT /vendor/products/:id
@@ -771,14 +808,12 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Update Meilisearch index
-      try {
-        if (status === 'active') {
-          await indexProduct(updated);
-        } else {
-          await removeProductFromIndex(id);
-        }
-      } catch (e) { /* non-blocking */ }
+      // Update Meilisearch index (via BullMQ — non-blocking)
+      if (status === 'active') {
+        enqueueSearchIndex({ type: 'index_product', product: updated }).catch(() => {});
+      } else {
+        enqueueSearchIndex({ type: 'remove_product', productId: id }).catch(() => {});
+      }
 
       // Create moderation log
       await prisma.productModerationLog.create({
@@ -788,6 +823,9 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           reason: `Qayta tekshirildi. Status: ${status}, Sifat: ${qualityScore}/100`,
         },
       });
+
+      // Invalidate caches
+      invalidateProductCaches(id).catch(() => {});
 
       return reply.send({
         success: true,
@@ -820,8 +858,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         where: { id, shopId: shop.id },
       });
 
-      // Remove from search index
-      try { await removeProductFromIndex(id); } catch (e) { /* non-blocking */ }
+      // Remove from search index (via BullMQ — non-blocking)
+      enqueueSearchIndex({ type: 'remove_product', productId: id }).catch(() => {});
+
+      // Invalidate caches
+      invalidateProductCaches(id).catch(() => {});
 
       return reply.send({ success: true });
     },
