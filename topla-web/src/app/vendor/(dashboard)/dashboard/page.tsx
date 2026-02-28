@@ -102,17 +102,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Bugungi holat va statistika</p>
-        </div>
-        <Button asChild className="rounded-full">
-          <Link href="/vendor/products/new">
-            <Package className="mr-2 h-4 w-4" />
-            Mahsulot qo&apos;shish
-          </Link>
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Bugungi holat va statistika</p>
       </div>
 
       {/* Stats Grid */}
@@ -208,15 +200,6 @@ export default function DashboardPage() {
             <CardTitle className="text-lg">Tezkor amallar</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
-              <Link href="/vendor/products/new">
-                <Package className="mr-3 h-5 w-5 text-primary" />
-                <div className="text-left">
-                  <div className="text-sm font-medium">Mahsulot qo&apos;shish</div>
-                  <div className="text-xs text-muted-foreground">Yangi mahsulot yuklash</div>
-                </div>
-              </Link>
-            </Button>
             <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
               <Link href="/vendor/orders">
                 <ShoppingCart className="mr-3 h-5 w-5 text-orange-500" />
