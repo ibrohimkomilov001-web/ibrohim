@@ -27,6 +27,7 @@ import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice, formatDateTime } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
+import Link from "next/link";
 import {
   Search,
   ShoppingCart,
@@ -136,7 +137,9 @@ export default function OrdersPage() {
                 <SelectItem value="all">Barchasi</SelectItem>
                 <SelectItem value="pending">Kutilmoqda</SelectItem>
                 <SelectItem value="confirmed">Tasdiqlangan</SelectItem>
-                <SelectItem value="preparing">Tayyorlanmoqda</SelectItem>
+                <SelectItem value="processing">Tayyorlanmoqda</SelectItem>
+                <SelectItem value="ready_for_pickup">Tayyor</SelectItem>
+                <SelectItem value="courier_assigned">Kuryer tayinlangan</SelectItem>
                 <SelectItem value="shipping">Yetkazilmoqda</SelectItem>
                 <SelectItem value="delivered">Yetkazildi</SelectItem>
                 <SelectItem value="cancelled">Bekor qilindi</SelectItem>
@@ -191,7 +194,7 @@ export default function OrdersPage() {
                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            {order.customerName || "Mijoz"}
+                            {order.user?.fullName || order.customerName || "Mijoz"}
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
@@ -200,9 +203,9 @@ export default function OrdersPage() {
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="font-bold">{formatPrice(order.total || 0)}</div>
+                        <div className="font-bold">{formatPrice(order.totalAmount || order.total || 0)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {order.itemCount || 1} ta mahsulot
+                          {order.items?.length || order.itemCount || 1} ta mahsulot
                         </div>
                       </div>
                     </div>
@@ -310,18 +313,18 @@ export default function OrdersPage() {
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
-                      {selectedOrder.customerName || "Noma'lum"}
+                      {selectedOrder.user?.fullName || selectedOrder.customerName || "Noma'lum"}
                     </div>
-                    {selectedOrder.customerPhone && (
+                    {(selectedOrder.user?.phone || selectedOrder.customerPhone) && (
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
-                        {selectedOrder.customerPhone}
+                        {selectedOrder.user?.phone || selectedOrder.customerPhone}
                       </div>
                     )}
-                    {selectedOrder.deliveryAddress && (
+                    {(selectedOrder.address?.fullAddress || selectedOrder.deliveryAddress) && (
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {selectedOrder.deliveryAddress}
+                        {selectedOrder.address?.fullAddress || selectedOrder.deliveryAddress}
                       </div>
                     )}
                   </div>
@@ -350,11 +353,16 @@ export default function OrdersPage() {
                 {/* Total */}
                 <div className="flex items-center justify-between font-bold">
                   <span>Jami:</span>
-                  <span className="text-primary">{formatPrice(selectedOrder.total || 0)}</span>
+                  <span className="text-primary">{formatPrice(selectedOrder.totalAmount || selectedOrder.total || 0)}</span>
                 </div>
               </div>
 
               <DialogFooter className="gap-2">
+                <Button variant="outline" className="rounded-full" asChild>
+                  <Link href={`/vendor/orders/${selectedOrder.id}`}>
+                    Batafsil ko&apos;rish
+                  </Link>
+                </Button>
                 {selectedOrder.status === "pending" && (
                   <Button
                     variant="destructive"

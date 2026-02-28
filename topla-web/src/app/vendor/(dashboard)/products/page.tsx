@@ -84,7 +84,7 @@ export default function ProductsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
-      vendorApi.updateProduct(id, { isActive: active }),
+      vendorApi.toggleProductActive(id, active),
     onSuccess: () => {
       toast.success("Mahsulot yangilandi");
       queryClient.invalidateQueries({ queryKey: ["vendor-products"] });
@@ -180,8 +180,8 @@ export default function ProductsPage() {
                         <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
                       </div>
                     )}
-                    {/* Actions overlay */}
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Actions */}
+                    <div className="absolute top-2 right-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow">

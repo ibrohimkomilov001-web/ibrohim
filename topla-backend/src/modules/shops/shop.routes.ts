@@ -241,6 +241,12 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const body = createShopSchema.partial().parse(request.body);
 
+      // Ownership tekshiruvi — do'kon mavjudligini tekshirish
+      const existingShop = await prisma.shop.findUnique({
+        where: { ownerId: request.user!.userId },
+      });
+      if (!existingShop) throw new NotFoundError('Do\'kon');
+
       const shop = await prisma.shop.update({
         where: { ownerId: request.user!.userId },
         data: body,

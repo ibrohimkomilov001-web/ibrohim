@@ -61,8 +61,8 @@ export async function createPromoCode(data: Partial<PromoCode>): Promise<void> {
   });
 }
 
-export async function togglePromoCodeStatus(id: string, currentIsActive: boolean): Promise<void> {
-  await apiUpdatePromoCode(id, { isActive: !currentIsActive });
+export async function togglePromoCodeStatus(id: string, newIsActive: boolean): Promise<void> {
+  await apiUpdatePromoCode(id, { isActive: newIsActive });
 }
 
 export async function deletePromoCode(id: string): Promise<void> {

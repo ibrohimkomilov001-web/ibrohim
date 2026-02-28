@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AnimatePresence, motion } from "framer-motion";
 import { authApi } from "@/lib/api/auth";
 import { setToken } from "@/lib/api/client";
+import api from "@/lib/api/client";
 import {
   Loader2,
   CheckCircle,
@@ -63,6 +64,9 @@ const categories = [
   "Qurilish",
 ];
 
+// Fallback categories (used if API fails)
+const fallbackCategories = categories;
+
 const businessTypes = [
   { value: "individual", label: "Jismoniy shaxs" },
   { value: "sole_proprietor", label: "Yakka tartibdagi tadbirkor (YaTT)" },
@@ -81,6 +85,20 @@ export default function VendorRegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>(fallbackCategories);
+
+  // Fetch categories from API
+  useEffect(() => {
+    api.get<any[]>('/categories')
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setDynamicCategories(data.map((c: any) => c.nameUz || c.name).filter(Boolean));
+        }
+      })
+      .catch(() => {
+        // Use fallback categories silently
+      });
+  }, []);
 
   // Step 1: Personal Info
   const [fullName, setFullName] = useState("");
@@ -494,7 +512,7 @@ export default function VendorRegisterPage() {
                             <SelectValue placeholder="Tanlang" />
                           </SelectTrigger>
                           <SelectContent>
-                            {categories.map((c) => (
+                            {dynamicCategories.map((c) => (
                               <SelectItem key={c} value={c}>
                                 {c}
                               </SelectItem>

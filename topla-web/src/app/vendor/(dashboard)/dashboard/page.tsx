@@ -186,7 +186,7 @@ export default function DashboardPage() {
                         Buyurtma #{order.orderNumber || order.id?.slice(-6)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {order.itemCount || 1} ta mahsulot • {formatPrice(order.total || 0)}
+                        {order.items?.length || order.itemCount || 1} ta mahsulot • {formatPrice(order.totalAmount || order.total || 0)}
                       </p>
                     </div>
                     <OrderStatusBadge status={order.status} />

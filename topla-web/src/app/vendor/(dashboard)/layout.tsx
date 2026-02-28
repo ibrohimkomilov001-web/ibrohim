@@ -42,8 +42,10 @@ import {
   Star,
   X,
   MessageCircle,
+  Tag,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { NotificationBell } from "./components/NotificationBell";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/vendor/dashboard" },
@@ -53,6 +55,7 @@ const sidebarItems = [
   { icon: Wallet, label: "Hisobim", href: "/vendor/balance" },
   { icon: BarChart3, label: "Statistika", href: "/vendor/analytics" },
   { icon: Star, label: "Sharhlar", href: "/vendor/reviews" },
+  { icon: Tag, label: "Promo kodlar", href: "/vendor/promo-codes" },
   { icon: FileText, label: "Hujjatlar", href: "/vendor/documents" },
   { icon: Settings, label: "Sozlamalar", href: "/vendor/settings" },
   { icon: HelpCircle, label: "Yordam", href: "/vendor/help" },
@@ -249,12 +252,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
 
-            <Button variant="ghost" size="icon" className="relative rounded-full">
-              <Bell className="h-5 w-5" />
-              {pendingOrders > 0 && (
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-              )}
-            </Button>
+            <NotificationBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

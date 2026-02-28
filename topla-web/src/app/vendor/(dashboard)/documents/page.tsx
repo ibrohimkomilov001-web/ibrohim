@@ -59,12 +59,15 @@ export default function DocumentsPage() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async ({ type, file }: { type: string; file: File }) => {
+    mutationFn: async ({ type, file, existingId }: { type: string; file: File; existingId?: string }) => {
       const uploadResult = await uploadApi.uploadImage(file);
       const formData = new FormData();
       formData.append("type", type);
       formData.append("fileUrl", uploadResult.url);
       formData.append("fileName", file.name);
+      if (existingId) {
+        return vendorApi.reuploadDocument(existingId, formData);
+      }
       return vendorApi.uploadDocument(formData);
     },
     onSuccess: () => {
@@ -93,7 +96,8 @@ export default function DocumentsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingType(type);
-    uploadMutation.mutate({ type, file });
+    const existingDoc = getDocumentStatus(type);
+    uploadMutation.mutate({ type, file, existingId: existingDoc?.id });
   };
 
   const getDocumentStatus = (type: string) => {

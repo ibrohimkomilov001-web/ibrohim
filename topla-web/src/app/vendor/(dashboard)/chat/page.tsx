@@ -15,16 +15,20 @@ interface ChatRoom {
   lastMessage?: string;
   lastMessageAt?: string;
   unreadCount?: number;
-  customer?: { id: string; firstName: string; lastName?: string; avatarUrl?: string };
+  customer?: { id: string; fullName: string; avatarUrl?: string; phone?: string };
+  messages?: { message: string; createdAt: string; senderRole: string; isRead: boolean }[];
 }
 
 interface ChatMessage {
   id: string;
-  content: string;
+  message: string;
+  content?: string;
   senderId: string;
-  senderType: string;
+  senderRole: string;
+  senderType?: string;
   isRead: boolean;
   createdAt: string;
+  sender?: { id: string; fullName: string; avatarUrl?: string };
 }
 
 /* ── Room List Panel ── */
@@ -87,7 +91,7 @@ function RoomList({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <p className="font-medium text-sm">
-                {room.customer?.firstName} {room.customer?.lastName || ''}
+                {room.customer?.fullName || 'Mijoz'}
               </p>
               {room.lastMessageAt && (
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -96,8 +100,8 @@ function RoomList({
                 </span>
               )}
             </div>
-            {room.lastMessage && (
-              <p className="text-xs text-muted-foreground truncate mt-0.5">{room.lastMessage}</p>
+            {room.messages?.[0]?.message && (
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{room.messages[0].message}</p>
             )}
           </div>
         </button>
@@ -150,7 +154,7 @@ function ChatPanel({
         </div>
         <div>
           <p className="font-semibold text-sm">
-            {room.customer?.firstName} {room.customer?.lastName || ''}
+            {room.customer?.fullName || 'Mijoz'}
           </p>
           <p className="text-xs text-muted-foreground">
             {room.status === 'active' ? 'Faol' : 'Yopilgan'}
@@ -161,7 +165,7 @@ function ChatPanel({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((msg) => {
-          const isVendor = msg.senderType === 'vendor';
+          const isVendor = msg.senderRole === 'vendor' || msg.senderType === 'vendor';
           return (
             <div key={msg.id} className={`flex ${isVendor ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
@@ -169,7 +173,7 @@ function ChatPanel({
                   ? 'bg-primary text-primary-foreground rounded-br-md'
                   : 'bg-muted rounded-bl-md'
               }`}>
-                <p className="text-sm">{msg.content}</p>
+                <p className="text-sm">{msg.message || msg.content}</p>
                 <p className={`text-[10px] mt-1 ${isVendor ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                   {formatTime(msg.createdAt)}
                 </p>
@@ -211,18 +215,22 @@ export default function VendorChatPage() {
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: rooms = [], isLoading: roomsLoading } = useQuery({
+  const { data: roomsData, isLoading: roomsLoading } = useQuery({
     queryKey: ['vendor-chat-rooms'],
-    queryFn: () => api.get<{ data: ChatRoom[] }>('/chat/rooms').then((r) => r.data),
+    queryFn: () => api.get<ChatRoom[]>('/chat/rooms'),
   });
 
-  const { data: messages = [] } = useQuery({
+  const rooms = Array.isArray(roomsData) ? roomsData : [];
+
+  const { data: messagesData } = useQuery({
     queryKey: ['vendor-chat-messages', selectedRoom],
     queryFn: () =>
-      api.get<{ data: ChatMessage[] }>(`/chat/rooms/${selectedRoom}/messages`).then((r) => r.data),
+      api.get<{ items: ChatMessage[]; pagination: any }>(`/chat/rooms/${selectedRoom}/messages`),
     enabled: !!selectedRoom,
     refetchInterval: 3000,
   });
+
+  const messages = (messagesData as any)?.items || (Array.isArray(messagesData) ? messagesData : []);
 
   const sendMutation = useMutation({
     mutationFn: (content: string) =>

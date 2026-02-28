@@ -142,31 +142,33 @@ export default function AdminShopsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Do'konlar</h2>
-        <p className="text-muted-foreground">
-          Barcha do'konlarni boshqarish va moderatsiya qilish
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Do&apos;konlar</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Barcha do&apos;konlarni boshqarish va moderatsiya qilish
         </p>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <TabsList>
-            <TabsTrigger value="all">Barchasi ({stats.total})</TabsTrigger>
-            <TabsTrigger value="pending">Kutilmoqda ({stats.pending})</TabsTrigger>
-            <TabsTrigger value="active">Faol ({stats.active})</TabsTrigger>
-            <TabsTrigger value="blocked">Bloklangan ({stats.blocked})</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="inline-flex w-max sm:w-auto">
+              <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi ({stats.total})</TabsTrigger>
+              <TabsTrigger value="pending" className="text-xs sm:text-sm">Kutilmoqda ({stats.pending})</TabsTrigger>
+              <TabsTrigger value="active" className="text-xs sm:text-sm">Faol ({stats.active})</TabsTrigger>
+              <TabsTrigger value="blocked" className="text-xs sm:text-sm">Bloklangan ({stats.blocked})</TabsTrigger>
+            </TabsList>
+          </div>
 
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Qidirish..."
-                className="pl-9 w-[200px]"
+                className="pl-9 w-full sm:w-[200px]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -179,105 +181,172 @@ export default function AdminShopsPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Store className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Do'konlar topilmadi</p>
+                <p className="text-muted-foreground">Do&apos;konlar topilmadi</p>
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Do'kon</TableHead>
-                    <TableHead>Egasi</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Balans</TableHead>
-                    <TableHead>Komissiya</TableHead>
-                    <TableHead>Sana</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredShops.map((shop) => (
-                    <TableRow key={shop.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={shop.logo_url || ""} />
-                            <AvatarFallback>{shop.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{shop.name}</div>
-                            <div className="text-xs text-muted-foreground">{shop.total_orders} buyurtma</div>
-                          </div>
+            <>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden space-y-3">
+                {filteredShops.map((shop) => (
+                  <Card key={shop.id} className="overflow-hidden">
+                    <CardContent className="p-3 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={shop.logo_url || ""} />
+                          <AvatarFallback className="text-xs">{shop.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{shop.name}</div>
+                          <div className="text-xs text-muted-foreground">{shop.owner?.full_name || "Noma'lum"}</div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{shop.owner?.full_name || "Noma'lum"}</div>
-                          <div className="text-xs text-muted-foreground">{shop.owner?.phone || shop.phone}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusConfig[shop.status]?.variant || "secondary"}>
+                        <Badge variant={statusConfig[shop.status]?.variant || "secondary"} className="text-xs flex-shrink-0">
                           {statusConfig[shop.status]?.label || shop.status}
                         </Badge>
-                      </TableCell>
-                      <TableCell>{formatPrice(shop.balance)}</TableCell>
-                      <TableCell>{shop.commission_rate}%</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(shop.created_at).toLocaleDateString("uz-UZ")}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-muted/50 rounded-lg p-2">
+                          <div className="font-semibold text-sm">{formatPrice(shop.balance)}</div>
+                          <div className="text-xs text-muted-foreground">Balans</div>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2">
+                          <div className="font-semibold text-sm">{shop.commission_rate}%</div>
+                          <div className="text-xs text-muted-foreground">Komissiya</div>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-2">
+                          <div className="font-semibold text-sm">{shop.total_orders}</div>
+                          <div className="text-xs text-muted-foreground">Buyurtma</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => { setSelectedShop(shop); setIsDetailOpen(true); }}>
+                          <Eye className="mr-1 h-3 w-3" /> Ko&apos;rish
+                        </Button>
+                        {shop.status === "pending" && (
+                          <>
+                            <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => handleStatusChange(shop, "active")}>
+                              <CheckCircle className="mr-1 h-3 w-3" /> Tasdiqlash
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Amallar</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => { setSelectedShop(shop); setIsDetailOpen(true); }}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ko'rish
-                            </DropdownMenuItem>
-                            {shop.status === "pending" && (
-                              <>
-                                <DropdownMenuItem onClick={() => handleStatusChange(shop, "active")}>
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Tasdiqlash
+                            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => handleStatusChange(shop, "inactive")}>
+                              <XCircle className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                        {shop.status === "active" && (
+                          <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleStatusChange(shop, "blocked")}>
+                            <Ban className="mr-1 h-3 w-3" /> Bloklash
+                          </Button>
+                        )}
+                        {shop.status === "blocked" && (
+                          <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => handleStatusChange(shop, "active")}>
+                            <CheckCircle className="mr-1 h-3 w-3" /> Faollashtirish
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block">
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Do&apos;kon</TableHead>
+                        <TableHead>Egasi</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Balans</TableHead>
+                        <TableHead>Komissiya</TableHead>
+                        <TableHead>Sana</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredShops.map((shop) => (
+                        <TableRow key={shop.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar>
+                                <AvatarImage src={shop.logo_url || ""} />
+                                <AvatarFallback>{shop.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{shop.name}</div>
+                                <div className="text-xs text-muted-foreground">{shop.total_orders} buyurtma</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{shop.owner?.full_name || "Noma'lum"}</div>
+                              <div className="text-xs text-muted-foreground">{shop.owner?.phone || shop.phone}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={statusConfig[shop.status]?.variant || "secondary"}>
+                              {statusConfig[shop.status]?.label || shop.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatPrice(shop.balance)}</TableCell>
+                          <TableCell>{shop.commission_rate}%</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(shop.created_at).toLocaleDateString("uz-UZ")}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Amallar</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => { setSelectedShop(shop); setIsDetailOpen(true); }}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Ko&apos;rish
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(shop, "inactive")} className="text-destructive">
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Rad etish
+                                {shop.status === "pending" && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(shop, "active")}>
+                                      <CheckCircle className="mr-2 h-4 w-4" />
+                                      Tasdiqlash
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(shop, "inactive")} className="text-destructive">
+                                      <XCircle className="mr-2 h-4 w-4" />
+                                      Rad etish
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {shop.status === "active" && (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(shop, "blocked")} className="text-destructive">
+                                    <Ban className="mr-2 h-4 w-4" />
+                                    Bloklash
+                                  </DropdownMenuItem>
+                                )}
+                                {shop.status === "blocked" && (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(shop, "active")}>
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Qayta faollashtirish
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => { setSelectedShop(shop); setNewCommission(shop.commission_rate.toString()); setIsCommissionOpen(true); }}>
+                                  <Settings className="mr-2 h-4 w-4" />
+                                  Komissiya o&apos;zgartirish
                                 </DropdownMenuItem>
-                              </>
-                            )}
-                            {shop.status === "active" && (
-                              <DropdownMenuItem onClick={() => handleStatusChange(shop, "blocked")} className="text-destructive">
-                                <Ban className="mr-2 h-4 w-4" />
-                                Bloklash
-                              </DropdownMenuItem>
-                            )}
-                            {shop.status === "blocked" && (
-                              <DropdownMenuItem onClick={() => handleStatusChange(shop, "active")}>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Qayta faollashtirish
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => { setSelectedShop(shop); setNewCommission(shop.commission_rate.toString()); setIsCommissionOpen(true); }}>
-                              <Settings className="mr-2 h-4 w-4" />
-                              Komissiya o'zgartirish
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
@@ -310,7 +379,7 @@ export default function AdminShopsPage() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <Card>
                   <CardContent className="pt-4">
                     <DollarSign className="h-5 w-5 text-muted-foreground mb-1" />

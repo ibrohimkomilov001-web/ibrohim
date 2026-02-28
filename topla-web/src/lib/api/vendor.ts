@@ -279,7 +279,7 @@ export const vendorApi = {
     api.patch(`/vendor/products/${id}`, { isActive }),
 
   // --- Orders ---
-  getOrders: (params?: {
+  getOrders: async (params?: {
     page?: number;
     limit?: number;
     status?: string;
@@ -291,7 +291,17 @@ export const vendorApi = {
     if (params?.status) query.set('status', params.status);
     if (params?.search) query.set('search', params.search);
     const qs = query.toString();
-    return api.get<PaginatedResponse<Order>>(`/vendor/orders${qs ? `?${qs}` : ''}`);
+    // Backend returns { orders: Order[], total: number }
+    const result = await api.get<{ orders: Order[]; total: number }>(`/vendor/orders${qs ? `?${qs}` : ''}`);
+    const limit = params?.limit || 20;
+    const page = params?.page || 1;
+    return {
+      data: result.orders || [],
+      total: result.total || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((result.total || 0) / limit),
+    } as PaginatedResponse<Order>;
   },
 
   getOrder: (id: string) => api.get<Order>(`/vendor/orders/${id}`),
@@ -360,6 +370,79 @@ export const vendorApi = {
 
   replyToReview: (id: string, reply: string) =>
     api.post(`/vendor/reviews/${id}/reply`, { reply }),
+
+  // --- Promo Codes ---
+  getPromoCodes: (params?: { page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return api.get<{ data: PromoCode[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/vendor/promo-codes${qs ? `?${qs}` : ''}`);
+  },
+
+  createPromoCode: (data: {
+    code: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    minOrderAmount?: number;
+    maxUses?: number;
+    expiresAt?: string;
+  }) => api.post<PromoCode>('/vendor/promo-codes', data),
+
+  updatePromoCode: (id: string, data: Partial<{
+    code: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    minOrderAmount?: number;
+    maxUses?: number;
+    expiresAt?: string;
+    isActive: boolean;
+  }>) => api.put<PromoCode>(`/vendor/promo-codes/${id}`, data),
+
+  deletePromoCode: (id: string) => api.delete(`/vendor/promo-codes/${id}`),
+
+  // --- Notifications ---
+  getNotifications: (params?: { page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return api.get<{ notifications: Notification[]; unreadCount: number; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/notifications${qs ? `?${qs}` : ''}`);
+  },
+
+  getUnreadNotificationCount: () =>
+    api.get<{ count: number }>('/notifications/unread-count'),
+
+  markNotificationRead: (id: string) =>
+    api.put(`/notifications/${id}/read`, {}),
+
+  markAllNotificationsRead: () =>
+    api.put('/notifications/read-all', {}),
 };
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  shopId?: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minOrderAmount?: number;
+  maxUses?: number;
+  currentUses: number;
+  expiresAt?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  body?: string;
+  type: string;
+  isRead: boolean;
+  data?: any;
+  createdAt: string;
+}
 
 export default vendorApi;

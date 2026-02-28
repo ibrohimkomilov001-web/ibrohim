@@ -172,6 +172,11 @@ export async function fetchShops(params?: { search?: string; status?: string; pa
   return res.data;
 }
 
+export async function fetchShopStats(): Promise<{ total: number; pending: number; active: number; blocked: number }> {
+  const res = await adminRequest<{ success: boolean; data: any }>('/admin/shops/stats');
+  return res.data;
+}
+
 export async function fetchShopDetail(id: string) {
   const res = await adminRequest<{ success: boolean; data: any }>(`/admin/shops/${id}`);
   return res.data;
@@ -677,6 +682,13 @@ function getDemoResponse<T>(endpoint: string, options: RequestInit = {}): T {
         owner: { full_name: 'Sardor Toshmatov', phone: '+998933456789' },
         created_at: '2025-11-20T09:00:00Z',
       },
+    } as T;
+  }
+  // Shop stats
+  if (endpoint.includes('/admin/shops/stats')) {
+    return {
+      success: true,
+      data: { total: 5, pending: 1, active: 3, blocked: 0, inactive: 1 },
     } as T;
   }
   // Shops list

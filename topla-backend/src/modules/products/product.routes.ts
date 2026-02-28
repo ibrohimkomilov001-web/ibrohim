@@ -854,9 +854,13 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
       if (!shop) throw new AppError('Do\'kon topilmadi');
 
-      await prisma.product.deleteMany({
+      const deleteResult = await prisma.product.deleteMany({
         where: { id, shopId: shop.id },
       });
+
+      if (deleteResult.count === 0) {
+        throw new AppError('Mahsulot topilmadi yoki o\'chirish mumkin emas', 404);
+      }
 
       // Remove from search index (via BullMQ — non-blocking)
       enqueueSearchIndex({ type: 'remove_product', productId: id }).catch(() => {});

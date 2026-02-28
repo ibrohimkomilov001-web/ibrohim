@@ -305,17 +305,52 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
       
-      {/* Charts Section Placeholder */}
-      <div className="grid gap-4 md:grid-cols-2">
-         <Card className="col-span-2">
-            <CardHeader>
-              <CardTitle>Qo'shimcha statistika</CardTitle>
-              <CardDescription>Tez orada mavjud bo'ladi...</CardDescription>
-            </CardHeader>
-            <CardContent className="h-20 flex items-center justify-center text-muted-foreground">
-               Backend ma'lumotlari yig'ilmoqda...
+      {/* Quick Links */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <Link href="/admin/shops" className="block">
+            <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+              <Store className="h-6 w-6 text-primary" />
+              <div>
+                <div className="font-medium text-sm">Do&apos;konlar</div>
+                <div className="text-xs text-muted-foreground">{stats.pendingShops} ta kutmoqda</div>
+              </div>
             </CardContent>
-         </Card>
+          </Link>
+        </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <Link href="/admin/orders" className="block">
+            <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+              <ShoppingCart className="h-6 w-6 text-orange-500" />
+              <div>
+                <div className="font-medium text-sm">Buyurtmalar</div>
+                <div className="text-xs text-muted-foreground">Barchasi</div>
+              </div>
+            </CardContent>
+          </Link>
+        </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <Link href="/admin/users" className="block">
+            <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+              <TrendingUp className="h-6 w-6 text-green-500" />
+              <div>
+                <div className="font-medium text-sm">Foydalanuvchilar</div>
+                <div className="text-xs text-muted-foreground">Boshqarish</div>
+              </div>
+            </CardContent>
+          </Link>
+        </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <Link href="/admin/payouts" className="block">
+            <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+              <DollarSign className="h-6 w-6 text-blue-500" />
+              <div>
+                <div className="font-medium text-sm">To&apos;lovlar</div>
+                <div className="text-xs text-muted-foreground">Payouts</div>
+              </div>
+            </CardContent>
+          </Link>
+        </Card>
       </div>
     </div>
   );

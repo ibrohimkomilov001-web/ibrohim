@@ -279,6 +279,21 @@ export async function adminRoutes(app: FastifyInstance) {
   // ==========================================
   // SHOPS
   // ==========================================
+
+  // Shop statistikasi
+  app.get('/admin/shops/stats', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async () => {
+    const [total, pending, active, blocked, inactive] = await Promise.all([
+      prisma.shop.count(),
+      prisma.shop.count({ where: { status: 'pending' } }),
+      prisma.shop.count({ where: { status: 'active' } }),
+      prisma.shop.count({ where: { status: 'blocked' } }),
+      prisma.shop.count({ where: { status: 'inactive' } }),
+    ]);
+    return { success: true, data: { total, pending, active, blocked, inactive } };
+  });
+
   app.get('/admin/shops', {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {

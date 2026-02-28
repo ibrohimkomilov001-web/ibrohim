@@ -92,6 +92,10 @@ const vendorRegisterSchema = z.object({
   shopDescription: z.string().optional(),
   shopAddress: z.string().optional(),
   shopPhone: z.string().optional(),
+  category: z.string().optional(),
+  city: z.string().optional(),
+  businessType: z.string().optional(),
+  inn: z.string().optional(),
 });
 
 const vendorLoginSchema = z.object({
@@ -603,7 +607,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           phone: body.phone,
           fullName: body.fullName,
           passwordHash,
-          role: 'vendor',
+          role: 'vendor', // Vendor sifatida ro'yxatdan o'tadi, shop.status='pending' orqali admin nazorati
         },
       });
 
@@ -615,8 +619,24 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           phone: body.shopPhone || body.phone,
           ownerId: profile.id,
           status: 'pending', // Admin tasdiqlashi kerak
+          city: body.city,
+          businessType: body.businessType,
+          inn: body.inn,
         },
       });
+
+      // Admin ga notification yuborish
+      const admins = await tx.profile.findMany({ where: { role: 'admin' } });
+      if (admins.length > 0) {
+        await tx.notification.createMany({
+          data: admins.map(admin => ({
+            userId: admin.id,
+            type: 'system',
+            title: '🏪 Yangi sotuvchi arizasi!',
+            body: `"${body.shopName}" do'koni ro'yxatdan o'tdi. Tasdiqlash kutilmoqda.`,
+          })),
+        });
+      }
 
       return { profile, shop };
     });

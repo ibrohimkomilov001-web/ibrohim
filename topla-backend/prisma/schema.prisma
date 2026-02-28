@@ -241,6 +241,11 @@ model Shop {
   balance        Decimal         @default(0) @db.Decimal(12, 2)
   commissionRate Decimal         @default(10) @map("commission_rate") @db.Decimal(5, 2)
   
+  // Business info
+  city           String?
+  businessType   String?         @map("business_type")
+  inn            String?
+
   // Social links
   telegram       String?
   instagram      String?
