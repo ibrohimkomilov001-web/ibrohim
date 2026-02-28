@@ -168,18 +168,6 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
           </Button>
         </div>
 
-        {/* Quick Action */}
-        {!collapsed && (
-          <div className="p-3">
-            <Button className="w-full gap-2 rounded-full" asChild>
-              <Link href="/vendor/products/new">
-                <Plus className="h-4 w-4" />
-                Mahsulot qo&apos;shish
-              </Link>
-            </Button>
-          </div>
-        )}
-
         {/* Navigation */}
         <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-10rem)]">
           {sidebarItems.map((item) => {
