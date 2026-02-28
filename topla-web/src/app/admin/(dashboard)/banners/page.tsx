@@ -28,7 +28,9 @@ export default function AdminBannersPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
+    subtitle: '',
     link: '',
+    actionType: 'none',
     position: '',
     startDate: '',
     endDate: '',
@@ -116,7 +118,9 @@ export default function AdminBannersPage() {
       // 2. Bannerni yaratish
       await createBanner({
         title: formData.title.trim(),
+        subtitle: formData.subtitle.trim() || undefined,
         imageUrl,
+        actionType: formData.actionType || 'none',
         link: formData.link.trim() || undefined,
         position: formData.position || 'home_top',
         startDate: formData.startDate || undefined,
@@ -125,7 +129,7 @@ export default function AdminBannersPage() {
       })
       toast.success('Banner yaratildi')
       setAddDialogOpen(false)
-      setFormData({ title: '', link: '', position: '', startDate: '', endDate: '' })
+      setFormData({ title: '', subtitle: '', link: '', actionType: 'none', position: '', startDate: '', endDate: '' })
       handleRemoveImage()
       loadBanners()
     } catch {
@@ -177,7 +181,7 @@ export default function AdminBannersPage() {
           <DialogTrigger asChild>
             <Button>+ Banner qo'shish</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Yangi banner</DialogTitle>
               <DialogDescription>
@@ -191,6 +195,15 @@ export default function AdminBannersPage() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Banner sarlavhasi"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Qo&apos;shimcha matn</Label>
+                <Input
+                  value={formData.subtitle}
+                  onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                  placeholder="Qisqa tavsif (ixtiyoriy)"
                 />
               </div>
 
@@ -249,13 +262,35 @@ export default function AdminBannersPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Havola (link)</Label>
-                <Input
-                  value={formData.link}
-                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                  placeholder="/category/electronics yoki https://..."
-                />
+                <Label>Harakat turi</Label>
+                <Select
+                  value={formData.actionType}
+                  onValueChange={(value) => setFormData({ ...formData, actionType: value, link: value === 'none' ? '' : formData.link })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Harakat turini tanlang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Harakatsiz</SelectItem>
+                    <SelectItem value="link">Tashqi havola (URL)</SelectItem>
+                    <SelectItem value="product">Mahsulot</SelectItem>
+                    <SelectItem value="category">Kategoriya</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              {formData.actionType !== 'none' && (
+                <div className="space-y-2">
+                  <Label>
+                    {formData.actionType === 'link' ? 'Havola (URL)' : formData.actionType === 'product' ? 'Mahsulot ID' : 'Kategoriya ID'}
+                  </Label>
+                  <Input
+                    value={formData.link}
+                    onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                    placeholder={formData.actionType === 'link' ? 'https://t.me/topla_market' : 'ID kiriting'}
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Joylashuv</Label>
@@ -276,26 +311,54 @@ export default function AdminBannersPage() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>Boshlanish sanasi</Label>
-                  <Input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={formData.startDate}
+                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                      className="flex-1"
+                    />
+                    {formData.startDate && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => setFormData({ ...formData, startDate: '' })}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Tugash sanasi</Label>
-                  <Input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                      className="flex-1"
+                    />
+                    {formData.endDate && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => setFormData({ ...formData, endDate: '' })}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-3 pt-4">
               <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
                 Bekor qilish
               </Button>
@@ -358,18 +421,21 @@ export default function AdminBannersPage() {
             <Card key={banner.id} className={!banner.isActive ? 'opacity-60' : ''}>
               <div className="aspect-[3/1] bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-lg flex items-center justify-center">
                 {banner.imageUrl ? (
-                  <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover rounded-t-lg" />
+                  <img src={banner.imageUrl.startsWith('http') ? banner.imageUrl : `/api/v1${banner.imageUrl.startsWith('/') ? '' : '/'}${banner.imageUrl}`} alt={banner.title} className="w-full h-full object-cover rounded-t-lg" />
                 ) : (
                   <span className="text-white text-4xl">🖼️</span>
                 )}
               </div>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{banner.title}</CardTitle>
+                  <CardTitle className="text-base truncate mr-2">{banner.title}</CardTitle>
                   <Badge className={banner.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                     {banner.isActive ? 'Faol' : 'Nofaol'}
                   </Badge>
                 </div>
+                {banner.link && (
+                  <p className="text-xs text-blue-600 truncate mt-1">{banner.link}</p>
+                )}
                 <CardDescription>{positionLabels[banner.position || ''] || banner.position || '-'}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

@@ -1,4 +1,6 @@
 /// Banner modeli
+import '../core/config/api_config.dart';
+
 class BannerModel {
   final String id;
   final String? titleUz;
@@ -25,13 +27,17 @@ class BannerModel {
   });
 
   factory BannerModel.fromJson(Map<String, dynamic> json) {
+    final rawUrl = (json['image_url'] ?? json['imageUrl']) as String;
+    // Agar nisbiy yo'l bo'lsa (/uploads/...), to'liq URL yasaymiz
+    final fullUrl =
+        rawUrl.startsWith('http') ? rawUrl : '${ApiConfig.baseUrl}$rawUrl';
     return BannerModel(
       id: json['id'] as String,
       titleUz: (json['title_uz'] ?? json['titleUz']) as String?,
       titleRu: (json['title_ru'] ?? json['titleRu']) as String?,
       subtitleUz: (json['subtitle_uz'] ?? json['subtitleUz']) as String?,
       subtitleRu: (json['subtitle_ru'] ?? json['subtitleRu']) as String?,
-      imageUrl: (json['image_url'] ?? json['imageUrl']) as String,
+      imageUrl: fullUrl,
       actionType:
           (json['action_type'] ?? json['actionType']) as String? ?? 'none',
       actionValue: (json['action_value'] ?? json['actionValue']) as String?,

@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import {
   Search,
-  ShoppingCart,
+  ClipboardList,
   Filter,
   Clock,
   CheckCircle,
@@ -241,7 +241,7 @@ export default function OrdersPage() {
       ) : (
         <Card>
           <CardContent className="py-16 text-center">
-            <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
+            <ClipboardList className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">
               {search || statusFilter !== "all" ? "Buyurtma topilmadi" : "Hali buyurtmalar yo'q"}
             </h3>

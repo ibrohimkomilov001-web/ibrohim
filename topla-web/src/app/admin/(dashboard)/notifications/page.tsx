@@ -12,10 +12,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Loader2, Plus, Bell, Trash2, Send, CheckCircle, Image, Link, Upload, X } from 'lucide-react'
 import { getNotifications, getNotificationStats, createNotification, sendNotification, deleteNotification, type Notification } from './actions'
 import { adminUploadImage } from '@/lib/api/admin'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 
 export default function AdminNotificationsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [stats, setStats] = useState({ total: 0, sent: 0, pending: 0 })
@@ -45,7 +44,7 @@ export default function AdminNotificationsPage() {
       setStats(statsData)
     } catch (error) {
       console.error(error)
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" })
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
@@ -62,7 +61,7 @@ export default function AdminNotificationsPage() {
 
   const handleCreate = async () => {
     if (!formData.title || !formData.body) {
-      toast({ title: "Xatolik", description: "Sarlavha va matnni kiriting", variant: "destructive" })
+      toast.error('Sarlavha va matnni kiriting')
       return
     }
 
@@ -70,11 +69,11 @@ export default function AdminNotificationsPage() {
       setActionLoading(true)
       await createNotification(formData)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Bildirishnoma yaratildi" })
+      toast.success('Bildirishnoma yaratildi')
       setCreateDialogOpen(false)
       setFormData({ title: '', body: '', type: 'news', target_type: 'all', imageUrl: '', linkUrl: '' })
     } catch (error) {
-      toast({ title: "Xatolik", description: "Yaratishda xatolik", variant: "destructive" })
+      toast.error('Yaratishda xatolik')
     } finally {
       setActionLoading(false)
     }
@@ -84,9 +83,9 @@ export default function AdminNotificationsPage() {
     try {
       await sendNotification(id)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Bildirishnoma yuborildi" })
+      toast.success('Bildirishnoma yuborildi')
     } catch (error) {
-      toast({ title: "Xatolik", description: "Yuborishda xatolik", variant: "destructive" })
+      toast.error('Yuborishda xatolik')
     }
   }
 
@@ -95,9 +94,9 @@ export default function AdminNotificationsPage() {
     try {
       await deleteNotification(id)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Bildirishnoma o'chirildi" })
+      toast.success("Bildirishnoma o'chirildi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "O'chirishda xatolik", variant: "destructive" })
+      toast.error("O'chirishda xatolik")
     }
   }
 
@@ -307,9 +306,9 @@ export default function AdminNotificationsPage() {
                     setImageUploading(true)
                     const url = await adminUploadImage(file, 'notification')
                     setFormData(prev => ({ ...prev, imageUrl: url }))
-                    toast({ title: "Muvaffaqiyatli", description: "Rasm yuklandi" })
+                    toast.success('Rasm yuklandi')
                   } catch (err) {
-                    toast({ title: "Xatolik", description: "Rasmni yuklashda xatolik", variant: "destructive" })
+                    toast.error('Rasmni yuklashda xatolik')
                   } finally {
                     setImageUploading(false)
                     if (fileInputRef.current) fileInputRef.current.value = ''

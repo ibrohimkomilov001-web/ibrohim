@@ -15,7 +15,7 @@ import { AreaChart, BarChart, DonutChart } from "@tremor/react";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice } from "@/lib/utils";
-import { ShoppingCart, Package, DollarSign, BarChart3 } from "lucide-react";
+import { ClipboardList, Package, DollarSign, BarChart3 } from "lucide-react";
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<"week" | "month" | "year">("week");
@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
           <Card>
             <CardContent className="p-5">
               <div className="flex items-center gap-2 mb-2">
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Buyurtmalar</span>
               </div>
               {isLoading ? (

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 /// Log darajalari
 enum LogLevel { debug, info, warning, error }
@@ -67,10 +68,14 @@ class AppLogger {
       debugPrint(buffer.toString());
     }
 
-    // TODO: Production'da crash reporting service'ga yuborish (Firebase Crashlytics)
-    // if (level == LogLevel.error && !kDebugMode) {
-    //   FirebaseCrashlytics.instance.recordError(error, stackTrace);
-    // }
+    // Production'da crash reporting - Firebase Crashlytics
+    if (level == LogLevel.error && !kDebugMode) {
+      FirebaseCrashlytics.instance.recordError(
+        error ?? message,
+        stackTrace,
+        reason: '[$tag] $message',
+      );
+    }
   }
 
   static String _getEmoji(LogLevel level) {

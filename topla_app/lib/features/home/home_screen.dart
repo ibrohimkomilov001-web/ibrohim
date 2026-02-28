@@ -198,38 +198,36 @@ class _HomeScreenState extends State<HomeScreen>
         final banner = banners[index];
         return GestureDetector(
           onTap: () async {
-            // Agar banner link bo'lsa
-            if (banner.actionType == 'link' && banner.actionValue != null) {
-              final Uri url = Uri.parse(banner.actionValue!);
-              if (await canLaunchUrl(url)) {
+            try {
+              if (banner.actionType == 'link' && banner.actionValue != null) {
+                final Uri url = Uri.parse(banner.actionValue!);
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              } else if (banner.actionType == 'product' &&
+                  banner.actionValue != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProductDetailScreen(
+                      product: {'id': banner.actionValue},
+                    ),
+                  ),
+                );
+              } else if (banner.actionType == 'category' &&
+                  banner.actionValue != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CatalogScreen(
+                      initialCategoryId: banner.actionValue,
+                    ),
+                  ),
+                );
+              } else {
+                final Uri url = Uri.parse('https://t.me/topla_market');
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               }
-            } else if (banner.actionType == 'product' &&
-                banner.actionValue != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProductDetailScreen(
-                    product: {'id': banner.actionValue},
-                  ),
-                ),
-              );
-            } else if (banner.actionType == 'category' &&
-                banner.actionValue != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CatalogScreen(
-                    initialCategoryId: banner.actionValue,
-                  ),
-                ),
-              );
-            } else {
-              // Default: Telegram kanal ochish
-              final Uri url = Uri.parse('https://t.me/topla_market');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
+            } catch (e) {
+              debugPrint('Banner tap error: $e');
             }
           },
           child: Container(
@@ -284,15 +282,21 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.local_offer, color: Colors.white, size: 40),
+            const Icon(Icons.local_offer, color: Colors.white, size: 32),
             if (title != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -312,14 +316,18 @@ class _HomeScreenState extends State<HomeScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.black.withValues(alpha: 0.6),
+            Colors.black.withValues(alpha: 0.45),
             Colors.transparent,
           ],
           begin: Alignment.bottomCenter,
           end: Alignment.topCenter,
+          stops: const [0.0, 0.6],
         ),
       ),
-      padding: const EdgeInsets.all(AppSizes.xl),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.lg,
+        vertical: AppSizes.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.end,
@@ -329,18 +337,24 @@ class _HomeScreenState extends State<HomeScreen>
               title,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           if (subtitle != null) ...[
-            const SizedBox(height: AppSizes.xs),
+            const SizedBox(height: 2),
             Text(
               subtitle,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],

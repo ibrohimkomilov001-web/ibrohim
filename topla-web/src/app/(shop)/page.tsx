@@ -63,7 +63,7 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
         >
           {banners[current].imageUrl ? (
             <Image
-              src={banners[current].imageUrl}
+              src={banners[current].imageUrl.startsWith('http') ? banners[current].imageUrl : `/api/v1${banners[current].imageUrl}`}
               alt={banners[current].titleUz || ''}
               fill
               className="object-cover"

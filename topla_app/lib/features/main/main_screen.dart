@@ -214,8 +214,8 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   ),
                   _buildNavItem(
                     index: 3,
-                    icon: Iconsax.document_text,
-                    activeIcon: Iconsax.document_text,
+                    icon: Iconsax.clipboard_text,
+                    activeIcon: Iconsax.clipboard_text,
                     label: l10n?.myOrders ?? 'Buyurtmalar',
                   ),
                   _buildNavItem(

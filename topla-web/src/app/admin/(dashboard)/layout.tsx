@@ -78,6 +78,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [router]);
 
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   const handleLogout = () => {
     removeAdminToken();
     router.push("/admin/login");
@@ -88,8 +98,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden touch-none"
           onClick={() => setMobileOpen(false)}
+          onTouchMove={(e) => e.preventDefault()}
         />
       )}
 
@@ -180,7 +191,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
 
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative" onClick={() => router.push('/admin/notifications')}>
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
             </Button>

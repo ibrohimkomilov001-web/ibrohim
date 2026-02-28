@@ -10,7 +10,7 @@ import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
 import {
   Package,
-  ShoppingCart,
+  ClipboardList,
   TrendingUp,
   Wallet,
   ArrowRight,
@@ -118,7 +118,7 @@ export default function DashboardPage() {
         <StatCard
           title="Buyurtmalar"
           value={stats ? String(stats.orders?.total || 0) : "0"}
-          icon={ShoppingCart}
+          icon={ClipboardList}
           loading={statsLoading}
         />
         <StatCard
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                     className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors"
                   >
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <ShoppingCart className="h-5 w-5 text-primary" />
+                      <ClipboardList className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">
@@ -187,7 +187,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>Hozircha buyurtmalar yo&apos;q</p>
               </div>
             )}
@@ -202,7 +202,7 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             <Button variant="outline" className="w-full justify-start rounded-xl h-12" asChild>
               <Link href="/vendor/orders">
-                <ShoppingCart className="mr-3 h-5 w-5 text-orange-500" />
+                <ClipboardList className="mr-3 h-5 w-5 text-orange-500" />
                 <div className="text-left">
                   <div className="text-sm font-medium">Buyurtmalar</div>
                   <div className="text-xs text-muted-foreground">

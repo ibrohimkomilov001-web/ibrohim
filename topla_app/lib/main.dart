@@ -1,10 +1,13 @@
+import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'firebase_options.dart';
 import 'services/push_notification_service.dart';
 import 'core/services/api_client.dart';
@@ -38,6 +41,12 @@ import 'core/widgets/auth_guard.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Release modda barcha debugPrint larni o'chirish
+  // (logcat'ga ma'lumot chiqmasligi uchun)
+  if (!kDebugMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   // Firebase - platform-specific options bilan ishga tushirish
   try {
     await Firebase.initializeApp(
@@ -47,6 +56,25 @@ void main() async {
 
     // Background message handler ro'yxatdan o'tkazish
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // Crashlytics sozlash
+    if (!kIsWeb) {
+      // Flutter xatolarini Crashlytics'ga yuborish
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+      // Dart async xatolarini ushlash
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+
+      // Debug mode'da Crashlytics'ni o'chirish (ixtiyoriy)
+      if (kDebugMode) {
+        await FirebaseCrashlytics.instance
+            .setCrashlyticsCollectionEnabled(false);
+      }
+    }
   } catch (e) {
     debugPrint('Firebase init error: $e');
     // google-services.json / GoogleService-Info.plist orqali fallback
