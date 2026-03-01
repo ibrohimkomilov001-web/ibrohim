@@ -296,37 +296,32 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 const SizedBox(height: 40),
 
-                // Logo
-                _buildLogo(),
-
-                const SizedBox(height: 32),
-
                 // Title
                 Text(
-                  _isOtpSent ? 'Kodni kiriting' : 'Kirish',
+                  _isOtpSent ? 'Tasdiqlash' : 'Kirish',
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
                   ),
                   textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 Text(
                   _isOtpSent
-                      ? 'SMS orqali yuborilgan\n4 xonali kodni kiriting'
+                      ? '${_formatPhoneNumber(_phoneController.text.trim())} ga yuborilgan kodni kiriting'
                       : 'Telefon raqamingizni kiriting',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     color: Colors.grey.shade500,
-                    height: 1.4,
+                    height: 1.3,
                   ),
                   textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(height: 36),
+                const SizedBox(height: 28),
 
                 // Phone field
                 if (!_isOtpSent) ...[
@@ -402,7 +397,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   // OTP field - modern
                   Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       color: Colors.grey.shade50,
                       border: Border.all(color: Colors.grey.shade200),
                     ),
@@ -411,8 +406,9 @@ class _AuthScreenState extends State<AuthScreen> {
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.done,
                       textAlign: TextAlign.center,
+                      autofocus: true,
                       style: const TextStyle(
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 16,
                       ),
@@ -420,55 +416,56 @@ class _AuthScreenState extends State<AuthScreen> {
                         FilteringTextInputFormatter.digitsOnly,
                         LengthLimitingTextInputFormatter(4),
                       ],
+                      cursorColor: AppColors.primary,
                       decoration: InputDecoration(
                         hintText: '••••',
                         hintStyle: TextStyle(
-                          fontSize: 28,
+                          fontSize: 24,
                           letterSpacing: 16,
                           color: Colors.grey.shade300,
                         ),
                         border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 18,
+                          vertical: 14,
                         ),
                       ),
                       onFieldSubmitted: (_) => _verifyOtp(),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-                  // Qayta yuborish + telefon o'zgartirish
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _isOtpSent = false;
-                                  _otpController.clear();
-                                });
-                                _resendTimer?.cancel();
-                              },
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.grey.shade600,
-                        ),
-                        child: const Text('Raqamni o\'zgartirish'),
-                      ),
-                      TextButton(
-                        onPressed: (_isLoading || _resendCountdown > 0)
-                            ? null
-                            : _sendOtp,
-                        child: Text(
-                          _resendCountdown > 0
-                              ? 'Qayta yuborish (${_resendCountdown}s)'
-                              : 'Qayta yuborish',
-                        ),
-                      ),
-                    ],
+                  // Timer yoki qaytadan yuborish
+                  Center(
+                    child: _resendCountdown > 0
+                        ? Text(
+                            '00:${_resendCountdown.toString().padLeft(2, '0')}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        : TextButton(
+                            onPressed: _isLoading ? null : _sendOtp,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 36),
+                            ),
+                            child: const Text(
+                              'Qaytadan yuborish',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                   ),
                 ],
 
@@ -511,65 +508,70 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                // Google Sign In - faqat telefon kiritish sahifasida ko'rsatish
+                if (!_isOtpSent) ...[
+                  const SizedBox(height: 20),
 
-                // Divider
-                Row(
-                  children: [
-                    Expanded(
-                        child: Divider(color: Colors.grey.shade200, height: 1)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'yoki',
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 13,
+                  // Divider
+                  Row(
+                    children: [
+                      Expanded(
+                          child:
+                              Divider(color: Colors.grey.shade200, height: 1)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'yoki',
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                        child: Divider(color: Colors.grey.shade200, height: 1)),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                // Google Sign In Button - pill-shaped
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      side: BorderSide(color: Colors.grey.shade200),
-                      elevation: 0,
-                    ),
-                    child: _isGoogleLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildGoogleLogo(),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Google orqali kirish',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
+                      Expanded(
+                          child:
+                              Divider(color: Colors.grey.shade200, height: 1)),
+                    ],
                   ),
-                ),
+
+                  const SizedBox(height: 20),
+
+                  // Google Sign In Button - pill-shaped
+                  SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: _isGoogleLoading ? null : _signInWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        side: BorderSide(color: Colors.grey.shade200),
+                        elevation: 0,
+                      ),
+                      child: _isGoogleLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildGoogleLogo(),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Google orqali kirish',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 32),
               ],

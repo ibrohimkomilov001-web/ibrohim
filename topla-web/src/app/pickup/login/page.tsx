@@ -25,7 +25,7 @@ export default function PickupLoginPage() {
 
     try {
       await pickupLogin(loginCode, pinCode);
-      router.push("/pickup/scanner");
+      router.push("/pickup/dashboard");
       router.refresh();
     } catch (err: any) {
       console.error(err);

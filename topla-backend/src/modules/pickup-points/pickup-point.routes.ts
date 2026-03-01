@@ -305,6 +305,78 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
+   * GET /pickup/stats
+   * Punkt xodimi: statistika (bugun va umumiy)
+   */
+  app.get('/pickup/stats', { preHandler: authMiddleware }, async (request, reply) => {
+    const pickupPointId = request.user?.pickupPointId || request.user?.userId;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [todayDelivered, todayWaiting, totalDelivered, totalOrders] = await Promise.all([
+      prisma.order.count({
+        where: {
+          pickupPointId,
+          status: 'delivered',
+          deliveredAt: { gte: todayStart },
+        },
+      }),
+      prisma.order.count({
+        where: {
+          pickupPointId,
+          status: 'at_pickup_point',
+        },
+      }),
+      prisma.order.count({
+        where: {
+          pickupPointId,
+          status: 'delivered',
+        },
+      }),
+      prisma.order.count({
+        where: { pickupPointId },
+      }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: { todayDelivered, todayWaiting, totalDelivered, totalOrders },
+    });
+  });
+
+  /**
+   * POST /pickup/change-pin
+   * Punkt xodimi: PIN kodni o'zgartirish
+   */
+  app.post('/pickup/change-pin', { preHandler: authMiddleware }, async (request, reply) => {
+    const { currentPin, newPin } = z.object({
+      currentPin: z.string().min(4),
+      newPin: z.string().min(4).max(20),
+    }).parse(request.body);
+
+    const pickupPointId = request.user?.pickupPointId || request.user?.userId;
+    const point = await prisma.pickupPoint.findUnique({ where: { id: pickupPointId } });
+
+    if (!point || !point.pinCode) {
+      throw new AppError('Punkt topilmadi', 404);
+    }
+
+    const pinValid = await bcrypt.compare(currentPin, point.pinCode);
+    if (!pinValid) {
+      throw new AppError('Joriy PIN kod noto\'g\'ri', 400);
+    }
+
+    const hashedPin = await bcrypt.hash(newPin, 10);
+    await prisma.pickupPoint.update({
+      where: { id: pickupPointId },
+      data: { pinCode: hashedPin },
+    });
+
+    return reply.send({ success: true, data: { message: 'PIN kod muvaffaqiyatli o\'zgartirildi' } });
+  });
+
+  /**
    * POST /pickup/verify
    * Punkt xodimi: QR kodni skanerlash / kodni tekshirish → buyurtmani topshirish
    *

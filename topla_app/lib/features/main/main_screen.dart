@@ -35,7 +35,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     const ProfileScreen(),
   ];
 
-  static const Color _activeColor = Color(0xFF2563EB);
+  static const Color _activeColor = Color(0xFF3B82F6);
   static const Color _inactiveColor = Color(0xFF9CA3AF);
 
   static void switchToTab(int index) {
@@ -161,6 +161,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       child: Scaffold(
         body: PageView(
           controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (index) {
             setState(() => _currentIndex = index);
           },

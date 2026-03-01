@@ -189,7 +189,14 @@ export async function sendOtp(
   };
   await storeOtp(phone, entry);
 
-  // 4. Kanalga qarab yuborish
+  // 4. Dev/Test rejimda SMS yubormasdan faqat logga yozish
+  if (env.NODE_ENV !== 'production') {
+    console.log(`\n📱 [DEV MODE] OTP for ${phone}: ${code}\n`);
+    await storeRate(phone, now);
+    return { success: true, channel: 'sms' };
+  }
+
+  // 5. Kanalga qarab yuborish
   let result: { success: boolean; error?: string };
 
   if (channel === 'telegram') {

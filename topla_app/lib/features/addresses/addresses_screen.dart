@@ -171,151 +171,209 @@ class _AddressesScreenState extends State<AddressesScreen> {
   }
 
   Widget _buildAddressCard(AddressModel address) {
-    IconData icon;
-    switch (address.iconType) {
+    // 1. Determine Colors based on type for "Colorful" look
+    Color iconColor;
+    Color iconBgColor;
+    IconData iconData;
+
+    switch (address.title.toLowerCase()) {
+      case 'uy':
       case 'home':
-        icon = Iconsax.home_2;
+        iconData = Iconsax.home_2;
+        iconColor = const Color(0xFF3B82F6); // Blue
+        iconBgColor = const Color(0xFFEFF6FF); // Blue 50
         break;
+      case 'ish':
       case 'work':
-        icon = Iconsax.building;
+        iconData = Iconsax.briefcase;
+        iconColor = const Color(0xFFF97316); // Orange
+        iconBgColor = const Color(0xFFFFF7ED); // Orange 50
         break;
       default:
-        icon = Iconsax.location;
+        iconData = Iconsax.location;
+        iconColor = const Color(0xFF8B5CF6); // Purple
+        iconBgColor = const Color(0xFFF5F3FF); // Purple 50
     }
 
-    final isSelected = address.isDefault;
+    final isDefault = address.isDefault;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: isSelected
-            ? Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5)
-            : Border.all(color: Colors.grey.shade200, width: 1),
+        // Modern subtle border, highlighted if default
+        border: Border.all(
+          color: isDefault ? AppColors.primary : Colors.grey.shade200,
+          width: isDefault ? 1.5 : 1,
+        ),
+        boxShadow: [
+          if (isDefault)
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+        ],
       ),
-      child: InkWell(
-        onTap: () => _setAsDefault(address.id),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              // Icon
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.1)
-                      : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(14),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _setAsDefault(address.id),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 2. Colorful Icon Wrapper
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: iconColor,
+                    size: 22,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? AppColors.primary : Colors.grey.shade500,
-                  size: 22,
-                ),
-              ),
 
-              const SizedBox(width: 14),
+                const SizedBox(width: 14),
 
-              // Address Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          address.title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: isSelected ? AppColors.primary : Colors.black87,
+                // 3. Address Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            address.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
-                        if (isSelected) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'Asosiy',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                          if (isDefault) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Asosiy', // Default
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        address.fullAddress,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 4. Edit Action (Cleaner than popup)
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Radio button visual for selection
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDefault
+                              ? AppColors.primary
+                              : Colors.grey.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: isDefault
+                          ? Center(
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            )
+                          : null,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      address.fullAddress,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 13,
-                        height: 1.3,
+                    const SizedBox(height: 16),
+                    // Subtle Edit Button
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _showEditAddressSheet(address);
+                        } else if (value == 'delete') {
+                          _deleteAddress(address);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Iconsax.edit_2),
+                              SizedBox(width: 12),
+                              Text('Tahrirlash'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Iconsax.trash, color: AppColors.error),
+                              const SizedBox(width: 12),
+                              Text(
+                                'O\'chirish',
+                                style: TextStyle(color: AppColors.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(
+                          Iconsax.more,
+                          size: 20,
+                          color: Colors.grey.shade400,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Actions
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showEditAddressSheet(address);
-                  } else if (value == 'delete') {
-                    _deleteAddress(address);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Iconsax.edit_2),
-                        SizedBox(width: 12),
-                        Text('Tahrirlash'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Iconsax.trash, color: AppColors.error),
-                        const SizedBox(width: 12),
-                        Text(
-                          'O\'chirish',
-                          style: TextStyle(color: AppColors.error),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                child: Icon(
-                  Iconsax.more,
-                  size: 20,
-                  color: Colors.grey.shade400,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

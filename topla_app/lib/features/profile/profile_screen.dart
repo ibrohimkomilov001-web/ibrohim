@@ -123,92 +123,70 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildGuestHeader() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4A90F7), Color(0xFF2B6DE8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/auth'),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F6FE),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFEEF0FC),
+          ),
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-              border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3), width: 1.5),
-            ),
-            child:
-                const Icon(Icons.person_rounded, color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 12),
-          // Text
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.translate('guest'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  context.l10n.translate('login_to_see'),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Login button
-          SizedBox(
-            height: 38,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/auth'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.primary,
-                elevation: 0,
-                minimumSize: const Size(0, 38),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+        child: Row(
+          children: [
+            // Avatar icon
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE6E8FD),
+                shape: BoxShape.circle,
               ),
-              child: Text(
-                context.l10n.login,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              child: const Icon(
+                Icons.person_outline_rounded,
+                color: Color(0xFF3B5BDB),
+                size: 30,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 16),
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Profilga kirish',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F2937),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Telefon raqam orqali',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Chevron
+            Icon(
+              Icons.chevron_right_rounded,
+              color: const Color(0xFF9CA3AF).withValues(alpha: 0.7),
+              size: 26,
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
       ),
     );
   }
@@ -297,14 +275,11 @@ class _ProfileScreenState extends State<ProfileScreen>
               });
             },
             child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              width: 32,
+              height: 32,
+              color: Colors.transparent,
               child: const Icon(Iconsax.edit_2_copy,
-                  color: AppColors.primary, size: 17),
+                  color: AppColors.primary, size: 20),
             ),
           ),
         ],
@@ -320,24 +295,28 @@ class _ProfileScreenState extends State<ProfileScreen>
         _buildMenuItem(
           icon: Iconsax.clipboard_text_copy,
           label: context.l10n.myOrders,
+          iconColor: Colors.blue,
           onTap: () => Navigator.pushNamed(context, '/orders'),
         ),
         _divider(),
         _buildMenuItem(
           icon: Iconsax.box_tick_copy,
           label: context.l10n.translate('purchased_products'),
+          iconColor: Colors.green,
           onTap: () => Navigator.pushNamed(context, '/purchased-products'),
         ),
         _divider(),
         _buildMenuItem(
           icon: Iconsax.refresh_left_square_copy,
           label: context.l10n.translate('returns'),
+          iconColor: Colors.orange,
           onTap: () => Navigator.pushNamed(context, '/returns'),
         ),
         _divider(),
         _buildMenuItem(
           icon: Iconsax.star_copy,
           label: context.l10n.translate('reviews_and_questions'),
+          iconColor: Colors.amber,
           onTap: () => Navigator.pushNamed(context, '/reviews-questions'),
         ),
       ],
@@ -353,6 +332,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           _buildMenuItem(
             icon: Iconsax.heart_copy,
             label: context.l10n.favorites,
+            iconColor: Colors.red,
             onTap: () => Navigator.pushNamed(context, '/favorites'),
           ),
           _divider(),
@@ -360,6 +340,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         _buildMenuItem(
           icon: Iconsax.location_copy,
           label: context.l10n.myAddresses,
+          iconColor: Colors.purple,
           onTap: () => Navigator.pushNamed(context, '/addresses'),
           showLogin: !isLoggedIn,
         ),
@@ -367,6 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         _buildMenuItem(
           icon: Iconsax.card_copy,
           label: context.l10n.paymentMethod,
+          iconColor: Colors.teal,
           onTap: () => Navigator.pushNamed(context, '/payment-methods'),
           showLogin: !isLoggedIn,
         ),
@@ -374,6 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         _buildMenuItem(
           icon: Iconsax.people_copy,
           label: context.l10n.inviteFriends,
+          iconColor: Colors.indigo,
           onTap: () => Navigator.pushNamed(context, '/invite'),
           showLogin: !isLoggedIn,
         ),
@@ -383,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Iconsax.mobile_copy,
             label: 'Qurilmalar',
             subtitle: 'Ulangan qurilmalarni boshqarish',
-            iconColor: Colors.teal,
+            iconColor: Colors.cyan,
             onTap: () => Navigator.pushNamed(context, '/devices'),
           ),
         ],
@@ -399,6 +382,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           builder: (context, settings, _) => _buildMenuItem(
             icon: Iconsax.global_copy,
             label: context.l10n.language,
+            iconColor: Colors.blueGrey,
             trailing: Text(
               settings.language == 'uz' ? 'O\'zbek' : 'Русский',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
@@ -410,6 +394,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         _buildMenuItem(
           icon: Iconsax.message_question_copy,
           label: context.l10n.helpCenter,
+          iconColor: Colors.lightBlue,
           onTap: () => Navigator.pushNamed(context, '/help'),
         ),
         // Vendor / Admin / Open Shop
@@ -605,7 +590,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ===== Dialogs & Bottom Sheets =====
 
   void _openVendorWebsite() async {
-    final uri = Uri.parse('https://vendor.topla.uz/register');
+    final uri = Uri.parse('https://vendor.topla.uz');
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {

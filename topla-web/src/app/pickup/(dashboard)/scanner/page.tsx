@@ -96,7 +96,7 @@ export default function PickupScannerPage() {
       setResult({
         type: "success",
         message: "Buyurtma muvaffaqiyatli topshirildi!",
-        order: res.order,
+        order: res,
       });
 
       // Play success sound
@@ -264,7 +264,7 @@ export default function PickupScannerPage() {
               <p className="font-medium">{result.message}</p>
               {result.order && (
                 <p className="text-sm mt-1">
-                  Buyurtma #{result.order.orderNumber} — {result.order.customer?.firstName || "Mijoz"}
+                  Buyurtma #{result.order.orderNumber} — {result.order.customerName || "Mijoz"}
                 </p>
               )}
             </div>

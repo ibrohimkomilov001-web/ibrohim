@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { isPickupAuthenticated, removePickupToken, getPickupPointName } from "@/lib/api/pickup";
-import { Package, ScanBarcode, List, LogOut } from "lucide-react";
+import { Package, ScanBarcode, List, LogOut, LayoutDashboard, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function PickupDashboardLayout({
@@ -30,8 +30,10 @@ export default function PickupDashboardLayout({
   };
 
   const navItems = [
+    { label: "Bosh sahifa", href: "/pickup/dashboard", icon: LayoutDashboard },
     { label: "Skaner", href: "/pickup/scanner", icon: ScanBarcode },
     { label: "Buyurtmalar", href: "/pickup/orders", icon: List },
+    { label: "Sozlamalar", href: "/pickup/settings", icon: Settings },
   ];
 
   return (
@@ -40,9 +42,11 @@ export default function PickupDashboardLayout({
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center">
-              <Package className="h-5 w-5 text-white" />
-            </div>
+            <Link href="/pickup/dashboard">
+              <div className="h-8 w-8 rounded-lg bg-orange-500 flex items-center justify-center">
+                <Package className="h-5 w-5 text-white" />
+              </div>
+            </Link>
             <div>
               <span className="font-semibold text-sm">{pointName}</span>
             </div>
@@ -59,7 +63,7 @@ export default function PickupDashboardLayout({
                     className={active ? "bg-orange-500 hover:bg-orange-600" : ""}
                   >
                     <item.icon className="h-4 w-4 mr-1.5" />
-                    {item.label}
+                    <span className="hidden sm:inline">{item.label}</span>
                   </Button>
                 </Link>
               );

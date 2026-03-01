@@ -72,7 +72,10 @@ async function pickupRequest<T>(endpoint: string, options: RequestInit = {}): Pr
 
   const text = await response.text();
   if (!text) return {} as T;
-  return JSON.parse(text);
+  const json = JSON.parse(text);
+  // Backend wraps responses in { success, data } format — unwrap it
+  if (json.data !== undefined) return json.data as T;
+  return json as T;
 }
 
 // ============================================
@@ -97,16 +100,42 @@ export async function pickupLogin(loginCode: string, pinCode: string) {
 // ============================================
 // Orders at this pickup point
 // ============================================
-export async function getPickupOrders() {
-  return pickupRequest<{ orders: any[] }>('/pickup/orders');
+export async function getPickupOrders(params?: { status?: string; date?: string }) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.date) searchParams.set('date', params.date);
+  const qs = searchParams.toString();
+  return pickupRequest<any[]>(`/pickup/orders${qs ? `?${qs}` : ''}`);
 }
 
 // ============================================
 // Verify order (QR code or manual code)
 // ============================================
 export async function verifyPickupOrder(params: { pickupToken?: string; pickupCode?: string }) {
-  return pickupRequest<{ message: string; order: any }>('/pickup/verify', {
+  return pickupRequest<{ orderId: string; orderNumber: number; customerName: string; customerPhone: string; items: any[]; total: number }>('/pickup/verify', {
     method: 'POST',
     body: JSON.stringify(params),
+  });
+}
+
+// ============================================
+// Stats for this pickup point
+// ============================================
+export async function getPickupStats() {
+  return pickupRequest<{
+    todayDelivered: number;
+    todayWaiting: number;
+    totalDelivered: number;
+    totalOrders: number;
+  }>('/pickup/stats');
+}
+
+// ============================================
+// Change PIN
+// ============================================
+export async function changePickupPin(currentPin: string, newPin: string) {
+  return pickupRequest<{ message: string }>('/pickup/change-pin', {
+    method: 'POST',
+    body: JSON.stringify({ currentPin, newPin }),
   });
 }
