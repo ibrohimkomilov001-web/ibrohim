@@ -48,49 +48,42 @@ class _ProfileScreenState extends State<ProfileScreen>
         return Scaffold(
           backgroundColor: const Color(0xFFF5F5F5),
           body: SafeArea(
-            child: ToplaRefreshIndicator(
-              onRefresh: () async {
-                if (isLoggedIn) {
-                  await authProvider.loadProfile();
-                }
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
 
-                    // Error
-                    if (authProvider.error != null)
-                      _buildErrorBanner(authProvider.error!),
+                  // Error
+                  if (authProvider.error != null)
+                    _buildErrorBanner(authProvider.error!),
 
-                    // Header
-                    isLoggedIn
-                        ? _buildLoggedInHeader(profile)
-                        : _buildGuestHeader(),
+                  // Header
+                  isLoggedIn
+                      ? _buildLoggedInHeader(profile)
+                      : _buildGuestHeader(),
 
+                  const SizedBox(height: 8),
+
+                  // Menu
+                  if (isLoggedIn) ...[
+                    _buildShoppingSection(),
                     const SizedBox(height: 8),
-
-                    // Menu
-                    if (isLoggedIn) ...[
-                      _buildShoppingSection(),
-                      const SizedBox(height: 8),
-                    ],
-                    _buildAccountSection(isLoggedIn),
-                    const SizedBox(height: 8),
-                    _buildSettingsSection(isLoggedIn),
-
-                    const SizedBox(height: 8),
-
-                    // Logout
-                    if (isLoggedIn) _buildLogoutButton(),
-
-                    // App version
-                    _buildAppVersion(),
-
-                    const SizedBox(height: 24),
                   ],
-                ),
+                  _buildAccountSection(isLoggedIn),
+                  const SizedBox(height: 8),
+                  _buildSettingsSection(isLoggedIn),
+
+                  const SizedBox(height: 8),
+
+                  // Logout
+                  if (isLoggedIn) _buildLogoutButton(),
+
+                  // App version
+                  _buildAppVersion(),
+
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
           ),
@@ -419,12 +412,25 @@ class _ProfileScreenState extends State<ProfileScreen>
               // Regular user and admin - open shop option
               // Admin uchun web panel ishlatiladi
               if (!role.isAdmin) {
-                return _buildMenuItem(
-                  icon: Iconsax.shop_add_copy,
-                  label: context.l10n.translate('open_shop'),
-                  subtitle: context.l10n.translate('become_seller'),
-                  iconColor: Colors.orange.shade700,
-                  onTap: () => _openVendorWebsite(),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildMenuItem(
+                      icon: Iconsax.shop_add_copy,
+                      label: context.l10n.translate('open_shop'),
+                      subtitle: context.l10n.translate('become_seller'),
+                      iconColor: Colors.orange.shade700,
+                      onTap: () => _openVendorWebsite(),
+                    ),
+                    _divider(),
+                    _buildMenuItem(
+                      icon: Iconsax.location_copy,
+                      label: context.l10n.translate('open_pickup_point'),
+                      subtitle: context.l10n.translate('become_pickup_partner'),
+                      iconColor: Colors.teal.shade600,
+                      onTap: () => _openPickupPartnerWebsite(),
+                    ),
+                  ],
                 );
               }
 
@@ -591,6 +597,22 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   void _openVendorWebsite() async {
     final uri = Uri.parse('https://vendor.topla.uz');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Saytni ochib bo\'lmadi'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _openPickupPartnerWebsite() async {
+    final uri = Uri.parse('https://pickup.topla.uz');
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {

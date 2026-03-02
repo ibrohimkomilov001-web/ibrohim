@@ -195,6 +195,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
     final id = device['id'] as String;
     final isOnline = _isOnline(lastActiveAt);
     final appName = _getDeviceApp(device);
+    final location = device['location'] as String?;
 
     showModalBottomSheet(
       context: context,
@@ -205,6 +206,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
         platform: platform,
         appName: appName,
         ipAddress: ipAddress,
+        location: location,
         isOnline: isOnline,
         timeAgo: _formatDate(lastActiveAt),
         isCurrentDevice: isCurrentDevice,
@@ -515,6 +517,7 @@ class _DeviceDetailSheet extends StatelessWidget {
   final String? platform;
   final String appName;
   final String? ipAddress;
+  final String? location;
   final bool isOnline;
   final String timeAgo;
   final bool isCurrentDevice;
@@ -525,6 +528,7 @@ class _DeviceDetailSheet extends StatelessWidget {
     required this.platform,
     required this.appName,
     required this.ipAddress,
+    this.location,
     required this.isOnline,
     required this.timeAgo,
     this.isCurrentDevice = false,
@@ -539,113 +543,105 @@ class _DeviceDetailSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // Close button (top right)
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8, top: 4),
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.close,
-                        color: Colors.grey.shade600, size: 18),
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
 
-            // Animated device icon
-            _AnimatedDeviceIcon(platform: platform, size: 90),
+              const SizedBox(height: 18),
 
-            const SizedBox(height: 16),
-
-            // Device name
-            Text(
-              deviceName,
-              style: const TextStyle(
-                color: Color(0xFF1A1A2E),
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Online status
-            Text(
-              isOnline ? 'onlayn' : timeAgo,
-              style: TextStyle(
-                color:
-                    isOnline ? const Color(0xFF4CAF50) : Colors.grey.shade500,
-                fontSize: 15,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Info rows
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
+              // Device icon + name + status in a row
+              Row(
                 children: [
-                  _infoRow('Ilova', appName, showDivider: ipAddress != null),
-                  if (ipAddress != null)
-                    _infoRow('IP manzil', ipAddress!, showDivider: false),
+                  _DeviceIcon(platform: platform, size: 44),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          deviceName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isOnline ? 'onlayn' : timeAgo,
+                          style: TextStyle(
+                            color: isOnline
+                                ? const Color(0xFF4CAF50)
+                                : Colors.grey.shade500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.close,
+                        size: 20, color: Colors.grey.shade400),
+                  ),
                 ],
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Terminate button (pill-shaped)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: onTerminate,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE53935),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  elevation: 0,
+              // Info rows
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  isCurrentDevice ? 'Hisobdan chiqish' : 'Seansni tugatish',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                child: Column(
+                  children: [
+                    _infoRow('Ilova', appName,
+                        showDivider: ipAddress != null || location != null),
+                    if (ipAddress != null)
+                      _infoRow('IP manzil', ipAddress!,
+                          showDivider: location != null),
+                    if (location != null)
+                      _infoRow('Joylashuv', location!, showDivider: false),
+                  ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 16),
+
+              // Terminate button
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: onTerminate,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE53935),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(
+                    isCurrentDevice ? 'Hisobdan chiqish' : 'Seansni tugatish',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -655,23 +651,22 @@ class _DeviceDetailSheet extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label,
-                  style:
-                      const TextStyle(color: Color(0xFF1A1A2E), fontSize: 15)),
+                  style: const TextStyle(color: Colors.black54, fontSize: 13)),
               Text(value,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
             ],
           ),
         ),
         if (showDivider)
           Divider(
               height: 1,
-              indent: 16,
-              endIndent: 16,
+              indent: 14,
+              endIndent: 14,
               color: Colors.grey.shade200),
       ],
     );

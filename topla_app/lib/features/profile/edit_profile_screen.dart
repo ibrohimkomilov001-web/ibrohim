@@ -22,6 +22,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
   bool _hasPhone = false;
 
+  // Track changes
+  String _initialFullName = '';
+  String _initialEmail = '';
+  String _initialPhone = '';
+  bool _isChanged = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,13 +41,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final firstName = widget.profile?['first_name'] ?? '';
     final lastName = widget.profile?['last_name'] ?? '';
     final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+
+    _initialFullName = fullName;
+    _initialEmail = widget.profile?['email'] ?? '';
+    _initialPhone = _hasPhone ? phone : '';
+
     _fullNameController = TextEditingController(text: fullName);
-    _emailController = TextEditingController(
-      text: widget.profile?['email'] ?? '',
-    );
-    _phoneController = TextEditingController(
-      text: _hasPhone ? phone : '',
-    );
+    _emailController = TextEditingController(text: _initialEmail);
+    _phoneController = TextEditingController(text: _initialPhone);
+
+    _fullNameController.addListener(_checkForChanges);
+    _emailController.addListener(_checkForChanges);
+    _phoneController.addListener(_checkForChanges);
+  }
+
+  void _checkForChanges() {
+    final fullName = _fullNameController.text;
+    final email = _emailController.text;
+    final phone = _phoneController.text;
+
+    final hasChanges = fullName != _initialFullName ||
+        email != _initialEmail ||
+        phone != _initialPhone;
+
+    if (hasChanges != _isChanged) {
+      setState(() => _isChanged = hasChanges);
+    }
   }
 
   @override
@@ -55,12 +80,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
           'Profilni tahrirlash',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
       body: Column(
         children: [
@@ -82,56 +109,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
           ),
-          // Save Button — always visible above keyboard
-          Container(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 12,
-              bottom: MediaQuery.of(context).padding.bottom + 12,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+          // Save Button — only visible when changes are made
+          if (_isChanged)
+            Container(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 12,
+                bottom: MediaQuery.of(context).padding.bottom + 12,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Saqlash',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Saqlash',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -146,29 +164,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           Container(
             width: 90,
             height: 90,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withValues(alpha: 0.7),
-                ],
-              ),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEEF2FF), // User requested background
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
             child: Center(
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF2855C5), // User requested text color
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
@@ -212,13 +216,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(
+            color: Colors.grey.shade100), // Light border instead of shadow
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

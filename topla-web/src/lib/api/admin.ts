@@ -1014,3 +1014,38 @@ export async function deleteAdminPickupPoint(id: string) {
     method: 'DELETE',
   });
 }
+
+// ============================================
+// Pickup Point Applications (Punkt arizalari)
+// ============================================
+export async function fetchPickupApplications(params?: { status?: string; search?: string; page?: number; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.search) searchParams.set('search', params.search);
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  const qs = searchParams.toString();
+  return adminRequest<{
+    data: any[];
+    pagination: { page: number; limit: number; total: number; pages: number };
+  }>(`/admin/pickup-applications${qs ? `?${qs}` : ''}`);
+}
+
+export async function fetchPickupApplicationStats() {
+  return adminRequest<{
+    data: { total: number; pending: number; contacted: number; approved: number; rejected: number };
+  }>('/admin/pickup-applications/stats');
+}
+
+export async function updatePickupApplication(id: string, data: { status: string; adminNote?: string }) {
+  return adminRequest<any>(`/admin/pickup-applications/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deletePickupApplication(id: string) {
+  return adminRequest<any>(`/admin/pickup-applications/${id}`, {
+    method: 'DELETE',
+  });
+}

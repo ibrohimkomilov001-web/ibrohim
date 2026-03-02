@@ -102,21 +102,17 @@ class _CatalogScreenState extends State<CatalogScreen>
               children: [
                 // Categories list
                 Expanded(
-                  child: ToplaRefreshIndicator(
-                    onRefresh: () =>
-                        context.read<ProductsProvider>().loadCategories(),
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      padding: EdgeInsets.zero,
-                      itemCount: categories.length,
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-                        return _buildCategoryItem(category, index);
-                      },
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
+                    padding: EdgeInsets.zero,
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      return _buildCategoryItem(category, index);
+                    },
                   ),
                 ),
               ],

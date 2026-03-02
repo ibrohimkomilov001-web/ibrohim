@@ -19,10 +19,12 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
+  final _phoneFocusNode = FocusNode();
 
   bool _isLoading = false;
   bool _isOtpSent = false;
   bool _isGoogleLoading = false;
+  bool _isPhoneFocused = false;
 
   // Countdown timer
   int _resendCountdown = 0;
@@ -31,12 +33,24 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
+    _phoneController.addListener(() {
+      setState(() {});
+    });
+    _otpController.addListener(() {
+      setState(() {});
+    });
+    _phoneFocusNode.addListener(() {
+      setState(() {
+        _isPhoneFocused = _phoneFocusNode.hasFocus;
+      });
+    });
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
     _otpController.dispose();
+    _phoneFocusNode.dispose();
     _resendTimer?.cancel();
     super.dispose();
   }
@@ -265,6 +279,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if keyboard is visible
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = bottomInset > 0.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -296,6 +314,26 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 const SizedBox(height: 40),
 
+                // Profile Icon
+                Center(
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: const Color(
+                          0xFFEEF2FF), // Light purple/blue background
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person_outline_rounded,
+                      color: Color(0xFF2855C5), // Blue icon color
+                      size: 32,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
                 // Title
                 Text(
                   _isOtpSent ? 'Tasdiqlash' : 'Kirish',
@@ -321,77 +359,89 @@ class _AuthScreenState extends State<AuthScreen> {
                   textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
 
                 // Phone field
                 if (!_isOtpSent) ...[
-                  // Phone input - modern style
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.grey.shade50,
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: TextFormField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.done,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      inputFormatters: [
-                        UzPhoneInputFormatter(),
-                      ],
-                      decoration: InputDecoration(
-                        hintText: '90 123 45 67',
-                        hintStyle: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        prefixIcon: Container(
-                          padding: const EdgeInsets.only(left: 16, right: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Iconsax.call,
-                                  size: 20, color: AppColors.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                '+998',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade700,
+                  // Phone input - minimal style with dividers
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Divider(height: 1, color: Colors.grey.shade200),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal:
+                                    0), // Removed padding to align better
+                            width: 80, // Fixed width for prefix
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  '+998',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                width: 1,
-                                height: 24,
-                                color: Colors.grey.shade300,
-                              ),
-                            ],
+                                const SizedBox(width: 12),
+                                Container(
+                                  width: 1,
+                                  height: 24,
+                                  color: Colors.grey.shade300,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _phoneController,
+                              focusNode: _phoneFocusNode,
+                              keyboardType: TextInputType.phone,
+                              textInputAction: TextInputAction.done,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1,
+                              ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(9),
+                                UzPhoneInputFormatter(),
+                              ],
+                              decoration: InputDecoration(
+                                hintText: '00 000 00 00',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade300,
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 18,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding:
+                                    const EdgeInsets.fromLTRB(12, 16, 0, 16),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Telefon raqamni kiriting';
+                                }
+                                final digits = value.replaceAll(' ', '');
+                                if (digits.length != 9) {
+                                  return 'Telefon raqam to\'liq emas';
+                                }
+                                return null;
+                              },
+                              onFieldSubmitted: (_) => _sendOtp(),
+                            ),
+                          ),
+                        ],
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Telefon raqamni kiriting';
-                        }
-                        final digits = value.replaceAll(' ', '');
-                        if (digits.length != 9) {
-                          return 'Telefon raqam to\'liq emas';
-                        }
-                        return null;
-                      },
-                      onFieldSubmitted: (_) => _sendOtp(),
-                    ),
+                      Divider(height: 1, color: Colors.grey.shade200),
+                    ],
                   ),
                 ] else ...[
                   // OTP field - modern
@@ -474,42 +524,52 @@ class _AuthScreenState extends State<AuthScreen> {
                 // Submit button - pill-shaped
                 SizedBox(
                   height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : (_isOtpSent ? _verifyOtp : _sendOtp),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                          AppColors.primary.withValues(alpha: 0.6),
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(100),
+                  child: Builder(builder: (context) {
+                    final isPhoneValid = _phoneController.text
+                            .replaceAll(RegExp(r'\D'), '')
+                            .length ==
+                        9;
+                    final isButtonEnabled = _isOtpSent
+                        ? _otpController.text.length == 4
+                        : isPhoneValid;
+
+                    return ElevatedButton(
+                      onPressed: _isLoading || !isButtonEnabled
+                          ? null
+                          : (_isOtpSent ? _verifyOtp : _sendOtp),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey.shade200,
+                        disabledForegroundColor: Colors.grey.shade400,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100),
+                        ),
                       ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              _isOtpSent ? 'Tasdiqlash' : 'Davom etish',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          )
-                        : Text(
-                            _isOtpSent ? 'Tasdiqlash' : 'Davom etish',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
+                    );
+                  }),
                 ),
 
-                // Google Sign In - faqat telefon kiritish sahifasida ko'rsatish
-                if (!_isOtpSent) ...[
+                // Google Sign In - faqat telefon kiritish sahifasida va klaviatura yopiq paytda ko'rsatish
+                if (!_isOtpSent && !isKeyboardVisible) ...[
                   const SizedBox(height: 20),
 
                   // Divider
@@ -562,8 +622,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                 const Text(
                                   'Google orqali kirish',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
                                     color: Colors.black87,
                                   ),
                                 ),

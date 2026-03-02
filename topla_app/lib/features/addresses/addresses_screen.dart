@@ -36,6 +36,12 @@ class _AddressesScreenState extends State<AddressesScreen> {
           context.l10n.myAddresses,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
+        actions: [
+          IconButton(
+            onPressed: _showAddAddressSheet,
+            icon: const Icon(Icons.add, size: 26),
+          ),
+        ],
       ),
       body: Consumer<AddressesProvider>(
         builder: (context, provider, _) {
@@ -54,32 +60,6 @@ class _AddressesScreenState extends State<AddressesScreen> {
           return _buildAddressList(provider.addresses);
         },
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _showAddAddressSheet,
-            icon: const Icon(Iconsax.add, size: 20),
-            label: Text(
-              context.l10n.locale.languageCode == 'ru'
-                  ? 'Новый адрес'
-                  : 'Yangi manzil',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(26),
-              ),
-            ),
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -160,7 +140,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
     return ToplaRefreshIndicator(
       onRefresh: () => context.read<AddressesProvider>().loadAddresses(),
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         itemCount: addresses.length,
         itemBuilder: (context, index) {
           final address = addresses[index];
@@ -171,213 +151,297 @@ class _AddressesScreenState extends State<AddressesScreen> {
   }
 
   Widget _buildAddressCard(AddressModel address) {
-    // 1. Determine Colors based on type for "Colorful" look
-    Color iconColor;
-    Color iconBgColor;
     IconData iconData;
 
     switch (address.title.toLowerCase()) {
       case 'uy':
       case 'home':
         iconData = Iconsax.home_2;
-        iconColor = const Color(0xFF3B82F6); // Blue
-        iconBgColor = const Color(0xFFEFF6FF); // Blue 50
         break;
       case 'ish':
       case 'work':
         iconData = Iconsax.briefcase;
-        iconColor = const Color(0xFFF97316); // Orange
-        iconBgColor = const Color(0xFFFFF7ED); // Orange 50
         break;
       default:
         iconData = Iconsax.location;
-        iconColor = const Color(0xFF8B5CF6); // Purple
-        iconBgColor = const Color(0xFFF5F3FF); // Purple 50
     }
 
     final isDefault = address.isDefault;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        // Modern subtle border, highlighted if default
-        border: Border.all(
-          color: isDefault ? AppColors.primary : Colors.grey.shade200,
-          width: isDefault ? 1.5 : 1,
+    return Dismissible(
+      key: Key(address.id),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
         ),
-        boxShadow: [
-          if (isDefault)
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-        ],
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Iconsax.edit_2, color: AppColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text('Tahrirlash',
+                style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13)),
+          ],
+        ),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _setAsDefault(address.id),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 2. Colorful Icon Wrapper
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: iconBgColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
+      secondaryBackground: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.error.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('O\'chirish',
+                style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13)),
+            const SizedBox(width: 8),
+            Icon(Iconsax.trash, color: AppColors.error, size: 20),
+          ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          // Chapdan o'ngga — Tahrirlash
+          _showEditAddressSheet(address);
+          return false;
+        } else {
+          // O'ngdan chapga — O'chirish
+          return await _confirmDelete(address);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDefault
+                ? AppColors.primary.withOpacity(0.3)
+                : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _setAsDefault(address.id),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  // Icon
+                  Icon(
                     iconData,
-                    color: iconColor,
+                    color: Colors.black54,
                     size: 22,
                   ),
-                ),
 
-                const SizedBox(width: 14),
+                  const SizedBox(width: 12),
 
-                // 3. Address Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            address.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              color: Colors.black87,
+                  // Address Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              address.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
                             ),
-                          ),
-                          if (isDefault) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                'Asosiy', // Default
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                            if (isDefault) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Asosiy',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        address.fullAddress,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                          height: 1.4,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 4. Edit Action (Cleaner than popup)
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Radio button visual for selection
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDefault
-                              ? AppColors.primary
-                              : Colors.grey.shade300,
-                          width: 2,
-                        ),
-                      ),
-                      child: isDefault
-                          ? Center(
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    // Subtle Edit Button
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _showEditAddressSheet(address);
-                        } else if (value == 'delete') {
-                          _deleteAddress(address);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Iconsax.edit_2),
-                              SizedBox(width: 12),
-                              Text('Tahrirlash'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Iconsax.trash, color: AppColors.error),
-                              const SizedBox(width: 12),
-                              Text(
-                                'O\'chirish',
-                                style: TextStyle(color: AppColors.error),
-                              ),
-                            ],
+                        const SizedBox(height: 2),
+                        Text(
+                          address.fullAddress,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
                           ),
                         ),
                       ],
-                      child: Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: Icon(
-                          Iconsax.more,
-                          size: 20,
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmDelete(AddressModel address) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Trash icon
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Iconsax.trash,
+                  color: AppColors.error,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Manzilni o\'chirish',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '"${address.title}" manzilini o\'chirishni xohlaysizmi?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Bekor qilish',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'O\'chirish',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) {
+      try {
+        await context.read<AddressesProvider>().deleteAddress(address.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Manzil o\'chirildi'),
+              backgroundColor: Colors.grey.shade700,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return true;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Xatolik: $e'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+    return false;
   }
 
   Future<void> _setAsDefault(String id) async {
@@ -400,53 +464,6 @@ class _AddressesScreenState extends State<AddressesScreen> {
             backgroundColor: AppColors.error,
           ),
         );
-      }
-    }
-  }
-
-  Future<void> _deleteAddress(AddressModel address) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Manzilni o\'chirish'),
-        content: const Text('Bu manzilni o\'chirishni xohlaysizmi?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Bekor qilish'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
-            child: const Text('O\'chirish'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        await context.read<AddressesProvider>().deleteAddress(address.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Manzil o\'chirildi'),
-              backgroundColor: Colors.grey.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Xatolik: $e'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
       }
     }
   }
@@ -492,40 +509,54 @@ class _AddressesScreenState extends State<AddressesScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 // Header
                 Row(
                   children: [
                     Text(
                       address != null ? 'Manzilni tahrirlash' : 'Yangi manzil',
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Iconsax.close_circle),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Icon(Icons.close,
+                          size: 22, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
                 // Type selector
                 const Text(
                   'Manzil turi',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: Colors.black54,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     _buildTypeChip(
@@ -551,26 +582,32 @@ class _AddressesScreenState extends State<AddressesScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // Address input
                 const Text(
                   'To\'liq manzil',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: Colors.black54,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 TextField(
                   controller: addressController,
                   maxLines: 2,
+                  style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Tuman, ko\'cha, uy raqami...',
+                    hintStyle:
+                        TextStyle(color: Colors.grey.shade400, fontSize: 14),
                     filled: true,
-                    fillColor: Colors.grey.shade100,
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                     suffixIcon: IconButton(
@@ -615,7 +652,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
                                   longitude: position.longitude,
                                 );
 
-                                addressController.text = result.shortAddress;
+                                // Strukturalangan manzil: viloyat, tuman, ko'cha ketma-ketligida
+                                addressController.text =
+                                    result.structuredAddress;
 
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -650,21 +689,22 @@ class _AddressesScreenState extends State<AddressesScreen> {
                               ),
                             )
                           : Icon(
-                              Iconsax.location,
-                              color: AppColors.primary,
+                              Iconsax.gps,
+                              color: Colors.grey.shade600,
                             ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Xaritadan tanlash tugmasi
                 SizedBox(
                   width: double.infinity,
+                  height: 44,
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      Navigator.pop(context); // Bottom sheet yopish
+                      Navigator.pop(context);
                       final result = await Navigator.push<Map<String, dynamic>>(
                         context,
                         MaterialPageRoute(
@@ -676,7 +716,6 @@ class _AddressesScreenState extends State<AddressesScreen> {
                       );
 
                       if (result != null) {
-                        // Xaritadan qaytganda bottom sheet ni qayta ochish
                         _showAddressBottomSheet(
                           address: address,
                           prefilledAddress: result['address'] as String?,
@@ -685,20 +724,21 @@ class _AddressesScreenState extends State<AddressesScreen> {
                         );
                       }
                     },
-                    icon: const Icon(Iconsax.map),
-                    label: const Text('Xaritadan tanlash'),
+                    icon: Icon(Iconsax.map,
+                        size: 18, color: Colors.grey.shade600),
+                    label: Text('Xaritadan tanlash',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade700)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: Colors.grey.shade300),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 // Additional fields
                 Row(
@@ -706,27 +746,37 @@ class _AddressesScreenState extends State<AddressesScreen> {
                     Expanded(
                       child: TextField(
                         controller: apartmentController,
+                        style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Kvartira',
+                          hintStyle: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 14),
                           filled: true,
-                          fillColor: Colors.grey.shade100,
+                          fillColor: Colors.grey.shade50,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         controller: entranceController,
+                        style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Kirish',
+                          hintStyle: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 14),
                           filled: true,
-                          fillColor: Colors.grey.shade100,
+                          fillColor: Colors.grey.shade50,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                         ),
@@ -735,32 +785,31 @@ class _AddressesScreenState extends State<AddressesScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: floorController,
-                        decoration: InputDecoration(
-                          hintText: 'Qavat',
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
+                TextField(
+                  controller: floorController,
+                  decoration: InputDecoration(
+                    hintText: 'Qavat',
+                    hintStyle:
+                        TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
-                  ],
+                  ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Save button
                 SizedBox(
                   width: double.infinity,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: isLoading
                         ? null
@@ -843,22 +892,31 @@ class _AddressesScreenState extends State<AddressesScreen> {
                             }
                           },
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
-                        : Text(address != null ? 'Saqlash' : 'Qo\'shish'),
+                        : Text(
+                            address != null ? 'Saqlash' : 'Qo\'shish',
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w500),
+                          ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -876,24 +934,33 @@ class _AddressesScreenState extends State<AddressesScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.08)
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primary.withOpacity(0.4)
+                : Colors.grey.shade200,
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              size: 18,
-              color: isSelected ? Colors.white : Colors.grey.shade600,
+              size: 16,
+              color: isSelected ? AppColors.primary : Colors.grey.shade500,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade700,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
+                color: isSelected ? AppColors.primary : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
               ),
             ),
           ],

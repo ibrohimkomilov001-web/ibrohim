@@ -9,12 +9,13 @@ import { AppError } from '../../middleware/error.js';
 import { env } from '../../config/env.js';
 import { checkRateLimit, setWithExpiry, getValue, deleteKey } from '../../config/redis.js';
 import { sendOtp, verifyOtp, getOtpForTesting, isTelegramConfigured, type OtpChannel } from '../../services/otp.service.js';
+import { getLocationFromIp } from '../../utils/geolocation.js';
 import { randomUUID } from 'crypto';
 
 // ============================================
 // Helper: Extract device info from request
 // ============================================
-function extractDeviceInfo(request: any) {
+async function extractDeviceInfo(request: any) {
   const ua = request.headers['user-agent'] || '';
   const ip = request.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || request.headers['x-real-ip']
@@ -57,7 +58,10 @@ function extractDeviceInfo(request: any) {
   else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
   else if (ua.includes('Dart')) browser = 'TOPLA App';
 
-  return { deviceName, browser, ipAddress: ip };
+  // IP dan joylashuvni aniqlash
+  const location = await getLocationFromIp(ip);
+
+  return { deviceName, browser, ipAddress: ip, location };
 }
 
 // ============================================
@@ -231,7 +235,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 3. FCM device saqlash
-    const deviceInfo = extractDeviceInfo(request);
+    const deviceInfo = await extractDeviceInfo(request);
     if (body.fcmToken) {
       await prisma.userDevice.upsert({
         where: {
@@ -327,7 +331,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 3. FCM token qurilmaga saqlash
-    const deviceInfo2 = extractDeviceInfo(request);
+    const deviceInfo2 = await extractDeviceInfo(request);
     if (body.fcmToken) {
       await prisma.userDevice.upsert({
         where: {
@@ -506,6 +510,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // Profile va device ni yangilash
+    const fcmDeviceInfo = await extractDeviceInfo(request);
     await Promise.all([
       prisma.profile.update({
         where: { id: request.user!.userId },
@@ -518,12 +523,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
             fcmToken,
           },
         },
-        update: { isActive: true, ...extractDeviceInfo(request), lastActiveAt: new Date() },
+        update: { isActive: true, ...fcmDeviceInfo, lastActiveAt: new Date() },
         create: {
           userId: request.user!.userId,
           fcmToken,
           platform: platform || 'android',
-          ...extractDeviceInfo(request),
+          ...fcmDeviceInfo,
         },
       }),
     ]);
@@ -932,7 +937,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 3. FCM token saqlash
-    const googleDeviceInfo = extractDeviceInfo(request);
+    const googleDeviceInfo = await extractDeviceInfo(request);
     if (body.fcmToken) {
       await prisma.userDevice.upsert({
         where: {
@@ -998,6 +1003,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         deviceName: true,
         browser: true,
         ipAddress: true,
+        location: true,
         lastActiveAt: true,
         isActive: true,
         createdAt: true,

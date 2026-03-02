@@ -174,36 +174,25 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 // Phone Input
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Row(
                     children: [
-                      // Country Code Dropdown
+                      // Country Code prefix (static +998 as requested mostly for cleanness but keeping minimal logic if needed, or just Text)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedCountryCode,
-                            items: _countryCodes.map((country) {
-                              return DropdownMenuItem(
-                                value: country['code'],
-                                child: Text(
-                                  '${country['flag']} ${country['code']}',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() => _selectedCountryCode = value!);
-                            },
-                          ),
+                        child: const Text(
+                          '+998',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w500),
                         ),
                       ),
 
                       // Divider
                       Container(
-                        height: 30,
+                        height: 24,
                         width: 1,
                         color: Colors.grey.shade300,
                       ),
@@ -221,8 +210,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                             _PhoneNumberFormatter(),
                           ],
                           decoration: InputDecoration(
-                            hintText: '90 123 45 67',
-                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            hintText: '00 000 00 00',
+                            hintStyle: TextStyle(color: Colors.grey.shade300),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,

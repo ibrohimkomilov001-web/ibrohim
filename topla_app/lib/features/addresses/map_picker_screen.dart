@@ -98,8 +98,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       );
 
       setState(() {
-        _address = result.shortAddress.isNotEmpty
-            ? result.shortAddress
+        _address = result.structuredAddress.isNotEmpty
+            ? result.structuredAddress
             : '${point.latitude.toStringAsFixed(6)}, ${point.longitude.toStringAsFixed(6)}';
       });
     } catch (e) {

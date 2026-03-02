@@ -124,14 +124,70 @@ class NominatimResult {
   String get shortAddress {
     final parts = <String>[];
 
-    // Shahar yoki tuman
-    if (city != null && city!.isNotEmpty) {
-      parts.add(city!);
-    } else if (district != null && district!.isNotEmpty) {
+    // 1. Viloyat (state)
+    if (state != null && state!.isNotEmpty && state != country) {
+      parts.add(state!);
+    }
+
+    // 2. Tuman (district/county)
+    if (district != null && district!.isNotEmpty && district != state) {
       parts.add(district!);
     }
 
-    // Mahalla
+    // 3. Shahar/Qishloq (city/town/village)
+    if (city != null && city!.isNotEmpty && city != district && city != state) {
+      parts.add(city!);
+    }
+
+    // 4. Mahalla
+    if (suburb != null && suburb!.isNotEmpty && suburb != city) {
+      parts.add(suburb!);
+    } else if (neighbourhood != null &&
+        neighbourhood!.isNotEmpty &&
+        neighbourhood != city &&
+        neighbourhood != suburb) {
+      parts.add(neighbourhood!);
+    }
+
+    // 5. Ko'cha
+    if (road != null && road!.isNotEmpty) {
+      parts.add(road!);
+    }
+
+    // 6. Uy raqami
+    if (houseNumber != null && houseNumber!.isNotEmpty) {
+      parts.add(houseNumber!);
+    }
+
+    if (parts.isEmpty) {
+      return displayName.length > 60
+          ? '${displayName.substring(0, 60)}...'
+          : displayName;
+    }
+
+    return parts.join(', ');
+  }
+
+  /// Strukturalangan manzil - viloyat, tuman, shahar alohida
+  String get structuredAddress {
+    final parts = <String>[];
+
+    // 1. Viloyat
+    if (state != null && state!.isNotEmpty && state != country) {
+      parts.add(state!);
+    }
+
+    // 2. Tuman
+    if (district != null && district!.isNotEmpty && district != state) {
+      parts.add(district!);
+    }
+
+    // 3. Shahar/Qishloq
+    if (city != null && city!.isNotEmpty && city != district && city != state) {
+      parts.add(city!);
+    }
+
+    // 4. Mahalla
     if (suburb != null && suburb!.isNotEmpty && suburb != city) {
       parts.add(suburb!);
     } else if (neighbourhood != null &&
@@ -140,19 +196,18 @@ class NominatimResult {
       parts.add(neighbourhood!);
     }
 
-    // Ko'cha
+    // 5. Ko'cha va uy
     if (road != null && road!.isNotEmpty) {
-      parts.add(road!);
-    }
-
-    // Uy raqami
-    if (houseNumber != null && houseNumber!.isNotEmpty) {
-      parts.add(houseNumber!);
+      String roadPart = road!;
+      if (houseNumber != null && houseNumber!.isNotEmpty) {
+        roadPart += ', ${houseNumber!}';
+      }
+      parts.add(roadPart);
     }
 
     if (parts.isEmpty) {
-      return displayName.length > 60
-          ? '${displayName.substring(0, 60)}...'
+      return displayName.length > 80
+          ? '${displayName.substring(0, 80)}...'
           : displayName;
     }
 

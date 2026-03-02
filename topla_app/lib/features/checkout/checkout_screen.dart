@@ -615,7 +615,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             _recipientNameController.text =
                                 profile?.fullName ?? '';
                             _recipientPhoneController.text =
-                                phone.startsWith('google_') ? '' : _formatPhoneForInput(phone);
+                                phone.startsWith('google_')
+                                    ? ''
+                                    : _formatPhoneForInput(phone);
                           });
                           Navigator.pop(ctx);
                         },
@@ -1629,7 +1631,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             latitude: position.latitude,
                             longitude: position.longitude,
                           );
-                          addressController.text = result.shortAddress;
+                          addressController.text = result.structuredAddress;
                         } catch (e) {
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(

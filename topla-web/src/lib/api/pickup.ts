@@ -11,6 +11,36 @@ function getApiBase(): string {
 
 export const API_BASE = getApiBase();
 
+// ============================================
+// Public: Pickup point partner application
+// ============================================
+export async function submitPickupApplication(data: {
+  fullName: string;
+  phone: string;
+  city: string;
+  address: string;
+  areaSize?: number;
+  note?: string;
+}): Promise<{ id: string }> {
+  const url = `${API_BASE}/pickup-points/apply`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  } catch {
+    throw new Error('Serverga ulanib bo\'lmadi');
+  }
+
+  const json = await response.json();
+  if (!response.ok) {
+    throw new Error(json?.message || `Xatolik: ${response.status}`);
+  }
+  return json.data;
+}
+
 function getPickupToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('pickup_token');

@@ -39,6 +39,20 @@ const pickupLoginSchema = z.object({
   pinCode: z.string(),
 });
 
+const pickupApplicationSchema = z.object({
+  fullName: z.string().min(2, 'Ism kamida 2 harf bo\'lishi kerak').max(100),
+  phone: z.string().min(9, 'Telefon raqamni kiriting').max(20),
+  city: z.string().min(2, 'Shaharni kiriting').max(100),
+  address: z.string().min(5, 'Manzilni to\'liq kiriting').max(500),
+  areaSize: z.number().min(1).optional(),
+  note: z.string().max(1000).optional(),
+});
+
+const updateApplicationSchema = z.object({
+  status: z.enum(['pending', 'contacted', 'approved', 'rejected']),
+  adminNote: z.string().max(1000).optional(),
+});
+
 // ============================================
 // Routes
 // ============================================
@@ -469,6 +483,161 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
         items: order.items.map(i => ({ name: i.name, quantity: i.quantity })),
         total: order.total,
       },
+    });
+  });
+
+  // ============================================
+  // PUBLIC: Topshirish punkti ochish — ariza yuborish
+  // ============================================
+  app.post('/pickup-points/apply', async (request, reply) => {
+    const body = pickupApplicationSchema.parse(request.body);
+
+    // Telefon raqam tozalash (+998 prefix olib tashlash)
+    const cleanPhone = body.phone.replace(/\D/g, '').replace(/^998/, '');
+
+    // Tekshirish: oxirgi 24 soatda shu telefondan ariza yuborilganmi
+    const existingApplication = await prisma.pickupPointApplication.findFirst({
+      where: {
+        phone: { contains: cleanPhone },
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    if (existingApplication) {
+      throw new AppError('Siz allaqachon ariza yuborgansiz. Iltimos, 24 soat kutib turing.', 429);
+    }
+
+    const application = await prisma.pickupPointApplication.create({
+      data: {
+        fullName: body.fullName,
+        phone: body.phone,
+        city: body.city,
+        address: body.address,
+        areaSize: body.areaSize,
+        note: body.note,
+      },
+    });
+
+    // Admin dashboardga bildirishnoma
+    emitToAdminDashboard('pickup:new_application', {
+      id: application.id,
+      fullName: application.fullName,
+      city: application.city,
+    });
+
+    return reply.status(201).send({
+      success: true,
+      message: 'Arizangiz qabul qilindi! Tez orada siz bilan bog\'lanamiz.',
+      data: { id: application.id },
+    });
+  });
+
+  // ============================================
+  // ADMIN: Barcha arizalar ro'yxati
+  // ============================================
+  app.get('/admin/pickup-applications', { preHandler: [authMiddleware, requireRole('admin', 'superAdmin')] }, async (request, reply) => {
+    const query = request.query as { page?: string; limit?: string; status?: string; search?: string };
+    const page = Math.max(1, parseInt(query.page || '1'));
+    const limit = Math.min(50, Math.max(1, parseInt(query.limit || '20')));
+    const skip = (page - 1) * limit;
+    const status = query.status as string | undefined;
+    const search = query.search as string | undefined;
+
+    const where: any = {};
+    if (status && ['pending', 'contacted', 'approved', 'rejected'].includes(status)) {
+      where.status = status;
+    }
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { city: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [applications, total] = await Promise.all([
+      prisma.pickupPointApplication.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.pickupPointApplication.count({ where }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: applications,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  });
+
+  // ============================================
+  // ADMIN: Ariza statistikasi (/:id dan oldin bo'lishi kerak!)
+  // ============================================
+  app.get('/admin/pickup-applications/stats', { preHandler: [authMiddleware, requireRole('admin', 'superAdmin')] }, async (request, reply) => {
+    const [total, pending, contacted, approved, rejected] = await Promise.all([
+      prisma.pickupPointApplication.count(),
+      prisma.pickupPointApplication.count({ where: { status: 'pending' } }),
+      prisma.pickupPointApplication.count({ where: { status: 'contacted' } }),
+      prisma.pickupPointApplication.count({ where: { status: 'approved' } }),
+      prisma.pickupPointApplication.count({ where: { status: 'rejected' } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: { total, pending, contacted, approved, rejected },
+    });
+  });
+
+  // ============================================
+  // ADMIN: Ariza statusini o'zgartirish
+  // ============================================
+  app.put('/admin/pickup-applications/:id', { preHandler: [authMiddleware, requireRole('admin', 'superAdmin')] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updateApplicationSchema.parse(request.body);
+
+    const application = await prisma.pickupPointApplication.findUnique({ where: { id } });
+    if (!application) {
+      throw new NotFoundError('Ariza topilmadi');
+    }
+
+    const updated = await prisma.pickupPointApplication.update({
+      where: { id },
+      data: {
+        status: body.status,
+        adminNote: body.adminNote,
+        reviewedAt: new Date(),
+      },
+    });
+
+    return reply.send({
+      success: true,
+      data: updated,
+    });
+  });
+
+  // ============================================
+  // ADMIN: Arizani o'chirish
+  // ============================================
+  app.delete('/admin/pickup-applications/:id', { preHandler: [authMiddleware, requireRole('admin', 'superAdmin')] }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const application = await prisma.pickupPointApplication.findUnique({ where: { id } });
+    if (!application) {
+      throw new NotFoundError('Ariza topilmadi');
+    }
+
+    await prisma.pickupPointApplication.delete({ where: { id } });
+
+    return reply.send({
+      success: true,
+      message: 'Ariza o\'chirildi',
     });
   });
 }
