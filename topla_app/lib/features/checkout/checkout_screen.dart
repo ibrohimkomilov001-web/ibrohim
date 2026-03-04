@@ -136,9 +136,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return Scaffold(
           backgroundColor: Colors.grey.shade100,
           appBar: AppBar(
-            title: const Text(
-              'Buyurtmani rasmiylashtirish',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            title: Text(
+              context.l10n.translate('order_checkout'),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.white,
@@ -216,9 +216,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           Expanded(
             child: _buildDeliveryCard(
               value: 'pickup',
-              title: 'Topshirish punkti',
-              subtitle: _selectedPickupPoint?.name ?? 'Punktni tanlang',
-              extraInfo: 'bepul',
+              title: context.l10n.translate('pickup_point'),
+              subtitle: _selectedPickupPoint?.name ??
+                  context.l10n.translate('pickup_point_select'),
+              extraInfo: context.l10n.translate('free_delivery'),
               extraInfoColor: AppColors.success,
               isEnabled: true,
             ),
@@ -228,8 +229,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           Expanded(
             child: _buildDeliveryCard(
               value: 'courier',
-              title: 'Kuryer',
-              subtitle: 'Ertaga yoki keyinroq',
+              title: context.l10n.translate('courier'),
+              subtitle: context.l10n.translate('tomorrow_or_later'),
               extraInfo: '50 000 so\'m',
               extraInfoColor: Colors.black87,
               isEnabled: true,
@@ -380,16 +381,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Topshirish punkti',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.translate('pickup_point'),
+                    style: const TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _selectedPickupPoint?.name ?? 'Punktni tanlang',
+                    _selectedPickupPoint?.name ??
+                        context.l10n.translate('pickup_point_select'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -440,7 +442,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Manzil',
+                        context.l10n.translate('address'),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade500,
@@ -450,7 +452,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Text(
                         selected?.fullAddress ??
                             selected?.address ??
-                            'Manzilni tanlang',
+                            context.l10n.translate('select_address'),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -481,7 +483,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildRecipientRow() {
     final name = _recipientNameController.text.isNotEmpty
         ? _recipientNameController.text
-        : 'Tanlang';
+        : context.l10n.translate('select_option');
     final phone = _recipientPhoneController.text;
 
     return InkWell(
@@ -501,7 +503,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Qabul qiluvchi',
+                    context.l10n.translate('recipient'),
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey.shade500,
@@ -581,9 +583,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Qabul qiluvchi',
-                          style: TextStyle(
+                        Text(
+                          context.l10n.translate('recipient'),
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
@@ -651,7 +653,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    profile?.fullName ?? 'Ism kiritilmagan',
+                                    profile?.fullName ??
+                                        context.l10n
+                                            .translate('name_not_entered'),
                                     style: const TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w600,
@@ -742,9 +746,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             children: [
                               const Icon(Icons.add, size: 20),
                               const SizedBox(width: 8),
-                              const Text(
-                                'Boshqa qabul qiluvchi qo\'shish',
-                                style: TextStyle(
+                              Text(
+                                context.l10n.translate('add_other_recipient'),
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -758,7 +762,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       TextField(
                         controller: tempNameController,
                         decoration: InputDecoration(
-                          labelText: 'Ism',
+                          labelText: context.l10n.translate('name_label'),
                           prefixIcon: const Icon(Iconsax.user, size: 20),
                           filled: true,
                           fillColor: Colors.grey.shade50,
@@ -780,7 +784,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           _UzPhoneFormatter(),
                         ],
                         decoration: InputDecoration(
-                          labelText: 'Telefon raqam',
+                          labelText: context.l10n.translate('phone_number'),
                           hintText: 'XX XXX XX XX',
                           prefixIcon: const Icon(Iconsax.call, size: 20),
                           prefixText: '+998 ',
@@ -809,7 +813,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           onPressed: () {
                             if (tempNameController.text.trim().isEmpty) {
                               ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(content: Text('Ismni kiriting')),
+                                SnackBar(
+                                    content: Text(
+                                        context.l10n.translate('enter_name'))),
                               );
                               return;
                             }
@@ -829,9 +835,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text(
-                            'Saqlash',
-                            style: TextStyle(
+                          child: Text(
+                            context.l10n.translate('save'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -857,9 +863,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Telefon qilinmasin',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('do_not_call'),
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
@@ -885,9 +891,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Yetkazish sanasi',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('delivery_date'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -906,18 +912,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 String label;
 
                 if (index == 0) {
-                  label = 'Ertaga';
+                  label = context.l10n.translate('tomorrow');
                 } else if (index == 1) {
-                  label = 'Ertadan keyin';
+                  label = context.l10n.translate('day_after_tomorrow');
                 } else {
                   final weekdays = [
-                    'Dushanba',
-                    'Seshanba',
-                    'Chorshanba',
-                    'Payshanba',
-                    'Juma',
-                    'Shanba',
-                    'Yakshanba'
+                    context.l10n.translate('monday'),
+                    context.l10n.translate('tuesday'),
+                    context.l10n.translate('wednesday'),
+                    context.l10n.translate('thursday'),
+                    context.l10n.translate('friday'),
+                    context.l10n.translate('saturday'),
+                    context.l10n.translate('sunday')
                   ];
                   label = weekdays[date.weekday - 1]; // Hafta kuni
                 }
@@ -1001,9 +1007,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 Icon(Iconsax.clock, size: 18, color: Colors.grey.shade600),
                 const SizedBox(width: 8),
-                const Text(
-                  '9:00 dan 21:00 gacha yetkazib beriladi',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                Text(
+                  context.l10n.translate('delivery_time_info'),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -1015,7 +1022,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   // ========== Ixcham to'lov usuli ==========
   Widget _buildCompactPaymentMethod() {
-    String paymentText = 'Naqd pul';
+    String paymentText = context.l10n.translate('cash_payment');
     IconData paymentIcon = Iconsax.wallet_money;
     Color iconColor = Colors.green;
 
@@ -1025,7 +1032,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (_selectedCard != null) {
         paymentText = _selectedCard!.displayName; // Karta nomi (4 ta raqam)
       } else {
-        paymentText = 'Plastik karta';
+        paymentText = context.l10n.translate('plastic_card');
       }
     }
 
@@ -1035,9 +1042,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'To\'lov usuli',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('payment_method'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -1101,9 +1108,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
               ),
-              const Text(
-                'To\'lov usulini tanlang',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('select_payment_method'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1118,8 +1125,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   child:
                       Icon(Iconsax.wallet_money, color: Colors.green, size: 28),
                 ),
-                title: const Text('Naqd pul',
-                    style: TextStyle(fontWeight: FontWeight.w500)),
+                title: Text(context.l10n.translate('cash_payment'),
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
                 trailing: _paymentMethod == 'cash'
                     ? const Icon(Icons.check_circle, color: AppColors.primary)
                     : const Icon(Icons.circle_outlined, color: Colors.grey),
@@ -1156,7 +1163,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                     title: Text(card.displayName),
-                    subtitle: Text('Muddati: ${card.expiryDate}'),
+                    subtitle: Text(
+                        '${context.l10n.translate('expiry_label')}: ${card.expiryDate}'),
                     trailing: isSelected
                         ? const Icon(Icons.check_circle,
                             color: AppColors.primary)
@@ -1181,8 +1189,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   child:
                       Icon(Iconsax.card_add, color: Colors.black87, size: 28),
                 ),
-                title: const Text('Yangi karta qo\'shish',
-                    style: TextStyle(fontWeight: FontWeight.w500)),
+                title: Text(context.l10n.translate('new_card_add'),
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
                 onTap: () {
                   Navigator.pop(ctx);
                   _addNewCard();
@@ -1203,9 +1211,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Kuryer uchun izoh',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('courier_note'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -1216,7 +1224,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             maxLines: 2,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'Masalan: Domofon kodi, qavat, mo\'ljal...',
+              hintText: context.l10n.translate('courier_note_hint'),
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -1311,11 +1319,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
 
                       // Sarlavha
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(20, 8, 20, 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                         child: Text(
-                          'Yetkazish manzillari',
-                          style: TextStyle(
+                          context.l10n.translate('delivery_addresses'),
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1326,7 +1334,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       if (!hasHome)
                         _buildAddTypeRow(
                           icon: Icons.add,
-                          label: 'Uy manzilini kiritish',
+                          label: context.l10n.translate('enter_home_address'),
                           onTap: () {
                             addressController.clear();
                             apartmentController.clear();
@@ -1338,7 +1346,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       if (!hasWork)
                         _buildAddTypeRow(
                           icon: Icons.add,
-                          label: 'Ish manzilini kiritish',
+                          label: context.l10n.translate('enter_work_address'),
                           onTap: () {
                             addressController.clear();
                             apartmentController.clear();
@@ -1407,7 +1415,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          'Kuryer orqali',
+                                          context.l10n.translate('via_courier'),
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: Colors.grey.shade500,
@@ -1450,9 +1458,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            child: const Text(
-                              'Manzil qo\'shish',
-                              style: TextStyle(
+                            child: Text(
+                              context.l10n.translate('add_address'),
+                              style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1547,7 +1555,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                '$selectedType manzili',
+                '$selectedType ${context.l10n.translate('address_type_label')}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1559,7 +1567,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
           // Manzil input
           Text(
-            'Manzil',
+            context.l10n.translate('address'),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1572,7 +1580,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             maxLines: 1,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'Tuman, ko\'cha, uy raqami...',
+              hintText: context.l10n.translate('district_street_hint'),
               hintStyle: TextStyle(
                 color: Colors.grey.shade400,
                 fontSize: 13,
@@ -1687,7 +1695,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Icon(Icons.map_outlined, size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'Xaritadan tanlash',
+                  context.l10n.translate('select_from_map'),
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w500,
@@ -1701,7 +1709,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
           // Kvartira
           Text(
-            'Qo\'shimcha (ixtiyoriy)',
+            context.l10n.translate('additional_optional'),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1713,7 +1721,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             controller: apartmentController,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'Kvartira, podyezd, qavat',
+              hintText: context.l10n.translate('apartment_entrance_hint'),
               hintStyle: TextStyle(
                 color: Colors.grey.shade400,
                 fontSize: 13,
@@ -1754,7 +1762,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       if (addressController.text.isEmpty) {
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
-                            content: const Text('Manzilni kiriting'),
+                            content:
+                                Text(context.l10n.translate('enter_address')),
                             backgroundColor: Colors.orange.shade700,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
@@ -1784,12 +1793,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           HapticUtils.success();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Row(
+                              content: Row(
                                 children: [
                                   Icon(Icons.check_circle,
                                       color: Colors.white, size: 18),
                                   SizedBox(width: 8),
-                                  Text('Manzil qo\'shildi!'),
+                                  Text(context.l10n.translate('address_added')),
                                 ],
                               ),
                               backgroundColor: AppColors.success,
@@ -1805,7 +1814,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
-                              content: Text('Xatolik: $e'),
+                              content: Text(
+                                  '${context.l10n.translate('error')}: $e'),
                               backgroundColor: AppColors.error,
                             ),
                           );
@@ -1829,9 +1839,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Saqlash',
-                      style: TextStyle(
+                  : Text(
+                      context.l10n.translate('save'),
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1860,14 +1870,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result.errorMessage ?? 'Xatolik yuz berdi')),
+            SnackBar(
+                content: Text(result.errorMessage ??
+                    context.l10n.translate('error_occurred'))),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: $e')),
+          SnackBar(content: Text('${context.l10n.translate('error')}: $e')),
         );
       }
     }
@@ -1887,27 +1899,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Buyurtma xulosasi',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('order_summary'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: AppSizes.md),
-          _buildSummaryRow('Mahsulotlar (${cartProvider.totalQuantity})',
-              _formatPrice(subtotal.toInt())),
           _buildSummaryRow(
-              'Yetkazib berish', _formatPrice(deliveryFee.toInt())),
+              '${context.l10n.translate('products_with_count')} (${cartProvider.totalQuantity})',
+              _formatPrice(subtotal.toInt())),
+          _buildSummaryRow(context.l10n.translate('shipping'),
+              _formatPrice(deliveryFee.toInt())),
           if (_promoDiscount > 0)
             _buildSummaryRow(
-              'Chegirma',
+              context.l10n.translate('discount'),
               '-${_formatPrice(_promoDiscount.toInt())}',
               isDiscount: true,
             ),
           const Divider(height: 24),
           _buildSummaryRow(
-            'Jami',
+            context.l10n.translate('total'),
             _formatPrice(total.toInt()),
             isBold: true,
           ),
@@ -1920,7 +1933,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Icon(Iconsax.shield_tick, size: 16, color: Colors.grey.shade500),
               const SizedBox(width: 6),
               Text(
-                'Xavfsiz to\'lov kafolatlanadi',
+                context.l10n.translate('secure_payment'),
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade500,
@@ -2003,7 +2016,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   )
                 : Text(
-                    'Buyurtma berish • ${_formatPrice(total.toInt())} so\'m',
+                    '${context.l10n.translate('place_order')} • ${_formatPrice(total.toInt())} so\'m',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -2019,7 +2032,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Manzil validatsiyasi (faqat kuryer uchun)
     if (_deliveryMethod == 'courier' && _selectedAddressId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iltimos, manzilni tanlang')),
+        SnackBar(
+            content: Text(context.l10n.translate('select_address_please'))),
       );
       return;
     }
@@ -2027,7 +2041,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Pickup punkt validatsiyasi
     if (_deliveryMethod == 'pickup' && _selectedPickupPoint == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iltimos, topshirish punktini tanlang')),
+        SnackBar(content: Text(context.l10n.translate('select_pickup_please'))),
       );
       _openPickupPointSelector();
       return;
@@ -2036,14 +2050,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Qabul qiluvchi validatsiyasi
     if (_recipientNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Qabul qiluvchi ismini kiriting')),
+        SnackBar(content: Text(context.l10n.translate('enter_recipient_name'))),
       );
       return;
     }
     if (_recipientPhoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Qabul qiluvchi telefon raqamini kiriting')),
+        SnackBar(
+            content: Text(context.l10n.translate('enter_recipient_phone'))),
       );
       return;
     }
@@ -2051,7 +2065,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Yetkazish sanasi validatsiyasi
     if (_deliveryTime == 'scheduled' && _scheduledDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Yetkazish sanasini tanlang')),
+        SnackBar(content: Text(context.l10n.translate('select_delivery_date'))),
       );
       return;
     }
@@ -2073,7 +2087,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final orderItems = cartProvider.items
           .map((item) => {
                 'product_id': item.productId,
-                'name': item.product?.nameUz ?? 'Mahsulot',
+                'name':
+                    item.product?.nameUz ?? context.l10n.translate('product'),
                 'image': item.product?.firstImage,
                 'quantity': item.quantity,
                 'price': item.product?.price ?? 0,
@@ -2090,7 +2105,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (_paymentMethod == 'card') {
         if (_selectedCard == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Iltimos, karta tanlang')),
+            SnackBar(
+                content: Text(context.l10n.translate('select_card_please'))),
           );
           setState(() => _isLoading = false);
           return;
@@ -2156,7 +2172,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       HapticUtils.error();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik yuz berdi: $e')),
+          SnackBar(
+              content: Text('${context.l10n.translate('error_occurred')}: $e')),
         );
       }
     } finally {
@@ -2199,7 +2216,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Buyurtma yaratishda xatolik: $e')),
+          SnackBar(
+              content:
+                  Text('${context.l10n.translate('order_create_error')}: $e')),
         );
       }
       return null;
@@ -2265,7 +2284,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result.errorMessage ?? 'To\'lov amalga oshmadi'),
+              content: Text(result.errorMessage ??
+                  context.l10n.translate('payment_failed')),
               backgroundColor: Colors.red,
             ),
           );
@@ -2275,7 +2295,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       await _cancelOrder(orderId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('To\'lov xatosi: $e')),
+          SnackBar(
+              content: Text('${context.l10n.translate('payment_error')}: $e')),
         );
       }
     }
@@ -2294,20 +2315,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           title: const Text('3D Secure'),
-          content: const Text(
-            'Bank sahifasida to\'lovni tasdiqladingizmi?',
+          content: Text(
+            context.l10n.translate('confirm_3d_secure'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Bekor qilish'),
+              child: Text(context.l10n.translate('cancel')),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
               ),
-              child: const Text('Ha, tasdiqladim'),
+              child: Text(context.l10n.translate('yes_confirmed')),
             ),
           ],
         ),

@@ -196,9 +196,7 @@ class _SearchScreenState extends State<SearchScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.l10n.locale.languageCode == 'ru'
-                ? 'Ошибка поиска'
-                : 'Qidiruvda xatolik'),
+            content: Text(context.l10n.translate('search_error')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -231,9 +229,7 @@ class _SearchScreenState extends State<SearchScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.l10n.locale.languageCode == 'ru'
-                ? 'Товар добавлен в корзину'
-                : 'Mahsulot savatga qo\'shildi'),
+            content: Text(context.l10n.translate('added_to_cart')),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -242,9 +238,7 @@ class _SearchScreenState extends State<SearchScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.l10n.locale.languageCode == 'ru'
-                ? 'Ошибка при добавлении'
-                : 'Qo\'shishda xatolik'),
+            content: Text(context.l10n.translate('add_to_cart_error')),
             backgroundColor: Colors.red,
           ),
         );
@@ -289,26 +283,24 @@ class _SearchScreenState extends State<SearchScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isRu = context.l10n.locale.languageCode == 'ru';
-
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: _buildSearchField(isRu),
+        title: _buildSearchField(),
         actions: [
           if (_hasSearched && _searchResults.isNotEmpty)
             IconButton(
               onPressed: _showSortOptions,
               icon: const Icon(Iconsax.sort),
-              tooltip: isRu ? 'Сортировка' : 'Saralash',
+              tooltip: context.l10n.translate('sort_by'),
             ),
         ],
       ),
-      body: _buildBody(isRu),
+      body: _buildBody(),
     );
   }
 
-  Widget _buildSearchField(bool isRu) {
+  Widget _buildSearchField() {
     return Container(
       height: 42,
       margin: const EdgeInsets.only(right: 8),
@@ -317,7 +309,7 @@ class _SearchScreenState extends State<SearchScreen>
         focusNode: _searchFocusNode,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: isRu ? 'Поиск товаров...' : 'Mahsulot qidirish...',
+          hintText: context.l10n.translate('search_hint'),
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _showClearButton
               ? IconButton(
@@ -359,8 +351,9 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildInlineSuggestions(bool isRu) {
+  Widget _buildInlineSuggestions() {
     final query = _searchController.text.trim().toLowerCase();
+    final locale = context.l10n.locale.languageCode;
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: _suggestions.length,
@@ -370,7 +363,7 @@ class _SearchScreenState extends State<SearchScreen>
       ),
       itemBuilder: (context, index) {
         final item = _suggestions[index];
-        final name = isRu
+        final name = locale == 'ru'
             ? (item['nameRu'] ?? item['name'] ?? '')
             : (item['name'] ?? '');
 
@@ -439,7 +432,7 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildBody(bool isRu) {
+  Widget _buildBody() {
     if (_isSearching) {
       return GridView.builder(
         padding: const EdgeInsets.all(16),
@@ -454,17 +447,17 @@ class _SearchScreenState extends State<SearchScreen>
       );
     }
 
-    if (_hasSearched) return _buildSearchResults(isRu);
+    if (_hasSearched) return _buildSearchResults();
 
     // Show inline suggestions if available
     if (_showSuggestions && _suggestions.isNotEmpty) {
-      return _buildInlineSuggestions(isRu);
+      return _buildInlineSuggestions();
     }
 
-    return _buildSuggestionsPage(isRu);
+    return _buildSuggestionsPage();
   }
 
-  Widget _buildSuggestionsPage(bool isRu) {
+  Widget _buildSuggestionsPage() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -474,7 +467,7 @@ class _SearchScreenState extends State<SearchScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isRu ? 'История поиска' : 'Qidiruv tarixi',
+                context.l10n.translate('search_history'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -521,7 +514,7 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildSearchResults(bool isRu) {
+  Widget _buildSearchResults() {
     if (_searchResults.isEmpty) {
       return EmptySearchWidget(
         query: _searchController.text,
@@ -565,7 +558,7 @@ class _SearchScreenState extends State<SearchScreen>
                       ),
                     ),
                     TextSpan(
-                      text: isRu ? 'результатов' : 'natija',
+                      text: context.l10n.translate('results_count'),
                     ),
                   ],
                 ),
@@ -583,7 +576,7 @@ class _SearchScreenState extends State<SearchScreen>
                           size: 16, color: AppColors.primary),
                       const SizedBox(width: 4),
                       Text(
-                        _getSortLabel(isRu),
+                        _getSortLabel(),
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w600,
@@ -640,21 +633,21 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  String _getSortLabel(bool isRu) {
+  String _getSortLabel() {
     switch (_sortBy) {
       case 'price_low':
-        return isRu ? 'Дешевле' : 'Arzon';
+        return context.l10n.translate('sort_cheap');
       case 'price_high':
-        return isRu ? 'Дороже' : 'Qimmat';
+        return context.l10n.translate('sort_expensive');
       case 'newest':
-        return isRu ? 'Новинки' : 'Yangi';
+        return context.l10n.translate('newest');
       default:
-        return isRu ? 'Популярные' : 'Mashhur';
+        return context.l10n.translate('most_popular');
     }
   }
 
   void _showSortOptions() {
-    final isRu = context.l10n.locale.languageCode == 'ru';
+    final l10n = context.l10n;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -677,7 +670,7 @@ class _SearchScreenState extends State<SearchScreen>
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  isRu ? 'Сортировка' : 'Saralash',
+                  l10n.translate('sort_by'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -686,22 +679,22 @@ class _SearchScreenState extends State<SearchScreen>
               ),
               _buildSortOption(
                 'popular',
-                isRu ? 'Популярные' : 'Mashhur',
+                l10n.translate('most_popular'),
                 Iconsax.star,
               ),
               _buildSortOption(
                 'price_low',
-                isRu ? 'Цена: по возрастанию' : 'Narx: Arzon → Qimmat',
+                l10n.translate('price_low_high'),
                 Iconsax.arrow_up_3,
               ),
               _buildSortOption(
                 'price_high',
-                isRu ? 'Цена: по убыванию' : 'Narx: Qimmat → Arzon',
+                l10n.translate('price_high_low'),
                 Iconsax.arrow_down,
               ),
               _buildSortOption(
                 'newest',
-                isRu ? 'Новинки' : 'Eng yangi',
+                l10n.translate('newest'),
                 Iconsax.calendar,
               ),
               const SizedBox(height: 16),

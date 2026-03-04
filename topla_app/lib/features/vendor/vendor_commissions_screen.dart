@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/vendor_service.dart';
 import '../../models/commission_model.dart';
 
@@ -79,7 +80,9 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('${context.l10n.translate("error")}: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -89,7 +92,7 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Komissiyalar'),
+        title: Text(context.l10n.translate('commissions')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -112,7 +115,7 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Oylik komissiya',
+                              context.l10n.translate('monthly_commission'),
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,
@@ -120,7 +123,7 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${_formatNumber(_monthlyCommission)} so\'m',
+                              '${_formatNumber(_monthlyCommission)} ${context.l10n.translate("currency")}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
@@ -142,7 +145,7 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Jami komissiya',
+                                context.l10n.translate('total_commission'),
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 12,
@@ -150,7 +153,7 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${_formatNumber(_totalCommission)} so\'m',
+                                '${_formatNumber(_totalCommission)} ${context.l10n.translate("currency")}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20,
@@ -166,14 +169,15 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
                 // List
                 Expanded(
                   child: _commissions.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.percent, size: 64, color: Colors.grey),
-                              SizedBox(height: 16),
-                              Text('Komissiyalar yo\'q',
-                                  style: TextStyle(color: Colors.grey)),
+                              const Icon(Icons.percent,
+                                  size: 64, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              Text(context.l10n.translate('no_commissions'),
+                                  style: const TextStyle(color: Colors.grey)),
                             ],
                           ),
                         )
@@ -228,12 +232,12 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Buyurtma: ${commission.orderNumber ?? commission.orderId}',
+                    '${context.l10n.translate("order")}: ${commission.orderNumber ?? commission.orderId}',
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Sotuv: ${_formatNumber(commission.orderAmount)} so\'m',
+                    '${context.l10n.translate("sale")}: ${_formatNumber(commission.orderAmount)} ${context.l10n.translate("currency")}',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -253,7 +257,7 @@ class _VendorCommissionsScreenState extends State<VendorCommissionsScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '-${_formatNumber(commission.commissionAmount)} so\'m',
+                  '-${_formatNumber(commission.commissionAmount)} ${context.l10n.translate("currency")}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.red,

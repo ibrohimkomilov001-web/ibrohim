@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/vendor_service.dart';
 
 class VendorPromoCodesScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Promo kodlar'),
+        title: Text(context.l10n.translate('promo_codes')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDialog,
@@ -83,19 +84,19 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
           Icon(Iconsax.ticket_discount, size: 56, color: Colors.grey[300]),
           const SizedBox(height: 12),
           Text(
-            'Promo kodlar yo\'q',
+            context.l10n.translate('no_promo_codes'),
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
           const SizedBox(height: 4),
           Text(
-            'Mijozlar uchun chegirma kodi yarating',
+            context.l10n.translate('create_promo_hint'),
             style: TextStyle(fontSize: 13, color: Colors.grey[400]),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _showCreateDialog,
             icon: const Icon(Icons.add),
-            label: const Text('Yaratish'),
+            label: Text(context.l10n.translate('create')),
           ),
         ],
       ),
@@ -112,7 +113,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
           TextButton.icon(
             onPressed: _loadPromoCodes,
             icon: const Icon(Icons.refresh),
-            label: const Text('Qayta yuklash'),
+            label: Text(context.l10n.translate('reload')),
           ),
         ],
       ),
@@ -138,7 +139,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
       discountLabel = '${discountValue.toInt()}%';
     } else {
       discountLabel =
-          '${NumberFormat('#,###').format(discountValue.toInt())} so\'m';
+          '${NumberFormat('#,###').format(discountValue.toInt())} ${context.l10n.translate('currency')}';
     }
 
     return Card(
@@ -205,7 +206,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                   Iconsax.people,
                   maxUses != null
                       ? '$currentUses/$maxUses'
-                      : '$currentUses foydalanilgan',
+                      : '$currentUses ${context.l10n.translate('used_count')}',
                   Colors.blue,
                 ),
                 const SizedBox(width: 12),
@@ -230,8 +231,8 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                   const SizedBox(width: 4),
                   Text(
                     isExpired
-                        ? 'Muddati tugagan'
-                        : 'Gacha: ${DateFormat('dd.MM.yyyy').format(DateTime.parse(expiresAt))}',
+                        ? context.l10n.translate('expired')
+                        : '${context.l10n.translate('valid_until')}: ${DateFormat('dd.MM.yyyy').format(DateTime.parse(expiresAt))}',
                     style: TextStyle(
                       fontSize: 12,
                       color: isExpired ? Colors.red : Colors.grey[500],
@@ -239,7 +240,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                   ),
                 ] else
                   Text(
-                    'Muddatsiz',
+                    context.l10n.translate('unlimited'),
                     style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                   ),
                 const Spacer(),
@@ -292,7 +293,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Yangi promo kod'),
+          title: Text(context.l10n.translate('new_promo_code')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -300,24 +301,27 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                 TextField(
                   controller: codeCtrl,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Promo kod *',
+                  decoration: InputDecoration(
+                    labelText:
+                        '${context.l10n.translate('promo_code_label')} *',
                     hintText: 'TOPLA20',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: discountType,
-                  decoration: const InputDecoration(
-                    labelText: 'Chegirma turi',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.translate('discount_type'),
+                    border: const OutlineInputBorder(),
                   ),
-                  items: const [
+                  items: [
                     DropdownMenuItem(
-                        value: 'percentage', child: Text('Foiz (%)')),
+                        value: 'percentage',
+                        child: Text(context.l10n.translate('percentage'))),
                     DropdownMenuItem(
-                        value: 'fixed', child: Text('Qat\'iy summa')),
+                        value: 'fixed',
+                        child: Text(context.l10n.translate('fixed_amount'))),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => discountType = v);
@@ -328,8 +332,11 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                   controller: valueCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Chegirma miqdori *',
-                    suffixText: discountType == 'percentage' ? '%' : 'so\'m',
+                    labelText:
+                        '${context.l10n.translate('discount_amount_label')} *',
+                    suffixText: discountType == 'percentage'
+                        ? '%'
+                        : context.l10n.translate('currency'),
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -337,21 +344,21 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                 TextField(
                   controller: minOrderCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Min. buyurtma summasi',
-                    hintText: 'Ixtiyoriy',
-                    suffixText: 'so\'m',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.translate('min_order_amount'),
+                    hintText: context.l10n.translate('optional_hint'),
+                    suffixText: context.l10n.translate('currency'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: maxUsesCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Maksimal foydalanish',
-                    hintText: 'Cheksiz',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.translate('max_usage'),
+                    hintText: context.l10n.translate('unlimited_uses'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -369,15 +376,15 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                     }
                   },
                   child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Amal qilish muddati',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Iconsax.calendar),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.translate('validity_period'),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: const Icon(Iconsax.calendar),
                     ),
                     child: Text(
                       expiresAt != null
                           ? DateFormat('dd.MM.yyyy').format(expiresAt!)
-                          : 'Muddatsiz',
+                          : context.l10n.translate('unlimited'),
                       style: TextStyle(
                         color: expiresAt != null ? null : Colors.grey[500],
                       ),
@@ -390,7 +397,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Bekor qilish'),
+              child: Text(context.l10n.translate('cancel')),
             ),
             FilledButton(
               onPressed: () => _createPromo(
@@ -402,7 +409,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
                 maxUses: maxUsesCtrl.text.trim(),
                 expiresAt: expiresAt,
               ),
-              child: const Text('Yaratish'),
+              child: Text(context.l10n.translate('create')),
             ),
           ],
         ),
@@ -421,7 +428,8 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
   }) async {
     if (code.isEmpty || value.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kod va chegirma miqdorini kiriting')),
+        SnackBar(
+            content: Text(context.l10n.translate('enter_code_and_amount'))),
       );
       return;
     }
@@ -429,7 +437,8 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
     final discountValue = double.tryParse(value);
     if (discountValue == null || discountValue <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Noto\'g\'ri chegirma miqdori')),
+        SnackBar(
+            content: Text(context.l10n.translate('invalid_discount_amount'))),
       );
       return;
     }
@@ -457,8 +466,8 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Promo kod yaratildi'),
+          SnackBar(
+            content: Text(context.l10n.translate('promo_code_created')),
             backgroundColor: Colors.green,
           ),
         );
@@ -466,7 +475,9 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('${context.l10n.translate('error')}: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -479,7 +490,7 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: $e')),
+          SnackBar(content: Text('${context.l10n.translate('error')}: $e')),
         );
       }
     }
@@ -489,16 +500,18 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Promo kodni o\'chirish'),
-        content: Text('"$code" promo kodini o\'chirishni xohlaysizmi?'),
+        title: Text(context.l10n.translate('delete_promo_code')),
+        content:
+            Text('"$code" ${context.l10n.translate('delete_promo_confirm')}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Yo\'q'),
+            child: Text(context.l10n.translate('no')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('O\'chirish', style: TextStyle(color: Colors.red)),
+            child: Text(context.l10n.translate('delete'),
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -511,13 +524,13 @@ class _VendorPromoCodesScreenState extends State<VendorPromoCodesScreen> {
       await _loadPromoCodes();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Promo kod o\'chirildi')),
+          SnackBar(content: Text(context.l10n.translate('promo_code_deleted'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: $e')),
+          SnackBar(content: Text('${context.l10n.translate('error')}: $e')),
         );
       }
     }

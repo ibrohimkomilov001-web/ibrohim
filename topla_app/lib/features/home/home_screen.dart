@@ -5,6 +5,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/topla_refresh_indicator.dart';
@@ -27,15 +28,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin {
-  String _selectedFilter = 'Siz uchun';
+  String _selectedFilter = 'for_you';
 
   // Filter ID lari - backend bilan ishlash uchun
   final Map<String, String?> _filterCategoryMap = {
-    'Siz uchun': null, // Barcha mahsulotlar
-    'WOW narx': 'wow_price',
-    'Chegirmalar': 'discounts',
-    'Elektronika': 'elektronika',
-    'Kiyim': 'kiyim',
+    'for_you': null, // Barcha mahsulotlar
+    'wow_price': 'wow_price',
+    'discounts': 'discounts',
+    'cat_electronics': 'elektronika',
+    'clothing': 'kiyim',
   };
 
   List<String> get _filterOptions => _filterCategoryMap.keys.toList();
@@ -132,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'Mahsulotlarni qidirish',
+                      context.l10n.translate('search_products_hint'),
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 14,
@@ -693,7 +694,7 @@ class _HomeScreenState extends State<HomeScreen>
                         : Border.all(color: Colors.grey.shade300, width: 1),
                   ),
                   child: Text(
-                    filter,
+                    context.l10n.translate(filter),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight:
@@ -731,7 +732,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildFeaturedProductsGrid(ProductsProvider productsProvider) {
     // Agar filter tanlangan bo'lsa filteredProducts ni, aks holda featuredProducts ni ko'rsatish
-    final bool isFilterActive = _selectedFilter != 'Siz uchun';
+    final bool isFilterActive = _selectedFilter != 'for_you';
     final products = isFilterActive
         ? productsProvider.filteredProducts
         : productsProvider.featuredProducts;
@@ -808,8 +809,8 @@ class _HomeScreenState extends State<HomeScreen>
           SnackBar(
             content: Text(
               e.toString().contains('Tizimga kiring')
-                  ? 'Savatga qo\'shish uchun tizimga kiring'
-                  : 'Xatolik yuz berdi',
+                  ? context.l10n.translate('login_to_add_cart')
+                  : context.l10n.translate('error_occurred'),
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
@@ -831,8 +832,8 @@ class _HomeScreenState extends State<HomeScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().contains('Tizimga kiring')
-                ? 'Sevimlilarga qo\'shish uchun tizimga kiring'
-                : 'Xatolik yuz berdi'),
+                ? context.l10n.translate('login_to_add_favorites')
+                : context.l10n.translate('error_occurred')),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),

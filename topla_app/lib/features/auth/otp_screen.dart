@@ -79,8 +79,8 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verifyOtp() async {
     if (_otpCode.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Iltimos, 6 xonali kodni kiriting'),
+        SnackBar(
+          content: Text(context.l10n.translate('enter_6_digit_code')),
           backgroundColor: Colors.red,
         ),
       );
@@ -89,8 +89,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
     if (_verificationId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Xatolik: Verification ID topilmadi'),
+        SnackBar(
+          content: Text(context.l10n.translate('verification_id_error')),
           backgroundColor: Colors.red,
         ),
       );
@@ -132,11 +132,11 @@ class _OtpScreenState extends State<OtpScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
-      String message = 'Xatolik yuz berdi';
+      String message = context.l10n.translate('error_occurred');
       if (e.code == 'invalid-verification-code') {
-        message = 'Noto\'g\'ri kod. Qayta tekshiring';
+        message = context.l10n.translate('wrong_code');
       } else if (e.code == 'session-expired') {
-        message = 'Kod muddati tugagan. Qayta yuboring';
+        message = context.l10n.translate('code_expired');
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -145,7 +145,9 @@ class _OtpScreenState extends State<OtpScreen> {
       setState(() => _isLoading = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('${context.l10n.translate('error_prefix')}: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -207,7 +209,8 @@ class _OtpScreenState extends State<OtpScreen> {
         verificationFailed: (FirebaseAuthException e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text('Xatolik: ${e.message}'),
+                content: Text(
+                    '${context.l10n.translate('error_prefix')}: ${e.message}'),
                 backgroundColor: Colors.red),
           );
         },
@@ -217,8 +220,8 @@ class _OtpScreenState extends State<OtpScreen> {
             _resendToken = resendToken;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kod qayta yuborildi'),
+            SnackBar(
+              content: Text(context.l10n.translate('code_resent')),
               backgroundColor: Colors.green,
             ),
           );
@@ -230,7 +233,9 @@ class _OtpScreenState extends State<OtpScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('${context.l10n.translate('error_prefix')}: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }

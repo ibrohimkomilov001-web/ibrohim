@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/payment_service.dart';
 
 class PaymentMethodsScreen extends StatefulWidget {
@@ -70,7 +71,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             children: [
               Icon(Iconsax.card, color: AppColors.primary),
               const SizedBox(width: 12),
-              const Text('Karta qo\'shish'),
+              Text(context.l10n.translate('add_new_card')),
             ],
           ),
           content: const Text(
@@ -79,7 +80,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Tushunarli',
+              child: Text(context.l10n.translate('understood'),
                   style: TextStyle(color: AppColors.primary)),
             ),
           ],
@@ -92,17 +93,17 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Kartani o\'chirish'),
+        title: Text(context.l10n.translate('delete_card')),
         content: Text('${card.displayName} kartasini o\'chirmoqchimisiz?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Bekor qilish'),
+            child: Text(context.l10n.translate('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('O\'chirish'),
+            child: Text(context.l10n.translate('delete')),
           ),
         ],
       ),
@@ -114,7 +115,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         _loadCards();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Karta o\'chirildi')),
+            SnackBar(content: Text(context.l10n.translate('card_deleted'))),
           );
         }
       } else {
@@ -326,13 +327,14 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                               },
                               itemBuilder: (context) => [
                                 if (!card.isDefault)
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
                                     value: 'default',
                                     child: Row(
                                       children: [
-                                        Icon(Iconsax.tick_circle),
-                                        SizedBox(width: 12),
-                                        Text('Asosiy qilish'),
+                                        const Icon(Iconsax.tick_circle),
+                                        const SizedBox(width: 12),
+                                        Text(context.l10n
+                                            .translate('set_as_default')),
                                       ],
                                     ),
                                   ),
@@ -344,7 +346,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                                           color: AppColors.error),
                                       const SizedBox(width: 12),
                                       Text(
-                                        'O\'chirish',
+                                        context.l10n.translate('delete'),
                                         style:
                                             TextStyle(color: AppColors.error),
                                       ),
@@ -460,14 +462,14 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                     color: Colors.white,
                   ),
                 )
-              : const Row(
+              : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Iconsax.add_circle, size: 22),
-                    SizedBox(width: 10),
+                    const Icon(Iconsax.add_circle, size: 22),
+                    const SizedBox(width: 10),
                     Text(
-                      'Karta qo\'shish',
-                      style: TextStyle(
+                      context.l10n.translate('add_new_card'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),

@@ -5,6 +5,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 
@@ -34,18 +35,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
         if (ordersProvider.isLoading || order == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Buyurtma')),
+            appBar: AppBar(title: Text(context.l10n.translate('my_orders'))),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
-        final statusInfo = _getStatusInfo(order.status);
+        final statusInfo = _getStatusInfo(context, order.status);
 
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
           appBar: AppBar(
             title: Text(
-              'Buyurtma ${order.orderNumber}',
+              '${context.l10n.translate('order_number')}: ${order.orderNumber}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -209,16 +210,48 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
     final steps = isPickup
         ? [
-            {'status': OrderStatus.confirmed, 'label': 'Tasdiqlandi', 'icon': Iconsax.tick_square},
-            {'status': OrderStatus.processing, 'label': 'Do\'kon tayyorlamoqda', 'icon': Iconsax.box_tick},
-            {'status': OrderStatus.atPickupPoint, 'label': 'Punktda kutmoqda', 'icon': Iconsax.building},
-            {'status': OrderStatus.delivered, 'label': 'Olib ketildi', 'icon': Iconsax.tick_circle},
+            {
+              'status': OrderStatus.confirmed,
+              'label': context.l10n.translate('confirmed_timeline'),
+              'icon': Iconsax.tick_square
+            },
+            {
+              'status': OrderStatus.processing,
+              'label': context.l10n.translate('status_store_preparing'),
+              'icon': Iconsax.box_tick
+            },
+            {
+              'status': OrderStatus.atPickupPoint,
+              'label': context.l10n.translate('status_at_pickup'),
+              'icon': Iconsax.building
+            },
+            {
+              'status': OrderStatus.delivered,
+              'label': context.l10n.translate('picked_up'),
+              'icon': Iconsax.tick_circle
+            },
           ]
         : [
-            {'status': OrderStatus.confirmed, 'label': 'Tasdiqlandi', 'icon': Iconsax.tick_square},
-            {'status': OrderStatus.processing, 'label': 'Do\'kon tayyorlamoqda', 'icon': Iconsax.box_tick},
-            {'status': OrderStatus.shipping, 'label': 'Buyurtma yo\'lda', 'icon': Iconsax.truck_fast},
-            {'status': OrderStatus.delivered, 'label': 'Yetkazib berildi', 'icon': Iconsax.tick_circle},
+            {
+              'status': OrderStatus.confirmed,
+              'label': context.l10n.translate('confirmed_timeline'),
+              'icon': Iconsax.tick_square
+            },
+            {
+              'status': OrderStatus.processing,
+              'label': context.l10n.translate('status_store_preparing'),
+              'icon': Iconsax.box_tick
+            },
+            {
+              'status': OrderStatus.shipping,
+              'label': context.l10n.translate('status_on_the_way'),
+              'icon': Iconsax.truck_fast
+            },
+            {
+              'status': OrderStatus.delivered,
+              'label': context.l10n.translate('status_delivered_info'),
+              'icon': Iconsax.tick_circle
+            },
           ];
 
     final currentIndex = steps.indexWhere((s) => s['status'] == order.status);
@@ -234,9 +267,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Buyurtma holati',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('order_status_title'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -253,7 +286,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Buyurtma bekor qilindi',
+                    context.l10n.translate('order_cancelled_title'),
                     style: TextStyle(
                       color: AppColors.error,
                       fontWeight: FontWeight.bold,
@@ -336,15 +369,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Mahsulotlar',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('products_with_count'),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '${order.items.length} ta',
+                '${order.items.length} ${context.l10n.translate('piece')}',
                 style: TextStyle(
                   color: Colors.grey.shade600,
                 ),
@@ -445,9 +478,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             children: [
               Icon(Iconsax.scan_barcode, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              const Text(
-                'QR kodni ko\'rsating',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('show_qr'),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -456,7 +489,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Topshirish punktida shu QR kodni skanerga ko\'rsating',
+            context.l10n.translate('show_qr_desc'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -487,7 +520,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           // Pickup code (qo'lda kiritish uchun)
           if (order.pickupCode != null) ...[
             Text(
-              'Yoki kodni ayting:',
+              context.l10n.translate('or_tell_code'),
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey.shade500,
@@ -569,9 +602,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Topshirish punkti',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('pickup_point'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -598,7 +631,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      point?.name ?? 'Topshirish punkti',
+                      point?.name ?? context.l10n.translate('pickup_point'),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
@@ -637,7 +670,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         : null;
 
     final addressTitle = address?.title ?? 'Manzil';
-    final addressText = address?.address ?? 'Manzil topilmadi';
+    final addressText =
+        address?.address ?? context.l10n.translate('address_not_found');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -649,9 +683,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Yetkazib berish manzili',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('delivery_address'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -689,7 +723,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     if (address?.apartment != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Kvartira: ${address!.apartment}${address.entrance != null ? ', Podyezd: ${address.entrance}' : ''}${address.floor != null ? ', Qavat: ${address.floor}' : ''}',
+                        '${context.l10n.translate('apartment')}: ${address!.apartment}${address.entrance != null ? ', ${context.l10n.translate('entrance')}: ${address.entrance}' : ''}${address.floor != null ? ', ${context.l10n.translate('floor')}: ${address.floor}' : ''}',
                         style: TextStyle(
                           color: Colors.grey.shade500,
                           fontSize: 12,
@@ -717,26 +751,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'To\'lov ma\'lumotlari',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('payment_info'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
-          _buildSummaryRow('Mahsulotlar', order.subtotal),
-          _buildSummaryRow('Yetkazib berish', order.deliveryFee),
-          if (order.discount > 0) _buildSummaryRow('Chegirma', -order.discount),
+          _buildSummaryRow(
+              context.l10n.translate('products_with_count'), order.subtotal),
+          _buildSummaryRow(
+              context.l10n.translate('shipping'), order.deliveryFee),
+          if (order.discount > 0)
+            _buildSummaryRow(
+                context.l10n.translate('discount'), -order.discount),
           if (order.cashbackUsed > 0)
-            _buildSummaryRow('Cashback', -order.cashbackUsed),
+            _buildSummaryRow(
+                context.l10n.translate('cashback'), -order.cashbackUsed),
           const Divider(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Jami',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('total'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -761,7 +800,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                _getPaymentMethodLabel(order.paymentMethod),
+                _getPaymentMethodLabel(context, order.paymentMethod),
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             ],
@@ -817,7 +856,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error),
                 ),
-                child: const Text('Bekor qilish'),
+                child: Text(context.l10n.translate('cancel')),
               ),
             ),
             const SizedBox(width: 12),
@@ -830,12 +869,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: AppColors.primary,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Iconsax.call, size: 20),
-                    SizedBox(width: 8),
-                    Text('Qo\'ng\'iroq'),
+                    const Icon(Iconsax.call, size: 20),
+                    const SizedBox(width: 8),
+                    Text(context.l10n.translate('call')),
                   ],
                 ),
               ),
@@ -850,15 +889,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Buyurtmani bekor qilish'),
-        content: const Text('Haqiqatan ham buyurtmani bekor qilmoqchimisiz?'),
+        title: Text(context.l10n.translate('cancel_order')),
+        content: Text(context.l10n.translate('cancel_order_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Yo\'q'),
+            child: Text(context.l10n.translate('no')),
           ),
           ElevatedButton(
             onPressed: () async {
+              final cancelledMsg = context.l10n.translate('order_cancelled');
               Navigator.pop(context);
               final ordersProvider = context.read<OrdersProvider>();
               final navigator = Navigator.of(context);
@@ -867,8 +907,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               if (mounted && success) {
                 navigator.pop();
                 scaffoldMessenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Buyurtma bekor qilindi'),
+                  SnackBar(
+                    content: Text(cancelledMsg),
                     backgroundColor: AppColors.success,
                   ),
                 );
@@ -877,72 +917,73 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('Ha, bekor qilish'),
+            child: Text(context.l10n.translate('yes_cancel')),
           ),
         ],
       ),
     );
   }
 
-  Map<String, dynamic> _getStatusInfo(OrderStatus status) {
+  Map<String, dynamic> _getStatusInfo(
+      BuildContext context, OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
         return {
-          'text': 'Buyurtma qabul qilindi',
+          'text': context.l10n.translate('status_order_received'),
           'color': AppColors.warning,
           'icon': Iconsax.clock,
         };
       case OrderStatus.confirmed:
         return {
-          'text': 'Buyurtma tasdiqlandi',
+          'text': context.l10n.translate('status_order_confirmed'),
           'color': const Color(0xFF4CAF50),
           'icon': Iconsax.tick_square,
         };
       case OrderStatus.processing:
         return {
-          'text': 'Do\'kon tayyorlamoqda',
+          'text': context.l10n.translate('status_store_preparing'),
           'color': AppColors.accent,
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.readyForPickup:
         return {
-          'text': 'Buyurtma tayyor',
+          'text': context.l10n.translate('status_order_ready'),
           'color': const Color(0xFF2196F3),
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.courierAssigned:
         return {
-          'text': 'Kuryer tayinlandi',
+          'text': context.l10n.translate('status_courier_assigned'),
           'color': AppColors.primary,
           'icon': Iconsax.profile_tick,
         };
       case OrderStatus.courierPickedUp:
         return {
-          'text': 'Kuryer oldi, yo\'lga chiqdi',
+          'text': context.l10n.translate('status_courier_picked_up'),
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.shipping:
         return {
-          'text': 'Buyurtma yo\'lda',
+          'text': context.l10n.translate('status_on_the_way'),
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.atPickupPoint:
         return {
-          'text': 'Punktda kutmoqda',
+          'text': context.l10n.translate('status_at_pickup'),
           'color': const Color(0xFF9C27B0),
           'icon': Iconsax.building,
         };
       case OrderStatus.delivered:
         return {
-          'text': 'Yetkazib berildi',
+          'text': context.l10n.translate('status_delivered_info'),
           'color': AppColors.success,
           'icon': Iconsax.tick_circle,
         };
       case OrderStatus.cancelled:
         return {
-          'text': 'Bekor qilingan',
+          'text': context.l10n.translate('status_cancelled_info'),
           'color': AppColors.error,
           'icon': Iconsax.close_circle,
         };
@@ -961,16 +1002,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  String _getPaymentMethodLabel(String? method) {
+  String _getPaymentMethodLabel(BuildContext context, String? method) {
     switch (method) {
       case 'card':
-        return 'Plastik karta';
+        return context.l10n.translate('plastic_card');
       case 'click':
         return 'Click';
       case 'payme':
         return 'Payme';
       default:
-        return 'Naqd pul';
+        return context.l10n.translate('cash_payment');
     }
   }
 

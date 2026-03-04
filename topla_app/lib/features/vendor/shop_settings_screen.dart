@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/services/api_client.dart';
 import '../../models/shop_model.dart';
 import '../../services/vendor_service.dart';
@@ -81,8 +82,8 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logo yuklandi'),
+          SnackBar(
+            content: Text(context.l10n.translate('logo_uploaded')),
             backgroundColor: Colors.green,
           ),
         );
@@ -91,7 +92,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -123,8 +124,8 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Banner yuklandi'),
+          SnackBar(
+            content: Text(context.l10n.translate('banner_uploaded')),
             backgroundColor: Colors.green,
           ),
         );
@@ -133,7 +134,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -157,8 +158,8 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
   Future<void> _saveSettings() async {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Do\'kon nomini kiriting'),
+        SnackBar(
+          content: Text(context.l10n.translate('enter_shop_name')),
           backgroundColor: Colors.red,
         ),
       );
@@ -183,8 +184,8 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sozlamalar saqlandi'),
+          SnackBar(
+            content: Text(context.l10n.translate('settings_saved')),
             backgroundColor: Colors.green,
           ),
         );
@@ -194,7 +195,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -208,7 +209,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Do\'kon sozlamalari'),
+        title: Text(context.l10n.translate('shop_settings')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -223,9 +224,9 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                       color: Colors.white,
                     ),
                   )
-                : const Text(
-                    'Saqlash',
-                    style: TextStyle(color: Colors.white),
+                : Text(
+                    context.l10n.translate('save'),
+                    style: const TextStyle(color: Colors.white),
                   ),
           ),
         ],
@@ -291,7 +292,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Banner rasmi (1200x400)',
+              context.l10n.translate('banner_image_hint'),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ),
@@ -329,7 +330,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                 TextButton.icon(
                   onPressed: _isUploadingLogo ? null : _pickAndUploadLogo,
                   icon: const Icon(Iconsax.gallery_edit),
-                  label: const Text('Logoni o\'zgartirish'),
+                  label: Text(context.l10n.translate('change_logo')),
                 ),
               ],
             ),
@@ -361,8 +362,8 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                     children: [
                       Text(
                         widget.shop.isVerified
-                            ? 'Tasdiqlangan'
-                            : 'Tasdiqlanmagan',
+                            ? context.l10n.translate('verified')
+                            : context.l10n.translate('not_verified'),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: widget.shop.isVerified
@@ -372,8 +373,8 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                       ),
                       Text(
                         widget.shop.isVerified
-                            ? 'Do\'koningiz faol'
-                            : 'Admin tekshiruvini kutmoqda',
+                            ? context.l10n.translate('shop_active')
+                            : context.l10n.translate('awaiting_verification'),
                         style: TextStyle(
                           fontSize: 12,
                           color: widget.shop.isVerified
@@ -391,9 +392,9 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
           const SizedBox(height: 24),
 
           // Form fields
-          const Text(
-            'Asosiy ma\'lumotlar',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('basic_info'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -402,29 +403,29 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Do\'kon nomi',
-              prefixIcon: Icon(Iconsax.shop),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('shop_name'),
+              prefixIcon: const Icon(Iconsax.shop),
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
 
           TextFormField(
             controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Tavsif',
-              prefixIcon: Icon(Iconsax.document_text),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('description_label'),
+              prefixIcon: const Icon(Iconsax.document_text),
+              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
           ),
 
           const SizedBox(height: 24),
 
-          const Text(
-            'Bog\'lanish',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('contact_info'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -433,10 +434,10 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
           TextFormField(
             controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Telefon',
-              prefixIcon: Icon(Iconsax.call),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('phone_label'),
+              prefixIcon: const Icon(Iconsax.call),
+              border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.phone,
           ),
@@ -454,9 +455,9 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
           const SizedBox(height: 24),
 
-          const Text(
-            'Manzil',
-            style: TextStyle(
+          Text(
+            context.l10n.translate('address_section'),
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -465,20 +466,20 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
 
           TextFormField(
             controller: _cityController,
-            decoration: const InputDecoration(
-              labelText: 'Shahar',
-              prefixIcon: Icon(Iconsax.location),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('city_label'),
+              prefixIcon: const Icon(Iconsax.location),
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
 
           TextFormField(
             controller: _addressController,
-            decoration: const InputDecoration(
-              labelText: 'Manzil',
-              prefixIcon: Icon(Iconsax.map),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('address_section'),
+              prefixIcon: const Icon(Iconsax.map),
+              border: const OutlineInputBorder(),
             ),
           ),
 
@@ -494,15 +495,15 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Komissiya',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                Text(
+                  context.l10n.translate('commission_label'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Joriy stavka:'),
+                    Text(context.l10n.translate('current_rate')),
                     Text(
                       '${widget.shop.commissionRate}%',
                       style: TextStyle(
@@ -514,7 +515,7 @@ class _ShopSettingsScreenState extends State<ShopSettingsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Har bir sotuvdan ushlanadi',
+                  context.l10n.translate('deducted_per_sale_short'),
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,

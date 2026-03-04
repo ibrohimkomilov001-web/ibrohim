@@ -77,9 +77,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         _applyCodeController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isRu
-                ? 'Код успешно применен!'
-                : 'Kod muvaffaqiyatli qo\'llandi!'),
+            content: Text(context.l10n.translate('code_applied')),
             backgroundColor: AppColors.success,
           ),
         );
@@ -98,26 +96,24 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     setState(() => _isApplying = false);
   }
 
-  bool get _isRu => context.l10n.locale.languageCode == 'ru';
-
   String get _referralLink => 'https://topla.uz/invite/$_referralCode';
 
   void _shareLink() {
-    final text = _isRu
-        ? 'Присоединяйся к TOPLA! Используй мой код $_referralCode и получи ${_formatPrice(_bonusPerInvite)} сум бонус! $_referralLink'
-        : 'TOPLA ga qo\'shiling! Mening kodimndan foydalaning: $_referralCode va ${_formatPrice(_bonusPerInvite)} so\'m bonus oling! $_referralLink';
+    final l10n = context.l10n;
+    final text =
+        '${l10n.translate('share_text')}: $_referralCode $_referralLink';
     Share.share(text);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isRu = _isRu;
+    final l10n = context.l10n;
 
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
           title: Text(
-            isRu ? 'Пригласить друзей' : 'Do\'stlarni taklif qilish',
+            l10n.translate('invite_friends'),
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
@@ -129,7 +125,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text(
-          isRu ? 'Пригласить друзей' : 'Do\'stlarni taklif qilish',
+          l10n.translate('invite_friends'),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -139,18 +135,18 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              _buildHeaderBanner(isRu),
+              _buildHeaderBanner(),
               const SizedBox(height: 20),
-              _buildHowItWorks(isRu),
+              _buildHowItWorks(),
               const SizedBox(height: 20),
-              _buildReferralCodeCard(isRu),
+              _buildReferralCodeCard(),
               const SizedBox(height: 20),
-              _buildApplyCodeCard(isRu),
+              _buildApplyCodeCard(),
               const SizedBox(height: 20),
-              _buildStats(isRu),
+              _buildStats(),
               if (_recentReferrals.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                _buildRecentReferrals(isRu),
+                _buildRecentReferrals(),
               ],
               const SizedBox(height: 32),
             ],
@@ -160,7 +156,8 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildHeaderBanner(bool isRu) {
+  Widget _buildHeaderBanner() {
+    final l10n = context.l10n;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
@@ -195,7 +192,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            isRu ? 'За каждого друга' : 'Har bir do\'st uchun',
+            l10n.translate('for_each_friend'),
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
@@ -203,7 +200,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${_formatPrice(_bonusPerInvite)} ${isRu ? 'сум' : 'so\'m'}',
+            '${_formatPrice(_bonusPerInvite)} ${l10n.translate('currency')}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 34,
@@ -212,9 +209,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isRu
-                ? 'получите и подарите другу!'
-                : 'oling va do\'stingizga ham bering!',
+            l10n.translate('get_and_gift'),
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.9),
               fontSize: 13,
@@ -226,7 +221,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
             child: ElevatedButton.icon(
               onPressed: _shareLink,
               icon: const Icon(Iconsax.share, size: 20),
-              label: Text(isRu ? 'Поделиться' : 'Ulashish'),
+              label: Text(l10n.translate('share')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
@@ -246,32 +241,24 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildHowItWorks(bool isRu) {
+  Widget _buildHowItWorks() {
+    final l10n = context.l10n;
     final steps = [
       {
         'icon': Iconsax.share,
-        'title': isRu ? '1. Поделитесь' : '1. Ulashing',
-        'desc': isRu
-            ? 'Отправьте код друзьям'
-            : 'Kodingizni do\'stlaringizga yuboring',
+        'text': l10n.translate('step_share'),
       },
       {
         'icon': Iconsax.user_add,
-        'title': isRu ? '2. Регистрация' : '2. Ro\'yxatdan o\'tish',
-        'desc':
-            isRu ? 'Друг регистрируется' : 'Do\'stingiz ro\'yxatdan o\'tsin',
+        'text': l10n.translate('step_register'),
       },
       {
         'icon': Iconsax.shopping_cart,
-        'title': isRu ? '3. Покупка' : '3. Xarid qilish',
-        'desc': isRu
-            ? 'Совершает первую покупку'
-            : 'Birinchi xaridni amalga oshirsin',
+        'text': l10n.translate('step_purchase'),
       },
       {
         'icon': Iconsax.money_recive,
-        'title': isRu ? '4. Бонус' : '4. Bonus olish',
-        'desc': isRu ? 'Оба получаете бонус' : 'Ikkalangiz ham bonus oling',
+        'text': l10n.translate('step_bonus'),
       },
     ];
 
@@ -293,14 +280,16 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isRu ? 'Как это работает?' : 'Qanday ishlaydi?',
+            l10n.translate('how_it_works'),
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
-          ...steps.map((step) {
+          ...steps.asMap().entries.map((entry) {
+            final index = entry.key + 1;
+            final step = entry.value;
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: Row(
@@ -320,25 +309,12 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          step['title'] as String,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          step['desc'] as String,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '$index. ${step['text'] as String}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -350,7 +326,8 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildReferralCodeCard(bool isRu) {
+  Widget _buildReferralCodeCard() {
+    final l10n = context.l10n;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -368,7 +345,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
       child: Column(
         children: [
           Text(
-            isRu ? 'Ваш код' : 'Sizning kodingiz',
+            l10n.translate('your_code'),
             style: TextStyle(
               color: Colors.grey.shade600,
               fontSize: 13,
@@ -405,14 +382,14 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   Clipboard.setData(ClipboardData(text: _referralCode));
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(isRu ? 'Код скопирован' : 'Kod nusxalandi'),
+                      content: Text(l10n.translate('code_copied')),
                       backgroundColor: AppColors.success,
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
                 },
                 icon: const Icon(Iconsax.copy, color: AppColors.primary),
-                tooltip: isRu ? 'Копировать' : 'Nusxalash',
+                tooltip: l10n.translate('copy_code'),
               ),
             ],
           ),
@@ -424,15 +401,14 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                 Clipboard.setData(ClipboardData(text: _referralLink));
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content:
-                        Text(isRu ? 'Ссылка скопирована' : 'Havola nusxalandi'),
+                    content: Text(l10n.translate('link_copied')),
                     backgroundColor: AppColors.success,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
               icon: const Icon(Iconsax.link, size: 18),
-              label: Text(isRu ? 'Скопировать ссылку' : 'Havolani nusxalash'),
+              label: Text(l10n.translate('copy_link')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),
@@ -448,7 +424,8 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildApplyCodeCard(bool isRu) {
+  Widget _buildApplyCodeCard() {
+    final l10n = context.l10n;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -467,7 +444,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isRu ? 'Есть код друга?' : 'Do\'stingizning kodi bormi?',
+            l10n.translate('have_friend_code'),
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -481,7 +458,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   controller: _applyCodeController,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(
-                    hintText: isRu ? 'Введите код' : 'Kodni kiriting',
+                    hintText: l10n.translate('enter_code_hint'),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300),
@@ -520,7 +497,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : Text(isRu ? 'Применить' : 'Qo\'llash'),
+                      : Text(l10n.translate('apply')),
                 ),
               ),
             ],
@@ -530,7 +507,8 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildStats(bool isRu) {
+  Widget _buildStats() {
+    final l10n = context.l10n;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -549,7 +527,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isRu ? 'Статистика' : 'Statistika',
+            l10n.translate('statistics'),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -562,7 +540,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                 child: _buildStatItem(
                   icon: Iconsax.people,
                   value: '$_totalInvited',
-                  label: isRu ? 'Приглашено' : 'Taklif qilingan',
+                  label: l10n.translate('invited_count'),
                   color: AppColors.primary,
                 ),
               ),
@@ -571,7 +549,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                 child: _buildStatItem(
                   icon: Iconsax.money_recive,
                   value: _formatPrice(_totalEarned),
-                  label: isRu ? 'Заработано' : 'Olingan bonus',
+                  label: l10n.translate('earned'),
                   color: AppColors.cashback,
                 ),
               ),
@@ -620,7 +598,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildRecentReferrals(bool isRu) {
+  Widget _buildRecentReferrals() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -639,7 +617,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isRu ? 'Последние приглашения' : 'Oxirgi takliflar',
+            context.l10n.translate('last_invitations'),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

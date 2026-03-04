@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/vendor_service.dart';
 import '../../models/shop_model.dart';
 import '../../core/constants/constants.dart';
@@ -50,7 +51,7 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hujjatlar'),
+        title: Text(context.l10n.translate('documents')),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -94,9 +95,9 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               children: [
                 const Icon(Icons.store, color: Colors.blue),
                 const SizedBox(width: 8),
-                const Text(
-                  'Do\'kon ma\'lumotlari',
-                  style: TextStyle(
+                Text(
+                  context.l10n.translate('shop_info'),
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -104,20 +105,23 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               ],
             ),
             const Divider(height: 24),
-            _buildInfoRow('Do\'kon nomi', _shop?.name ?? '-'),
+            _buildInfoRow(
+                context.l10n.translate('shop_name'), _shop?.name ?? '-'),
             _buildInfoRow('ID', _shop?.id ?? '-', copyable: true),
             _buildInfoRow(
-              'Holati',
-              _shop?.isVerified == true ? 'Tasdiqlangan' : 'Tasdiqlanmagan',
+              context.l10n.translate('status_label'),
+              _shop?.isVerified == true
+                  ? context.l10n.translate('verified')
+                  : context.l10n.translate('not_verified'),
               valueColor:
                   _shop?.isVerified == true ? Colors.green : Colors.orange,
             ),
             _buildInfoRow(
-              'Ro\'yxatdan o\'tgan',
+              context.l10n.translate('registered_date'),
               _shop != null ? _formatDate(_shop!.createdAt) : '-',
             ),
             _buildInfoRow(
-              'Komissiya stavkasi',
+              context.l10n.translate('commission_rate_label'),
               '${_shop?.commissionRate ?? 10}%',
             ),
           ],
@@ -152,7 +156,7 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: value));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Nusxalandi')),
+                      SnackBar(content: Text(context.l10n.translate('copied'))),
                     );
                   },
                   child: const Icon(Icons.copy, size: 16, color: Colors.grey),
@@ -169,13 +173,15 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
   // Hujjatlar bo'limi
   // ============================================
 
-  static const _documentTypes = {
-    'passport': 'Pasport nusxasi',
-    'inn': 'INN (STIR) guvohnomasi',
-    'license': 'Litsenziya',
-    'certificate': 'Sertifikat',
-    'other': 'Boshqa hujjat',
-  };
+  Map<String, String> _getDocumentTypes(BuildContext context) {
+    return {
+      'passport': context.l10n.translate('doc_passport'),
+      'inn': context.l10n.translate('doc_inn'),
+      'license': context.l10n.translate('doc_license'),
+      'certificate': context.l10n.translate('doc_certificate'),
+      'other': context.l10n.translate('doc_other'),
+    };
+  }
 
   Widget _buildDocumentsSection() {
     return Card(
@@ -188,10 +194,10 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               children: [
                 Icon(Iconsax.document_upload, color: AppColors.primary),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Mening hujjatlarim',
-                    style: TextStyle(
+                    context.l10n.translate('my_documents'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -201,7 +207,7 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
                   TextButton.icon(
                     onPressed: _showUploadDialog,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Yuklash'),
+                    label: Text(context.l10n.translate('upload')),
                   ),
               ],
             ),
@@ -220,12 +226,12 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
                       Icon(Iconsax.document, size: 40, color: Colors.grey[400]),
                       const SizedBox(height: 8),
                       Text(
-                        'Hujjatlar yuklanmagan',
+                        context.l10n.translate('no_documents'),
                         style: TextStyle(color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Pasport, INN yoki litsenziya yuklang',
+                        context.l10n.translate('upload_docs_hint'),
                         style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                     ],
@@ -242,7 +248,8 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
   Widget _buildDocumentTile(Map<String, dynamic> doc) {
     final status = doc['status'] as String? ?? 'pending';
     final type = doc['type'] as String? ?? 'other';
-    final name = doc['name'] as String? ?? 'Hujjat';
+    final name = doc['name'] as String? ??
+        context.l10n.translate('document_default_name');
     final fileUrl = doc['fileUrl'] as String?;
 
     Color statusColor;
@@ -252,17 +259,17 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
       case 'approved':
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
-        statusText = 'Tasdiqlangan';
+        statusText = context.l10n.translate('approved_status');
         break;
       case 'rejected':
         statusColor = Colors.red;
         statusIcon = Icons.cancel;
-        statusText = 'Rad etilgan';
+        statusText = context.l10n.translate('rejected_status');
         break;
       default:
         statusColor = Colors.orange;
         statusIcon = Icons.hourglass_bottom;
-        statusText = 'Tekshirilmoqda';
+        statusText = context.l10n.translate('pending_status');
     }
 
     return Container(
@@ -311,7 +318,7 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  _documentTypes[type] ?? type,
+                  _getDocumentTypes(context)[type] ?? type,
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
@@ -359,17 +366,17 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Hujjat yuklash'),
+          title: Text(context.l10n.translate('upload_document')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
                 value: selectedType,
-                decoration: const InputDecoration(
-                  labelText: 'Hujjat turi',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.translate('document_type'),
+                  border: const OutlineInputBorder(),
                 ),
-                items: _documentTypes.entries.map((e) {
+                items: _getDocumentTypes(context).entries.map((e) {
                   return DropdownMenuItem(value: e.key, child: Text(e.value));
                 }).toList(),
                 onChanged: (val) {
@@ -379,10 +386,10 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Hujjat nomi',
-                  hintText: 'Masalan: Shahsiy pasport',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.translate('document_name'),
+                  hintText: context.l10n.translate('example_passport'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -390,13 +397,15 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Bekor qilish'),
+              child: Text(context.l10n.translate('cancel')),
             ),
             FilledButton(
               onPressed: () {
                 if (nameController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Hujjat nomini kiriting')),
+                    SnackBar(
+                        content: Text(
+                            context.l10n.translate('enter_document_name'))),
                   );
                   return;
                 }
@@ -404,7 +413,7 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
                 _pickAndUploadDocument(
                     selectedType, nameController.text.trim());
               },
-              child: const Text('Rasmni tanlash'),
+              child: Text(context.l10n.translate('select_image')),
             ),
           ],
         ),
@@ -439,8 +448,8 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Hujjat muvaffaqiyatli yuklandi'),
+          SnackBar(
+            content: Text(context.l10n.translate('document_uploaded')),
             backgroundColor: Colors.green,
           ),
         );
@@ -451,7 +460,8 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: ${e.toString()}'),
+            content:
+                Text('${context.l10n.translate('error')}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -463,16 +473,17 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Hujjatni o\'chirish'),
-        content: const Text('Hujjatni o\'chirishni xohlaysizmi?'),
+        title: Text(context.l10n.translate('delete_document')),
+        content: Text(context.l10n.translate('delete_document_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Yo\'q'),
+            child: Text(context.l10n.translate('no')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('O\'chirish', style: TextStyle(color: Colors.red)),
+            child: Text(context.l10n.translate('delete'),
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -485,13 +496,15 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
       await _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hujjat o\'chirildi')),
+          SnackBar(content: Text(context.l10n.translate('document_deleted'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xatolik: ${e.toString()}')),
+          SnackBar(
+              content:
+                  Text('${context.l10n.translate('error')}: ${e.toString()}')),
         );
       }
     }
@@ -508,9 +521,9 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               children: [
                 const Icon(Icons.description, color: Colors.green),
                 const SizedBox(width: 8),
-                const Text(
-                  'Shartnoma',
-                  style: TextStyle(
+                Text(
+                  context.l10n.translate('contract'),
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -532,9 +545,9 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Oferta shartnomasi qabul qilingan',
-                          style: TextStyle(fontWeight: FontWeight.w500),
+                        Text(
+                          context.l10n.translate('offer_accepted'),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                         Text(
                           _shop != null ? _formatDate(_shop!.createdAt) : '-',
@@ -553,7 +566,7 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
             OutlinedButton.icon(
               onPressed: () => _showContractDetails(),
               icon: const Icon(Icons.visibility),
-              label: const Text('Shartnomani ko\'rish'),
+              label: Text(context.l10n.translate('view_contract')),
             ),
           ],
         ),
@@ -572,9 +585,9 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               children: [
                 const Icon(Icons.percent, color: Colors.orange),
                 const SizedBox(width: 8),
-                const Text(
-                  'Komissiya shartlari',
-                  style: TextStyle(
+                Text(
+                  context.l10n.translate('commission_terms'),
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -583,19 +596,19 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
             ),
             const Divider(height: 24),
             _buildCommissionItem(
-              'Standart komissiya',
+              context.l10n.translate('standard_commission'),
               '${_shop?.commissionRate ?? 10}%',
-              'Har bir sotuvdan ushlab qolinadi',
+              context.l10n.translate('deducted_per_sale'),
             ),
             _buildCommissionItem(
-              'To\'lov uchun komissiya',
+              context.l10n.translate('withdrawal_commission'),
               '0%',
-              'Mablag\' yechib olishda',
+              context.l10n.translate('withdrawal_commission_desc'),
             ),
             _buildCommissionItem(
-              'Minimal to\'lov',
+              context.l10n.translate('min_withdrawal'),
               '100 000 so\'m',
-              'Yechib olish uchun minimal summa',
+              context.l10n.translate('min_withdrawal_desc'),
             ),
           ],
         ),
@@ -656,9 +669,9 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               children: [
                 const Icon(Icons.rule, color: Colors.purple),
                 const SizedBox(width: 8),
-                const Text(
-                  'Qoidalar',
-                  style: TextStyle(
+                Text(
+                  context.l10n.translate('rules'),
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -668,28 +681,28 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
             const Divider(height: 24),
             _buildRuleItem(
               '1',
-              'Mahsulot moderatsiyasi',
-              'Barcha mahsulotlar moderatsiyadan o\'tishi kerak',
+              context.l10n.translate('product_moderation'),
+              context.l10n.translate('product_moderation_desc'),
             ),
             _buildRuleItem(
               '2',
-              'Sifat talablari',
-              'Mahsulot rasmlari aniq va sifatli bo\'lishi kerak',
+              context.l10n.translate('quality_requirements'),
+              context.l10n.translate('quality_requirements_desc'),
             ),
             _buildRuleItem(
               '3',
-              'Narx aniqligi',
-              'Ko\'rsatilgan narx haqiqiy narxga mos kelishi kerak',
+              context.l10n.translate('price_accuracy'),
+              context.l10n.translate('price_accuracy_desc'),
             ),
             _buildRuleItem(
               '4',
-              'Buyurtmalarni bajarish',
-              'Buyurtmalar 24 soat ichida tasdiqlanishi kerak',
+              context.l10n.translate('order_fulfillment'),
+              context.l10n.translate('order_fulfillment_desc'),
             ),
             _buildRuleItem(
               '5',
-              'Mijozlarga xizmat',
-              'Mijozlar bilan professional muloqot qilish',
+              context.l10n.translate('customer_service'),
+              context.l10n.translate('customer_service_desc'),
             ),
           ],
         ),
@@ -760,9 +773,9 @@ class _VendorDocumentsScreenState extends State<VendorDocumentsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Oferta shartnomasi',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.translate('offer_contract'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),

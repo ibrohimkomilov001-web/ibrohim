@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../services/vendor_service.dart';
 import 'vendor_product_form_screen.dart';
@@ -61,17 +62,18 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mahsulotni o\'chirish'),
-        content: Text('${product.nameUz} mahsulotini o\'chirmoqchimisiz?'),
+        title: Text(context.l10n.translate('delete_product')),
+        content: Text(
+            '${product.nameUz} ${context.l10n.translate('delete_product_confirm')}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Bekor qilish'),
+            child: Text(context.l10n.translate('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('O\'chirish'),
+            child: Text(context.l10n.translate('delete')),
           ),
         ],
       ),
@@ -82,8 +84,8 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
         await VendorService.deleteProduct(product.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mahsulot o\'chirildi'),
+            SnackBar(
+              content: Text(context.l10n.translate('product_deleted')),
               backgroundColor: Colors.green,
             ),
           );
@@ -93,7 +95,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Xatolik: $e'),
+              content: Text('${context.l10n.translate('error')}: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -107,8 +109,8 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
       await VendorService.resubmitProduct(product.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mahsulot qayta yuborildi'),
+          SnackBar(
+            content: Text(context.l10n.translate('product_resubmitted')),
             backgroundColor: Colors.green,
           ),
         );
@@ -118,7 +120,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -130,7 +132,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mahsulotlarim'),
+        title: Text(context.l10n.translate('my_products')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -138,11 +140,11 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Barchasi'),
-            Tab(text: 'Faol'),
-            Tab(text: 'Kutilmoqda'),
-            Tab(text: 'Rad etilgan'),
+          tabs: [
+            Tab(text: context.l10n.translate('all_tab')),
+            Tab(text: context.l10n.translate('active_tab')),
+            Tab(text: context.l10n.translate('pending_tab')),
+            Tab(text: context.l10n.translate('rejected_tab')),
           ],
         ),
       ),
@@ -155,7 +157,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
         ).then((_) => _loadProducts()),
         backgroundColor: AppColors.primary,
         icon: const Icon(Iconsax.add),
-        label: const Text('Qo\'shish'),
+        label: Text(context.l10n.translate('add')),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -173,7 +175,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Mahsulotlar yo\'q',
+                            context.l10n.translate('no_products'),
                             style: TextStyle(color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 16),
@@ -185,7 +187,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                               ),
                             ).then((_) => _loadProducts()),
                             icon: const Icon(Iconsax.add),
-                            label: const Text('Mahsulot qo\'shish'),
+                            label: Text(context.l10n.translate('add_product')),
                           ),
                         ],
                       ),
@@ -262,7 +264,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${product.price.toStringAsFixed(0)} so\'m',
+                      '${product.price.toStringAsFixed(0)} ${context.l10n.translate('currency')}',
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -278,7 +280,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Qoldiq: ${product.stock}',
+                          '${context.l10n.translate('stock_with_colon')} ${product.stock}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -288,7 +290,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                         if (product.moderationStatus == 'rejected')
                           TextButton(
                             onPressed: () => _resubmitProduct(product),
-                            child: const Text('Qayta yuborish'),
+                            child: Text(context.l10n.translate('resubmit')),
                           ),
                       ],
                     ),
@@ -341,11 +343,11 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                         ).then((_) => _loadProducts());
                       },
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Iconsax.edit, size: 18),
-                        SizedBox(width: 8),
-                        Text('Tahrirlash'),
+                        const Icon(Iconsax.edit, size: 18),
+                        const SizedBox(width: 8),
+                        Text(context.l10n.translate('edit')),
                       ],
                     ),
                   ),
@@ -354,11 +356,12 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
                       Duration.zero,
                       () => _deleteProduct(product),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Iconsax.trash, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('O\'chirish', style: TextStyle(color: Colors.red)),
+                        const Icon(Iconsax.trash, size: 18, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(context.l10n.translate('delete'),
+                            style: const TextStyle(color: Colors.red)),
                       ],
                     ),
                   ),
@@ -377,15 +380,15 @@ class _VendorProductsScreenState extends State<VendorProductsScreen>
     switch (status) {
       case 'approved':
         color = Colors.green;
-        text = 'Faol';
+        text = context.l10n.translate('active_tab');
         break;
       case 'pending':
         color = Colors.orange;
-        text = 'Kutilmoqda';
+        text = context.l10n.translate('pending_tab');
         break;
       case 'rejected':
         color = Colors.red;
-        text = 'Rad etilgan';
+        text = context.l10n.translate('rejected_tab');
         break;
       default:
         color = Colors.grey;

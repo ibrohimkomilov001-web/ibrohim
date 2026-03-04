@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -35,8 +36,9 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     const ProfileScreen(),
   ];
 
-  static const Color _activeColor = Color(0xFF3B82F6);
-  static const Color _inactiveColor = Color(0xFF9CA3AF);
+  static const Color _activeColor =
+      AppColors.accent; // #FF6B35 — Temu uslubida yorqin
+  static const Color _inactiveColor = Colors.black; // Qora rang
 
   static void switchToTab(int index) {
     _instance?._onNavTap(index);
@@ -112,6 +114,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Future<bool> _onWillPop() async {
     // Agar Asosiy (Home) tabda bo'lmasa - Home tabga qaytarish
     if (_currentIndex != 0) {
+      _pageController.jumpToPage(0);
       setState(() => _currentIndex = 0);
       return false;
     }
@@ -172,15 +175,15 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             color: Colors.white,
             border: Border(
               top: BorderSide(
-                color: Colors.black.withValues(alpha: 0.4),
-                width: 1,
+                color: Colors.black.withValues(alpha: 0.08),
+                width: 0.5,
               ),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, -3),
               ),
             ],
           ),
@@ -192,13 +195,13 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 children: [
                   _buildNavItem(
                     index: 0,
-                    icon: Iconsax.home_2,
-                    activeIcon: Iconsax.home_2,
+                    icon: Iconsax.home_1_copy,
+                    activeIcon: Iconsax.home_1,
                     label: l10n?.home ?? 'Asosiy',
                   ),
                   _buildNavItem(
                     index: 1,
-                    icon: Iconsax.category,
+                    icon: Iconsax.category_copy,
                     activeIcon: Iconsax.category,
                     label: l10n?.catalog ?? 'Katalog',
                   ),
@@ -207,22 +210,22 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     selector: (_, cart) => cart.totalQuantity,
                     builder: (_, cartCount, __) => _buildNavItem(
                       index: 2,
-                      icon: Iconsax.bag,
-                      activeIcon: Iconsax.bag,
+                      icon: Iconsax.bag_2_copy,
+                      activeIcon: Iconsax.bag_2,
                       label: l10n?.cart ?? 'Savat',
                       badge: cartCount,
                     ),
                   ),
                   _buildNavItem(
                     index: 3,
-                    icon: Iconsax.clipboard_text,
-                    activeIcon: Iconsax.clipboard_text,
-                    label: l10n?.myOrders ?? 'Buyurtmalar',
+                    icon: Iconsax.note_2_copy,
+                    activeIcon: Iconsax.note_2,
+                    label: l10n?.myOrders ?? 'Buyurtmal...',
                   ),
                   _buildNavItem(
                     index: 4,
-                    icon: Iconsax.user,
-                    activeIcon: Iconsax.user,
+                    icon: Iconsax.profile_circle_copy,
+                    activeIcon: Iconsax.profile_circle,
                     label: l10n?.profile ?? 'Profil',
                   ),
                 ],
@@ -243,60 +246,148 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }) {
     final isActive = _currentIndex == index;
 
-    return GestureDetector(
+    return _NavItemButton(
       onTap: () => _onNavTap(index),
+      isActive: isActive,
+      icon: icon,
+      activeIcon: activeIcon,
+      label: label,
+      badge: badge,
+      activeColor: _activeColor,
+      inactiveColor: _inactiveColor,
+    );
+  }
+}
+
+/// Scale animatsiyali nav item tugmasi
+class _NavItemButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final bool isActive;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final int badge;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const _NavItemButton({
+    required this.onTap,
+    required this.isActive,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.badge,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  @override
+  State<_NavItemButton> createState() => _NavItemButtonState();
+}
+
+class _NavItemButtonState extends State<_NavItemButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleTapDown(TapDownDetails _) {
+    _controller.forward();
+  }
+
+  void _handleTapUp(TapUpDetails _) {
+    _controller.reverse();
+    widget.onTap();
+  }
+
+  void _handleTapCancel() {
+    _controller.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _handleTapDown,
+      onTapUp: _handleTapUp,
+      onTapCancel: _handleTapCancel,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  isActive ? activeIcon : icon,
-                  size: 22,
-                  color: isActive ? _activeColor : _inactiveColor,
-                ),
-                if (badge > 0)
-                  Positioned(
-                    right: -8,
-                    top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints:
-                          const BoxConstraints(minWidth: 14, minHeight: 14),
-                      child: Text(
-                        badge > 99 ? '99+' : '$badge',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: SizedBox(
+          width: 64,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    widget.isActive ? widget.activeIcon : widget.icon,
+                    size: 24,
+                    color: widget.isActive
+                        ? widget.activeColor
+                        : widget.inactiveColor,
+                  ),
+                  if (widget.badge > 0)
+                    Positioned(
+                      right: -8,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        textAlign: TextAlign.center,
+                        constraints:
+                            const BoxConstraints(minWidth: 14, minHeight: 14),
+                        child: Text(
+                          widget.badge > 99 ? '99+' : '${widget.badge}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? _activeColor : _inactiveColor,
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: widget.isActive ? 11 : 10,
+                  fontWeight:
+                      widget.isActive ? FontWeight.w700 : FontWeight.w400,
+                  color: widget.isActive
+                      ? widget.activeColor
+                      : widget.inactiveColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

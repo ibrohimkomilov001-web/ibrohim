@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/payout_model.dart';
 import '../../models/shop_model.dart';
 import '../../services/vendor_service.dart';
@@ -62,32 +63,32 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Pul yechish',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('withdraw'),
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Mavjud balans: ${_shop?.formattedBalance ?? '0 so\'m'}',
+                '${context.l10n.translate("available_balance")}: ${_shop?.formattedBalance ?? '0 ${context.l10n.translate("currency")}'}',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: amountController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Summa',
-                  suffixText: 'so\'m',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.translate('amount'),
+                  suffixText: context.l10n.translate('currency'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'To\'lov usuli',
-                style: TextStyle(fontWeight: FontWeight.w500),
+              Text(
+                context.l10n.translate('payment_method'),
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -95,7 +96,7 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
                 children: PaymentMethod.values.map((method) {
                   final isSelected = selectedMethod == method;
                   return ChoiceChip(
-                    label: Text(_getMethodName(method)),
+                    label: Text(_getMethodName(method, context)),
                     selected: isSelected,
                     onSelected: (selected) {
                       setModalState(() => selectedMethod = method);
@@ -121,7 +122,7 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('So\'rov yuborish'),
+                  child: Text(context.l10n.translate('send_request')),
                 ),
               ),
             ],
@@ -140,8 +141,8 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('So\'rov yuborildi'),
+            SnackBar(
+              content: Text(context.l10n.translate('request_sent')),
               backgroundColor: Colors.green,
             ),
           );
@@ -151,7 +152,7 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Xatolik: $e'),
+              content: Text('${context.l10n.translate("error")}: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -160,14 +161,14 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
     }
   }
 
-  String _getMethodName(PaymentMethod method) {
+  String _getMethodName(PaymentMethod method, BuildContext context) {
     switch (method) {
       case PaymentMethod.click:
         return 'Click';
       case PaymentMethod.payme:
         return 'Payme';
       case PaymentMethod.bankTransfer:
-        return 'Bank o\'tkazmasi';
+        return context.l10n.translate('bank_transfer');
     }
   }
 
@@ -175,7 +176,7 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('To\'lovlar'),
+        title: Text(context.l10n.translate('payments')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -183,7 +184,7 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
         onPressed: _requestPayout,
         backgroundColor: AppColors.primary,
         icon: const Icon(Iconsax.money_send),
-        label: const Text('Pul yechish'),
+        label: Text(context.l10n.translate('withdraw')),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -210,15 +211,16 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Mavjud balans',
-                              style: TextStyle(
+                            Text(
+                              context.l10n.translate('available_balance'),
+                              style: const TextStyle(
                                 color: Colors.white70,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _shop?.formattedBalance ?? '0 so\'m',
+                              _shop?.formattedBalance ??
+                                  '0 ${context.l10n.translate("currency")}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 24,
@@ -249,7 +251,7 @@ class _VendorPayoutsScreenState extends State<VendorPayoutsScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'To\'lovlar tarixi bo\'sh',
+                                  context.l10n.translate('no_payouts_history'),
                                   style: TextStyle(color: Colors.grey.shade600),
                                 ),
                               ],

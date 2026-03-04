@@ -16,8 +16,13 @@ import { useToast } from '@/components/ui/use-toast'
 
 const statusConfig: Record<string, { color: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   pending: { color: 'secondary', label: 'Kutilmoqda' },
-  processing: { color: 'default', label: 'Jarayonda' },
-  shipped: { color: 'outline', label: "Yo'lda" },
+  confirmed: { color: 'default', label: 'Tasdiqlangan' },
+  processing: { color: 'default', label: 'Tayyorlanmoqda' },
+  ready_for_pickup: { color: 'outline', label: 'Tayyor - kuryerga berish' },
+  courier_assigned: { color: 'outline', label: 'Kuryer tayinlandi' },
+  courier_picked_up: { color: 'outline', label: 'Kuryer oldi' },
+  shipping: { color: 'outline', label: 'Yetkazilmoqda' },
+  at_pickup_point: { color: 'outline', label: 'Punktda kutmoqda' },
   delivered: { color: 'default', label: 'Yetkazildi' },
   cancelled: { color: 'destructive', label: 'Bekor qilindi' },
 }
@@ -26,7 +31,7 @@ export default function AdminOrdersPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<Order[]>([])
-  const [stats, setStats] = useState({ total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 })
+  const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, processing: 0, shipping: 0, delivered: 0, cancelled: 0, totalRevenue: 0 })
   
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
@@ -60,7 +65,11 @@ export default function AdminOrdersPage() {
     const matchesSearch = order.order_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.shop?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab = activeTab === 'all' || order.status === activeTab
+    let matchesTab = activeTab === 'all' || order.status === activeTab
+    // "shipping" tabida barcha yetkazish bosqichlarini ko'rsatish
+    if (activeTab === 'shipping') {
+      matchesTab = ['ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping', 'at_pickup_point'].includes(order.status)
+    }
     return matchesSearch && matchesTab
   })
 
@@ -121,11 +130,29 @@ export default function AdminOrdersPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jarayonda</CardTitle>
+            <CardTitle className="text-sm font-medium">Tasdiqlangan</CardTitle>
+            <span className="text-2xl">✔️</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.confirmed}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tayyorlanmoqda</CardTitle>
             <span className="text-2xl">🔄</span>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
+            <div className="text-2xl font-bold text-purple-600">{stats.processing}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Yo'lda</CardTitle>
+            <span className="text-2xl">🚚</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-indigo-600">{stats.shipping}</div>
           </CardContent>
         </Card>
         <Card>
@@ -169,7 +196,9 @@ export default function AdminOrdersPage() {
               <TabsList className="inline-flex w-max sm:w-auto">
                 <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi</TabsTrigger>
                 <TabsTrigger value="pending" className="text-xs sm:text-sm">Kutilmoqda</TabsTrigger>
-                <TabsTrigger value="processing" className="text-xs sm:text-sm">Jarayonda</TabsTrigger>
+                <TabsTrigger value="confirmed" className="text-xs sm:text-sm">Tasdiqlangan</TabsTrigger>
+                <TabsTrigger value="processing" className="text-xs sm:text-sm">Tayyorlanmoqda</TabsTrigger>
+                <TabsTrigger value="shipping" className="text-xs sm:text-sm">Yo'lda</TabsTrigger>
                 <TabsTrigger value="delivered" className="text-xs sm:text-sm">Yetkazildi</TabsTrigger>
                 <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Bekor</TabsTrigger>
               </TabsList>
@@ -297,8 +326,13 @@ export default function AdminOrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Kutilmoqda</SelectItem>
-                  <SelectItem value="processing">Jarayonda</SelectItem>
-                  <SelectItem value="shipped">Yo'lda</SelectItem>
+                  <SelectItem value="confirmed">Tasdiqlangan</SelectItem>
+                  <SelectItem value="processing">Tayyorlanmoqda</SelectItem>
+                  <SelectItem value="ready_for_pickup">Tayyor - kuryerga berish</SelectItem>
+                  <SelectItem value="courier_assigned">Kuryer tayinlandi</SelectItem>
+                  <SelectItem value="courier_picked_up">Kuryer oldi</SelectItem>
+                  <SelectItem value="shipping">Yetkazilmoqda</SelectItem>
+                  <SelectItem value="at_pickup_point">Punktda kutmoqda</SelectItem>
                   <SelectItem value="delivered">Yetkazildi</SelectItem>
                   <SelectItem value="cancelled">Bekor qilindi</SelectItem>
                 </SelectContent>

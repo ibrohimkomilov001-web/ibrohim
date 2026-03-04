@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../core/constants/constants.dart';
 import '../core/localization/app_localizations.dart';
-import '../services/notification_service.dart';
+import '../services/push_notification_service.dart';
 
 /// Bildirishnoma ruxsati so'rash dialogini ko'rsatish
 Future<bool> showNotificationPermissionDialog(BuildContext context) async {
-  final notificationService = NotificationService();
-  
+  final notificationService = PushNotificationService();
+
   // Agar avval so'ralgan bo'lsa, qayta so'ramaymiz
   final isAsked = await notificationService.isPermissionAsked();
   if (isAsked) return true;
@@ -50,9 +50,9 @@ class _NotificationPermissionDialog extends StatelessWidget {
                 color: AppColors.primary,
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Title
             Text(
               context.l10n.translate('notification_permission_title'),
@@ -62,9 +62,9 @@ class _NotificationPermissionDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Description
             Text(
               context.l10n.translate('notification_permission_desc'),
@@ -75,9 +75,9 @@ class _NotificationPermissionDialog extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Features list
             _buildFeatureItem(
               context,
@@ -96,9 +96,9 @@ class _NotificationPermissionDialog extends StatelessWidget {
               Icons.campaign_rounded,
               context.l10n.translate('notification_feature_3'),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Buttons
             Row(
               children: [
@@ -106,7 +106,7 @@ class _NotificationPermissionDialog extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      final notificationService = NotificationService();
+                      final notificationService = PushNotificationService();
                       await notificationService.setPermissionAsked();
                       if (context.mounted) {
                         Navigator.pop(context, false);
@@ -128,15 +128,16 @@ class _NotificationPermissionDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // Allow button
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      final notificationService = NotificationService();
-                      final granted = await notificationService.requestPermission();
+                      final notificationService = PushNotificationService();
+                      final granted =
+                          await notificationService.requestPermissionOnly();
                       if (context.mounted) {
                         Navigator.pop(context, granted);
                       }

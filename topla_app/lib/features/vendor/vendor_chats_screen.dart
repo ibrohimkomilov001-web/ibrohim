@@ -3,6 +3,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/shop_provider.dart';
 import '../../models/shop_conversation_model.dart';
 import 'vendor_chat_detail_screen.dart';
@@ -44,7 +45,7 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Chatlarni yuklashda xatolik';
+          _error = context.l10n.translate('chats_load_error');
           _isLoading = false;
         });
       }
@@ -55,12 +56,12 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Xabarlar'),
+        title: Text(context.l10n.translate('messages')),
         actions: [
           IconButton(
             icon: const Icon(Iconsax.refresh),
             onPressed: _loadConversations,
-            tooltip: 'Yangilash',
+            tooltip: context.l10n.translate('refresh'),
           ),
         ],
       ),
@@ -98,7 +99,8 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
           MaterialPageRoute(
             builder: (_) => VendorChatDetailScreen(
               conversationId: conversation.id,
-              customerName: conversation.customerName ?? 'Mijoz',
+              customerName: conversation.customerName ??
+                  context.l10n.translate('customer'),
               customerAvatarUrl: conversation.customerAvatar,
             ),
           ),
@@ -162,7 +164,8 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          conversation.customerName ?? 'Mijoz',
+                          conversation.customerName ??
+                              context.l10n.translate('customer'),
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontWeight: hasUnread
@@ -187,7 +190,8 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    conversation.lastMessage ?? 'Suhbat boshlandi',
+                    conversation.lastMessage ??
+                        context.l10n.translate('chat_started'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: hasUnread
                               ? Theme.of(context).textTheme.bodyMedium?.color
@@ -235,14 +239,14 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Hozircha xabarlar yo\'q',
+            context.l10n.translate('no_messages'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'Mijozlar sizga xabar yuborganda bu yerda ko\'rinadi',
+              context.l10n.translate('no_messages_desc'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey,
@@ -262,7 +266,7 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
           Icon(Iconsax.danger, size: 48, color: Colors.red[300]),
           const SizedBox(height: 16),
           Text(
-            _error ?? 'Xatolik yuz berdi',
+            _error ?? context.l10n.translate('error_occurred'),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.grey,
                 ),
@@ -270,7 +274,7 @@ class _VendorChatsScreenState extends State<VendorChatsScreen> {
           const SizedBox(height: 16),
           FilledButton.tonal(
             onPressed: _loadConversations,
-            child: const Text('Qayta urinish'),
+            child: Text(context.l10n.translate('retry')),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get_it/get_it.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/repositories/i_category_repository.dart';
 import '../../core/services/api_client.dart';
 import '../../models/product_model.dart';
@@ -163,8 +164,8 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
 
     if (_selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Iltimos, kategoriya tanlang'),
+        SnackBar(
+          content: Text(context.l10n.translate('please_select_category')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -227,8 +228,9 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                _isEditing ? 'Mahsulot yangilandi' : 'Mahsulot qo\'shildi'),
+            content: Text(_isEditing
+                ? context.l10n.translate('product_updated')
+                : context.l10n.translate('product_added')),
             backgroundColor: Colors.green,
           ),
         );
@@ -238,7 +240,7 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -252,7 +254,9 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'),
+        title: Text(_isEditing
+            ? context.l10n.translate('edit_product')
+            : context.l10n.translate('new_product')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -274,14 +278,14 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
             // Name UZ
             TextFormField(
               controller: _nameUzController,
-              decoration: const InputDecoration(
-                labelText: 'Nomi (O\'zbekcha) *',
-                prefixIcon: Icon(Iconsax.text),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: '${context.l10n.translate('name_uz')} *',
+                prefixIcon: const Icon(Iconsax.text),
+                border: const OutlineInputBorder(),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Mahsulot nomini kiriting';
+                  return context.l10n.translate('enter_product_name');
                 }
                 return null;
               },
@@ -291,10 +295,10 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
             // Name RU
             TextFormField(
               controller: _nameRuController,
-              decoration: const InputDecoration(
-                labelText: 'Nomi (Ruscha)',
-                prefixIcon: Icon(Iconsax.text),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.translate('name_ru'),
+                prefixIcon: const Icon(Iconsax.text),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
@@ -302,10 +306,10 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
             // Description UZ
             TextFormField(
               controller: _descriptionUzController,
-              decoration: const InputDecoration(
-                labelText: 'Tavsif (O\'zbekcha)',
-                prefixIcon: Icon(Iconsax.document_text),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.translate('description_uz'),
+                prefixIcon: const Icon(Iconsax.document_text),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
@@ -314,10 +318,10 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
             // Description RU
             TextFormField(
               controller: _descriptionRuController,
-              decoration: const InputDecoration(
-                labelText: 'Tavsif (Ruscha)',
-                prefixIcon: Icon(Iconsax.document_text),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.l10n.translate('description_ru'),
+                prefixIcon: const Icon(Iconsax.document_text),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
@@ -329,19 +333,19 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Narx *',
-                      prefixIcon: Icon(Iconsax.money),
-                      suffixText: 'so\'m',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: '${context.l10n.translate('price_label')} *',
+                      prefixIcon: const Icon(Iconsax.money),
+                      suffixText: context.l10n.translate('currency'),
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Narxni kiriting';
+                        return context.l10n.translate('enter_price');
                       }
                       if (double.tryParse(value) == null) {
-                        return 'Noto\'g\'ri format';
+                        return context.l10n.translate('invalid_format');
                       }
                       return null;
                     },
@@ -351,11 +355,11 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _oldPriceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Eski narx',
-                      prefixIcon: Icon(Iconsax.money_remove),
-                      suffixText: 'so\'m',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.translate('old_price'),
+                      prefixIcon: const Icon(Iconsax.money_remove),
+                      suffixText: context.l10n.translate('currency'),
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -370,19 +374,19 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _stockController,
-                    decoration: const InputDecoration(
-                      labelText: 'Qoldiq *',
-                      prefixIcon: Icon(Iconsax.box),
-                      suffixText: 'dona',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: '${context.l10n.translate('stock_count')} *',
+                      prefixIcon: const Icon(Iconsax.box),
+                      suffixText: context.l10n.translate('pcs'),
+                      border: const OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Miqdorni kiriting';
+                        return context.l10n.translate('enter_quantity');
                       }
                       if (int.tryParse(value) == null) {
-                        return 'Noto\'g\'ri';
+                        return context.l10n.translate('invalid_value');
                       }
                       return null;
                     },
@@ -420,7 +424,7 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Mahsulot admin tekshiruvidan o\'tgandan so\'ng faollashadi.',
+                        context.l10n.translate('product_moderation_info'),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue.shade700,
@@ -462,14 +466,16 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
                           const SizedBox(width: 12),
                           Text(
                             _isUploadingImages
-                                ? 'Rasmlar yuklanmoqda...'
-                                : 'Saqlanmoqda...',
+                                ? context.l10n.translate('images_uploading')
+                                : context.l10n.translate('saving'),
                             style: const TextStyle(fontSize: 16),
                           ),
                         ],
                       )
                     : Text(
-                        _isEditing ? 'Saqlash' : 'Qo\'shish',
+                        _isEditing
+                            ? context.l10n.translate('save')
+                            : context.l10n.translate('add'),
                         style: const TextStyle(fontSize: 16),
                       ),
               ),
@@ -489,9 +495,9 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Mahsulot rasmlari',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            Text(
+              context.l10n.translate('product_images'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             Text(
               '$totalImages/5',
@@ -537,7 +543,7 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
                             size: 32, color: Colors.grey.shade500),
                         const SizedBox(height: 4),
                         Text(
-                          'Qo\'shish',
+                          context.l10n.translate('add'),
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade600),
                         ),
@@ -609,19 +615,19 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Kategoriya *',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        Text(
+          context.l10n.translate('category_required'),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
 
         // Asosiy kategoriya
         DropdownButtonFormField<String>(
           value: _selectedCategoryId,
-          decoration: const InputDecoration(
-            labelText: 'Kategoriya tanlang',
-            prefixIcon: Icon(Iconsax.category),
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: context.l10n.translate('select_category'),
+            prefixIcon: const Icon(Iconsax.category),
+            border: const OutlineInputBorder(),
           ),
           items: _mainCategories
               .map((cat) => DropdownMenuItem(
@@ -637,7 +643,7 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
           },
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return 'Kategoriya tanlang';
+              return context.l10n.translate('select_category');
             }
             return null;
           },
@@ -648,10 +654,10 @@ class _VendorProductFormScreenState extends State<VendorProductFormScreen> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _selectedSubcategoryId,
-            decoration: const InputDecoration(
-              labelText: 'Subkategoriya (ixtiyoriy)',
-              prefixIcon: Icon(Iconsax.category_2),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.translate('subcategory_optional'),
+              prefixIcon: const Icon(Iconsax.category_2),
+              border: const OutlineInputBorder(),
             ),
             items: _subcategories
                 .map((cat) => DropdownMenuItem(

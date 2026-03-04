@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 
 /// Yangi foydalanuvchi uchun ism va familiya kiritish ekrani
@@ -28,8 +29,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Iltimos, ismingizni kiriting'),
+        SnackBar(
+          content: Text(context.l10n.translate('enter_name_please')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -51,7 +52,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error_prefix')}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -93,10 +94,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               const SizedBox(height: 32),
 
               // Title
-              const Center(
+              Center(
                 child: Text(
-                  'Xush kelibsiz!',
-                  style: TextStyle(
+                  context.l10n.translate('welcome'),
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                   ),
@@ -105,7 +106,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               const SizedBox(height: 8),
               Center(
                 child: Text(
-                  'Davom etish uchun ismingizni kiriting',
+                  context.l10n.translate('enter_name_to_continue'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey.shade600,
@@ -116,9 +117,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               const SizedBox(height: 40),
 
               // Name field
-              const Text(
-                'Ism *',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('first_name_required'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -128,7 +129,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 controller: _nameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Ismingizni kiriting',
+                  hintText: context.l10n.translate('enter_your_name'),
                   prefixIcon:
                       Icon(Icons.person_outline, color: Colors.grey.shade500),
                   filled: true,
@@ -147,9 +148,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               const SizedBox(height: 20),
 
               // Surname field
-              const Text(
-                'Familiya',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('last_name'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -159,7 +160,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 controller: _surnameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Familiyangizni kiriting',
+                  hintText: context.l10n.translate('enter_your_surname'),
                   prefixIcon:
                       Icon(Icons.person_outline, color: Colors.grey.shade500),
                   filled: true,
@@ -199,9 +200,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Davom etish',
-                          style: TextStyle(
+                      : Text(
+                          context.l10n.translate('continue'),
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -219,7 +220,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         context, '/main', (route) => false);
                   },
                   child: Text(
-                    'Keyinroq',
+                    context.l10n.translate('later'),
                     style: TextStyle(
                       color: Colors.grey.shade500,
                       fontSize: 14,

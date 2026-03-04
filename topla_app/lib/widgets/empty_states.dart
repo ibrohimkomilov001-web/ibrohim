@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../core/constants/app_colors.dart';
+import '../core/localization/app_localizations.dart';
 
 /// Empty State Widget - Zamonaviy animatsiyali bo'sh holatlar
 class EmptyStateWidget extends StatelessWidget {
@@ -260,8 +261,8 @@ class _EmptyNotificationsWidgetState extends State<EmptyNotificationsWidget>
   @override
   Widget build(BuildContext context) {
     return EmptyStateWidget(
-      title: 'Bildirishnomalar yo\'q',
-      subtitle: 'Yangi xabarlar va aksiyalar\nbu yerda ko\'rinadi',
+      title: context.l10n.translate('notifications_empty'),
+      subtitle: context.l10n.translate('notifications_empty_desc'),
       customIllustration: SizedBox(
         width: 160,
         height: 160,
@@ -402,9 +403,9 @@ class _EmptyFavoritesWidgetState extends State<EmptyFavoritesWidget>
   @override
   Widget build(BuildContext context) {
     return EmptyStateWidget(
-      title: 'Sevimlilar ro\'yxati bo\'sh',
-      subtitle: 'Yoqtirgan mahsulotlaringizni\n❤️ bosib saqlang',
-      actionText: 'Mahsulotlarni ko\'rish',
+      title: context.l10n.translate('empty_favorites'),
+      subtitle: context.l10n.translate('empty_favorites_desc'),
+      actionText: context.l10n.translate('view_products'),
       onAction: widget.onExplore,
       customIllustration: SizedBox(
         width: 180,
@@ -542,10 +543,9 @@ class _EmptyPurchasedWidgetState extends State<EmptyPurchasedWidget>
   @override
   Widget build(BuildContext context) {
     return EmptyStateWidget(
-      title: 'Xaridlar yo\'q',
-      subtitle:
-          'Siz hali hech narsa sotib olmadingiz.\nBirinchi xaridingizni qiling!',
-      actionText: 'Xarid qilish',
+      title: context.l10n.translate('purchased_empty'),
+      subtitle: context.l10n.translate('purchased_empty_desc'),
+      actionText: context.l10n.translate('shop_now'),
       onAction: widget.onShopNow,
       customIllustration: SizedBox(
         width: 180,
@@ -793,7 +793,7 @@ class _ProductsLoadingWidgetState extends State<ProductsLoadingWidget>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Mahsulotlar yuklanmoqda',
+                  context.l10n.translate('products_loading'),
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 14,
@@ -861,9 +861,9 @@ class EmptyCartWidget extends StatelessWidget {
       child: EmptyStateWidget(
         lottieAsset: 'assets/lottie/empty_cart.json',
         iconSize: 180,
-        title: 'Savatingiz bo\'sh',
-        subtitle: 'Mahsulotlarni savatga qo\'shing va buyurtma bering',
-        actionText: 'Xarid qilish',
+        title: context.l10n.translate('empty_cart'),
+        subtitle: context.l10n.translate('empty_cart_desc'),
+        actionText: context.l10n.translate('shop_now'),
         onAction: onShopNow,
       ),
     );
@@ -881,9 +881,9 @@ class EmptyOrdersWidget extends StatelessWidget {
     return EmptyStateWidget(
       lottieAsset: 'assets/lottie/empty_orders.json',
       iconSize: 200,
-      title: 'Buyurtmalar yo\'q',
-      subtitle: 'Siz hali hech narsa buyurtma qilmagansiz',
-      actionText: 'Xarid qilish',
+      title: context.l10n.translate('orders_empty'),
+      subtitle: context.l10n.translate('orders_empty_desc'),
+      actionText: context.l10n.translate('shop_now'),
       onAction: onShopNow,
     );
   }
@@ -905,10 +905,9 @@ class EmptySearchWidget extends StatelessWidget {
     return EmptyStateWidget(
       icon: Icons.search_off,
       iconColor: Colors.grey,
-      title: 'Natija topilmadi',
-      subtitle:
-          '"$query" bo\'yicha hech narsa topilmadi.\nBoshqa so\'z bilan qidirib ko\'ring.',
-      actionText: onClear != null ? 'Tozalash' : null,
+      title: context.l10n.translate('no_results'),
+      subtitle: '"$query" ${context.l10n.translate('search_no_results_for')}',
+      actionText: onClear != null ? context.l10n.translate('clear') : null,
       onAction: onClear,
     );
   }
@@ -925,9 +924,9 @@ class NoInternetWidget extends StatelessWidget {
     return EmptyStateWidget(
       icon: Icons.wifi_off,
       iconColor: AppColors.error,
-      title: 'Internet aloqasi yo\'q',
-      subtitle: 'Iltimos, internet ulanishingizni tekshiring',
-      actionText: 'Qayta urinish',
+      title: context.l10n.translate('no_internet'),
+      subtitle: context.l10n.translate('check_internet'),
+      actionText: context.l10n.translate('retry'),
       onAction: onRetry,
     );
   }
@@ -949,10 +948,9 @@ class ErrorStateWidget extends StatelessWidget {
     return EmptyStateWidget(
       icon: Icons.error_outline,
       iconColor: AppColors.error,
-      title: 'Xatolik yuz berdi',
-      subtitle:
-          message ?? 'Nimadir noto\'g\'ri ketdi.\nQaytadan urinib ko\'ring.',
-      actionText: 'Qayta urinish',
+      title: context.l10n.translate('error_occurred'),
+      subtitle: message ?? context.l10n.translate('something_went_wrong_desc'),
+      actionText: context.l10n.translate('retry'),
       onAction: onRetry,
     );
   }

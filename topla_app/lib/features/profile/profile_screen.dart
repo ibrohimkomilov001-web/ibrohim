@@ -9,7 +9,6 @@ import '../../core/localization/app_localizations.dart';
 import '../../models/user_role.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
-import '../../widgets/topla_refresh_indicator.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -150,9 +149,9 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Profilga kirish',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.translate('login_to_profile'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1F2937),
@@ -161,7 +160,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Telefon raqam orqali',
+                    context.l10n.translate('via_phone'),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade500,
@@ -357,8 +356,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           _divider(),
           _buildMenuItem(
             icon: Iconsax.mobile_copy,
-            label: 'Qurilmalar',
-            subtitle: 'Ulangan qurilmalarni boshqarish',
+            label: context.l10n.translate('devices'),
+            subtitle: context.l10n.translate('manage_devices'),
             iconColor: Colors.cyan,
             onTap: () => Navigator.pushNamed(context, '/devices'),
           ),
@@ -602,8 +601,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Saytni ochib bo\'lmadi'),
+          SnackBar(
+            content: Text(context.l10n.translate('cannot_open_site')),
             backgroundColor: Colors.red,
           ),
         );
@@ -618,8 +617,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Saytni ochib bo\'lmadi'),
+          SnackBar(
+            content: Text(context.l10n.translate('cannot_open_site')),
             backgroundColor: Colors.red,
           ),
         );
@@ -653,9 +652,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const SizedBox(width: 32),
-                  const Text(
-                    'Tilni tanlang',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  Text(
+                    context.l10n.translate('choose_language'),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
@@ -667,7 +667,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               const SizedBox(height: 16),
               _buildLanguageOption(
                 flagWidget: _buildUzbekistanFlag(),
-                name: "O'zbekcha",
+                name: context.l10n.translate('uzbek_lang'),
                 isSelected: settings.language == 'uz',
                 onTap: () {
                   settings.setLanguage('uz');
@@ -677,7 +677,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               Divider(height: 1, color: Colors.grey.shade100),
               _buildLanguageOption(
                 flagWidget: _buildRussiaFlag(),
-                name: 'Русский',
+                name: context.l10n.translate('russian_lang'),
                 isSelected: settings.language == 'ru',
                 onTap: () {
                   settings.setLanguage('ru');
@@ -788,7 +788,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       context: context,
       builder: (ctx) => CupertinoActionSheet(
         title: Text(
-          'Hisobingizdan chiqmoqchimisiz?',
+          context.l10n.translate('logout_question'),
           style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -801,16 +801,16 @@ class _ProfileScreenState extends State<ProfileScreen>
               Navigator.pop(ctx);
               await context.read<AuthProvider>().signOut();
             },
-            child: const Text(
-              'Hisobdan chiqish',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            child: Text(
+              context.l10n.translate('logout_action'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(ctx),
           child: Text(
-            'Bekor qilish',
+            context.l10n.translate('cancel'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,

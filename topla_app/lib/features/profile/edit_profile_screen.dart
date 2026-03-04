@@ -4,6 +4,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/services/api_client.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -472,8 +473,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       onTap: () {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Kamera funksiyasi tez orada...'),
+                          SnackBar(
+                            content: Text(
+                                context.l10n.translate('camera_coming_soon')),
                           ),
                         );
                       },
@@ -484,8 +486,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       onTap: () {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Galereya funksiyasi tez orada...'),
+                          SnackBar(
+                            content: Text(
+                                context.l10n.translate('gallery_coming_soon')),
                           ),
                         );
                       },
@@ -537,8 +540,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (_fullNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ism va familiyangizni kiriting'),
+        SnackBar(
+          content: Text(context.l10n.translate('enter_full_name')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -580,7 +583,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Profil yangilandi'),
+            content: Text(context.l10n.translate('profile_updated')),
             backgroundColor: AppColors.success,
           ),
         );
@@ -590,7 +593,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -618,7 +621,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('SMS yuborishda xatolik: $e'),
+            content: Text('${context.l10n.translate('sms_send_error')}: $e'),
             backgroundColor: AppColors.error,
           ),
         );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/constants/app_colors.dart';
+import '../core/localization/app_localizations.dart';
 import '../core/utils/haptic_utils.dart';
 
 /// Swipeable Cart Item Widget
@@ -233,15 +234,17 @@ class DismissibleWithConfirmation extends StatelessWidget {
         return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('O\'chirish'),
-            content: Text('$itemName ni o\'chirmoqchimisiz?'),
+            title: Text(context.l10n.translate('delete')),
+            content: Text(context.l10n
+                .translate('delete_confirm_msg')
+                .replaceAll('{name}', itemName)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Bekor qilish'),
+                child: Text(context.l10n.translate('cancel')),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -251,7 +254,7 @@ class DismissibleWithConfirmation extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
                 ),
-                child: const Text('O\'chirish'),
+                child: Text(context.l10n.translate('delete')),
               ),
             ],
           ),

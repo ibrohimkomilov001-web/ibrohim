@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/vendor_service.dart';
 
 class VendorReturnsScreen extends StatefulWidget {
@@ -22,17 +23,13 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
   bool _isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
 
-  static const _tabs = [
-    {'label': 'Barchasi', 'status': null},
-    {'label': 'Kutilmoqda', 'status': 'pending'},
-    {'label': 'Tasdiqlangan', 'status': 'approved'},
-    {'label': 'Rad etilgan', 'status': 'rejected'},
-  ];
+  static const _tabStatuses = [null, 'pending', 'approved', 'rejected'];
+  static const _tabKeys = ['all', 'pending', 'confirmed', 'rejected'];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: _tabStatuses.length, vsync: this);
     _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
     _loadReturns();
@@ -47,7 +44,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    final filter = _tabs[_tabController.index]['status'];
+    final filter = _tabStatuses[_tabController.index];
     if (_currentFilter != filter) {
       _currentFilter = filter;
       _loadReturns();
@@ -113,11 +110,13 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Qaytarishlar'),
+        title: Text(context.l10n.translate('returns')),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          tabs: _tabs.map((t) => Tab(text: t['label'] as String)).toList(),
+          tabs: _tabKeys
+              .map((key) => Tab(text: context.l10n.translate(key)))
+              .toList(),
         ),
       ),
       body: _isLoading
@@ -158,7 +157,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
           Icon(Iconsax.box_remove, size: 56, color: Colors.grey[300]),
           const SizedBox(height: 12),
           Text(
-            'Qaytarishlar yo\'q',
+            context.l10n.translate('no_returns'),
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
         ],
@@ -173,12 +172,13 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
         children: [
           Icon(Icons.error_outline, size: 48, color: Colors.red[200]),
           const SizedBox(height: 12),
-          Text('Xatolik', style: TextStyle(color: Colors.grey[600])),
+          Text(context.l10n.translate('error'),
+              style: TextStyle(color: Colors.grey[600])),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: _loadReturns,
             icon: const Icon(Icons.refresh),
-            label: const Text('Qayta yuklash'),
+            label: Text(context.l10n.translate('reload')),
           ),
         ],
       ),
@@ -198,7 +198,8 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
     final items =
         (order?['items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final user = ret['user'] as Map<String, dynamic>?;
-    final userName = user?['fullName'] ?? 'Noma\'lum';
+    final userName =
+        user?['fullName'] ?? context.l10n.translate('unknown_user');
 
     Color statusColor;
     String statusText;
@@ -206,22 +207,22 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
     switch (status) {
       case 'approved':
         statusColor = Colors.green;
-        statusText = 'Tasdiqlangan';
+        statusText = context.l10n.translate('confirmed');
         statusIcon = Icons.check_circle;
         break;
       case 'rejected':
         statusColor = Colors.red;
-        statusText = 'Rad etilgan';
+        statusText = context.l10n.translate('rejected');
         statusIcon = Icons.cancel;
         break;
       case 'refunded':
         statusColor = Colors.blue;
-        statusText = 'Qaytarildi';
+        statusText = context.l10n.translate('returned');
         statusIcon = Icons.payments;
         break;
       default:
         statusColor = Colors.orange;
-        statusText = 'Kutilmoqda';
+        statusText = context.l10n.translate('pending');
         statusIcon = Icons.hourglass_bottom;
     }
 
@@ -282,7 +283,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
             // Customer + date
             Row(
               children: [
-                Text('Mijoz: ',
+                Text('${context.l10n.translate("customer")}: ',
                     style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 Text(userName,
                     style: const TextStyle(
@@ -311,7 +312,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
                         ),
                       ),
                       Text(
-                        '${NumberFormat('#,###').format((item['price'] as num?)?.toInt() ?? 0)} so\'m',
+                        '${NumberFormat('#,###').format((item['price'] as num?)?.toInt() ?? 0)} ${context.l10n.translate("currency")}',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
@@ -319,7 +320,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
                 )),
             if (items.length > 3)
               Text(
-                '... va yana ${items.length - 3} ta mahsulot',
+                '... ${context.l10n.translate("and_more")} ${items.length - 3} ${context.l10n.translate("products")}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[400]),
               ),
 
@@ -336,7 +337,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Sabab:',
+                    '${context.l10n.translate("reason")}:',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -402,7 +403,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Admin izohi:',
+                            '${context.l10n.translate("admin_note")}:',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,

@@ -90,7 +90,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
               context.read<AddressesProvider>().loadAddresses();
             },
             icon: const Icon(Iconsax.refresh),
-            label: const Text('Qayta urinish'),
+            label: Text(context.l10n.translate('retry')),
           ),
         ],
       ),
@@ -178,13 +178,13 @@ class _AddressesScreenState extends State<AddressesScreen> {
         ),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 24),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Iconsax.edit_2, color: AppColors.primary, size: 20),
-            SizedBox(width: 8),
-            Text('Tahrirlash',
-                style: TextStyle(
+            const Icon(Iconsax.edit_2, color: AppColors.primary, size: 20),
+            const SizedBox(width: 8),
+            Text(context.l10n.translate('edit'),
+                style: const TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w500,
                     fontSize: 13)),
@@ -202,13 +202,13 @@ class _AddressesScreenState extends State<AddressesScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('O\'chirish',
-                style: TextStyle(
+            Text(context.l10n.translate('delete'),
+                style: const TextStyle(
                     color: AppColors.error,
                     fontWeight: FontWeight.w500,
                     fontSize: 13)),
             const SizedBox(width: 8),
-            Icon(Iconsax.trash, color: AppColors.error, size: 20),
+            const Icon(Iconsax.trash, color: AppColors.error, size: 20),
           ],
         ),
       ),
@@ -400,9 +400,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'O\'chirish',
-                          style: TextStyle(
+                        child: Text(
+                          context.l10n.translate('delete'),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -423,7 +423,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Manzil o\'chirildi'),
+              content: Text(context.l10n.translate('address_deleted')),
               backgroundColor: Colors.grey.shade700,
               behavior: SnackBarBehavior.floating,
             ),
@@ -449,8 +449,8 @@ class _AddressesScreenState extends State<AddressesScreen> {
       await context.read<AddressesProvider>().setAsDefault(id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Asosiy manzil o\'zgartirildi'),
+          SnackBar(
+            content: Text(context.l10n.translate('default_address_changed')),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
@@ -599,7 +599,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                   maxLines: 2,
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Tuman, ko\'cha, uy raqami...',
+                    hintText: context.l10n.translate('district_street_hint'),
                     hintStyle:
                         TextStyle(color: Colors.grey.shade400, fontSize: 14),
                     filled: true,
@@ -726,7 +726,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                     },
                     icon: Icon(Iconsax.map,
                         size: 18, color: Colors.grey.shade600),
-                    label: Text('Xaritadan tanlash',
+                    label: Text(context.l10n.translate('select_from_map'),
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey.shade700)),
                     style: OutlinedButton.styleFrom(
@@ -748,7 +748,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                         controller: apartmentController,
                         style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'Kvartira',
+                          hintText: context.l10n.translate('apartment'),
                           hintStyle: TextStyle(
                               color: Colors.grey.shade400, fontSize: 14),
                           filled: true,
@@ -768,7 +768,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                         controller: entranceController,
                         style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'Kirish',
+                          hintText: context.l10n.translate('entrance'),
                           hintStyle: TextStyle(
                               color: Colors.grey.shade400, fontSize: 14),
                           filled: true,
@@ -790,7 +790,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                 TextField(
                   controller: floorController,
                   decoration: InputDecoration(
-                    hintText: 'Qavat',
+                    hintText: context.l10n.translate('floor'),
                     hintStyle:
                         TextStyle(color: Colors.grey.shade400, fontSize: 14),
                     filled: true,
@@ -816,8 +816,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
                         : () async {
                             if (addressController.text.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Manzilni kiriting'),
+                                SnackBar(
+                                  content: Text(
+                                      context.l10n.translate('enter_address')),
                                   backgroundColor: Colors.orange,
                                 ),
                               );

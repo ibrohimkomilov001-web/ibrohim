@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/order_model.dart';
 import '../../services/vendor_service.dart';
 import 'vendor_order_detail_screen.dart';
@@ -20,19 +21,19 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
   bool _isLoading = true;
   String? _statusFilter;
 
-  static const _tabs = [
-    {'label': 'Barchasi', 'status': null},
-    {'label': 'Yangi', 'status': 'pending'},
-    {'label': 'Tasdiqlangan', 'status': 'confirmed'},
-    {'label': 'Tayyorlanmoqda', 'status': 'processing'},
-    {'label': 'Tayyor', 'status': 'ready_for_pickup'},
-    {'label': 'Yetkazildi', 'status': 'delivered'},
+  static const _tabStatuses = [
+    null,
+    'pending',
+    'confirmed',
+    'processing',
+    'ready_for_pickup',
+    'delivered'
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(length: _tabStatuses.length, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadOrders();
   }
@@ -45,7 +46,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    final newStatus = _tabs[_tabController.index]['status'];
+    final newStatus = _tabStatuses[_tabController.index];
     if (newStatus != _statusFilter) {
       _statusFilter = newStatus;
       _loadOrders();
@@ -79,7 +80,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Buyurtmalarim'),
+        title: Text(context.l10n.translate('my_orders')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -92,7 +93,14 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
           labelStyle:
               const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           tabAlignment: TabAlignment.start,
-          tabs: _tabs.map((t) => Tab(text: t['label'] as String)).toList(),
+          tabs: [
+            Tab(text: context.l10n.translate('all')),
+            Tab(text: context.l10n.translate('new_orders')),
+            Tab(text: context.l10n.translate('confirmed')),
+            Tab(text: context.l10n.translate('processing')),
+            Tab(text: context.l10n.translate('ready')),
+            Tab(text: context.l10n.translate('delivered')),
+          ],
         ),
       ),
       body: _isLoading
@@ -111,7 +119,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Buyurtmalar yo\'q',
+                            context.l10n.translate('no_orders'),
                             style: TextStyle(color: Colors.grey.shade600),
                           ),
                         ],
@@ -169,7 +177,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        '${item.total.toStringAsFixed(0)} so\'m',
+                        '${item.total.toStringAsFixed(0)} ${context.l10n.translate('currency')}',
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -188,7 +196,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
                     ),
                   ),
                   Text(
-                    '${order.total.toStringAsFixed(0)} so\'m',
+                    '${order.total.toStringAsFixed(0)} ${context.l10n.translate('currency')}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -208,7 +216,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen>
                       Icon(Iconsax.arrow_right_3,
                           size: 16, color: AppColors.primary),
                       const SizedBox(width: 4),
-                      Text('Boshqarish',
+                      Text(context.l10n.translate('manage'),
                           style: TextStyle(
                             color: AppColors.primary,
                             fontSize: 12,

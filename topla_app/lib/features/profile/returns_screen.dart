@@ -56,12 +56,11 @@ class _ReturnsScreenState extends State<ReturnsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isRu = context.l10n.locale.languageCode == 'ru';
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: Text(
-          isRu ? 'Возвраты' : 'Qaytarishlar',
+          context.l10n.translate('returns'),
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
         leading: IconButton(
@@ -71,8 +70,8 @@ class _ReturnsScreenState extends State<ReturnsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(text: isRu ? 'Мои возвраты' : 'Qaytarishlarim'),
-            Tab(text: isRu ? 'Правила' : 'Qoidalar'),
+            Tab(text: context.l10n.translate('my_returns')),
+            Tab(text: context.l10n.translate('return_rules')),
           ],
           labelColor: AppColors.primary,
           unselectedLabelColor: Colors.grey,
@@ -83,41 +82,41 @@ class _ReturnsScreenState extends State<ReturnsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildReturnsTab(isRu),
-          _buildRulesTab(isRu),
+          _buildReturnsTab(),
+          _buildRulesTab(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateReturnSheet(isRu),
+        onPressed: () => _showCreateReturnSheet(),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Iconsax.add),
-        label: Text(isRu ? 'Новый возврат' : 'Yangi qaytarish'),
+        label: Text(context.l10n.translate('new_return')),
       ),
     );
   }
 
   // ============ RETURNS TAB ============
 
-  Widget _buildReturnsTab(bool isRu) {
+  Widget _buildReturnsTab() {
     return Column(
       children: [
         // Status filter
-        _buildStatusFilter(isRu),
+        _buildStatusFilter(),
 
         // Returns list
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _returns.isEmpty
-                  ? _buildEmptyState(isRu)
+                  ? _buildEmptyState()
                   : RefreshIndicator(
                       onRefresh: _loadReturns,
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _returns.length,
                         itemBuilder: (context, index) =>
-                            _buildReturnCard(_returns[index], isRu),
+                            _buildReturnCard(_returns[index]),
                       ),
                     ),
         ),
@@ -125,13 +124,13 @@ class _ReturnsScreenState extends State<ReturnsScreen>
     );
   }
 
-  Widget _buildStatusFilter(bool isRu) {
+  Widget _buildStatusFilter() {
     final statuses = [
-      {'value': null, 'label': isRu ? 'Все' : 'Barchasi'},
-      {'value': 'pending', 'label': isRu ? 'Ожидание' : 'Kutilmoqda'},
-      {'value': 'approved', 'label': isRu ? 'Одобрено' : 'Tasdiqlangan'},
-      {'value': 'rejected', 'label': isRu ? 'Отклонено' : 'Rad etilgan'},
-      {'value': 'refunded', 'label': isRu ? 'Возвращено' : 'Qaytarilgan'},
+      {'value': null, 'label': context.l10n.translate('all')},
+      {'value': 'pending', 'label': context.l10n.translate('waiting')},
+      {'value': 'approved', 'label': context.l10n.translate('approved')},
+      {'value': 'rejected', 'label': context.l10n.translate('rejected')},
+      {'value': 'refunded', 'label': context.l10n.translate('returned')},
     ];
 
     return Container(
@@ -171,7 +170,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
     );
   }
 
-  Widget _buildReturnCard(Map<String, dynamic> returnData, bool isRu) {
+  Widget _buildReturnCard(Map<String, dynamic> returnData) {
     final status = returnData['status'] as String? ?? 'pending';
     final order = returnData['order'] as Map<String, dynamic>?;
     final items = (order?['items'] as List?)
@@ -180,7 +179,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
         [];
     final reason = returnData['reason'] as String? ?? '';
     final createdAt = DateTime.tryParse(returnData['createdAt'] ?? '');
-    final statusInfo = _getStatusInfo(status, isRu);
+    final statusInfo = _getStatusInfo(status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -205,7 +204,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${isRu ? 'Заказ' : 'Buyurtma'} #${order?['orderNumber'] ?? ''}',
+                  '${context.l10n.translate('order_label')} #${order?['orderNumber'] ?? ''}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -322,15 +321,14 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                 ),
                 if (status == 'pending')
                   TextButton(
-                    onPressed: () =>
-                        _cancelReturn(returnData['id'] as String, isRu),
+                    onPressed: () => _cancelReturn(returnData['id'] as String),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.error,
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(0, 30),
                     ),
                     child: Text(
-                      isRu ? 'Отменить' : 'Bekor qilish',
+                      context.l10n.translate('cancel_action'),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
@@ -342,32 +340,32 @@ class _ReturnsScreenState extends State<ReturnsScreen>
     );
   }
 
-  Map<String, dynamic> _getStatusInfo(String status, bool isRu) {
+  Map<String, dynamic> _getStatusInfo(String status) {
     switch (status) {
       case 'approved':
         return {
           'color': AppColors.success,
-          'label': isRu ? 'Одобрено' : 'Tasdiqlangan',
+          'label': context.l10n.translate('approved'),
         };
       case 'rejected':
         return {
           'color': AppColors.error,
-          'label': isRu ? 'Отклонено' : 'Rad etilgan',
+          'label': context.l10n.translate('rejected'),
         };
       case 'refunded':
         return {
           'color': const Color(0xFF6C63FF),
-          'label': isRu ? 'Возвращено' : 'Qaytarilgan',
+          'label': context.l10n.translate('returned'),
         };
       default:
         return {
           'color': AppColors.warning,
-          'label': isRu ? 'Ожидание' : 'Kutilmoqda',
+          'label': context.l10n.translate('waiting'),
         };
     }
   }
 
-  Widget _buildEmptyState(bool isRu) {
+  Widget _buildEmptyState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -389,7 +387,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
             ),
             const SizedBox(height: 20),
             Text(
-              isRu ? 'Нет возвратов' : 'Qaytarishlar yo\'q',
+              context.l10n.translate('returns_empty'),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -398,9 +396,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              isRu
-                  ? 'Здесь будут отображаться ваши запросы на возврат'
-                  : 'Bu yerda qaytarish so\'rovlaringiz ko\'rinadi',
+              context.l10n.translate('returns_empty_subtitle'),
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey.shade500,
@@ -415,7 +411,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
 
   // ============ RULES TAB ============
 
-  Widget _buildRulesTab(bool isRu) {
+  Widget _buildRulesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -450,9 +446,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isRu
-                            ? 'Гарантия возврата 14 дней'
-                            : '14 kunlik qaytarish kafolati',
+                        context.l10n.translate('return_guarantee_title'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -461,9 +455,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        isRu
-                            ? 'Мы гарантируем возврат средств'
-                            : 'Biz mablag\'ni qaytarishni kafolatlaymiz',
+                        context.l10n.translate('return_guarantee_desc'),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 12,
@@ -480,26 +472,20 @@ class _ReturnsScreenState extends State<ReturnsScreen>
           // Steps
           _buildStepCard(
             1,
-            isRu ? 'Создайте заявку' : 'So\'rov yarating',
-            isRu
-                ? 'Выберите заказ и укажите причину возврата. Приложите фото при необходимости.'
-                : 'Buyurtmani tanlang va qaytarish sababini ko\'rsating. Kerak bo\'lsa rasm qo\'shing.',
+            context.l10n.translate('return_step1_title'),
+            context.l10n.translate('return_step1_desc'),
             Iconsax.document_text,
           ),
           _buildStepCard(
             2,
-            isRu ? 'Ожидайте проверку' : 'Tekshiruvni kuting',
-            isRu
-                ? 'Наша команда рассмотрит вашу заявку в течение 24 часов.'
-                : 'Bizning jamoamiz so\'rovingizni 24 soat ichida ko\'rib chiqadi.',
+            context.l10n.translate('return_step2_title'),
+            context.l10n.translate('return_step2_desc'),
             Iconsax.timer_1,
           ),
           _buildStepCard(
             3,
-            isRu ? 'Возврат средств' : 'Mablag\' qaytariladi',
-            isRu
-                ? 'После одобрения средства будут возвращены в течение 3-5 рабочих дней.'
-                : 'Tasdiqlangandan so\'ng mablag\' 3-5 ish kuni ichida qaytariladi.',
+            context.l10n.translate('return_step3_title'),
+            context.l10n.translate('return_step3_desc'),
             Iconsax.money_recive,
           ),
 
@@ -523,7 +509,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isRu ? 'Условия возврата' : 'Qaytarish shartlari',
+                  context.l10n.translate('return_conditions'),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -532,33 +518,23 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                 const SizedBox(height: 12),
                 _buildRuleItem(
                   Iconsax.calendar_1,
-                  isRu
-                      ? 'Возврат возможен в течение 14 дней после доставки'
-                      : 'Qaytarish yetkazib berilgandan keyin 14 kun ichida mumkin',
+                  context.l10n.translate('return_rule_14_days'),
                 ),
                 _buildRuleItem(
                   Iconsax.box_1,
-                  isRu
-                      ? 'Товар должен быть в оригинальной упаковке'
-                      : 'Mahsulot asl qadoqda bo\'lishi kerak',
+                  context.l10n.translate('return_rule_packaging'),
                 ),
                 _buildRuleItem(
                   Iconsax.document_text,
-                  isRu
-                      ? 'Сохраните чек и документы к товару'
-                      : 'Chek va hujjatlarni saqlang',
+                  context.l10n.translate('return_rule_receipt'),
                 ),
                 _buildRuleItem(
                   Iconsax.camera,
-                  isRu
-                      ? 'Приложите фото товара к заявке'
-                      : 'So\'rovga mahsulot rasmini qo\'shing',
+                  context.l10n.translate('return_rule_photo'),
                 ),
                 _buildRuleItem(
                   Iconsax.danger,
-                  isRu
-                      ? 'Товары личной гигиены возврату не подлежат'
-                      : 'Shaxsiy gigiena mahsulotlari qaytarilmaydi',
+                  context.l10n.translate('return_rule_hygiene'),
                   isLast: true,
                 ),
               ],
@@ -698,7 +674,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
 
   // ============ CREATE RETURN ============
 
-  void _showCreateReturnSheet(bool isRu) async {
+  void _showCreateReturnSheet() async {
     // Load delivered orders
     final ordersProvider = context.read<OrdersProvider>();
     await ordersProvider.loadOrders();
@@ -709,9 +685,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
     if (deliveredOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isRu
-              ? 'У вас нет доставленных заказов для возврата'
-              : 'Sizda qaytarish uchun yetkazilgan buyurtmalar yo\'q'),
+          content: Text(context.l10n.translate('no_delivered_orders')),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -724,7 +698,6 @@ class _ReturnsScreenState extends State<ReturnsScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => _CreateReturnSheet(
         orders: deliveredOrders,
-        isRu: isRu,
         onCreated: () {
           _loadReturns();
           _tabController.animateTo(0);
@@ -733,23 +706,21 @@ class _ReturnsScreenState extends State<ReturnsScreen>
     );
   }
 
-  Future<void> _cancelReturn(String id, bool isRu) async {
+  Future<void> _cancelReturn(String id) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isRu ? 'Отменить возврат?' : 'Qaytarishni bekor qilish?'),
-        content: Text(isRu
-            ? 'Вы уверены, что хотите отменить заявку на возврат?'
-            : 'Qaytarish so\'rovini bekor qilmoqchimisiz?'),
+        title: Text(context.l10n.translate('cancel_return_question')),
+        content: Text(context.l10n.translate('cancel_return_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(isRu ? 'Нет' : 'Yo\'q'),
+            child: Text(context.l10n.translate('no')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: Text(isRu ? 'Да, отменить' : 'Ha, bekor qilish'),
+            child: Text(context.l10n.translate('yes_cancel')),
           ),
         ],
       ),
@@ -762,7 +733,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isRu ? 'Заявка отменена' : 'So\'rov bekor qilindi'),
+            content: Text(context.l10n.translate('request_cancelled')),
           ),
         );
         _loadReturns();
@@ -771,7 +742,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isRu ? 'Ошибка' : 'Xatolik'),
+            content: Text(context.l10n.translate('error')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -784,12 +755,10 @@ class _ReturnsScreenState extends State<ReturnsScreen>
 
 class _CreateReturnSheet extends StatefulWidget {
   final List<OrderModel> orders;
-  final bool isRu;
   final VoidCallback onCreated;
 
   const _CreateReturnSheet({
     required this.orders,
-    required this.isRu,
     required this.onCreated,
   });
 
@@ -805,43 +774,18 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
   final List<File> _images = [];
   bool _isSubmitting = false;
 
-  final List<Map<String, String>> _reasons = [];
+  final List<Map<String, String>> _reasons = [
+    {'value': 'defective', 'labelKey': 'reason_defective'},
+    {'value': 'wrong_item', 'labelKey': 'reason_wrong_item'},
+    {'value': 'not_as_described', 'labelKey': 'reason_not_as_described'},
+    {'value': 'damaged', 'labelKey': 'reason_damaged'},
+    {'value': 'size_issue', 'labelKey': 'reason_size_issue'},
+    {'value': 'changed_mind', 'labelKey': 'reason_changed_mind'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _reasons.addAll([
-      {
-        'value': 'defective',
-        'uz': 'Nuqsonli mahsulot',
-        'ru': 'Дефектный товар',
-      },
-      {
-        'value': 'wrong_item',
-        'uz': 'Noto\'g\'ri mahsulot yuborilgan',
-        'ru': 'Отправлен не тот товар',
-      },
-      {
-        'value': 'not_as_described',
-        'uz': 'Ta\'rifga mos kelmaydi',
-        'ru': 'Не соответствует описанию',
-      },
-      {
-        'value': 'damaged',
-        'uz': 'Shikastlangan mahsulot',
-        'ru': 'Поврежденный товар',
-      },
-      {
-        'value': 'size_issue',
-        'uz': 'O\'lcham mos kelmadi',
-        'ru': 'Не подошел размер',
-      },
-      {
-        'value': 'changed_mind',
-        'uz': 'Fikrimi o\'zgartirdim',
-        'ru': 'Передумал(а)',
-      },
-    ]);
   }
 
   @override
@@ -900,9 +844,7 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
         widget.onCreated();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.isRu
-                ? 'Заявка на возврат создана'
-                : 'Qaytarish so\'rovi yaratildi'),
+            content: Text(context.l10n.translate('return_created')),
             backgroundColor: AppColors.success,
           ),
         );
@@ -912,7 +854,7 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.isRu ? 'Ошибка' : 'Xatolik'}: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -922,8 +864,6 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isRu = widget.isRu;
-
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
       maxChildSize: 0.95,
@@ -953,7 +893,7 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      isRu ? 'Новый возврат' : 'Yangi qaytarish',
+                      context.l10n.translate('new_return'),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -975,28 +915,28 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
                   children: [
                     // Step 1: Select Order
                     _buildSectionTitle(
-                        '1', isRu ? 'Выберите заказ' : 'Buyurtmani tanlang'),
+                        '1', context.l10n.translate('select_order')),
                     const SizedBox(height: 8),
                     ...widget.orders.map((order) => _buildOrderOption(order)),
                     const SizedBox(height: 20),
 
                     // Step 2: Select Reason
                     _buildSectionTitle(
-                        '2', isRu ? 'Причина возврата' : 'Qaytarish sababi'),
+                        '2', context.l10n.translate('return_reason')),
                     const SizedBox(height: 8),
                     ..._reasons.map((r) => _buildReasonOption(r)),
                     const SizedBox(height: 20),
 
                     // Step 3: Description
-                    _buildSectionTitle('3', isRu ? 'Описание' : 'Tavsif'),
+                    _buildSectionTitle(
+                        '3', context.l10n.translate('description')),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _descriptionController,
                       maxLines: 3,
                       decoration: InputDecoration(
-                        hintText: isRu
-                            ? 'Опишите проблему подробнее...'
-                            : 'Muammoni batafsil tasvirlab bering...',
+                        hintText:
+                            context.l10n.translate('describe_problem_hint'),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: Colors.grey.shade300),
@@ -1016,8 +956,8 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
                     const SizedBox(height: 20),
 
                     // Step 4: Photos
-                    _buildSectionTitle('4',
-                        isRu ? 'Фото (необязательно)' : 'Rasm (ixtiyoriy)'),
+                    _buildSectionTitle(
+                        '4', context.l10n.translate('photo_optional')),
                     const SizedBox(height: 8),
                     _buildImagePicker(),
                     const SizedBox(height: 30),
@@ -1063,7 +1003,7 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
                               ),
                             )
                           : Text(
-                              isRu ? 'Отправить заявку' : 'So\'rov yuborish',
+                              context.l10n.translate('submit_request'),
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -1151,7 +1091,7 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${order.items.length} ${widget.isRu ? 'товаров' : 'mahsulot'} · ${_formatOrderPrice(order.total)}',
+                    '${order.items.length} ${context.l10n.translate('items_count_suffix')} · ${_formatOrderPrice(context, order.total)}',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
@@ -1173,7 +1113,7 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
     );
   }
 
-  String _formatOrderPrice(double price) {
+  String _formatOrderPrice(BuildContext context, double price) {
     final intPrice = price.toInt();
     final str = intPrice.toString();
     final buffer = StringBuffer();
@@ -1183,12 +1123,14 @@ class _CreateReturnSheetState extends State<_CreateReturnSheet> {
       count++;
       if (count % 3 == 0 && i > 0) buffer.write(' ');
     }
-    return '${buffer.toString().split('').reversed.join()} ${widget.isRu ? 'сум' : 'so\'m'}';
+    return '${buffer.toString().split('').reversed.join()} ${context.l10n.translate('currency')}';
   }
 
   Widget _buildReasonOption(Map<String, String> reason) {
     final isSelected = _selectedReason == reason['value'];
-    final label = widget.isRu ? reason['ru']! : reason['uz']!;
+    final label = context.l10n.locale.languageCode == 'ru'
+        ? reason['ru']!
+        : reason['uz']!;
     return GestureDetector(
       onTap: () => setState(() => _selectedReason = reason['value']),
       child: Container(

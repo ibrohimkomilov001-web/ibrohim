@@ -21,14 +21,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   bool _isLoading = false;
   String _selectedCountryCode = '+998';
 
-  final List<Map<String, String>> _countryCodes = [
-    {'code': '+998', 'country': '🇺🇿 O\'zbekiston', 'flag': '🇺🇿'},
-    {'code': '+7', 'country': '🇷🇺 Rossiya', 'flag': '🇷🇺'},
-    {'code': '+7', 'country': '🇰🇿 Qozog\'iston', 'flag': '🇰🇿'},
-    {'code': '+992', 'country': '🇹🇯 Tojikiston', 'flag': '🇹🇯'},
-    {'code': '+996', 'country': '🇰🇬 Qirg\'iziston', 'flag': '🇰🇬'},
-  ];
-
   @override
   void dispose() {
     _phoneController.dispose();

@@ -1,5 +1,4 @@
 export 'vendor_service.dart';
-export 'notification_service.dart';
 export 'payment_service.dart';
 export 'api_error_handler.dart';
 export 'cache_service.dart';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/order_model.dart';
 import '../../services/vendor_service.dart';
 
@@ -33,13 +34,13 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
         return [
           _StatusAction(
             status: 'confirmed',
-            label: 'Tasdiqlash',
+            label: context.l10n.translate('confirm'),
             icon: Iconsax.tick_circle,
             color: Colors.blue,
           ),
           _StatusAction(
             status: 'cancelled',
-            label: 'Bekor qilish',
+            label: context.l10n.translate('cancel_order'),
             icon: Iconsax.close_circle,
             color: Colors.red,
           ),
@@ -48,13 +49,13 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
         return [
           _StatusAction(
             status: 'processing',
-            label: 'Tayyorlashni boshlash',
+            label: context.l10n.translate('start_processing'),
             icon: Iconsax.box,
             color: Colors.purple,
           ),
           _StatusAction(
             status: 'cancelled',
-            label: 'Bekor qilish',
+            label: context.l10n.translate('cancel_order'),
             icon: Iconsax.close_circle,
             color: Colors.red,
           ),
@@ -63,7 +64,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
         return [
           _StatusAction(
             status: 'ready_for_pickup',
-            label: 'Tayyor — kuryerga berish',
+            label: context.l10n.translate('ready_for_courier'),
             icon: Iconsax.tick_square,
             color: Colors.teal,
           ),
@@ -72,7 +73,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
         return [
           _StatusAction(
             status: 'at_pickup_point',
-            label: 'Punktga topshirildi',
+            label: context.l10n.translate('delivered_to_point'),
             icon: Iconsax.building,
             color: Colors.deepOrange,
           ),
@@ -86,16 +87,16 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Tasdiqlash'),
+        title: Text(context.l10n.translate('confirm')),
         content: Text(
           newStatus == 'cancelled'
-              ? 'Buyurtmani bekor qilmoqchimisiz?'
-              : 'Buyurtma holatini yangilamoqchimisiz?',
+              ? context.l10n.translate('cancel_order_confirm')
+              : context.l10n.translate('update_status_confirm'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Yo\'q'),
+            child: Text(context.l10n.translate('no')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -103,7 +104,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
               backgroundColor:
                   newStatus == 'cancelled' ? Colors.red : AppColors.primary,
             ),
-            child: const Text('Ha'),
+            child: Text(context.l10n.translate('yes')),
           ),
         ],
       ),
@@ -149,7 +150,8 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Holat yangilandi: ${_order.status.nameUz}'),
+            content: Text(
+                '${context.l10n.translate('status_updated')}: ${_order.status.nameUz}'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -159,7 +161,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -281,8 +283,9 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Buyurtma jarayoni',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          Text(context.l10n.translate('order_process'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: 16),
           if (isCancelled)
             Container(
@@ -291,12 +294,12 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                 color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Iconsax.close_circle, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
-                  Text('Buyurtma bekor qilindi',
-                      style: TextStyle(
+                  const Icon(Iconsax.close_circle, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Text(context.l10n.translate('order_cancelled'),
+                      style: const TextStyle(
                           color: Colors.red, fontWeight: FontWeight.w600)),
                 ],
               ),
@@ -395,7 +398,8 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
             children: [
               const Icon(Iconsax.box, size: 18),
               const SizedBox(width: 8),
-              Text('Mahsulotlar (${_order.items.length})',
+              Text(
+                  '${context.l10n.translate('products')} (${_order.items.length})',
                   style: const TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 15)),
             ],
@@ -446,7 +450,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
             ),
           ),
           // Total
-          Text('${_formatPrice(item.total.toInt())}',
+          Text(_formatPrice(item.total.toInt()),
               style:
                   const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         ],
@@ -466,22 +470,27 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Iconsax.user, size: 18),
-              SizedBox(width: 8),
-              Text('Mijoz ma\'lumotlari',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Icon(Iconsax.user, size: 18),
+              const SizedBox(width: 8),
+              Text(context.l10n.translate('customer_info'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
             ],
           ),
           const Divider(height: 20),
           if (_order.recipientName != null)
-            _infoRow('Ism', _order.recipientName!),
+            _infoRow(
+                context.l10n.translate('name_label'), _order.recipientName!),
           if (_order.recipientPhone != null)
-            _infoRow('Telefon', _order.recipientPhone!),
+            _infoRow(
+                context.l10n.translate('phone_label'), _order.recipientPhone!),
           if (_order.paymentMethod != null)
-            _infoRow('To\'lov usuli', _order.paymentMethod!),
-          _infoRow('To\'lov holati', _order.paymentStatus.name),
+            _infoRow(context.l10n.translate('payment_method'),
+                _order.paymentMethod!),
+          _infoRow(context.l10n.translate('payment_status'),
+              _order.paymentStatus.name),
         ],
       ),
     );
@@ -499,24 +508,30 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Iconsax.truck, size: 18),
-              SizedBox(width: 8),
-              Text('Yetkazish',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Icon(Iconsax.truck, size: 18),
+              const SizedBox(width: 8),
+              Text(context.l10n.translate('delivery'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
             ],
           ),
           const Divider(height: 20),
           if (_order.deliveryMethod != null)
-            _infoRow('Usul', _order.deliveryMethod!),
+            _infoRow(
+                context.l10n.translate('method_label'), _order.deliveryMethod!),
           if (_order.deliveryDate != null)
-            _infoRow('Sana', _formatDate(_order.deliveryDate!)),
+            _infoRow(context.l10n.translate('date_label'),
+                _formatDate(_order.deliveryDate!)),
           if (_order.deliveryTimeSlot != null)
-            _infoRow('Vaqt', _order.deliveryTimeSlot!),
+            _infoRow(
+                context.l10n.translate('time_label'), _order.deliveryTimeSlot!),
           if (_order.pickupPoint != null) ...[
-            _infoRow('Punkt', _order.pickupPoint!.name),
-            _infoRow('Manzil', _order.pickupPoint!.address),
+            _infoRow(context.l10n.translate('point_label'),
+                _order.pickupPoint!.name),
+            _infoRow(
+                context.l10n.translate('address'), _order.pickupPoint!.address),
           ],
           if (_order.pickupCode != null)
             Container(
@@ -534,7 +549,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                   const Icon(Iconsax.barcode, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Text(
-                    'Pickup kod: ${_order.pickupCode}',
+                    '${context.l10n.translate('pickup_code')}: ${_order.pickupCode}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
@@ -561,11 +576,14 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       ),
       child: Column(
         children: [
-          _priceRow('Mahsulotlar', _order.subtotal, isDark),
+          _priceRow(
+              context.l10n.translate('products'), _order.subtotal, isDark),
           if (_order.deliveryFee > 0)
-            _priceRow('Yetkazish', _order.deliveryFee, isDark),
+            _priceRow(
+                context.l10n.translate('delivery'), _order.deliveryFee, isDark),
           if (_order.discount > 0)
-            _priceRow('Chegirma', -_order.discount, isDark,
+            _priceRow(
+                context.l10n.translate('discount'), -_order.discount, isDark,
                 color: Colors.green),
           if (_order.cashbackUsed > 0)
             _priceRow('Cashback', -_order.cashbackUsed, isDark,
@@ -574,9 +592,11 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Jami',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              Text('${_formatPrice(_order.total.toInt())} so\'m',
+              Text(context.l10n.translate('total'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(
+                  '${_formatPrice(_order.total.toInt())} ${context.l10n.translate('currency')}',
                   style: const TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 16)),
             ],
@@ -595,7 +615,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
         children: [
           Text(label, style: TextStyle(color: Colors.grey.shade600)),
           Text(
-            '${isNegative ? "-" : ""}${_formatPrice(amount.abs().toInt())} so\'m',
+            '${isNegative ? "-" : ""}${_formatPrice(amount.abs().toInt())} ${context.l10n.translate('currency')}',
             style: TextStyle(
               color: color ?? (isDark ? Colors.white : Colors.black),
               fontWeight: FontWeight.w500,
@@ -618,12 +638,13 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Iconsax.note, size: 18),
-              SizedBox(width: 8),
-              Text('Izoh',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Icon(Iconsax.note, size: 18),
+              const SizedBox(width: 8),
+              Text(context.l10n.translate('note_label'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
             ],
           ),
           const SizedBox(height: 8),

@@ -584,7 +584,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/auth/vendor/register', async (request, reply) => {
     const body = vendorRegisterSchema.parse(request.body);
 
-    // Email band emasligini tekshirish
+    // Email/telefon orqali mavjud profilni tekshirish
     const existing = await prisma.profile.findFirst({
       where: {
         OR: [
@@ -592,59 +592,105 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           { phone: body.phone },
         ],
       },
+      include: { shop: true },
     });
+
+    let result: { profile: any; shop: any };
 
     if (existing) {
-      if (existing.email === body.email) {
-        throw new AppError('Bu email allaqachon ro\'yxatdan o\'tgan');
+      // Agar mavjud foydalanuvchining allaqachon do'koni bor bo'lsa — rad etamiz
+      if (existing.shop) {
+        throw new AppError('Bu foydalanuvchining allaqachon do\'koni bor');
       }
-      throw new AppError('Bu telefon raqam allaqachon ro\'yxatdan o\'tgan');
-    }
 
-    // Parolni hashlash
-    const passwordHash = await bcrypt.hash(body.password, 12);
+      // Mavjud foydalanuvchi uchun do'kon yaratish (parolni yangilash bilan)
+      const passwordHash = await bcrypt.hash(body.password, 12);
 
-    // Profile + Shop yaratish
-    const result = await prisma.$transaction(async (tx) => {
-      const profile = await tx.profile.create({
-        data: {
-          email: body.email,
-          phone: body.phone,
-          fullName: body.fullName,
-          passwordHash,
-          role: 'vendor', // Vendor sifatida ro'yxatdan o'tadi, shop.status='pending' orqali admin nazorati
-        },
-      });
-
-      const shop = await tx.shop.create({
-        data: {
-          name: body.shopName,
-          description: body.shopDescription,
-          address: body.shopAddress,
-          phone: body.shopPhone || body.phone,
-          ownerId: profile.id,
-          status: 'pending', // Admin tasdiqlashi kerak
-          city: body.city,
-          businessType: body.businessType,
-          inn: body.inn,
-        },
-      });
-
-      // Admin ga notification yuborish
-      const admins = await tx.profile.findMany({ where: { role: 'admin' } });
-      if (admins.length > 0) {
-        await tx.notification.createMany({
-          data: admins.map(admin => ({
-            userId: admin.id,
-            type: 'system',
-            title: '🏪 Yangi sotuvchi arizasi!',
-            body: `"${body.shopName}" do'koni ro'yxatdan o'tdi. Tasdiqlash kutilmoqda.`,
-          })),
+      result = await prisma.$transaction(async (tx) => {
+        const profile = await tx.profile.update({
+          where: { id: existing.id },
+          data: {
+            email: body.email,
+            fullName: body.fullName || existing.fullName,
+            passwordHash,
+            role: 'vendor',
+          },
         });
-      }
 
-      return { profile, shop };
-    });
+        const shop = await tx.shop.create({
+          data: {
+            name: body.shopName,
+            description: body.shopDescription,
+            address: body.shopAddress,
+            phone: body.shopPhone || body.phone || existing.phone,
+            ownerId: existing.id,
+            status: 'pending',
+            city: body.city,
+            businessType: body.businessType,
+            inn: body.inn,
+          },
+        });
+
+        // Admin ga notification yuborish
+        const admins = await tx.profile.findMany({ where: { role: 'admin' } });
+        if (admins.length > 0) {
+          await tx.notification.createMany({
+            data: admins.map(admin => ({
+              userId: admin.id,
+              type: 'system',
+              title: '🏪 Yangi sotuvchi arizasi!',
+              body: `"${body.shopName}" do'koni ro'yxatdan o'tdi. Tasdiqlash kutilmoqda.`,
+            })),
+          });
+        }
+
+        return { profile, shop };
+      });
+    } else {
+      // Yangi foydalanuvchi — profil + do'kon yaratish
+      const passwordHash = await bcrypt.hash(body.password, 12);
+
+      result = await prisma.$transaction(async (tx) => {
+        const profile = await tx.profile.create({
+          data: {
+            email: body.email,
+            phone: body.phone,
+            fullName: body.fullName,
+            passwordHash,
+            role: 'vendor',
+          },
+        });
+
+        const shop = await tx.shop.create({
+          data: {
+            name: body.shopName,
+            description: body.shopDescription,
+            address: body.shopAddress,
+            phone: body.shopPhone || body.phone,
+            ownerId: profile.id,
+            status: 'pending',
+            city: body.city,
+            businessType: body.businessType,
+            inn: body.inn,
+          },
+        });
+
+        // Admin ga notification yuborish
+        const admins = await tx.profile.findMany({ where: { role: 'admin' } });
+        if (admins.length > 0) {
+          await tx.notification.createMany({
+            data: admins.map(admin => ({
+              userId: admin.id,
+              type: 'system',
+              title: '🏪 Yangi sotuvchi arizasi!',
+              body: `"${body.shopName}" do'koni ro'yxatdan o'tdi. Tasdiqlash kutilmoqda.`,
+            })),
+          });
+        }
+
+        return { profile, shop };
+      });
+    }
 
     // JWT token yaratish
     const tokenPayload = {

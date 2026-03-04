@@ -5,9 +5,10 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/providers.dart';
-import '../../widgets/premium_product_card.dart';
+import '../../widgets/product_card.dart';
 import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
 
@@ -381,7 +382,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Xatolik: $e'),
+                        content: Text('${context.l10n.translate('error')}: $e'),
                         backgroundColor: AppColors.error,
                       ),
                     );
@@ -1040,8 +1041,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Tavsif',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(context.l10n.translate('description'),
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Text(
             product['description'] ??
@@ -1250,7 +1252,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             child: OutlinedButton.icon(
               onPressed: _showWriteReviewSheet,
               icon: const Icon(Iconsax.edit),
-              label: const Text('Sharh yozish'),
+              label: Text(context.l10n.translate('write_review')),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 side: BorderSide(color: AppColors.primary),
@@ -1453,13 +1455,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Sharh yozish',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  context.l10n.translate('write_review'),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                const Text('Bahoyingiz',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text(context.l10n.translate('your_rating'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1485,7 +1488,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   controller: commentController,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    hintText: 'Fikringizni yozing...',
+                    hintText: context.l10n.translate('write_your_opinion'),
                     filled: true,
                     fillColor: Colors.grey.shade100,
                     border: OutlineInputBorder(
@@ -1502,11 +1505,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: const Row(
+                          content: Row(
                             children: [
-                              Icon(Iconsax.tick_circle, color: Colors.white),
-                              SizedBox(width: 12),
-                              Text('Sharhingiz yuborildi!'),
+                              const Icon(Iconsax.tick_circle,
+                                  color: Colors.white),
+                              const SizedBox(width: 12),
+                              Text(context.l10n.translate('review_submitted')),
                             ],
                           ),
                           backgroundColor: AppColors.success,
@@ -1523,8 +1527,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Yuborish',
-                        style: TextStyle(
+                    child: Text(context.l10n.translate('submit'),
+                        style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
@@ -1575,12 +1579,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 padding: const EdgeInsets.only(right: 14),
                 child: SizedBox(
                   width: 160,
-                  child: PremiumProductCard(
+                  child: ProductCard(
                     name: product['name'],
                     price: product['price'],
                     oldPrice: product['oldPrice'],
                     discount: product['discount'],
-                    rating: product['rating'].toDouble(),
+                    rating: product['rating']?.toDouble(),
                     sold: product['sold'],
                     imageUrl: product['image'],
                     onTap: () {
@@ -1593,7 +1597,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     },
                     onAddToCart: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Savatchaga qo\'shildi')),
+                        SnackBar(
+                            content:
+                                Text(context.l10n.translate('added_to_cart'))),
                       );
                     },
                   ),
@@ -1761,7 +1767,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       HapticUtils.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Xatolik: $error'),
+          content: Text('${context.l10n.translate('error')}: $error'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -1889,7 +1895,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       HapticUtils.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Xatolik: $error'),
+          content: Text('${context.l10n.translate('error')}: $error'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape:

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import '../core/localization/app_localizations.dart';
 
 /// Error widget with retry functionality
 class ErrorWidget extends StatelessWidget {
-  final String message;
+  final String? message;
   final String? details;
   final VoidCallback? onRetry;
   final IconData icon;
 
   const ErrorWidget({
     super.key,
-    this.message = 'Xatolik yuz berdi',
+    this.message,
     this.details,
     this.onRetry,
     this.icon = Icons.error_outline,
@@ -38,7 +39,7 @@ class ErrorWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              message,
+              message ?? context.l10n.translate('error_occurred'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -59,7 +60,7 @@ class ErrorWidget extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Qayta urinish'),
+                label: Text(context.l10n.translate('retry')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
@@ -93,8 +94,8 @@ class NetworkErrorWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return ErrorWidget(
       icon: Icons.wifi_off,
-      message: 'Internet aloqasi yo\'q',
-      details: 'Iltimos, internet aloqasini tekshiring',
+      message: context.l10n.translate('no_internet'),
+      details: context.l10n.translate('check_internet_connection'),
       onRetry: onRetry,
     );
   }
@@ -113,8 +114,8 @@ class ServerErrorWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return ErrorWidget(
       icon: Icons.cloud_off,
-      message: 'Server bilan aloqa yo\'q',
-      details: 'Keyinroq qayta urinib ko\'ring',
+      message: context.l10n.translate('server_no_connection'),
+      details: context.l10n.translate('try_again_later'),
       onRetry: onRetry,
     );
   }
@@ -154,7 +155,7 @@ class PermissionErrorWidget extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Ruxsat talab qilinadi',
+              context.l10n.translate('permission_required'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -162,7 +163,7 @@ class PermissionErrorWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              message ?? 'Bu funksiyadan foydalanish uchun ruxsat bering',
+              message ?? context.l10n.translate('permission_desc'),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -173,7 +174,7 @@ class PermissionErrorWidget extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onSettings,
                 icon: const Icon(Icons.settings),
-                label: const Text('Sozlamalar'),
+                label: Text(context.l10n.translate('settings')),
               ),
             ],
           ],
@@ -230,7 +231,7 @@ class ErrorBanner extends StatelessWidget {
                 foregroundColor: Colors.red.shade700,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
-              child: const Text('Qayta'),
+              child: Text(context.l10n.translate('retry_short')),
             ),
           if (onDismiss != null)
             IconButton(

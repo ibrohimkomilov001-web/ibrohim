@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shop_provider.dart';
@@ -105,8 +106,8 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
 
   void _showLoginRequired() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Bu funksiya uchun tizimga kiring'),
+      SnackBar(
+        content: Text(context.l10n.translate('login_required_feature')),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -130,7 +131,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
         MaterialPageRoute(
           builder: (_) => ShopChatScreen(
             conversationId: conversationId,
-            shopName: shop?.name ?? 'Do\'kon',
+            shopName: shop?.name ?? context.l10n.translate('shop_label'),
             shopLogoUrl: shop?.logoUrl,
           ),
         ),
@@ -355,7 +356,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
           ),
           const SizedBox(height: 20),
           Text(
-            'Do\'kon topilmadi',
+            context.l10n.translate('shop_not_found'),
             style: Theme.of(context)
                 .textTheme
                 .titleMedium
@@ -363,7 +364,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Bu do\'kon mavjud emas yoki o\'chirilgan',
+            context.l10n.translate('shop_not_found_desc'),
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
@@ -373,7 +374,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
           FilledButton.icon(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Iconsax.arrow_left_2, size: 18),
-            label: const Text('Orqaga'),
+            label: Text(context.l10n.translate('back')),
           ),
         ],
       ),
@@ -456,12 +457,13 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildProfileStat(_formatCount(shop.totalOrders), 'Sotilgan'),
-                  _buildProfileStat(
-                      _formatCount(_localFollowerCount), 'Obunachilar'),
+                  _buildProfileStat(_formatCount(shop.totalOrders),
+                      context.l10n.translate('sold_label')),
+                  _buildProfileStat(_formatCount(_localFollowerCount),
+                      context.l10n.translate('followers')),
                   _buildProfileStat(
                     shop.rating > 0 ? shop.formattedRating : '—',
-                    '${shop.reviewCount} sharh',
+                    '${shop.reviewCount} ${context.l10n.translate('review_count_suffix')}',
                   ),
                 ],
               ),
@@ -599,7 +601,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
                   const Icon(Iconsax.star_1, size: 14, color: Colors.amber),
                   const SizedBox(width: 3),
                   Text(
-                    '${shop.formattedRating} reyting',
+                    '${shop.formattedRating} ${context.l10n.translate('rating_suffix')}',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -610,7 +612,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
                   Text('•', style: TextStyle(color: Colors.grey.shade400)),
                   const SizedBox(width: 8),
                   Text(
-                    '${shop.totalOrders}+ sotilgan',
+                    '${shop.totalOrders}+ ${context.l10n.translate('sold_count')}',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
@@ -653,8 +655,8 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
                                 height: 16,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Obuna',
-                                style: TextStyle(
+                            : Text(context.l10n.translate('subscribed_btn'),
+                                style: const TextStyle(
                                     fontWeight: FontWeight.w600, fontSize: 13)),
                       )
                     : FilledButton(
@@ -673,8 +675,8 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 ))
-                            : const Text('Obuna bo\'lish',
-                                style: TextStyle(
+                            : Text(context.l10n.translate('subscribe_btn'),
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                   color: Colors.white,
@@ -700,7 +702,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
                     children: [
                       Icon(Iconsax.message, size: 16, color: textColor),
                       const SizedBox(width: 6),
-                      Text('Xabar',
+                      Text(context.l10n.translate('message_btn'),
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
@@ -885,14 +887,14 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
             child: Icon(Iconsax.box, size: 40, color: Colors.grey.shade400),
           ),
           const SizedBox(height: 16),
-          Text('Mahsulotlar hali mavjud emas',
+          Text(context.l10n.translate('no_products_yet'),
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey.shade600,
               )),
           const SizedBox(height: 4),
-          Text('Tez orada yangi mahsulotlar qo\'shiladi',
+          Text(context.l10n.translate('products_coming_soon'),
               style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
         ],
       ),
@@ -917,7 +919,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (shop.description != null && shop.description!.isNotEmpty) ...[
-            _sectionTitle('Tavsif'),
+            _sectionTitle(context.l10n.translate('description')),
             const SizedBox(height: 8),
             Text(
               shop.description!,
@@ -929,18 +931,21 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
             ),
             const SizedBox(height: 24),
           ],
-          _sectionTitle('Aloqa'),
+          _sectionTitle(context.l10n.translate('contact_section')),
           const SizedBox(height: 12),
           if (shop.address != null)
-            _contactRow(Iconsax.location, 'Manzil', shop.address!),
+            _contactRow(Iconsax.location, context.l10n.translate('address'),
+                shop.address!),
           if (shop.phone != null)
-            _contactRow(Iconsax.call, 'Telefon', shop.phone!,
+            _contactRow(Iconsax.call, context.l10n.translate('phone_label'),
+                shop.phone!,
                 onTap: () => _launchPhone(shop.phone!)),
           if (shop.email != null)
-            _contactRow(Iconsax.sms, 'Email', shop.email!,
+            _contactRow(
+                Iconsax.sms, context.l10n.translate('email'), shop.email!,
                 onTap: () => _launchEmail(shop.email!)),
           const SizedBox(height: 24),
-          _sectionTitle('Statistika'),
+          _sectionTitle(context.l10n.translate('statistics')),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(16),
@@ -953,14 +958,14 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
             ),
             child: Column(
               children: [
-                _statRow('Jami sotuvlar', shop.formattedTotalSales,
-                    Iconsax.money_recive),
+                _statRow(context.l10n.translate('total_sales'),
+                    shop.formattedTotalSales, Iconsax.money_recive),
                 const Divider(height: 24),
-                _statRow('Jami buyurtmalar', '${shop.totalOrders}',
-                    Iconsax.shopping_cart),
+                _statRow(context.l10n.translate('total_orders'),
+                    '${shop.totalOrders}', Iconsax.shopping_cart),
                 const Divider(height: 24),
-                _statRow('A\'zo bo\'lgan sana', _formatDate(shop.createdAt),
-                    Iconsax.calendar),
+                _statRow(context.l10n.translate('member_since'),
+                    _formatDate(shop.createdAt), Iconsax.calendar),
               ],
             ),
           ),

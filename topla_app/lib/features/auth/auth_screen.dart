@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/api_client.dart';
 import '../../core/constants/constants.dart';
@@ -24,7 +23,6 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _isOtpSent = false;
   bool _isGoogleLoading = false;
-  bool _isPhoneFocused = false;
 
   // Countdown timer
   int _resendCountdown = 0;
@@ -40,9 +38,7 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {});
     });
     _phoneFocusNode.addListener(() {
-      setState(() {
-        _isPhoneFocused = _phoneFocusNode.hasFocus;
-      });
+      setState(() {});
     });
   }
 
@@ -637,38 +633,6 @@ class _AuthScreenState extends State<AuthScreen> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return Center(
-      child: Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.primary.withValues(alpha: 0.8),
-            ],
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Iconsax.user,
-          color: Colors.white,
-          size: 32,
         ),
       ),
     );

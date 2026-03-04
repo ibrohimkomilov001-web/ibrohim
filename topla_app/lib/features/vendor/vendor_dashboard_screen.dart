@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/shop_model.dart';
 import '../../models/vendor_stats.dart';
 import '../../services/vendor_service.dart';
@@ -114,15 +115,15 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Do\'kon hali tasdiqlanmagan',
+                            Text(
+                              context.l10n.translate('shop_not_verified_msg'),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.orange,
                               ),
                             ),
                             Text(
-                              'Admin tekshiruvidan keyin faollashadi',
+                              context.l10n.translate('admin_review_pending'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.orange.shade700,
@@ -153,9 +154,9 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Balans',
-                          style: TextStyle(
+                        Text(
+                          context.l10n.translate('balance'),
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
                           ),
@@ -191,7 +192,8 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _stats?.formattedBalance ?? '0 so\'m',
+                      _stats?.formattedBalance ??
+                          '0 ${context.l10n.translate('currency')}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -210,7 +212,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: AppColors.primary,
                       ),
-                      child: const Text('Pul yechish'),
+                      child: Text(context.l10n.translate('withdraw')),
                     ),
                   ],
                 ),
@@ -219,13 +221,13 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
               const SizedBox(height: 20),
 
               // Bugungi statistika
-              _buildSectionTitle('Bugun'),
+              _buildSectionTitle(context.l10n.translate('today')),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: _buildStatCard(
-                      'Buyurtmalar',
+                      context.l10n.translate('orders'),
                       '${_stats?.todayOrders ?? 0}',
                       Iconsax.shopping_bag,
                       Colors.blue,
@@ -234,7 +236,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildStatCard(
-                      'Daromad',
+                      context.l10n.translate('revenue'),
                       _stats?.formattedTodayRevenue ?? '0',
                       Iconsax.money,
                       Colors.green,
@@ -246,27 +248,27 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
               const SizedBox(height: 20),
 
               // Mahsulotlar statistikasi
-              _buildSectionTitle('Mahsulotlar'),
+              _buildSectionTitle(context.l10n.translate('products')),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: _buildProductStat(
-                      'Faol',
+                      context.l10n.translate('active'),
                       _stats?.activeProducts ?? 0,
                       Colors.green,
                     ),
                   ),
                   Expanded(
                     child: _buildProductStat(
-                      'Kutilmoqda',
+                      context.l10n.translate('pending'),
                       _stats?.pendingProducts ?? 0,
                       Colors.orange,
                     ),
                   ),
                   Expanded(
                     child: _buildProductStat(
-                      'Rad etilgan',
+                      context.l10n.translate('rejected'),
                       _stats?.rejectedProducts ?? 0,
                       Colors.red,
                     ),
@@ -277,7 +279,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
               const SizedBox(height: 20),
 
               // Oylik statistika
-              _buildSectionTitle('Shu oy'),
+              _buildSectionTitle(context.l10n.translate('this_month')),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -288,20 +290,20 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                 child: Column(
                   children: [
                     _buildStatRow(
-                      'Daromad',
+                      context.l10n.translate('revenue'),
                       _stats?.formattedMonthlyRevenue ?? '0',
                       Iconsax.money,
                     ),
                     const Divider(),
                     _buildStatRow(
-                      'Buyurtmalar',
-                      '${_stats?.monthlyOrders ?? 0} ta',
+                      context.l10n.translate('orders'),
+                      '${_stats?.monthlyOrders ?? 0} ${context.l10n.translate('pcs')}',
                       Iconsax.shopping_bag,
                     ),
                     const Divider(),
                     _buildStatRow(
-                      'Komissiya (${_shop?.commissionRate ?? 10}%)',
-                      '${_stats?.monthlyCommission.toStringAsFixed(0) ?? 0} so\'m',
+                      '${context.l10n.translate('commission_label')} (${_shop?.commissionRate ?? 10}%)',
+                      '${_stats?.monthlyCommission.toStringAsFixed(0) ?? 0} ${context.l10n.translate('currency')}',
                       Iconsax.percentage_circle,
                     ),
                   ],
@@ -311,7 +313,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
               const SizedBox(height: 20),
 
               // Tezkor harakatlar
-              _buildSectionTitle('Boshqaruv'),
+              _buildSectionTitle(context.l10n.translate('management')),
               const SizedBox(height: 12),
               GridView.count(
                 shrinkWrap: true,
@@ -322,7 +324,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                 childAspectRatio: 1.5,
                 children: [
                   _buildActionCard(
-                    'Mahsulotlar',
+                    context.l10n.translate('products'),
                     Iconsax.box,
                     Colors.blue,
                     () => Navigator.push(
@@ -333,7 +335,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Buyurtmalar',
+                    context.l10n.translate('orders'),
                     Iconsax.shopping_bag,
                     Colors.orange,
                     () => Navigator.push(
@@ -344,7 +346,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Xabarlar',
+                    context.l10n.translate('messages'),
                     Iconsax.message,
                     Colors.cyan,
                     () => Navigator.push(
@@ -355,7 +357,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'To\'lovlar',
+                    context.l10n.translate('payments'),
                     Iconsax.wallet,
                     Colors.green,
                     () => Navigator.push(
@@ -366,7 +368,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Analitika',
+                    context.l10n.translate('analytics'),
                     Iconsax.chart,
                     Colors.teal,
                     () => Navigator.push(
@@ -377,7 +379,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Komissiyalar',
+                    context.l10n.translate('commissions'),
                     Iconsax.percentage_circle,
                     Colors.pink,
                     () => Navigator.push(
@@ -388,7 +390,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Sharhlar',
+                    context.l10n.translate('reviews'),
                     Iconsax.star,
                     Colors.amber,
                     () => Navigator.push(
@@ -399,7 +401,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Qaytarishlar',
+                    context.l10n.translate('returns'),
                     Iconsax.box_remove,
                     Colors.red.shade400,
                     () => Navigator.push(
@@ -410,7 +412,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Promo kodlar',
+                    context.l10n.translate('promo_codes'),
                     Iconsax.ticket_discount,
                     Colors.deepPurple,
                     () => Navigator.push(
@@ -421,7 +423,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Hujjatlar',
+                    context.l10n.translate('documents'),
                     Iconsax.document_text,
                     Colors.indigo,
                     () => Navigator.push(
@@ -432,7 +434,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     ),
                   ),
                   _buildActionCard(
-                    'Sozlamalar',
+                    context.l10n.translate('settings'),
                     Iconsax.setting_2,
                     Colors.purple,
                     () => Navigator.push(
@@ -582,7 +584,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text('Do\'kon'),
+        title: Text(context.l10n.translate('shop')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -606,16 +608,16 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Do\'koningiz yo\'q',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('no_shop'),
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                'Do\'kon ochish uchun saytimizga o\'ting va ro\'yxatdan o\'ting',
+                context.l10n.translate('no_shop_desc'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -635,7 +637,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
                     );
                   },
                   icon: const Icon(Iconsax.global),
-                  label: const Text('Saytga o\'tish'),
+                  label: Text(context.l10n.translate('go_to_website')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     foregroundColor: Colors.white,

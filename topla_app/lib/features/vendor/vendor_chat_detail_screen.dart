@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/constants.dart';
 import '../../core/utils/haptic_utils.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/shop_provider.dart';
 import '../../models/shop_message_model.dart';
 
@@ -110,7 +111,7 @@ class _VendorChatDetailScreenState extends State<VendorChatDetailScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Mijoz',
+                    context.l10n.translate('customer'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,
                         ),
@@ -167,10 +168,10 @@ class _VendorChatDetailScreenState extends State<VendorChatDetailScreen> {
 
   Widget _buildQuickReplies() {
     final quickReplies = [
-      'Salom! Qanday yordam bera olaman?',
-      'Buyurtmangiz tayyor',
-      'Ha, mavjud',
-      'Yo\'q, hozir mavjud emas',
+      context.l10n.translate('quick_reply_hello'),
+      context.l10n.translate('quick_reply_order_ready'),
+      context.l10n.translate('quick_reply_available'),
+      context.l10n.translate('quick_reply_not_available'),
     ];
 
     return SizedBox(
@@ -220,14 +221,14 @@ class _VendorChatDetailScreenState extends State<VendorChatDetailScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Suhbat bo\'sh',
+            context.l10n.translate('chat_empty'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'Mijozga xabar yuboring',
+              context.l10n.translate('send_message_to_customer'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey,
@@ -380,8 +381,8 @@ class _VendorChatDetailScreenState extends State<VendorChatDetailScreen> {
     final now = DateTime.now();
     final diff = now.difference(date);
 
-    if (diff.inDays == 0) return 'Bugun';
-    if (diff.inDays == 1) return 'Kecha';
+    if (diff.inDays == 0) return context.l10n.translate('today');
+    if (diff.inDays == 1) return context.l10n.translate('yesterday');
 
     return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -413,7 +414,7 @@ class _VendorChatDetailScreenState extends State<VendorChatDetailScreen> {
               maxLines: 4,
               minLines: 1,
               decoration: InputDecoration(
-                hintText: 'Xabar yozing...',
+                hintText: context.l10n.translate('write_message'),
                 hintStyle: const TextStyle(color: Colors.grey),
                 filled: true,
                 fillColor: AppColors.surfaceLight,

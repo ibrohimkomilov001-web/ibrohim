@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/services/api_client.dart';
 import '../main.dart';
 
@@ -28,6 +28,42 @@ class PushNotificationService {
 
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
+
+  static const String _notificationPermissionKey =
+      'notification_permission_asked';
+
+  /// Ruxsat so'ralganligini tekshirish
+  Future<bool> isPermissionAsked() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_notificationPermissionKey) ?? false;
+  }
+
+  /// Ruxsat so'ralganligini belgilash
+  Future<void> setPermissionAsked() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notificationPermissionKey, true);
+  }
+
+  /// Bildirishnoma ruxsatini so'rash (dialog uchun)
+  Future<bool> requestPermissionOnly() async {
+    try {
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+      await setPermissionAsked();
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (e) {
+      debugPrint('Bildirishnoma ruxsati xatosi: $e');
+      return false;
+    }
+  }
 
   // Vibratsiya pattern — [kutish, vibratsiya, pauza, vibratsiya]
   static final Int64List _vibrationPattern =

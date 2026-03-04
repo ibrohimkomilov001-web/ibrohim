@@ -3,6 +3,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shop_provider.dart';
@@ -39,8 +40,8 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sharh qoldirish uchun tizimga kiring'),
+        SnackBar(
+          content: Text(context.l10n.translate('login_to_review')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -100,7 +101,7 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
             child: FloatingActionButton.extended(
               onPressed: _showAddReviewDialog,
               icon: const Icon(Iconsax.edit),
-              label: const Text('Sharh qoldirish'),
+              label: Text(context.l10n.translate('add_review')),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
             ),
@@ -111,13 +112,13 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sharhlar'),
+        title: Text(context.l10n.translate('reviews')),
       ),
       body: content,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddReviewDialog,
         icon: const Icon(Iconsax.edit),
-        label: const Text('Sharh qoldirish'),
+        label: Text(context.l10n.translate('add_review')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -136,14 +137,14 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Hali sharhlar yo\'q',
+            context.l10n.translate('no_reviews_yet'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Birinchi bo\'lib sharh qoldiring!',
+            context.l10n.translate('be_first_reviewer'),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.grey,
                 ),
@@ -152,7 +153,7 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
           ElevatedButton.icon(
             onPressed: _showAddReviewDialog,
             icon: const Icon(Iconsax.edit),
-            label: const Text('Sharh qoldirish'),
+            label: Text(context.l10n.translate('add_review')),
           ),
         ],
       ),
@@ -200,7 +201,7 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${reviews.length} sharh',
+                '${reviews.length} ${context.l10n.translate('review_count_suffix')}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey,
                     ),
@@ -306,7 +307,7 @@ class _ShopReviewsScreenState extends State<ShopReviewsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      review.userName ?? 'Foydalanuvchi',
+                      review.userName ?? context.l10n.translate('default_user'),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -399,8 +400,8 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
   Future<void> _submitReview() async {
     if (_selectedRating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Iltimos, baho tanlang'),
+        SnackBar(
+          content: Text(context.l10n.translate('select_rating_please')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -425,8 +426,8 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
         Navigator.pop(context);
         widget.onReviewAdded();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sharh muvaffaqiyatli qo\'shildi!'),
+          SnackBar(
+            content: Text(context.l10n.translate('review_added_success')),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.green,
           ),
@@ -434,8 +435,8 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
       } else {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Xatolik yuz berdi. Qaytadan urinib ko\'ring.'),
+          SnackBar(
+            content: Text(context.l10n.translate('error_try_again')),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.red,
           ),
@@ -474,14 +475,14 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
             const SizedBox(height: 24),
             // Title
             Text(
-              'Sharh qoldirish',
+              context.l10n.translate('add_review'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Bu do\'kon haqida fikringizni bildiring',
+              context.l10n.translate('share_opinion_about_shop'),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey,
                   ),
@@ -489,7 +490,7 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
             const SizedBox(height: 24),
             // Rating stars
             Text(
-              'Baho',
+              context.l10n.translate('rating_label'),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -532,7 +533,7 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
             const SizedBox(height: 24),
             // Comment
             Text(
-              'Izoh (ixtiyoriy)',
+              context.l10n.translate('comment_optional'),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -543,7 +544,7 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
               maxLines: 4,
               maxLength: 500,
               decoration: InputDecoration(
-                hintText: 'Do\'kon haqida fikringizni yozing...',
+                hintText: context.l10n.translate('review_hint'),
                 hintStyle: TextStyle(color: Colors.grey),
                 filled: true,
                 fillColor: AppColors.surfaceLight,
@@ -582,7 +583,7 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Sharh qo\'shish'),
+                    : Text(context.l10n.translate('submit_review')),
               ),
             ),
           ],
@@ -594,15 +595,15 @@ class _AddReviewSheetState extends State<_AddReviewSheet> {
   String _getRatingText(int rating) {
     switch (rating) {
       case 1:
-        return 'Juda yomon';
+        return context.l10n.translate('rating_very_bad');
       case 2:
-        return 'Yomon';
+        return context.l10n.translate('rating_bad');
       case 3:
-        return 'O\'rtacha';
+        return context.l10n.translate('rating_average');
       case 4:
-        return 'Yaxshi';
+        return context.l10n.translate('rating_good');
       case 5:
-        return 'A\'lo';
+        return context.l10n.translate('rating_excellent');
       default:
         return '';
     }

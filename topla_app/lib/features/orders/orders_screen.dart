@@ -74,11 +74,11 @@ class _OrdersScreenState extends State<OrdersScreen>
             fontWeight: FontWeight.w500,
             fontSize: 12,
           ),
-          tabs: const [
-            Tab(text: 'Barchasi'),
-            Tab(text: 'Jarayonda'),
-            Tab(text: 'Yetkazildi'),
-            Tab(text: 'Bekor'),
+          tabs: [
+            Tab(text: context.l10n.translate('all_tab')),
+            Tab(text: context.l10n.translate('in_process_tab')),
+            Tab(text: context.l10n.translate('delivered')),
+            Tab(text: context.l10n.translate('cancelled_tab')),
           ],
         ),
       ),
@@ -168,7 +168,7 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   Widget _buildOrderCard(OrderModel order) {
-    final statusInfo = _getStatusInfo(order.status);
+    final statusInfo = _getStatusInfo(context, order.status);
     final formattedDate =
         '${order.createdAt.day}.${order.createdAt.month.toString().padLeft(2, '0')}.${order.createdAt.year}';
 
@@ -309,7 +309,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                         Text(
                           order.items.isNotEmpty
                               ? order.items.first.productName
-                              : 'Mahsulot',
+                              : context.l10n.translate('product'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -319,7 +319,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                         ),
                         if (order.items.length > 1)
                           Text(
-                            'va yana ${order.items.length - 1} ta',
+                            '${context.l10n.translate('and_more')} ${order.items.length - 1} ${context.l10n.translate('piece')}',
                             style: TextStyle(
                               color: Colors.grey.shade500,
                               fontSize: 12,
@@ -330,7 +330,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                   ),
                   // Price
                   Text(
-                    '${_formatPrice(order.total.toInt())} so\'m',
+                    '${_formatPrice(order.total.toInt())} ${context.l10n.translate('currency')}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -372,65 +372,66 @@ class _OrdersScreenState extends State<OrdersScreen>
     }
   }
 
-  Map<String, dynamic> _getStatusInfo(OrderStatus status) {
+  Map<String, dynamic> _getStatusInfo(
+      BuildContext context, OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
         return {
-          'text': 'Buyurtma qabul qilindi',
+          'text': context.l10n.translate('status_order_received'),
           'color': AppColors.warning,
           'icon': Iconsax.clock,
         };
       case OrderStatus.confirmed:
         return {
-          'text': 'Buyurtma tasdiqlandi',
+          'text': context.l10n.translate('status_order_confirmed'),
           'color': const Color(0xFF4CAF50),
           'icon': Iconsax.tick_square,
         };
       case OrderStatus.processing:
         return {
-          'text': 'Do\'kon tayyorlamoqda',
+          'text': context.l10n.translate('status_store_preparing'),
           'color': AppColors.accent,
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.readyForPickup:
         return {
-          'text': 'Buyurtma tayyor',
+          'text': context.l10n.translate('status_order_ready'),
           'color': const Color(0xFF2196F3),
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.courierAssigned:
         return {
-          'text': 'Kuryer tayinlandi',
+          'text': context.l10n.translate('status_courier_assigned'),
           'color': AppColors.primary,
           'icon': Iconsax.profile_tick,
         };
       case OrderStatus.courierPickedUp:
         return {
-          'text': 'Kuryer oldi, yo\'lga chiqdi',
+          'text': context.l10n.translate('status_courier_picked_up'),
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.shipping:
         return {
-          'text': 'Buyurtma yo\'lda',
+          'text': context.l10n.translate('status_on_the_way'),
           'color': AppColors.primary,
           'icon': Iconsax.truck_fast,
         };
       case OrderStatus.delivered:
         return {
-          'text': 'Yetkazib berildi',
+          'text': context.l10n.translate('status_delivered_info'),
           'color': AppColors.success,
           'icon': Iconsax.tick_circle,
         };
       case OrderStatus.atPickupPoint:
         return {
-          'text': 'Punktda kutmoqda',
+          'text': context.l10n.translate('status_at_pickup'),
           'color': const Color(0xFF9C27B0),
           'icon': Iconsax.building,
         };
       case OrderStatus.cancelled:
         return {
-          'text': 'Bekor qilingan',
+          'text': context.l10n.translate('status_cancelled_info'),
           'color': AppColors.error,
           'icon': Iconsax.close_circle,
         };

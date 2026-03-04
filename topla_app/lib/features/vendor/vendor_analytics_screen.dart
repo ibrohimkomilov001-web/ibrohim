@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/vendor_service.dart';
 
 /// Vendor - Analitika va statistika ekrani
@@ -34,7 +35,9 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('${context.l10n.translate("error")}: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -43,7 +46,7 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Analitika'),
+        title: Text(context.l10n.translate('analytics')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -65,10 +68,14 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildPeriodChip('Bugun', 'today'),
-                          _buildPeriodChip('Hafta', 'week'),
-                          _buildPeriodChip('Oy', 'month'),
-                          _buildPeriodChip('Yil', 'year'),
+                          _buildPeriodChip(
+                              context.l10n.translate('today'), 'today'),
+                          _buildPeriodChip(
+                              context.l10n.translate('week'), 'week'),
+                          _buildPeriodChip(
+                              context.l10n.translate('month_period'), 'month'),
+                          _buildPeriodChip(
+                              context.l10n.translate('year'), 'year'),
                         ],
                       ),
                     ),
@@ -116,9 +123,9 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Umumiy ko\'rsatkichlar',
-          style: TextStyle(
+        Text(
+          context.l10n.translate('general_stats'),
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -128,8 +135,8 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
           children: [
             Expanded(
               child: _buildStatCard(
-                'Daromad',
-                '${_formatNumber(_analytics['revenue'] ?? 0)} so\'m',
+                context.l10n.translate('revenue'),
+                '${_formatNumber(_analytics['revenue'] ?? 0)} ${context.l10n.translate('currency')}',
                 Icons.attach_money,
                 Colors.green,
               ),
@@ -137,7 +144,7 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildStatCard(
-                'Buyurtmalar',
+                context.l10n.translate('orders'),
                 '${_analytics['orders'] ?? 0}',
                 Icons.shopping_bag,
                 Colors.blue,
@@ -150,8 +157,8 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
           children: [
             Expanded(
               child: _buildStatCard(
-                'Komissiya',
-                '${_formatNumber(_analytics['commission'] ?? 0)} so\'m',
+                context.l10n.translate('commission_label'),
+                '${_formatNumber(_analytics['commission'] ?? 0)} ${context.l10n.translate('currency')}',
                 Icons.percent,
                 Colors.orange,
               ),
@@ -159,8 +166,8 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildStatCard(
-                'Sof daromad',
-                '${_formatNumber(_analytics['netRevenue'] ?? 0)} so\'m',
+                context.l10n.translate('net_revenue'),
+                '${_formatNumber(_analytics['netRevenue'] ?? 0)} ${context.l10n.translate('currency')}',
                 Icons.account_balance_wallet,
                 Colors.teal,
               ),
@@ -217,7 +224,7 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
               children: [
                 Icon(Icons.bar_chart, size: 48, color: Colors.grey[300]),
                 const SizedBox(height: 8),
-                Text('Sotuv ma\'lumoti yo\'q',
+                Text(context.l10n.translate('no_sales_data'),
                     style: TextStyle(color: Colors.grey[600])),
               ],
             ),
@@ -239,9 +246,9 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Sotuvlar dinamikasi',
-              style: TextStyle(
+            Text(
+              context.l10n.translate('sales_dynamics'),
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -297,18 +304,18 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Top mahsulotlar',
-              style: TextStyle(
+            Text(
+              context.l10n.translate('top_products'),
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
             const SizedBox(height: 12),
             if (topProducts.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: Text('Ma\'lumot yo\'q')),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(child: Text(context.l10n.translate('no_data'))),
               )
             else
               ...List.generate(
@@ -332,9 +339,10 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    subtitle: Text('${product['sold'] ?? 0} dona sotildi'),
+                    subtitle: Text(
+                        '${product['sold'] ?? 0} ${context.l10n.translate('pcs_sold')}'),
                     trailing: Text(
-                      '${_formatNumber(product['revenue'])} so\'m',
+                      '${_formatNumber(product['revenue'])} ${context.l10n.translate('currency')}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   );
@@ -358,9 +366,9 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Buyurtmalar holati',
-              style: TextStyle(
+            Text(
+              context.l10n.translate('order_status'),
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -370,15 +378,24 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
               children: [
                 Expanded(
                     child: _buildOrderStatItem(
-                        'Kutilmoqda', pending, Colors.orange)),
+                        context.l10n.translate('pending'),
+                        pending,
+                        Colors.orange)),
                 Expanded(
                     child: _buildOrderStatItem(
-                        'Jarayonda', processing, Colors.blue)),
+                        context.l10n.translate('in_process'),
+                        processing,
+                        Colors.blue)),
                 Expanded(
                     child: _buildOrderStatItem(
-                        'Bajarilgan', completed, Colors.green)),
+                        context.l10n.translate('completed_status'),
+                        completed,
+                        Colors.green)),
                 Expanded(
-                    child: _buildOrderStatItem('Bekor', cancelled, Colors.red)),
+                    child: _buildOrderStatItem(
+                        context.l10n.translate('cancelled'),
+                        cancelled,
+                        Colors.red)),
               ],
             ),
           ],

@@ -150,7 +150,7 @@ class _CartScreenState extends State<CartScreen>
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        '${cart.itemCount} ta mahsulot',
+                        '${cart.itemCount} ${context.l10n.translate('items_count_suffix')}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -165,7 +165,7 @@ class _CartScreenState extends State<CartScreen>
                             context.read<CartProvider>().clearCart();
                           },
                           child: Text(
-                            'Tozalash',
+                            context.l10n.translate('clear'),
                             style: TextStyle(
                               color: Colors.red.shade400,
                               fontSize: 13,
@@ -193,8 +193,8 @@ class _CartScreenState extends State<CartScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Savatni tozalash'),
-        content: const Text('Barcha mahsulotlarni o\'chirmoqchimisiz?'),
+        title: Text(context.l10n.translate('clear_cart')),
+        content: Text(context.l10n.translate('clear_all_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -208,7 +208,7 @@ class _CartScreenState extends State<CartScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('Tozalash'),
+            child: Text(context.l10n.translate('clear')),
           ),
         ],
       ),
@@ -233,7 +233,7 @@ class _CartScreenState extends State<CartScreen>
           ),
           const SizedBox(height: AppSizes.lg),
           Text(
-            'Xatolik yuz berdi',
+            context.l10n.translate('error_occurred'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -255,7 +255,7 @@ class _CartScreenState extends State<CartScreen>
           ElevatedButton.icon(
             onPressed: () => context.read<CartProvider>().loadCart(),
             icon: const Icon(Iconsax.refresh),
-            label: const Text('Qayta yuklash'),
+            label: Text(context.l10n.translate('reload')),
           ),
         ],
       ),
@@ -392,7 +392,7 @@ class _CartScreenState extends State<CartScreen>
               children: [
                 // Product name
                 Text(
-                  product?.nameUz ?? 'Mahsulot',
+                  product?.nameUz ?? context.l10n.translate('product'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -407,8 +407,8 @@ class _CartScreenState extends State<CartScreen>
                 if (product != null)
                   Text(
                     product.stock > 0
-                        ? 'Mavjud: ${product.stock} dona'
-                        : 'Tugagan',
+                        ? '${context.l10n.translate('available_stock')}: ${product.stock} ${context.l10n.translate('pieces_short')}'
+                        : context.l10n.translate('out_of_stock'),
                     style: TextStyle(
                       fontSize: 12,
                       color: product.stock > 0
@@ -510,9 +510,9 @@ class _CartScreenState extends State<CartScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('O\'chirish'),
+        title: Text(context.l10n.translate('delete')),
         content: Text(
-          '${item.product?.nameUz ?? "Bu mahsulot"}ni savatdan o\'chirmoqchimisiz?',
+          '${item.product?.nameUz ?? ''} ${context.l10n.translate('remove_from_cart_confirm')}',
         ),
         actions: [
           TextButton(
@@ -527,7 +527,7 @@ class _CartScreenState extends State<CartScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('O\'chirish'),
+            child: Text(context.l10n.translate('delete')),
           ),
         ],
       ),
@@ -565,7 +565,7 @@ class _CartScreenState extends State<CartScreen>
           ),
           const SizedBox(height: 2),
           Text(
-            'Rasm yo\'q',
+            context.l10n.translate('no_image'),
             style: TextStyle(
               fontSize: 8,
               color: Colors.grey.shade400,
@@ -749,8 +749,8 @@ class _CartScreenState extends State<CartScreen>
   Future<void> _applyPromoCode() async {
     if (_promoCode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Promokodni kiriting'),
+        SnackBar(
+          content: Text(context.l10n.translate('enter_promo')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -766,12 +766,12 @@ class _CartScreenState extends State<CartScreen>
       if (promo == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Row(
                 children: [
-                  Icon(Iconsax.close_circle, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text('Noto\'g\'ri yoki muddati o\'tgan promokod'),
+                  const Icon(Iconsax.close_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Text(context.l10n.translate('invalid_promo')),
                 ],
               ),
               backgroundColor: AppColors.error,
@@ -788,7 +788,7 @@ class _CartScreenState extends State<CartScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'Minimal buyurtma summasi: ${_formatPrice(minAmount.toDouble())} so\'m'),
+                  '${context.l10n.translate('min_order_sum')}: ${_formatPrice(minAmount.toDouble())} ${context.l10n.translate('currency')}'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -822,7 +822,7 @@ class _CartScreenState extends State<CartScreen>
                 const Icon(Iconsax.tick_circle, color: Colors.white),
                 const SizedBox(width: 12),
                 Text(
-                    'Promokod qo\'llandi! ${_formatPrice(discountAmount)} so\'m chegirma'),
+                    '${context.l10n.translate('promo_applied')} ${_formatPrice(discountAmount)} ${context.l10n.translate('currency')}'),
               ],
             ),
             backgroundColor: AppColors.success,
@@ -833,7 +833,7 @@ class _CartScreenState extends State<CartScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Xatolik: $e'),
+            content: Text('${context.l10n.translate('error')}: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -863,8 +863,8 @@ class _CartScreenState extends State<CartScreen>
         ),
         Text(
           isFree
-              ? 'Bepul'
-              : '${isDiscount ? "-" : ""}${_formatPrice(amount.abs())} so\'m',
+              ? context.l10n.translate('free_label')
+              : '${isDiscount ? "-" : ""}${_formatPrice(amount.abs())} ${context.l10n.translate('currency')}',
           style: TextStyle(
             color: isDiscount || isFree
                 ? AppColors.success

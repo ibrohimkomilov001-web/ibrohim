@@ -5,7 +5,6 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
-import '../../widgets/topla_refresh_indicator.dart';
 import 'category_detail_screen.dart';
 
 /// Uzum/Ozon uslubidagi Katalog sahifasi

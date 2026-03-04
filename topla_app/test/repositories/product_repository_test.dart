@@ -18,7 +18,6 @@ class MockProductRepository implements IProductRepository {
       images: ['https://example.com/apple.jpg'],
       stock: 100,
       isFeatured: true,
-      isFlashSale: false,
       isActive: true,
       createdAt: DateTime.now(),
     ),
@@ -34,7 +33,6 @@ class MockProductRepository implements IProductRepository {
       images: ['https://example.com/banana.jpg'],
       stock: 50,
       isFeatured: true,
-      isFlashSale: true,
       isActive: true,
       createdAt: DateTime.now(),
     ),
@@ -50,7 +48,6 @@ class MockProductRepository implements IProductRepository {
       images: ['https://example.com/carrot.jpg'],
       stock: 200,
       isFeatured: false,
-      isFlashSale: true,
       isActive: true,
       createdAt: DateTime.now(),
     ),
@@ -66,7 +63,6 @@ class MockProductRepository implements IProductRepository {
       images: [],
       stock: 0,
       isFeatured: false,
-      isFlashSale: false,
       isActive: false,
       createdAt: DateTime.now(),
     ),
@@ -76,7 +72,6 @@ class MockProductRepository implements IProductRepository {
   Future<List<ProductModel>> getProducts({
     String? categoryId,
     bool? isFeatured,
-    bool? isFlashSale,
     String? search,
     int limit = 20,
     int offset = 0,
@@ -91,10 +86,6 @@ class MockProductRepository implements IProductRepository {
 
     if (isFeatured != null) {
       filtered = filtered.where((p) => p.isFeatured == isFeatured).toList();
-    }
-
-    if (isFlashSale != null) {
-      filtered = filtered.where((p) => p.isFlashSale == isFlashSale).toList();
     }
 
     if (search != null && search.isNotEmpty) {
@@ -128,11 +119,6 @@ class MockProductRepository implements IProductRepository {
   @override
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10}) async {
     return getProducts(isFeatured: true, limit: limit);
-  }
-
-  @override
-  Future<List<ProductModel>> getFlashSaleProducts({int limit = 10}) async {
-    return getProducts(isFlashSale: true, limit: limit);
   }
 
   @override
@@ -307,13 +293,6 @@ void main() {
       expect(products.every((p) => p.isFeatured), isTrue);
     });
 
-    test('getProducts filters by isFlashSale', () async {
-      final products = await productRepo.getProducts(isFlashSale: true);
-
-      expect(products.length, equals(2));
-      expect(products.every((p) => p.isFlashSale), isTrue);
-    });
-
     test('getProducts filters by search', () async {
       final products = await productRepo.getProducts(search: 'olma');
 
@@ -360,13 +339,6 @@ void main() {
       final products = await productRepo.getFeaturedProducts(limit: 1);
 
       expect(products.length, equals(1));
-    });
-
-    test('getFlashSaleProducts returns flash sale products', () async {
-      final products = await productRepo.getFlashSaleProducts();
-
-      expect(products.isNotEmpty, isTrue);
-      expect(products.every((p) => p.isFlashSale), isTrue);
     });
 
     test('searchProducts finds by Uzbek name', () async {

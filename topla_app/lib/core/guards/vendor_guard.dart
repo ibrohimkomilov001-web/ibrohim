@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_role.dart';
 
@@ -48,7 +49,7 @@ class VendorGuard extends StatelessWidget {
   Widget _buildNotLoggedIn(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tizimga kiring'),
+        title: Text(context.l10n.translate('login_to_system')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -74,16 +75,16 @@ class VendorGuard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Tizimga kiring',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('login_to_system'),
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                'Vendor paneliga kirish uchun avval tizimga kiring',
+                context.l10n.translate('login_for_vendor_panel'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -98,7 +99,7 @@ class VendorGuard extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Kirish'),
+                  child: Text(context.l10n.translate('login')),
                 ),
               ),
             ],
@@ -111,7 +112,7 @@ class VendorGuard extends StatelessWidget {
   Widget _buildNotVendor(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vendor bo\'lish'),
+        title: Text(context.l10n.translate('become_vendor')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -137,16 +138,16 @@ class VendorGuard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Do\'kon oching',
-                style: TextStyle(
+              Text(
+                context.l10n.translate('open_shop_title'),
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                'Mahsulot sotish uchun o\'z do\'koningizni oching',
+                context.l10n.translate('open_shop_to_sell'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -169,7 +170,7 @@ class VendorGuard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     shape: const StadiumBorder(),
                   ),
-                  child: const Text('Do\'kon ochish'),
+                  child: Text(context.l10n.translate('open_shop')),
                 ),
               ),
             ],
@@ -191,8 +192,8 @@ class VendorRouteGuard {
 
     if (!authProvider.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Avval tizimga kiring'),
+        SnackBar(
+          content: Text(context.l10n.translate('login_first')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -212,8 +213,8 @@ class VendorRouteGuard {
 
     if (!isVendor) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vendor huquqi kerak'),
+        SnackBar(
+          content: Text(context.l10n.translate('vendor_permission_needed')),
           backgroundColor: Colors.red,
         ),
       );

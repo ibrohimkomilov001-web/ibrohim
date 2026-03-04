@@ -38,14 +38,15 @@ export async function getOrderStats(): Promise<{ total: number; pending: number;
     return {
       total: data.pagination?.total || orders.length,
       pending: orders.filter((o: any) => o.status === 'pending').length,
-      processing: orders.filter((o: any) => ['confirmed', 'processing'].includes(o.status)).length,
-      shipped: orders.filter((o: any) => ['shipping', 'courier_assigned', 'courier_picked_up', 'ready_for_pickup'].includes(o.status)).length,
+      confirmed: orders.filter((o: any) => o.status === 'confirmed').length,
+      processing: orders.filter((o: any) => o.status === 'processing').length,
+      shipping: orders.filter((o: any) => ['ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping', 'at_pickup_point'].includes(o.status)).length,
       delivered: orders.filter((o: any) => o.status === 'delivered').length,
       cancelled: orders.filter((o: any) => o.status === 'cancelled').length,
       totalRevenue: orders.reduce((sum: number, o: any) => sum + Number(o.totalAmount || 0), 0),
     };
   } catch {
-    return { total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 };
+    return { total: 0, pending: 0, confirmed: 0, processing: 0, shipping: 0, delivered: 0, cancelled: 0, totalRevenue: 0 };
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../services/vendor_service.dart';
 
 class VendorReviewsScreen extends StatefulWidget {
@@ -96,7 +97,7 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sharhlar'),
+        title: Text(context.l10n.translate('reviews')),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -136,12 +137,12 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
           Icon(Iconsax.star, size: 56, color: Colors.grey[300]),
           const SizedBox(height: 12),
           Text(
-            'Hozircha sharhlar yo\'q',
+            context.l10n.translate('no_reviews'),
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
           const SizedBox(height: 4),
           Text(
-            'Birinchi sharhni kutib turing',
+            context.l10n.translate('wait_first_review'),
             style: TextStyle(fontSize: 13, color: Colors.grey[400]),
           ),
         ],
@@ -156,12 +157,13 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
         children: [
           Icon(Icons.error_outline, size: 48, color: Colors.red[200]),
           const SizedBox(height: 12),
-          Text('Xatolik yuz berdi', style: TextStyle(color: Colors.grey[600])),
+          Text(context.l10n.translate('error_occurred'),
+              style: TextStyle(color: Colors.grey[600])),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: _loadReviews,
             icon: const Icon(Icons.refresh),
-            label: const Text('Qayta yuklash'),
+            label: Text(context.l10n.translate('reload')),
           ),
         ],
       ),
@@ -170,14 +172,16 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
 
   Widget _buildReviewCard(Map<String, dynamic> review, ThemeData theme) {
     final user = review['user'] as Map<String, dynamic>?;
-    final userName = user?['fullName'] ?? 'Noma\'lum';
+    final userName =
+        user?['fullName'] ?? context.l10n.translate('unknown_user');
     final avatarUrl = user?['avatarUrl'] as String?;
     final rating = review['rating'] as int? ?? 0;
     final comment = review['comment'] as String? ?? '';
     final createdAt = review['createdAt'] as String?;
 
     // Check if vendor already replied
-    final hasReply = comment.contains('💬 Sotuvchi javobi:');
+    final hasReply =
+        comment.contains('💬 ${context.l10n.translate('vendor_reply')}:');
 
     String formattedDate = '';
     if (createdAt != null) {
@@ -250,7 +254,11 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
               if (hasReply) ...[
                 // Customer part
                 Text(
-                  comment.split('\n\n💬 Sotuvchi javobi:').first.trim(),
+                  comment
+                      .split(
+                          '\n\n💬 ${context.l10n.translate('vendor_reply')}:')
+                      .first
+                      .trim(),
                   style: const TextStyle(fontSize: 13.5, height: 1.4),
                 ),
                 const SizedBox(height: 8),
@@ -273,7 +281,11 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          comment.split('💬 Sotuvchi javobi:').last.trim(),
+                          comment
+                              .split(
+                                  '💬 ${context.l10n.translate('vendor_reply')}:')
+                              .last
+                              .trim(),
                           style: TextStyle(
                               fontSize: 13, color: theme.colorScheme.primary),
                         ),
@@ -296,8 +308,8 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
                 child: TextButton.icon(
                   onPressed: () => _showReplyDialog(review['id'] as String),
                   icon: const Icon(Iconsax.send_1, size: 16),
-                  label: const Text('Javob berish',
-                      style: TextStyle(fontSize: 13)),
+                  label: Text(context.l10n.translate('reply'),
+                      style: const TextStyle(fontSize: 13)),
                   style: TextButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -318,19 +330,19 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sharhga javob'),
+        title: Text(context.l10n.translate('reply_to_review')),
         content: TextField(
           controller: controller,
           maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Javob matnini yozing...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: context.l10n.translate('write_reply'),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Bekor qilish'),
+            child: Text(context.l10n.translate('cancel')),
           ),
           FilledButton(
             onPressed: () async {
@@ -342,8 +354,8 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
                 await _loadReviews();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Javob yuborildi'),
+                    SnackBar(
+                      content: Text(context.l10n.translate('reply_sent')),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -352,13 +364,13 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text('Xatolik: $e'),
+                        content: Text('${context.l10n.translate('error')}: $e'),
                         backgroundColor: Colors.red),
                   );
                 }
               }
             },
-            child: const Text('Yuborish'),
+            child: Text(context.l10n.translate('send')),
           ),
         ],
       ),

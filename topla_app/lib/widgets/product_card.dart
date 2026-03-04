@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../core/constants/constants.dart';
+import '../core/localization/app_localizations.dart';
 
 class ProductCard extends StatefulWidget {
   final String name;
@@ -201,23 +202,18 @@ class _ProductCardState extends State<ProductCard>
                     child: GestureDetector(
                       onTap: widget.onFavoriteToggle,
                       child: Container(
-                        padding: const EdgeInsets.all(AppSizes.sm),
+                        padding: const EdgeInsets.all(6), // Ixcham
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.white
+                              .withValues(alpha: 0.6), // Shaffof oq fon
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                            ),
-                          ],
                         ),
                         child: Icon(
-                          widget.isFavorite ? Icons.favorite : Iconsax.heart,
-                          size: 18,
-                          color: widget.isFavorite
-                              ? AppColors.sale
-                              : Colors.grey.shade400,
+                          widget.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          size: 20,
+                          color: widget.isFavorite ? Colors.red : Colors.black,
                         ),
                       ),
                     ),
@@ -254,7 +250,7 @@ class _ProductCardState extends State<ProductCard>
                               ),
                               const SizedBox(width: 3),
                               Text(
-                                'Bepul yetkazish',
+                                context.l10n.translate('free_shipping'),
                                 style: TextStyle(
                                   fontSize: 9,
                                   color: Colors.green.shade700,
@@ -283,8 +279,8 @@ class _ProductCardState extends State<ProductCard>
                       Row(
                         children: [
                           const Icon(
-                            Iconsax.star_1,
-                            size: 12,
+                            Iconsax.star, // O'zgartirildi: Shaffof yulduzcha
+                            size: 14,
                             color: AppColors.highlight,
                           ),
                           const SizedBox(width: 2),
@@ -297,7 +293,7 @@ class _ProductCardState extends State<ProductCard>
                           ),
                           const SizedBox(width: AppSizes.xs),
                           Text(
-                            '${_formatSold(widget.sold ?? 0)} sotildi',
+                            '${_formatSold(widget.sold ?? 0)} ${context.l10n.translate('sold_count')}',
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.grey.shade500,
@@ -371,26 +367,10 @@ class _ProductCardState extends State<ProductCard>
                           // Add to cart button
                           GestureDetector(
                             onTap: widget.onAddToCart,
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF6D00),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFF6D00)
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Iconsax.bag_2,
-                                color: Colors.white,
-                                size: 18,
-                              ),
+                            child: const Icon(
+                              Iconsax.bag_2_copy,
+                              color: Colors.black,
+                              size: 24,
                             ),
                           ),
                         ],
@@ -439,7 +419,7 @@ class _ProductCardState extends State<ProductCard>
           ),
           const SizedBox(height: 6),
           Text(
-            'Rasm yo\'q',
+            context.l10n.translate('no_image'),
             style: TextStyle(
               fontSize: 10,
               color: Colors.grey.shade400,

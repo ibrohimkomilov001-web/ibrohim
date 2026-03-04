@@ -3,6 +3,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/shop_provider.dart';
@@ -114,7 +115,7 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Do\'kon',
+                    context.l10n.translate('shop_label'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,
                         ),
@@ -192,14 +193,14 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Suhbatni boshlang',
+            context.l10n.translate('start_conversation'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'Do\'kon bilan savol-javob qilishingiz mumkin',
+              context.l10n.translate('chat_with_shop_desc'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey,
@@ -313,8 +314,8 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
     final now = DateTime.now();
     final diff = now.difference(date);
 
-    if (diff.inDays == 0) return 'Bugun';
-    if (diff.inDays == 1) return 'Kecha';
+    if (diff.inDays == 0) return context.l10n.translate('today');
+    if (diff.inDays == 1) return context.l10n.translate('yesterday');
 
     return '${date.day}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
@@ -346,7 +347,7 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
               maxLines: 4,
               minLines: 1,
               decoration: InputDecoration(
-                hintText: 'Xabar yozing...',
+                hintText: context.l10n.translate('write_message'),
                 hintStyle: TextStyle(color: Colors.grey),
                 filled: true,
                 fillColor: AppColors.surfaceLight,
@@ -406,7 +407,7 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
           children: [
             ListTile(
               leading: const Icon(Iconsax.shop),
-              title: const Text('Do\'konga o\'tish'),
+              title: Text(context.l10n.translate('go_to_shop')),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pop(context);
@@ -415,7 +416,7 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
             ListTile(
               leading: Icon(Iconsax.trash, color: Colors.red),
               title: Text(
-                'Suhbatni o\'chirish',
+                context.l10n.translate('delete_conversation'),
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {
@@ -433,14 +434,14 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Suhbatni o\'chirish'),
-        content: const Text(
-          'Bu suhbat butunlay o\'chiriladi. Davom etasizmi?',
+        title: Text(context.l10n.translate('delete_conversation')),
+        content: Text(
+          context.l10n.translate('delete_conversation_confirm'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Bekor qilish'),
+            child: Text(context.l10n.translate('cancel')),
           ),
           TextButton(
             onPressed: () {
@@ -449,7 +450,7 @@ class _ShopChatScreenState extends State<ShopChatScreen> {
               // TODO: Implement delete conversation
             },
             child: Text(
-              'O\'chirish',
+              context.l10n.translate('delete'),
               style: TextStyle(color: Colors.red),
             ),
           ),
