@@ -9,7 +9,7 @@ export 'shop_model.dart';
 export 'user_role.dart';
 export 'payout_model.dart';
 export 'commission_model.dart';
-export 'vendor_stats.dart';
+// vendor_stats.dart - vendor panel web orqali
 export 'filter_model.dart';
 export 'card_model.dart';
 export 'brand_model.dart';

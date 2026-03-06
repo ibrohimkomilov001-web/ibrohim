@@ -1,4 +1,4 @@
-export 'vendor_service.dart';
+// vendor_service.dart - vendor panel web orqali
 export 'payment_service.dart';
 export 'api_error_handler.dart';
 export 'cache_service.dart';

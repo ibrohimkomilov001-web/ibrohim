@@ -43,6 +43,7 @@ export default function EditProductPage() {
   const [stock, setStock] = useState('');
   const [sku, setSku] = useState('');
   const [weight, setWeight] = useState('');
+  const [warranty, setWarranty] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [images, setImages] = useState<string[]>([]);
   const [colorId, setColorId] = useState('');
@@ -155,6 +156,7 @@ export default function EditProductPage() {
       setStock(String(product.stock || ''));
       setSku(product.sku || '');
       setWeight(String(product.weight || ''));
+      setWarranty((product as any).warranty || '');
       setIsActive(product.isActive);
       setImages(product.images || []);
       setColorId((product as any).colorId || '');
@@ -267,6 +269,7 @@ export default function EditProductPage() {
       stock: Number(stock) || 0,
       sku: sku || undefined,
       weight: weight ? Number(weight) : undefined,
+      warranty: warranty || undefined,
       isActive,
       images,
       hasVariants: !!hasVariants,
@@ -417,6 +420,20 @@ export default function EditProductPage() {
           <div>
             <Label>Og&apos;irlik (g)</Label>
             <Input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0" />
+          </div>
+          <div>
+            <Label>Kafolat muddati</Label>
+            <Select value={warranty} onValueChange={setWarranty}>
+              <SelectTrigger><SelectValue placeholder="Tanlang" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1 oy">1 oy</SelectItem>
+                <SelectItem value="3 oy">3 oy</SelectItem>
+                <SelectItem value="6 oy">6 oy</SelectItem>
+                <SelectItem value="1 yil">1 yil</SelectItem>
+                <SelectItem value="2 yil">2 yil</SelectItem>
+                <SelectItem value="3 yil">3 yil</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Kategoriya</Label>

@@ -55,6 +55,7 @@ export default function NewProductPage() {
   const [stock, setStock] = useState("");
   const [sku, setSku] = useState("");
   const [weight, setWeight] = useState("");
+  const [warranty, setWarranty] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [images, setImages] = useState<string[]>([]);
   const [colorId, setColorId] = useState("");
@@ -241,6 +242,7 @@ export default function NewProductPage() {
       stock: stock ? Number(stock) : 0,
       sku: sku.trim() || undefined,
       weight: weight ? Number(weight) : undefined,
+      warranty: warranty.trim() || undefined,
       isActive,
       images,
       hasVariants: !!hasVariants,
@@ -735,6 +737,22 @@ export default function NewProductPage() {
                     onChange={(e) => setWeight(e.target.value)}
                     min={0}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="warranty">Kafolat muddati</Label>
+                  <Select value={warranty} onValueChange={setWarranty}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tanlang (ixtiyoriy)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1 oy">1 oy</SelectItem>
+                      <SelectItem value="3 oy">3 oy</SelectItem>
+                      <SelectItem value="6 oy">6 oy</SelectItem>
+                      <SelectItem value="1 yil">1 yil</SelectItem>
+                      <SelectItem value="2 yil">2 yil</SelectItem>
+                      <SelectItem value="3 yil">3 yil</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>

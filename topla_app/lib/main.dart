@@ -28,7 +28,6 @@ import 'features/addresses/addresses_screen.dart';
 import 'features/payment/payment_methods_screen.dart';
 import 'features/help/help_screen.dart';
 import 'features/invite/invite_friend_screen.dart';
-import 'features/vendor/vendor_dashboard_screen.dart';
 import 'features/orders/orders_screen.dart';
 import 'features/profile/purchased_products_screen.dart';
 import 'features/profile/returns_screen.dart';
@@ -165,7 +164,6 @@ class ToplaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => getIt<OrdersProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<AddressesProvider>()),
-        ChangeNotifierProvider(create: (_) => getIt<VendorProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<ShopProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<LuckyWheelProvider>()),
         ChangeNotifierProvider(
@@ -241,12 +239,7 @@ class ToplaApp extends StatelessWidget {
                   const AuthGuard(child: AllPrizesScreen()),
               '/lucky-wheel/history': (context) =>
                   const AuthGuard(child: SpinHistoryScreen()),
-              '/mobile-vendor': (context) =>
-                  const AuthGuard(child: VendorDashboardScreen()),
-
               '/': (context) => const SplashScreen(),
-              '/vendor/dashboard': (context) =>
-                  const AuthGuard(child: VendorDashboardScreen()),
             },
           );
         },

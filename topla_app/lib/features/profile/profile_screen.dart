@@ -423,17 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
               final role = profile.role;
 
-              if (role == UserRole.vendor) {
-                return _buildMenuItem(
-                  icon: Iconsax.shop_copy,
-                  label: context.l10n.translate('my_shop'),
-                  iconColor: AppColors.accent,
-                  onTap: () => Navigator.pushNamed(context, '/mobile-vendor'),
-                );
-              }
-
-              // Regular user and admin - open shop option
-              // Admin uchun web panel ishlatiladi
+              // Vendor va oddiy foydalanuvchilar — do'kon web orqali
               if (!role.isAdmin) {
                 return Column(
                   mainAxisSize: MainAxisSize.min,

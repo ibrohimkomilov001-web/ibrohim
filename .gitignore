@@ -1,0 +1,23 @@
+# Build artifacts
+**/build/
+**/.dart_tool/
+**/.next/
+**/.gradle/
+
+# Dependencies
+**/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+
+# Environment files
+*.env
+!topla-prod.env
+
+# Uploads
+topla-backend/uploads/*
+!topla-backend/uploads/.gitkeep

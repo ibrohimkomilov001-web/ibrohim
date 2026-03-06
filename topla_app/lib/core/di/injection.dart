@@ -92,11 +92,6 @@ Future<void> setupDependencies() async {
     () => ApiBannerRepositoryImpl(getIt<ApiClient>()),
   );
 
-  // Vendor repository
-  getIt.registerLazySingleton<IVendorRepository>(
-    () => ApiVendorRepositoryImpl(getIt<ApiClient>()),
-  );
-
   // Shop repository (public shop access)
   getIt.registerLazySingleton<IShopRepository>(
     () => ApiShopRepositoryImpl(getIt<ApiClient>()),
@@ -137,10 +132,6 @@ Future<void> setupDependencies() async {
 
   getIt.registerLazySingleton<AddressesProvider>(
     () => AddressesProvider(getIt<IAddressRepository>()),
-  );
-
-  getIt.registerLazySingleton<VendorProvider>(
-    () => VendorProvider(getIt<IVendorRepository>()),
   );
 
   getIt.registerLazySingleton<ShopProvider>(

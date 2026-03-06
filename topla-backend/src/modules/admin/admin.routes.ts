@@ -926,7 +926,7 @@ export async function adminRoutes(app: FastifyInstance) {
       status: z.enum([
         'pending', 'confirmed', 'processing', 'ready_for_pickup',
         'courier_assigned', 'courier_picked_up', 'shipping',
-        'delivered', 'cancelled',
+        'at_pickup_point', 'delivered', 'cancelled',
       ]),
       note: z.string().optional(),
     }).parse(request.body);

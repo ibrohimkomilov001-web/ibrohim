@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -877,12 +878,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          Transform.scale(
-            scale: 0.8,
-            child: Switch(
-              value: _doNotCall,
-              onChanged: (v) => setState(() => _doNotCall = v),
-              activeColor: AppColors.primary,
+          // iOS UISwitch — aniq Apple razmerlar (51×31, thumb 27)
+          GestureDetector(
+            onTap: () => setState(() => _doNotCall = !_doNotCall),
+            child: SizedBox(
+              width: 51,
+              height: 31,
+              child: Stack(
+                children: [
+                  // Track (fon)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    width: 51,
+                    height: 31,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15.5),
+                      color: _doNotCall
+                          ? const Color(0xFF34C759) // iOS green
+                          : const Color(0xFFE9E9EB), // iOS inactive grey
+                    ),
+                  ),
+                  // Thumb (oq doira)
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    top: 2,
+                    left: _doNotCall ? 22 : 2, // 51 - 27 - 2 = 22
+                    child: Container(
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 8,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 3),
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 1,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -2170,6 +2217,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 deliveryTime: _deliveryTime,
                 deliveryDate: _scheduledDate,
                 scheduledTimeSlot: _scheduledTimeSlot,
+                deliveryMethod: _deliveryMethod,
+                pickupCode: order.pickupCode,
+                pickupToken: order.pickupToken,
               ),
             ),
           );
@@ -2281,6 +2331,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 deliveryTime: _deliveryTime,
                 deliveryDate: _scheduledDate,
                 scheduledTimeSlot: _scheduledTimeSlot,
+                deliveryMethod: _deliveryMethod,
               ),
             ),
           );

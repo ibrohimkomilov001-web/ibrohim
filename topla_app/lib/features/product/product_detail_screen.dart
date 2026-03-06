@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -11,6 +12,7 @@ import '../../providers/providers.dart';
 import '../../widgets/product_card.dart';
 import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
+import '../shop/shop_chat_screen.dart';
 import 'product_reviews_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -32,8 +34,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // === VARIANT SYSTEM (Uzum style) ===
   List<Map<String, dynamic>> _variants = [];
-  List<Map<String, dynamic>> _uniqueColors = [];  // [{id, nameUz, hexCode}]
-  List<Map<String, dynamic>> _uniqueSizes = [];   // [{id, nameUz}]
+  List<Map<String, dynamic>> _uniqueColors = []; // [{id, nameUz, hexCode}]
+  List<Map<String, dynamic>> _uniqueSizes = []; // [{id, nameUz}]
   String? _selectedColorId;
   String? _selectedSizeId;
 
@@ -49,9 +51,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final vs = v['sizeId'] ?? v['size_id'];
       if (vc == _selectedColorId && vs == _selectedSizeId) return v;
       // Faqat rang bo'lsa (o'lchamsiz)
-      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null) return v;
+      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null)
+        return v;
       // Faqat o'lcham bo'lsa (rangsiz)
-      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null) return v;
+      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null)
+        return v;
     }
     return null;
   }
@@ -73,8 +77,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// Tanlangan variant stoki
   int get _displayStock {
     final v = _selectedVariant;
-    if (v != null) return (v['stock'] ?? 0) is int ? v['stock'] as int : int.tryParse(v['stock'].toString()) ?? 0;
-    return (widget.product['stock'] ?? 100) is int ? (widget.product['stock'] ?? 100) as int : 100;
+    if (v != null)
+      return (v['stock'] ?? 0) is int
+          ? v['stock'] as int
+          : int.tryParse(v['stock'].toString()) ?? 0;
+    return (widget.product['stock'] ?? 100) is int
+        ? (widget.product['stock'] ?? 100) as int
+        : 100;
   }
 
   // Eski field - backward compat
@@ -99,8 +108,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return [];
   }
 
-  // O'xshash mahsulotlar - hozircha bo'sh
-  List<Map<String, dynamic>> get _similarProducts => [];
+  // O'xshash mahsulotlar
+  List<Map<String, dynamic>> _similarProducts = [];
+  bool _isSimilarLoading = false;
 
   // Do'kon ma'lumotlari - mahsulotdan olinadi
   Map<String, dynamic> get _shop {
@@ -108,16 +118,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (shop != null && shop is Map<String, dynamic>) {
       return shop;
     }
-    // Fallback: shopId dan foydalanish
     final shopId = widget.product['shopId'] ?? widget.product['shop_id'] ?? '';
     return {
       'id': shopId,
       'name': 'TOPLA Market',
-      'logo': '',
-      'rating': 4.8,
-      'isVerified': true,
-      'followers': 0,
-      'products': 0,
+      'logoUrl': null,
+      'rating': 0,
+      'reviewCount': 0,
+      'phone': null,
     };
   }
 
@@ -132,6 +140,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _loadProductVariants();
     // Backenddan to'liq mahsulot ma'lumotlarini olish (variants bilan)
     _fetchFullProduct();
+    // O'xshash mahsulotlarni yuklash
+    _loadSimilarProducts();
+  }
+
+  /// O'xshash mahsulotlarni yuklash (shu kategoriya bo'yicha)
+  Future<void> _loadSimilarProducts() async {
+    final categoryId = widget.product['categoryId'] ??
+        widget.product['category_id'] ??
+        (widget.product['category'] is Map
+            ? widget.product['category']['id']
+            : null);
+    if (categoryId == null) return;
+
+    setState(() => _isSimilarLoading = true);
+    try {
+      final provider = context.read<ProductsProvider>();
+      final products = await provider.getProductsByCategory(
+        categoryId.toString(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _similarProducts = products
+            .where((p) => p.id != _productId) // o'zini chiqarish
+            .take(8)
+            .map((p) => {
+                  'id': p.id,
+                  'name': p.nameUz,
+                  'price': p.price.toInt(),
+                  'oldPrice': p.oldPrice?.toInt(),
+                  'rating': p.rating,
+                  'sold': p.soldCount,
+                  'image': p.images.isNotEmpty ? p.images.first : null,
+                  'images': p.images,
+                  'stock': p.stock,
+                  'categoryId': p.categoryId,
+                  'shopId': p.shopId,
+                  'description': p.descriptionUz,
+                })
+            .toList();
+        _isSimilarLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Similar products error: $e');
+      if (mounted) setState(() => _isSimilarLoading = false);
+    }
   }
 
   /// Backenddan to'liq mahsulot olish (variantlar bilan)
@@ -150,7 +203,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// Variantlarni parse qilish
   void _parseVariants(Map<String, dynamic> product) {
     final variants = product['variants'];
-    if (variants == null || variants is! List || (variants as List).isEmpty) return;
+    if (variants == null || variants is! List || (variants as List).isEmpty)
+      return;
 
     final variantList = List<Map<String, dynamic>>.from(
       variants.map((v) => Map<String, dynamic>.from(v as Map)),
@@ -218,7 +272,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     // Eski tizim: colorSiblings
     if (product['colorSiblings'] != null && product['colorSiblings'] is List) {
       _colorSiblings = List<Map<String, dynamic>>.from(
-        (product['colorSiblings'] as List).map((s) => Map<String, dynamic>.from(s)),
+        (product['colorSiblings'] as List)
+            .map((s) => Map<String, dynamic>.from(s)),
       );
     }
   }
@@ -331,12 +386,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // 🚚 Delivery Info
-                  _buildDeliveryInfo(),
-
-                  const SizedBox(height: 24),
-
-                  // 🔗 SIMILAR PRODUCTS
+                  //  SIMILAR PRODUCTS
                   _buildSimilarProducts(),
 
                   const SizedBox(height: 120),
@@ -437,76 +487,78 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     overflow: TextOverflow.ellipsis,
                   )
                 : null,
-            titlePadding: const EdgeInsets.only(left: 56, right: 100, bottom: 14),
+            titlePadding:
+                const EdgeInsets.only(left: 56, right: 100, bottom: 14),
             background: Stack(
-          children: [
-            Positioned.fill(
-              child: Container(
-                color: Colors.grey.shade100,
-                child: _productImages.isNotEmpty
-                    ? PageView.builder(
-                      controller: _pageController,
-                      itemCount: _productImages.length,
-                      onPageChanged: (index) =>
-                          setState(() => _selectedImageIndex = index),
-                      itemBuilder: (context, index) {
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.grey.shade100,
+                    child: _productImages.isNotEmpty
+                        ? PageView.builder(
+                            controller: _pageController,
+                            itemCount: _productImages.length,
+                            onPageChanged: (index) =>
+                                setState(() => _selectedImageIndex = index),
+                            itemBuilder: (context, index) {
+                              return GestureDetector(
+                                onTap: () => _showFullScreenImage(index),
+                                child: Hero(
+                                  tag: index == 0
+                                      ? 'product_${product['name']}'
+                                      : 'product_${product['name']}_$index',
+                                  child: CachedNetworkImage(
+                                    imageUrl: _productImages[index],
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorWidget: (_, __, ___) =>
+                                        _buildPlaceholderImage(),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Center(child: _buildPlaceholderImage()),
+                  ),
+                ),
+                if (_productImages.length > 1)
+                  Positioned(
+                    bottom: 16,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_productImages.length, (index) {
+                        final isActive = _selectedImageIndex == index;
                         return GestureDetector(
-                          onTap: () => _showFullScreenImage(index),
-                          child: Hero(
-                            tag: index == 0
-                                ? 'product_${product['name']}'
-                                : 'product_${product['name']}_$index',
-                            child: CachedNetworkImage(
-                              imageUrl: _productImages[index],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorWidget: (_, __, ___) =>
-                                  _buildPlaceholderImage(),
+                          onTap: () => _pageController.animateToPage(index,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: isActive ? 20 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                )
+                              ],
                             ),
                           ),
                         );
-                      },
-                    )
-                    : Center(child: _buildPlaceholderImage()),
-              ),
+                      }),
+                    ),
+                  ),
+              ],
             ),
-            if (_productImages.length > 1)
-              Positioned(
-                bottom: 16,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_productImages.length, (index) {
-                    final isActive = _selectedImageIndex == index;
-                    return GestureDetector(
-                      onTap: () => _pageController.animateToPage(index,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: isActive ? 20 : 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color:
-                              isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            )
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-          ],
-        ),
           );
         },
       ),
@@ -515,7 +567,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // ============ WARRANTY BADGE ============
   Widget _buildWarrantyBadge(Map<String, dynamic> product) {
-    final warranty = product['warranty'] ?? '1 OY';
+    final warranty = product['warranty'];
+    if (warranty == null || warranty.toString().trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -610,7 +665,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 18),
+                  Icon(Icons.chevron_right,
+                      color: Colors.grey.shade400, size: 18),
                 ],
               ),
             ),
@@ -638,12 +694,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.check, color: AppColors.success, size: 18),
+                  child: const Icon(Icons.check,
+                      color: AppColors.success, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   '$stock dona xarid qilish mumkin',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -659,12 +717,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     color: Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Iconsax.box_tick, color: Colors.amber.shade700, size: 18),
+                  child: Icon(Iconsax.box_tick,
+                      color: Colors.amber.shade700, size: 18),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'Bu haftada $sold kishi sotib oldi',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -695,9 +755,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Text(
             '${_formatPrice(price)} ${AppStrings.currency}',
             style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Colors.black),
+                fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
           ),
         ],
       ),
@@ -706,142 +764,137 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // ============ SHOP INFO ============
   Widget _buildShopInfo() {
+    final shopName = (_shop['name'] ?? 'Do\'kon') as String;
+    final shopRating = (_shop['rating'] ?? 0);
+    final rawReviews = _shop['reviewCount'] ?? _shop['review_count'] ?? 0;
+    final shopReviews = rawReviews is num
+        ? rawReviews.toInt()
+        : (int.tryParse(rawReviews.toString()) ?? 0);
+    final shopLogo = _shop['logoUrl'] ?? _shop['logo_url'] ?? _shop['logo'];
+    final shopId = _shop['id']?.toString();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade100),
         ),
         child: Row(
           children: [
-            // Shop logo
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+            // Bosilganda do'konga o'tadi
+            GestureDetector(
+              onTap: () => _navigateToShop(shopId, shopName),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: shopLogo != null && shopLogo.toString().isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: shopLogo.toString(),
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Center(
+                          child: Text(
+                            shopName.isNotEmpty
+                                ? shopName.substring(0, 1).toUpperCase()
+                                : 'D',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          shopName.isNotEmpty
+                              ? shopName.substring(0, 1).toUpperCase()
+                              : 'D',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
               ),
-              child: Center(
-                child: Text(
-                  _shop['name'].substring(0, 1),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
+            ),
+            const SizedBox(width: 10),
+            // Nom + Reyting — bosilganda do'konga
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _navigateToShop(shopId, shopName),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      shopName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Iconsax.star_1,
+                            size: 12, color: Colors.amber),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$shopRating',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (shopReviews > 0)
+                          Text(
+                            ' ($shopReviews)',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 11,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            // Shop info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        _shop['name'],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      if (_shop['isVerified'] == true) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 10,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Iconsax.star_1, size: 14, color: Colors.amber),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_shop['rating']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(Iconsax.people,
-                          size: 14, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_shop['followers']}',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(Iconsax.box, size: 14, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_shop['products']}',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Visit shop button
-            TextButton(
-              onPressed: () {
-                final shopId = _shop['id']?.toString();
-                if (shopId != null && shopId.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ShopDetailScreen(
-                        shopId: shopId,
-                        shopName: _shop['name'],
+            // Savol berish — tabletka
+            GestureDetector(
+              onTap: () => _openShopChat(),
+              child: Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Iconsax.message_text_1,
+                        size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Savol berish',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
                       ),
                     ),
-                  );
-                }
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'Ko\'rish',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
+                  ],
                 ),
               ),
             ),
@@ -849,6 +902,83 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
       ),
     );
+  }
+
+  void _navigateToShop(String? shopId, String shopName) {
+    if (shopId != null && shopId.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ShopDetailScreen(
+            shopId: shopId,
+            shopName: shopName,
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Do'konga xabar yozish
+  Future<void> _openShopChat() async {
+    final shopId = _shop['id']?.toString();
+    if (shopId == null || shopId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Do\'kon topilmadi'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    // Auth tekshirish
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Avval tizimga kiring'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final shopProvider = context.read<ShopProvider>();
+      final conversationId = await shopProvider.getOrCreateConversation(shopId);
+      if (!mounted || conversationId == null) return;
+
+      final shopName = (_shop['name'] ?? 'Do\'kon') as String;
+      final shopLogo = _shop['logoUrl'] ?? _shop['logo_url'] ?? _shop['logo'];
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ShopChatScreen(
+            conversationId: conversationId,
+            shopName: shopName,
+            shopLogoUrl: shopLogo?.toString(),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Xatolik: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   // ============ COLOR SELECTOR (old - kept for backwards compat) ============
@@ -882,7 +1012,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               Text(
                 selectedColorName,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -894,7 +1025,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: _uniqueColors.map((colorInfo) {
               final cId = colorInfo['id']?.toString();
               final isSelected = cId == _selectedColorId;
-              final hexCode = colorInfo['hexCode'] ?? colorInfo['hex_code'] ?? '';
+              final hexCode =
+                  colorInfo['hexCode'] ?? colorInfo['hex_code'] ?? '';
               final color = _parseColor(hexCode);
 
               // Shu rang uchun birinchi variant rasmini olish
@@ -941,9 +1073,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           )
                         : Container(
                             color: color,
-                            child: color == Colors.white
-                                ? null
-                                : null,
+                            child: color == Colors.white ? null : null,
                           ),
                   ),
                 ),
@@ -999,7 +1129,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               Text(
                 selectedSizeName,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -1018,7 +1149,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 isAvailable = _variants.any((v) {
                   final vc = (v['colorId'] ?? v['color_id'])?.toString();
                   final vs = (v['sizeId'] ?? v['size_id'])?.toString();
-                  return vc == _selectedColorId && vs == sId && (v['stock'] ?? 0) > 0;
+                  return vc == _selectedColorId &&
+                      vs == sId &&
+                      (v['stock'] ?? 0) > 0;
                 });
               }
 
@@ -1031,7 +1164,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   });
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primary
@@ -1056,8 +1190,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ? Colors.black
                               : Colors.grey.shade400,
                       fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               );
@@ -1125,7 +1259,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Expanded(
                         flex: 2,
                         child: Text(
-                          spec['key']!,
+                          spec['key'] ?? '',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 14,
@@ -1135,7 +1269,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Expanded(
                         flex: 3,
                         child: Text(
-                          spec['value']!,
+                          spec['value'] ?? '',
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 14,
@@ -1158,27 +1292,101 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade100),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            _buildInfoRow(
-                icon: Iconsax.truck_fast,
-                title: 'Yetkazib berish',
-                value: '3-7 kun ichida yetkazib beramiz',
-                color: AppColors.success),
-            const Divider(height: 24),
-            _buildInfoRow(
-                icon: Iconsax.shield_tick,
-                title: 'Kafolat',
-                value: '3 kunlik qaytarish',
-                color: AppColors.primary),
+            _buildDeliveryRow(
+              icon: Iconsax.truck_fast,
+              title: 'Bepul yetkazib berish',
+              subtitle: '3-7 kun ichida',
+              color: AppColors.success,
+              isFirst: true,
+            ),
+            Divider(height: 1, color: Colors.grey.shade100),
+            _buildDeliveryRow(
+              icon: Iconsax.shield_tick,
+              title: 'Kafolat',
+              subtitle: '3 kunlik qaytarish',
+              color: AppColors.primary,
+            ),
+            Divider(height: 1, color: Colors.grey.shade100),
+            _buildDeliveryRow(
+              icon: Iconsax.verify,
+              title: 'Original mahsulot',
+              subtitle: 'Sifat kafolatlanadi',
+              color: Colors.orange.shade600,
+              isLast: true,
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.vertical(
+          top: isFirst ? const Radius.circular(16) : Radius.zero,
+          bottom: isLast ? const Radius.circular(16) : Radius.zero,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Iconsax.tick_circle,
+              size: 18, color: color.withValues(alpha: 0.6)),
+        ],
       ),
     );
   }
@@ -1577,27 +1785,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // ============ SIMILAR PRODUCTS ============
   Widget _buildSimilarProducts() {
+    // Yuklanayotgan bo'lsa
+    if (_isSimilarLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'O\'xshash mahsulotlar',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 220,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3,
+                itemBuilder: (_, __) => Container(
+                  width: 160,
+                  margin: const EdgeInsets.only(right: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Bo'sh bo'lsa — ko'rsatmaslik
+    if (_similarProducts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              const Text(
-                'O\'xshash mahsulotlar',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  'Barchasi',
-                  style: TextStyle(
-                      color: AppColors.primary, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
+          child: Text(
+            'O\'xshash mahsulotlar',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(height: 12),
@@ -1614,10 +1846,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: SizedBox(
                   width: 160,
                   child: ProductCard(
-                    name: product['name'],
-                    price: product['price'],
+                    name: product['name'] ?? '',
+                    price: product['price'] ?? 0,
                     oldPrice: product['oldPrice'],
-                    discount: product['discount'],
                     rating: product['rating']?.toDouble(),
                     sold: product['sold'],
                     imageUrl: product['image'],
@@ -1630,11 +1861,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       );
                     },
                     onAddToCart: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text(context.l10n.translate('added_to_cart'))),
-                      );
+                      final cartProvider =
+                          Provider.of<CartProvider>(context, listen: false);
+                      final pid = product['id']?.toString() ?? '';
+                      cartProvider.addToCart(pid).then((_) {
+                        if (!mounted) return;
+                        HapticUtils.addToCart();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Iconsax.tick_circle,
+                                    color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text(context.l10n.translate('added_to_cart')),
+                              ],
+                            ),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      });
                     },
                   ),
                 ),
@@ -1649,135 +1899,173 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ============ BOTTOM BAR ============
   Widget _buildBottomBar(Map<String, dynamic> product, int stock) {
     final isOutOfStock = stock <= 0;
-    // Calculate delivery date (3-7 days from now)
-    final deliveryDate = DateTime.now().add(const Duration(days: 6));
-    final months = ['yan', 'fev', 'mar', 'apr', 'may', 'iyun', 'iyul', 'avg', 'sen', 'okt', 'noy', 'dek'];
-    final deliveryText = '${deliveryDate.day}-${months[deliveryDate.month - 1]}';
+    // Variant kerak lekin tanlanmagan holat
+    final needsVariant = _hasVariants && _selectedVariant == null;
+    final isDisabled = isOutOfStock || needsVariant;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, -3))
-        ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            // Price section
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${_formatPrice(_displayPrice ?? product['price'])} ${AppStrings.currency}',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  if (!isOutOfStock)
-                    Text(
-                      'Yetkazish: $deliveryText',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                ],
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.75),
+            border: Border(
+              top: BorderSide(
+                color: Colors.grey.shade200.withValues(alpha: 0.5),
+                width: 0.5,
               ),
             ),
-            const SizedBox(width: 12),
-            // Cart button
-            Expanded(
-              child: _isInCart && !isOutOfStock
-                  ? Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              if (_cartItemQuantity > 1) {
-                                setState(() => _cartItemQuantity--);
-                                _updateCartQuantity();
-                              } else {
-                                setState(() {
-                                  _isInCart = false;
-                                  _cartItemQuantity = 0;
-                                });
-                                _removeFromCart();
-                              }
-                            },
-                            child: const SizedBox(
-                              width: 40,
-                              height: 48,
-                              child: Center(
-                                child: Text('−',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold)),
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                // === CHAP: Savatga tugmasi / Counter ===
+                Expanded(
+                  child: _isInCart && !isDisabled
+                      // Savatda bor — counter ko'rsatish
+                      ? Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildCounterButton(
+                                icon: _cartItemQuantity > 1
+                                    ? Icons.remove
+                                    : Icons.delete_outline,
+                                onTap: () {
+                                  HapticUtils.lightImpact();
+                                  if (_cartItemQuantity > 1) {
+                                    setState(() => _cartItemQuantity--);
+                                    _updateCartQuantity();
+                                  } else {
+                                    setState(() {
+                                      _isInCart = false;
+                                      _cartItemQuantity = 0;
+                                    });
+                                    _removeFromCart();
+                                  }
+                                },
                               ),
-                            ),
-                          ),
-                          Text(
-                            '$_cartItemQuantity',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              setState(() => _cartItemQuantity++);
-                              _updateCartQuantity();
-                            },
-                            child: const SizedBox(
-                              width: 40,
-                              height: 48,
-                              child: Center(
-                                child: Text('+',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold)),
+                              Text(
+                                '$_cartItemQuantity',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
+                              _buildCounterButton(
+                                icon: Icons.add,
+                                onTap: () {
+                                  HapticUtils.lightImpact();
+                                  setState(() => _cartItemQuantity++);
+                                  _updateCartQuantity();
+                                },
+                              ),
+                            ],
+                          ),
+                        )
+                      // Savatda yo'q — "Savatga" tugmasi
+                      : OutlinedButton.icon(
+                          onPressed:
+                              isDisabled ? null : () => _addToCart(context),
+                          icon: Icon(
+                            Iconsax.bag_2,
+                            size: 18,
+                            color: isDisabled
+                                ? Colors.grey.shade400
+                                : AppColors.primary,
+                          ),
+                          label: Text(
+                            isOutOfStock
+                                ? 'Tugagan'
+                                : needsVariant
+                                    ? 'Tanlang'
+                                    : 'Savatga',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDisabled
+                                  ? Colors.grey.shade400
+                                  : AppColors.primary,
                             ),
                           ),
-                        ],
-                      ),
-                    )
-                  : ElevatedButton(
-                      onPressed: isOutOfStock ? null : () => _addToCart(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isOutOfStock ? Colors.grey : AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
-                        isOutOfStock ? 'Tugagan' : 'Savatga',
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            minimumSize: const Size(0, 42),
+                            side: BorderSide(
+                              color: isDisabled
+                                  ? Colors.grey.shade300
+                                  : AppColors.primary.withValues(alpha: 0.4),
+                              width: 1,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 10),
+                // === O'NG: Sotib olish tugmasi ===
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: isDisabled ? null : () => _buyNow(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isDisabled ? Colors.grey.shade300 : AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      disabledForegroundColor: Colors.grey.shade500,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      minimumSize: const Size(0, 42),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
                       ),
                     ),
+                    child: Text(
+                      isOutOfStock
+                          ? 'Tugagan'
+                          : needsVariant
+                              ? 'Tanlang'
+                              : 'Sotib olish',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Counter +/- tugmalari
+  Widget _buildCounterButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 38,
+        height: 42,
+        child: Center(
+          child: Icon(icon, size: 18, color: AppColors.primary),
         ),
       ),
     );
@@ -1796,7 +2084,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final variant = _selectedVariant;
     final variantId = variant?['id']?.toString();
 
-    cartProvider.addToCart(productId, quantity: 1, variantId: variantId).then((_) {
+    cartProvider
+        .addToCart(productId, quantity: 1, variantId: variantId)
+        .then((_) {
       if (!mounted) return;
       // Rasmiylashtirish sahifasiga o'tish
       Navigator.push(
@@ -1922,7 +2212,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final variant = _selectedVariant;
     final variantId = variant?['id']?.toString();
 
-    cartProvider.addToCart(productId, quantity: 1, variantId: variantId).then((_) {
+    cartProvider
+        .addToCart(productId, quantity: 1, variantId: variantId)
+        .then((_) {
       if (!mounted) return;
       HapticUtils.success();
       setState(() {

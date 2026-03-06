@@ -1,3 +1,50 @@
 {
-    "prisma.pinToPrisma6": true
+    "prisma.pinToPrisma6": true,
+
+    // === VS Code tezligini oshirish ===
+    // Og'ir papkalarni fayl kuzatuvchidan chiqarish (file watcher)
+    "files.watcherExclude": {
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/.next/**": true,
+        "**/node_modules/**": true,
+        "**/.gradle/**": true,
+        "**/topla_app/build/**": true,
+        "**/topla_app/.dart_tool/**": true,
+        "**/topla-web/.next/**": true,
+        "**/topla_app/android/.gradle/**": true,
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true
+    },
+
+    // Qidiruvdan chiqarish (search)
+    "search.exclude": {
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/.next/**": true,
+        "**/node_modules/**": true,
+        "**/.gradle/**": true,
+        "**/topla_app/build/**": true,
+        "**/topla-web/.next/**": true,
+        "**/*.lock": true
+    },
+
+    // Explorer-dan yashirish (ko'rinmaydigan qilish)
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/topla_app/build": true,
+        "**/topla_app/.dart_tool": true,
+        "**/topla-web/.next": true,
+        "**/.gradle": true
+    },
+
+    // Katta fayllarni avtomatik formatlashni o'chirish
+    "editor.formatOnSaveMode": "modificationsIfAvailable",
+
+    // TypeScript/Dart analysis optimizatsiya
+    "typescript.tsserver.maxTsServerMemory": 2048,
+
+    // Katta fayllarni ochishni cheklash
+    "editor.largeFileOptimizations": true
 }

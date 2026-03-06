@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/constants/constants.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
@@ -9,6 +11,9 @@ class OrderSuccessScreen extends StatefulWidget {
   final String? deliveryTime;
   final DateTime? deliveryDate;
   final String? scheduledTimeSlot;
+  final String? deliveryMethod;
+  final String? pickupCode;
+  final String? pickupToken;
 
   const OrderSuccessScreen({
     super.key,
@@ -18,6 +23,9 @@ class OrderSuccessScreen extends StatefulWidget {
     this.deliveryTime,
     this.deliveryDate,
     this.scheduledTimeSlot,
+    this.deliveryMethod,
+    this.pickupCode,
+    this.pickupToken,
   });
 
   @override

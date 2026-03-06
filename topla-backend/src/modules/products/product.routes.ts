@@ -33,6 +33,7 @@ const createProductSchema = z.object({
   minOrder: z.number().int().min(1).default(1),
   sku: z.string().optional(),
   weight: z.number().optional(),
+  warranty: z.string().optional(), // kafolat muddati
   // Variant support
   hasVariants: z.boolean().optional(),
   variants: z.array(z.object({

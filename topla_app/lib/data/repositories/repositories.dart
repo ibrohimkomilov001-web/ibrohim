@@ -13,7 +13,7 @@ export 'api_order_repository_impl.dart';
 export 'api_address_repository_impl.dart';
 export 'api_favorites_repository_impl.dart';
 export 'api_banner_repository_impl.dart';
-export 'api_vendor_repository_impl.dart';
+// api_vendor_repository_impl.dart - vendor panel web orqali
 export 'api_shop_repository_impl.dart';
 export 'api_courier_repository_impl.dart';
 export 'api_lucky_wheel_repository_impl.dart';

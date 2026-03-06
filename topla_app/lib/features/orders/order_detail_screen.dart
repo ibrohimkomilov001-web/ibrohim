@@ -63,15 +63,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
                 const SizedBox(height: 16),
 
-                // QR Code (faqat pickup buyurtmalar uchun, at_pickup_point holatda)
+                // QR Code (barcha pickup buyurtmalar uchun — Yandex Market uslubida)
                 if (order.deliveryMethod == 'pickup' &&
-                    order.status == OrderStatus.atPickupPoint &&
-                    order.pickupToken != null)
+                    order.pickupToken != null &&
+                    order.status != OrderStatus.delivered &&
+                    order.status != OrderStatus.cancelled)
                   _buildQrCodeSection(order),
 
                 if (order.deliveryMethod == 'pickup' &&
-                    order.status == OrderStatus.atPickupPoint &&
-                    order.pickupToken != null)
+                    order.pickupToken != null &&
+                    order.status != OrderStatus.delivered &&
+                    order.status != OrderStatus.cancelled)
                   const SizedBox(height: 16),
 
                 const SizedBox(height: 16),

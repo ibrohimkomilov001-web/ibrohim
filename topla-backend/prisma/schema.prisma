@@ -427,6 +427,7 @@ model Product {
   minOrder Int      @default(1) @map("min_order")
   sku      String? // vendor internal product code
   weight   Decimal? @db.Decimal(8, 2) // kg
+  warranty String?  // kafolat muddati: "1 oy", "6 oy", "1 yil" va h.k.
 
   // Moderation (Yandex Market style)
   status           ProductStatus @default(draft)

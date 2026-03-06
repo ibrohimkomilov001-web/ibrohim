@@ -9,7 +9,7 @@ export 'i_order_repository.dart';
 export 'i_address_repository.dart';
 export 'i_favorites_repository.dart';
 export 'i_banner_repository.dart';
-export 'i_vendor_repository.dart';
+// i_vendor_repository.dart - vendor panel web orqali
 export 'i_shop_repository.dart';
 export 'i_courier_repository.dart';
 export 'i_lucky_wheel_repository.dart';

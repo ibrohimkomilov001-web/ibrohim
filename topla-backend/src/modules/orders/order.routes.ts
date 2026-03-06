@@ -433,6 +433,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Buyurtma yaratish (darhol confirmed — auto-confirm)
+      // Pickup buyurtmalar uchun darhol QR kod generatsiya (Yandex Market uslubida)
+      const isPickup = body.deliveryMethod === 'pickup';
       const newOrder = await tx.order.create({
         data: {
           orderNumber: generateOrderNumber(),
@@ -442,7 +444,10 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           paymentStatus: body.paymentMethod === 'cash' ? 'pending' : 'pending',
           paymentMethod: body.paymentMethod,
           deliveryMethod: body.deliveryMethod,
-          pickupPointId: body.deliveryMethod === 'pickup' ? body.pickupPointId : null,
+          pickupPointId: isPickup ? body.pickupPointId : null,
+          // Pickup: darhol PIN kod va QR token yaratish
+          pickupCode: isPickup ? randomInt(100000, 999999).toString() : null,
+          pickupToken: isPickup ? randomUUID() : null,
           subtotal,
           deliveryFee,
           discount,
@@ -851,11 +856,10 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       if (body.status === 'ready_for_pickup') timestamps.readyAt = new Date();
       if (body.status === 'cancelled') timestamps.cancelledAt = new Date();
 
-      // QR kod generatsiya — buyurtma pickup punktiga yetganda
+      // Buyurtma pickup punktiga yetganda — faqat vaqtni belgilash
+      // (pickupCode va pickupToken buyurtma yaratilganda darhol generatsiya qilingan)
       if (body.status === 'at_pickup_point') {
         extraData.pickupReadyAt = new Date();
-        extraData.pickupCode = randomInt(100000, 999999).toString();
-        extraData.pickupToken = randomUUID();
       }
 
       await prisma.$transaction(async (tx) => {
