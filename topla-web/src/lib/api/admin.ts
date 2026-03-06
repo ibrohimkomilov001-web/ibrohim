@@ -196,6 +196,12 @@ export async function updateShopCommission(id: string, commissionRate: number) {
   });
 }
 
+export async function deleteShop(id: string) {
+  return adminRequest(`/admin/shops/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // ============================================
 // Products
 // ============================================
@@ -1048,4 +1054,70 @@ export async function deletePickupApplication(id: string) {
   return adminRequest<any>(`/admin/pickup-applications/${id}`, {
     method: 'DELETE',
   });
+}
+
+// ============================================
+// Lucky Wheel (Omad g'ildiragi)
+// ============================================
+export async function fetchLuckyWheelPrizes() {
+  const res = await adminRequest<{ success: boolean; data: any }>('/admin/lucky-wheel');
+  return res.data;
+}
+
+export async function createLuckyWheelPrize(data: any) {
+  return adminRequest('/admin/lucky-wheel', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateLuckyWheelPrize(id: string, data: any) {
+  return adminRequest(`/admin/lucky-wheel/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteLuckyWheelPrize(id: string) {
+  return adminRequest(`/admin/lucky-wheel/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchLuckyWheelSpins(params?: { page?: number; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  const qs = searchParams.toString();
+  const res = await adminRequest<{ success: boolean; data: any }>(`/admin/lucky-wheel/spins${qs ? `?${qs}` : ''}`);
+  return res.data;
+}
+
+// ============================================
+// REFERRAL ADMIN
+// ============================================
+
+export async function fetchReferrals(params?: { page?: number; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.page) searchParams.set('page', params.page.toString());
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  const qs = searchParams.toString();
+  const res = await adminRequest<{ success: boolean; data: any }>(`/admin/referrals${qs ? `?${qs}` : ''}`);
+  return res.data;
+}
+
+export async function updateReferralSettings(data: { bonusAmount?: number }) {
+  const res = await adminRequest<{ success: boolean }>('/admin/referral-settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return res;
+}
+
+export async function updateReferral(id: string, data: { referrerPaid?: boolean; referredPaid?: boolean; bonusAmount?: number }) {
+  const res = await adminRequest<{ success: boolean; data: any }>(`/admin/referrals/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return res.data;
 }

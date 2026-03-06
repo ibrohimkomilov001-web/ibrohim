@@ -61,6 +61,7 @@ export interface Product {
   category?: { id: string; nameUz: string; nameRu?: string };
   subcategory?: { id: string; nameUz: string; nameRu?: string };
   brand?: { id: string; name: string };
+  hasVariants?: boolean;
   colors?: { id: string; name: string; hexCode: string }[];
   variants?: ProductVariant[];
   createdAt: string;
@@ -69,10 +70,32 @@ export interface Product {
 
 export interface ProductVariant {
   id: string;
-  name: string;
+  colorId?: string | null;
+  sizeId?: string | null;
   price: number;
+  compareAtPrice?: number | null;
   stock: number;
-  sku?: string;
+  sku?: string | null;
+  images: string[];
+  isActive: boolean;
+  sortOrder: number;
+  color?: { id: string; nameUz: string; nameRu: string; hexCode: string } | null;
+  size?: { id: string; nameUz: string; nameRu: string } | null;
+}
+
+export interface ColorOption {
+  id: string;
+  nameUz: string;
+  nameRu: string;
+  hexCode: string;
+  sortOrder?: number;
+}
+
+export interface SizeOption {
+  id: string;
+  nameUz: string;
+  nameRu: string;
+  sortOrder?: number;
 }
 
 export interface Order {
@@ -345,7 +368,12 @@ export const vendorApi = {
   },
 
   // --- Categories ---
-  getCategories: () => api.get<{ data: Category[] }>('/categories'),
+  getCategories: () => api.get<Category[]>('/categories'),
+
+  // --- Colors & Brands ---
+  getColors: () => api.get<ColorOption[]>('/colors'),
+  getBrands: () => api.get<any[]>('/brands'),
+  getSizes: () => api.get<SizeOption[]>('/sizes'),
 
   // --- Documents ---
   getDocuments: () => api.get<VendorDocument[]>('/vendor/documents'),

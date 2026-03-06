@@ -48,9 +48,10 @@ import {
   DollarSign,
   Store,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { getShops, getShopStats, updateShopStatus, updateShopCommission, type Shop } from "./actions";
+import { getShops, getShopStats, updateShopStatus, updateShopCommission, deleteShop, type Shop } from "./actions";
 import { useToast } from "@/components/ui/use-toast";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -73,6 +74,8 @@ export default function AdminShopsPage() {
   const [isCommissionOpen, setIsCommissionOpen] = useState(false);
   const [newCommission, setNewCommission] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
 
   const loadData = async () => {
     try {
@@ -128,6 +131,25 @@ export default function AdminShopsPage() {
       setIsCommissionOpen(false);
     } catch (error) {
       toast({ title: "Xatolik", description: "Komissiyani yangilashda xatolik", variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteShop = async () => {
+    if (!selectedShop || deleteConfirmName !== selectedShop.name) return;
+    
+    try {
+      setActionLoading(true);
+      await deleteShop(selectedShop.id);
+      await loadData();
+      toast({ title: "Muvaffaqiyatli", description: `"${selectedShop.name}" do'koni o'chirildi` });
+      setIsDeleteOpen(false);
+      setDeleteConfirmName("");
+      setSelectedShop(null);
+    } catch (error: any) {
+      const msg = error?.message || "Do'konni o'chirishda xatolik";
+      toast({ title: "Xatolik", description: msg, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -337,6 +359,11 @@ export default function AdminShopsPage() {
                                   <Settings className="mr-2 h-4 w-4" />
                                   Komissiya o&apos;zgartirish
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => { setSelectedShop(shop); setDeleteConfirmName(""); setIsDeleteOpen(true); }} className="text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  O&apos;chirish
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -496,6 +523,49 @@ export default function AdminShopsPage() {
             <Button onClick={handleCommissionChange} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Saqlash
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={(open) => { setIsDeleteOpen(open); if (!open) setDeleteConfirmName(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Do&apos;konni o&apos;chirish</DialogTitle>
+            <DialogDescription>
+              Bu amalni qaytarib bo&apos;lmaydi! Do&apos;konning barcha mahsulotlari, sharhlar va ma&apos;lumotlari o&apos;chiriladi.
+              Tasdiqlash uchun do&apos;kon nomini kiriting:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-destructive/10 rounded-md">
+              <p className="text-sm font-semibold">{selectedShop?.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Egasi: {selectedShop?.owner?.full_name || "Noma'lum"} | {selectedShop?.owner?.phone || ""}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Do&apos;kon nomini kiriting</Label>
+              <Input
+                placeholder={selectedShop?.name}
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteShop} 
+              disabled={actionLoading || deleteConfirmName !== selectedShop?.name}
+            >
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Trash2 className="mr-2 h-4 w-4" />
+              O&apos;chirish
             </Button>
           </DialogFooter>
         </DialogContent>

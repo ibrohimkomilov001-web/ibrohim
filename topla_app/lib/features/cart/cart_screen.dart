@@ -128,8 +128,8 @@ class _CartScreenState extends State<CartScreen>
                           });
                         },
                         child: Container(
-                          width: 24,
-                          height: 24,
+                          width: 20,
+                          height: 20,
                           decoration: BoxDecoration(
                             color: _allSelected
                                 ? AppColors.primary
@@ -139,12 +139,12 @@ class _CartScreenState extends State<CartScreen>
                               color: _allSelected
                                   ? AppColors.primary
                                   : Colors.grey.shade400,
-                              width: 2,
+                              width: 1.5,
                             ),
                           ),
                           child: _allSelected
                               ? const Icon(Icons.check,
-                                  color: Colors.white, size: 14)
+                                  color: Colors.white, size: 12)
                               : null,
                         ),
                       ),
@@ -325,43 +325,6 @@ class _CartScreenState extends State<CartScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Checkbox - circular, toggleable
-          Padding(
-            padding: const EdgeInsets.only(top: 20, right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (_selectedItems.contains(item.id)) {
-                    _selectedItems.remove(item.id);
-                  } else {
-                    _selectedItems.add(item.id);
-                  }
-                  _allSelected = _selectedItems.length ==
-                      context.read<CartProvider>().items.length;
-                });
-              },
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: _selectedItems.contains(item.id)
-                      ? AppColors.primary
-                      : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _selectedItems.contains(item.id)
-                        ? AppColors.primary
-                        : Colors.grey.shade400,
-                    width: 2,
-                  ),
-                ),
-                child: _selectedItems.contains(item.id)
-                    ? const Icon(Icons.check, color: Colors.white, size: 14)
-                    : null,
-              ),
-            ),
-          ),
-
           // Product image
           Container(
             width: 80,
@@ -390,15 +353,55 @@ class _CartScreenState extends State<CartScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Product name
-                Text(
-                  product?.nameUz ?? context.l10n.translate('product'),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                // Product name + checkbox
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product?.nameUz ?? context.l10n.translate('product'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (_selectedItems.contains(item.id)) {
+                            _selectedItems.remove(item.id);
+                          } else {
+                            _selectedItems.add(item.id);
+                          }
+                          _allSelected = _selectedItems.length ==
+                              context.read<CartProvider>().items.length;
+                        });
+                      },
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: _selectedItems.contains(item.id)
+                              ? AppColors.primary
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _selectedItems.contains(item.id)
+                                ? AppColors.primary
+                                : Colors.grey.shade400,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: _selectedItems.contains(item.id)
+                            ? const Icon(Icons.check, color: Colors.white, size: 12)
+                            : null,
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: AppSizes.xs),
@@ -443,7 +446,7 @@ class _CartScreenState extends State<CartScreen>
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                              color: Colors.black,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -577,171 +580,185 @@ class _CartScreenState extends State<CartScreen>
   }
 
   Widget _buildBottomSection(CartProvider cart) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Promo code
-            Row(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Promo code - ixcham
+          Row(
+            children: [
+              Expanded(child: Divider(height: 1, color: Colors.grey.shade200)),
+            ],
+          ),
+          SizedBox(
+            height: 42,
+            child: Row(
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Iconsax.ticket_discount_copy,
+                    color: const Color(0xFFE91E63),
+                    size: 20,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 22,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  color: Colors.grey.shade300,
+                ),
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                    ),
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          _promoCode = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: context.l10n.promoCode,
-                        hintStyle: TextStyle(color: Colors.grey.shade500),
-                        prefixIcon: Icon(
-                          Iconsax.discount_shape,
-                          color: Colors.grey.shade500,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.lg,
-                          vertical: AppSizes.md,
-                        ),
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _promoCode = value;
+                      });
+                    },
+                    style: const TextStyle(fontSize: 14),
+                    cursorColor: Colors.grey.shade600,
+                    decoration: InputDecoration(
+                      hintText: context.l10n.promoCode,
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _promoCode.isNotEmpty && !_isPromoLoading
-                      ? () => _applyPromoCode()
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(80, 48),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
+                SizedBox(
+                  height: 30,
+                  child: ElevatedButton(
+                    onPressed: _promoCode.isNotEmpty && !_isPromoLoading
+                        ? () => _applyPromoCode()
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(56, 30),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      elevation: 0,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isPromoLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                    child: _isPromoLoading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            context.l10n.apply,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        )
-                      : Text(context.l10n.apply),
+                  ),
                 ),
               ],
             ),
-
-            const SizedBox(height: AppSizes.lg),
-
-            // Price breakdown
-            if (_discount > 0) ...[
-              _buildPriceRow(context.l10n.discount, -_discount,
-                  isDiscount: true),
-              const SizedBox(height: AppSizes.sm),
+          ),
+          Row(
+            children: [
+              Expanded(child: Divider(height: 1, color: Colors.grey.shade200)),
             ],
-            _buildPriceRow(
-              context.l10n.shipping,
-              cart.deliveryFee,
-              isFree: cart.deliveryFee == 0,
-            ),
+          ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSizes.md),
-              child: Divider(),
-            ),
+          const SizedBox(height: 8),
 
-            // Total
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  context.l10n.total,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${_formatPrice(cart.total - _discount)} ${context.l10n.translate('currency')}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
+          // Price breakdown
+          if (_discount > 0) ...[
+            _buildPriceRow(context.l10n.discount, -_discount, isDiscount: true),
+            const SizedBox(height: 4),
+          ],
 
-            const SizedBox(height: AppSizes.lg),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
+            child: Divider(height: 1),
+          ),
 
-            // Checkout button
-            SizedBox(
-              width: double.infinity,
-              height: AppSizes.buttonHeightLg,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CheckoutScreen(
-                        promoDiscount: _discount,
-                        promoCodeId: _promoCodeId,
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Iconsax.shopping_bag, size: 20),
-                    const SizedBox(width: AppSizes.sm),
-                    Flexible(
-                      child: Text(
-                        '${context.l10n.checkout} • ${_formatPrice(cart.total - _discount)} ${context.l10n.translate('currency')}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+          // Total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                context.l10n.total,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              Text(
+                '${_formatPrice(cart.total - _discount)} ${context.l10n.translate('currency')}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Checkout button - tabletkasimon ixcham
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CheckoutScreen(
+                      promoDiscount: _discount,
+                      promoCodeId: _promoCodeId,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                '${context.l10n.checkout} • ${_formatPrice(cart.total - _discount)} ${context.l10n.translate('currency')}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

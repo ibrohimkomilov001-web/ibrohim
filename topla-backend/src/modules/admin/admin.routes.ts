@@ -361,8 +361,8 @@ export async function adminRoutes(app: FastifyInstance) {
         data: { role: 'vendor' },
       });
     }
-    // Agar shop bloklangan bo'lsa, owner'ni user roliga qaytarish
-    if (status === 'blocked' && shop.ownerId) {
+    // Agar shop bloklangan yoki nofaol bo'lsa, owner'ni user roliga qaytarish
+    if ((status === 'blocked' || status === 'inactive') && shop.ownerId) {
       await prisma.profile.update({
         where: { id: shop.ownerId },
         data: { role: 'user' },
@@ -427,6 +427,100 @@ export async function adminRoutes(app: FastifyInstance) {
     });
 
     return { success: true, data: shop };
+  });
+
+  // ==========================================
+  // DELETE SHOP (Admin)
+  // ==========================================
+  app.delete('/admin/shops/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+
+    const shop = await prisma.shop.findUnique({
+      where: { id },
+      include: {
+        owner: { select: { id: true, fullName: true, phone: true } },
+        _count: { select: { products: true, orderItems: true } },
+      },
+    });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    // Faol buyurtmalari bor bo'lsa o'chirishga ruxsat bermaslik
+    const activeOrders = await prisma.orderItem.count({
+      where: {
+        shopId: id,
+        order: {
+          status: { in: ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping'] },
+        },
+      },
+    });
+    if (activeOrders > 0) {
+      throw new AppError(`Bu do'konda ${activeOrders} ta faol buyurtma bor. Avval buyurtmalarni yakunlang.`, 400);
+    }
+
+    // Transaksiya ichida o'chirish
+    await prisma.$transaction(async (tx) => {
+      // 1. Mahsulotlarni o'chirish (product images, reviews, views ham cascade delete bo'ladi)
+      await tx.product.deleteMany({ where: { shopId: id } });
+      // 2. Do'kon reviewlarini o'chirish
+      await tx.shopReview.deleteMany({ where: { shopId: id } });
+      // 3. Do'kon followlarini o'chirish
+      await tx.shopFollow.deleteMany({ where: { shopId: id } });
+      // 4. Chat roomlarni o'chirish
+      const chatRooms = await tx.chatRoom.findMany({ where: { shopId: id }, select: { id: true } });
+      if (chatRooms.length > 0) {
+        const chatRoomIds = chatRooms.map(r => r.id);
+        await tx.chatMessage.deleteMany({ where: { roomId: { in: chatRoomIds } } });
+        await tx.chatRoom.deleteMany({ where: { shopId: id } });
+      }
+      // 5. Vendor dokumentlarini o'chirish
+      await tx.vendorDocument.deleteMany({ where: { shopId: id } });
+      // 6. Vendor transaksiyalarini o'chirish
+      await tx.vendorTransaction.deleteMany({ where: { shopId: id } });
+      // 7. Payoutlarni o'chirish
+      await tx.payout.deleteMany({ where: { shopId: id } });
+      // 8. Do'konni o'chirish
+      await tx.shop.delete({ where: { id } });
+
+      // 9. Owner'ni user roliga qaytarish
+      if (shop.ownerId) {
+        await tx.profile.update({
+          where: { id: shop.ownerId },
+          data: { role: 'user' },
+        });
+      }
+    });
+
+    // Activity log
+    await prisma.activityLog.create({
+      data: {
+        userId: request.user!.userId,
+        action: 'shop.deleted',
+        entityType: 'shop',
+        entityId: id,
+        details: {
+          shopName: shop.name,
+          ownerId: shop.ownerId,
+          productsDeleted: shop._count.products,
+        },
+        ipAddress: request.ip,
+      },
+    });
+
+    // Ownerga bildirishnoma
+    if (shop.ownerId) {
+      await prisma.notification.create({
+        data: {
+          userId: shop.ownerId,
+          type: 'system',
+          title: '🗑️ Do\'koningiz o\'chirildi',
+          body: `"${shop.name}" do'koningiz admin tomonidan o'chirildi. Savol bo'lsa, qo'llab-quvvatlash xizmatiga murojaat qiling.`,
+        },
+      });
+    }
+
+    return { success: true, message: `"${shop.name}" do'koni muvaffaqiyatli o'chirildi` };
   });
 
   // ==========================================
@@ -2066,6 +2160,570 @@ export async function adminRoutes(app: FastifyInstance) {
     return reply.send({
       success: true,
       data: { message: 'Re-index jarayoni BullMQ orqali boshlandi. Bir necha daqiqada tugaydi.' },
+    });
+  });
+
+  // ============================================
+  // LUCKY WHEEL ADMIN
+  // ============================================
+
+  /**
+   * GET /admin/lucky-wheel — barcha sovg'alar + statistika
+   */
+  app.get('/admin/lucky-wheel', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const prizes = await prisma.luckyWheelPrize.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [totalSpins, todaySpins, totalWinners] = await Promise.all([
+      prisma.luckyWheelSpin.count(),
+      prisma.luckyWheelSpin.count({ where: { spinDate: today } }),
+      prisma.luckyWheelSpin.count({ where: { prizeType: { not: 'nothing' } } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        prizes,
+        stats: {
+          totalSpins,
+          todaySpins,
+          totalWinners,
+          totalPrizes: prizes.length,
+          activePrizes: prizes.filter(p => p.isActive).length,
+        },
+      },
+    });
+  });
+
+  /**
+   * POST /admin/lucky-wheel — yangi sovg'a
+   */
+  app.post('/admin/lucky-wheel', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const schema = z.object({
+      nameUz: z.string().min(1),
+      nameRu: z.string().min(1),
+      type: z.enum(['discount_percent', 'discount_fixed', 'free_delivery', 'physical_gift', 'nothing']),
+      value: z.number().nullable().optional(),
+      probability: z.number().min(0).max(1),
+      color: z.string().default('#FF6B35'),
+      imageUrl: z.string().nullable().optional(),
+      promoCodePrefix: z.string().nullable().optional(),
+      stock: z.number().int().nullable().optional(),
+      sortOrder: z.number().int().default(0),
+      isActive: z.boolean().default(true),
+    });
+
+    const data = schema.parse(request.body);
+
+    const prize = await prisma.luckyWheelPrize.create({
+      data: {
+        nameUz: data.nameUz,
+        nameRu: data.nameRu,
+        type: data.type,
+        value: data.value ?? null,
+        probability: data.probability,
+        color: data.color,
+        imageUrl: data.imageUrl ?? null,
+        promoCodePrefix: data.promoCodePrefix ?? null,
+        stock: data.stock ?? null,
+        sortOrder: data.sortOrder,
+        isActive: data.isActive,
+      },
+    });
+
+    return reply.status(201).send({
+      success: true,
+      data: prize,
+    });
+  });
+
+  /**
+   * PUT /admin/lucky-wheel/:id — sovg'ani tahrirlash
+   */
+  app.put('/admin/lucky-wheel/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+
+    const schema = z.object({
+      nameUz: z.string().min(1).optional(),
+      nameRu: z.string().min(1).optional(),
+      type: z.enum(['discount_percent', 'discount_fixed', 'free_delivery', 'physical_gift', 'nothing']).optional(),
+      value: z.number().nullable().optional(),
+      probability: z.number().min(0).max(1).optional(),
+      color: z.string().optional(),
+      imageUrl: z.string().nullable().optional(),
+      promoCodePrefix: z.string().nullable().optional(),
+      stock: z.number().int().nullable().optional(),
+      sortOrder: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    });
+
+    const data = schema.parse(request.body);
+
+    const prize = await prisma.luckyWheelPrize.update({
+      where: { id },
+      data,
+    });
+
+    return reply.send({
+      success: true,
+      data: prize,
+    });
+  });
+
+  /**
+   * DELETE /admin/lucky-wheel/:id — sovg'a o'chirish
+   */
+  app.delete('/admin/lucky-wheel/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+
+    await prisma.luckyWheelPrize.delete({ where: { id } });
+
+    return reply.send({ success: true });
+  });
+
+  /**
+   * GET /admin/lucky-wheel/spins — barcha spinlar tarixi
+   */
+  app.get('/admin/lucky-wheel/spins', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const querySchema = z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+    });
+    const { page, limit } = querySchema.parse(request.query);
+    const skip = (page - 1) * limit;
+
+    const [spins, total] = await Promise.all([
+      prisma.luckyWheelSpin.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: { id: true, fullName: true, phone: true, avatarUrl: true },
+          },
+          prize: {
+            select: { nameUz: true, nameRu: true, type: true, value: true, color: true },
+          },
+        },
+      }),
+      prisma.luckyWheelSpin.count(),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        spins,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  });
+
+  // ============================================
+  // REFERRAL ADMIN (Do'stlarni taklif qilish boshqaruvi)
+  // ============================================
+
+  /**
+   * GET /admin/referrals — barcha referrallar + statistika
+   */
+  app.get('/admin/referrals', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const querySchema = z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+    });
+    const { page, limit } = querySchema.parse(request.query);
+    const skip = (page - 1) * limit;
+
+    const [referrals, total, totalPaid, totalBonusSum] = await Promise.all([
+      prisma.referral.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          referrer: {
+            select: { id: true, fullName: true, phone: true, avatarUrl: true },
+          },
+          referred: {
+            select: { id: true, fullName: true, phone: true, avatarUrl: true },
+          },
+        },
+      }),
+      prisma.referral.count(),
+      prisma.referral.count({ where: { referrerPaid: true } }),
+      prisma.referral.aggregate({
+        where: { referrerPaid: true },
+        _sum: { bonusAmount: true },
+      }),
+    ]);
+
+    // Bonus sozlamasini olish
+    let bonusAmount = 50000;
+    try {
+      const setting = await prisma.adminSetting.findUnique({
+        where: { key: 'referral_bonus_amount' },
+      });
+      if (setting) bonusAmount = parseFloat(setting.value) || 50000;
+    } catch {}
+
+    return reply.send({
+      success: true,
+      data: {
+        referrals,
+        stats: {
+          totalReferrals: total,
+          totalPaidBonuses: totalPaid,
+          totalBonusAmount: totalBonusSum._sum.bonusAmount || 0,
+          currentBonusAmount: bonusAmount,
+        },
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  });
+
+  /**
+   * PUT /admin/referral-settings — bonus sozlamalarini o'zgartirish
+   */
+  app.put('/admin/referral-settings', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const settingsSchema = z.object({
+      bonusAmount: z.number().min(0).max(10000000).optional(),
+    });
+    const body = settingsSchema.parse(request.body);
+
+    if (body.bonusAmount !== undefined) {
+      await prisma.adminSetting.upsert({
+        where: { key: 'referral_bonus_amount' },
+        update: { value: body.bonusAmount.toString() },
+        create: { key: 'referral_bonus_amount', value: body.bonusAmount.toString() },
+      });
+    }
+
+    return reply.send({
+      success: true,
+      message: 'Referral sozlamalari yangilandi',
+    });
+  });
+
+  /**
+   * PUT /admin/referrals/:id — referral holatini o'zgartirish
+   */
+  app.put('/admin/referrals/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const updateSchema = z.object({
+      referrerPaid: z.boolean().optional(),
+      referredPaid: z.boolean().optional(),
+      bonusAmount: z.number().min(0).optional(),
+    });
+    const body = updateSchema.parse(request.body);
+
+    const referral = await prisma.referral.update({
+      where: { id },
+      data: body,
+    });
+
+    return reply.send({
+      success: true,
+      data: referral,
+    });
+  });
+
+  // ============================================
+  // REFERRAL REWARDS (Sovg'alar katalogi boshqaruvi)
+  // ============================================
+
+  /**
+   * GET /admin/referral-rewards — barcha sovg'alar
+   */
+  app.get('/admin/referral-rewards', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const rewards = await prisma.referralReward.findMany({
+      orderBy: { pointsCost: 'asc' },
+    });
+
+    return reply.send({
+      success: true,
+      data: rewards,
+    });
+  });
+
+  /**
+   * POST /admin/referral-rewards — yangi sovg'a yaratish
+   */
+  app.post('/admin/referral-rewards', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const schema = z.object({
+      nameUz: z.string().min(1),
+      nameRu: z.string().min(1),
+      description: z.string().optional().nullable(),
+      pointsCost: z.number().int().min(1),
+      type: z.enum(['promo_fixed', 'promo_percent', 'free_delivery', 'physical_gift']),
+      value: z.number().optional(),
+      imageUrl: z.string().optional(),
+      stock: z.number().int().min(0).optional().nullable(),
+      isActive: z.boolean().default(true),
+    });
+    const body = schema.parse(request.body);
+
+    const reward = await prisma.referralReward.create({
+      data: body as any,
+    });
+
+    return reply.status(201).send({
+      success: true,
+      data: reward,
+    });
+  });
+
+  /**
+   * PUT /admin/referral-rewards/:id — sovg'ani yangilash
+   */
+  app.put('/admin/referral-rewards/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const schema = z.object({
+      nameUz: z.string().min(1).optional(),
+      nameRu: z.string().min(1).optional(),
+      description: z.string().optional().nullable(),
+      pointsCost: z.number().int().min(1).optional(),
+      type: z.enum(['promo_fixed', 'promo_percent', 'free_delivery', 'physical_gift']).optional(),
+      value: z.number().optional().nullable(),
+      imageUrl: z.string().optional().nullable(),
+      stock: z.number().int().min(0).optional().nullable(),
+      isActive: z.boolean().optional(),
+    });
+    const body = schema.parse(request.body);
+
+    const reward = await prisma.referralReward.update({
+      where: { id },
+      data: body as any,
+    });
+
+    return reply.send({
+      success: true,
+      data: reward,
+    });
+  });
+
+  /**
+   * DELETE /admin/referral-rewards/:id — sovg'ani o'chirish
+   */
+  app.delete('/admin/referral-rewards/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+
+    await prisma.referralReward.delete({ where: { id } });
+
+    return reply.send({
+      success: true,
+      message: 'Sovg\'a o\'chirildi',
+    });
+  });
+
+  // ============================================
+  // REFERRAL CLAIMS (Sovg'a so'rovlari boshqaruvi)
+  // ============================================
+
+  /**
+   * GET /admin/referral-claims — barcha so'rovlar
+   */
+  app.get('/admin/referral-claims', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const querySchema = z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+      status: z.enum(['pending', 'fulfilled', 'cancelled']).optional(),
+    });
+    const { page, limit, status } = querySchema.parse(request.query);
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (status) where.status = status;
+
+    const [claims, total] = await Promise.all([
+      prisma.referralRewardClaim.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          profile: {
+            select: { id: true, fullName: true, phone: true, avatarUrl: true },
+          },
+          reward: {
+            select: { id: true, nameUz: true, type: true, value: true, pointsCost: true },
+          },
+        },
+      }),
+      prisma.referralRewardClaim.count({ where }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        claims,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  });
+
+  /**
+   * PUT /admin/referral-claims/:id — so'rov holatini o'zgartirish (tasdiqlash/rad)
+   */
+  app.put('/admin/referral-claims/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const schema = z.object({
+      status: z.enum(['fulfilled', 'cancelled']),
+      adminNote: z.string().optional(),
+    });
+    const body = schema.parse(request.body);
+
+    const claim = await prisma.referralRewardClaim.findUnique({
+      where: { id },
+      include: { reward: true },
+    });
+
+    if (!claim) throw new AppError('So\'rov topilmadi');
+    if (claim.status !== 'pending') throw new AppError('Faqat kutilayotgan so\'rovlarni o\'zgartirish mumkin');
+
+    if (body.status === 'cancelled') {
+      // Ballarni qaytarish
+      await prisma.$transaction(async (tx) => {
+        await tx.referralRewardClaim.update({
+          where: { id },
+          data: { status: 'cancelled' },
+        });
+
+        // Ballarni qaytarish
+        await tx.profile.update({
+          where: { id: claim.profileId },
+          data: { referralPoints: { increment: claim.pointsSpent } },
+        });
+
+        // Stockni qaytarish
+        if (claim.reward.stock !== null) {
+          await tx.referralReward.update({
+            where: { id: claim.rewardId },
+            data: { stock: { increment: 1 } },
+          });
+        }
+
+        // Ball log
+        await tx.referralPointLog.create({
+          data: {
+            profileId: claim.profileId,
+            amount: claim.pointsSpent,
+            type: 'admin_adjustment',
+            description: `Sovg'a so'rovi rad etildi, ballar qaytarildi: ${claim.reward.nameUz}`,
+            claimId: claim.id,
+          },
+        });
+      });
+    } else {
+      // Tasdiqlash
+      await prisma.referralRewardClaim.update({
+        where: { id },
+        data: { status: 'fulfilled' },
+      });
+    }
+
+    // Foydalanuvchiga bildirishnoma
+    const { createNotification } = await import('../../modules/notifications/notification.service.js');
+    const statusText = body.status === 'fulfilled' ? 'tasdiqlandi ✅' : 'rad etildi ❌';
+    createNotification(
+      claim.profileId,
+      'referral_bonus' as any,
+      'Sovg\'a so\'rovi',
+      `${claim.reward.nameUz} uchun so'rovingiz ${statusText}`,
+    ).catch(() => {});
+
+    return reply.send({
+      success: true,
+      message: `So'rov ${body.status === 'fulfilled' ? 'tasdiqlandi' : 'rad etildi'}`,
+    });
+  });
+
+  /**
+   * PUT /admin/referral-point-settings — ball sozlamalarini o'zgartirish
+   */
+  app.put('/admin/referral-point-settings', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const schema = z.object({
+      registrationPoints: z.number().int().min(0).max(1000).optional(),
+      purchasePoints: z.number().int().min(0).max(1000).optional(),
+      minPurchaseAmount: z.number().min(0).max(100000000).optional(),
+    });
+    const body = schema.parse(request.body);
+
+    const updates: Promise<any>[] = [];
+
+    if (body.registrationPoints !== undefined) {
+      updates.push(prisma.adminSetting.upsert({
+        where: { key: 'referral_registration_points' },
+        update: { value: body.registrationPoints.toString() },
+        create: { key: 'referral_registration_points', value: body.registrationPoints.toString() },
+      }));
+    }
+    if (body.purchasePoints !== undefined) {
+      updates.push(prisma.adminSetting.upsert({
+        where: { key: 'referral_purchase_points' },
+        update: { value: body.purchasePoints.toString() },
+        create: { key: 'referral_purchase_points', value: body.purchasePoints.toString() },
+      }));
+    }
+    if (body.minPurchaseAmount !== undefined) {
+      updates.push(prisma.adminSetting.upsert({
+        where: { key: 'referral_min_purchase' },
+        update: { value: body.minPurchaseAmount.toString() },
+        create: { key: 'referral_min_purchase', value: body.minPurchaseAmount.toString() },
+      }));
+    }
+
+    await Promise.all(updates);
+
+    return reply.send({
+      success: true,
+      message: 'Referral ball sozlamalari yangilandi',
     });
   });
 }

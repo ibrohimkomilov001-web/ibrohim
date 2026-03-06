@@ -6,7 +6,7 @@ abstract class ICartRepository {
   Future<List<CartItemModel>> getCart();
 
   /// Savatga qo'shish
-  Future<void> addToCart(String productId, {int quantity = 1});
+  Future<void> addToCart(String productId, {int quantity = 1, String? variantId});
 
   /// Savat miqdorini yangilash
   Future<void> updateCartQuantity(String productId, int quantity);

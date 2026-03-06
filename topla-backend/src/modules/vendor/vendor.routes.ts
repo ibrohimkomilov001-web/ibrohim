@@ -138,6 +138,13 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
         subcategory: { select: { id: true, nameUz: true, nameRu: true } },
         brand: { select: { id: true, name: true } },
         color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+        variants: {
+          include: {
+            color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+            size: { select: { id: true, nameUz: true, nameRu: true } },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
       },
     });
 

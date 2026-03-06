@@ -112,7 +112,7 @@ const resetPasswordSchema = z.object({
 });
 
 const confirmResetSchema = z.object({
-  token: z.string().uuid('Token noto\'g\'ri'),
+  token: z.string().min(6, 'Kod noto\'g\'ri'),
   newPassword: z.string().min(6, 'Parol kamida 6 belgidan iborat bo\'lishi kerak'),
 });
 
@@ -757,6 +757,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       throw new AppError('Hisobingiz bloklangan. Admin bilan bog\'laning.', 403);
     }
 
+    // Vendor yoki admin ekanligini tekshirish
+    if (profile.role !== 'vendor' && profile.role !== 'admin') {
+      // Do'koni yo'q — ro'yxatdan o'tishi kerak
+      if (!profile.shop) {
+        throw new AppError('Sizda do\'kon mavjud emas. Iltimos, avval ro\'yxatdan o\'ting.', 403);
+      }
+      // Do'koni bor lekin pending — admin tasdiqlamagan
+      if (profile.shop.status === 'pending') {
+        throw new AppError('Do\'koningiz hali admin tomonidan tasdiqlanmagan. Iltimos kuting.', 403);
+      }
+      throw new AppError('Sizda vendor huquqi yo\'q. Iltimos, ro\'yxatdan o\'ting.', 403);
+    }
+
     // JWT generatsiya
     const tokenPayload = {
       userId: profile.id,
@@ -788,7 +801,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * POST /auth/reset-password
-   * Parol tiklash — email bo'yicha reset token yaratish
+   * Parol tiklash — email bo'yicha reset kod yaratish va SMS orqali yuborish
    */
   app.post('/auth/reset-password', async (request, reply) => {
     const body = resetPasswordSchema.parse(request.body);
@@ -801,7 +814,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!profile) {
       return reply.send({
         success: true,
-        message: 'Agar email mavjud bo\'lsa, tiklash ko\'rsatmalari yuboriladi',
+        message: 'Agar email mavjud bo\'lsa, tiklash kodi yuboriladi',
       });
     }
 
@@ -809,34 +822,58 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!profile.passwordHash) {
       return reply.send({
         success: true,
-        message: 'Agar email mavjud bo\'lsa, tiklash ko\'rsatmalari yuboriladi',
+        message: 'Agar email mavjud bo\'lsa, tiklash kodi yuboriladi',
       });
     }
 
-    // Reset token yaratish va Redis'ga saqlash (15 daqiqa TTL)
-    const resetToken = randomUUID();
+    // Rate limiting — 60 sekundda 1 marta
+    const rateLimitKey = `password_reset_rate:${profile.id}`;
+    const lastSent = await getValue(rateLimitKey);
+    if (lastSent) {
+      throw new AppError('Iltimos, 60 soniya kutib qayta urinib ko\'ring', 429);
+    }
+
+    // 6 xonali tasodifiy kod yaratish
+    const resetCode = String(Math.floor(100000 + Math.random() * 900000));
     const RESET_TTL = 15 * 60; // 15 daqiqa
-    await setWithExpiry(`password_reset:${resetToken}`, profile.id, RESET_TTL);
+    
+    // Kodni Redis'ga saqlash (kod -> userId mapping)
+    await setWithExpiry(`password_reset:${resetCode}`, profile.id, RESET_TTL);
+    // Rate limit o'rnatish
+    await setWithExpiry(rateLimitKey, '1', 60);
 
-    request.log.info({ email: body.email }, 'Password reset token created');
+    request.log.info({ email: body.email, phone: profile.phone }, 'Password reset code created');
 
-    // Development rejimda tokenni javobda qaytaramiz
+    // Telefon raqamini yashirish (998901234567 -> ****4567)
+    const maskedPhone = profile.phone ? '****' + profile.phone.slice(-4) : '';
+
+    // Development rejimda kodni javobda qaytaramiz
     if (env.NODE_ENV === 'development') {
       return reply.send({
         success: true,
-        message: 'Tiklash tokeni yaratildi',
-        resetToken, // faqat dev uchun
+        message: `Tiklash kodi ${maskedPhone} raqamiga yuborildi`,
+        resetToken: resetCode, // faqat dev uchun
         expiresIn: RESET_TTL,
+        phone: maskedPhone,
       });
     }
 
-    // Production: email orqali yuborish kerak
-    // TODO: email service ulanganida bu qismni yoqish
-    // await emailService.sendPasswordReset(profile.email, resetToken);
+    // Production: SMS orqali kod yuborish
+    if (profile.phone) {
+      const { sendSmsViaEskiz } = await import('../../config/eskiz.js');
+      const smsResult = await sendSmsViaEskiz(
+        profile.phone,
+        `TOPLA parol tiklash kodi: ${resetCode}. Kod 15 daqiqa amal qiladi.`,
+      );
+      if (!smsResult.success) {
+        request.log.error({ error: smsResult.error }, 'Failed to send password reset SMS');
+      }
+    }
 
     return reply.send({
       success: true,
-      message: 'Agar email mavjud bo\'lsa, tiklash ko\'rsatmalari yuboriladi',
+      message: `Tiklash kodi ${maskedPhone} raqamiga yuborildi`,
+      phone: maskedPhone,
     });
   });
 

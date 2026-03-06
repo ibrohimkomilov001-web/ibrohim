@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { randomInt, randomUUID } from 'crypto';
+import { randomInt, randomUUID, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware } from '../../middleware/auth.js';
@@ -172,6 +172,88 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         expiresAt: promo.expiresAt,
         remainingUses: promo.maxUses ? promo.maxUses - promo.currentUses : null,
       },
+    });
+  });
+
+  /**
+   * GET /promo-codes/my
+   * Foydalanuvchining barcha promo kodlari (Lucky Wheel + Referral bonus)
+   */
+  app.get('/promo-codes/my', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    // Lucky Wheel dan yutilgan promo kodlarni olish
+    const spins = await prisma.luckyWheelSpin.findMany({
+      where: {
+        userId,
+        promoCode: { not: null },
+        prizeType: { not: 'nothing' },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        promoCode: true,
+        prizeType: true,
+        prizeName: true,
+        createdAt: true,
+        prize: {
+          select: {
+            nameUz: true,
+            nameRu: true,
+            type: true,
+            value: true,
+            color: true,
+            imageUrl: true,
+          },
+        },
+      },
+    });
+
+    // Promo kodlarning to'liq ma'lumotlarini olish
+    const promoCodes = spins.filter(s => s.promoCode);
+    const codes = promoCodes.map(s => s.promoCode!);
+
+    const promoRecords = codes.length > 0 ? await prisma.promoCode.findMany({
+      where: { code: { in: codes } },
+      include: {
+        usages: {
+          where: { userId },
+          select: { usedAt: true, orderId: true },
+        },
+      },
+    }) : [];
+
+    // Map bo'yicha birlashtirish
+    const promoMap = new Map(promoRecords.map(p => [p.code, p]));
+
+    const result = promoCodes.map(spin => {
+      const promo = promoMap.get(spin.promoCode!);
+      const isUsed = promo ? promo.usages.length > 0 : false;
+      const isExpired = promo?.expiresAt ? new Date(promo.expiresAt) < new Date() : false;
+
+      let status: 'active' | 'used' | 'expired' = 'active';
+      if (isUsed) status = 'used';
+      else if (isExpired) status = 'expired';
+
+      return {
+        code: spin.promoCode,
+        prizeType: spin.prizeType,
+        prizeName: spin.prizeName,
+        discountType: promo?.discountType || null,
+        discountValue: promo ? Number(promo.discountValue) : null,
+        minOrderAmount: promo?.minOrderAmount ? Number(promo.minOrderAmount) : null,
+        expiresAt: promo?.expiresAt || null,
+        status,
+        isUsed,
+        isExpired,
+        usedAt: promo?.usages[0]?.usedAt || null,
+        createdAt: spin.createdAt,
+        prize: spin.prize,
+      };
+    });
+
+    return reply.send({
+      success: true,
+      data: { promoCodes: result },
     });
   });
 
@@ -841,6 +923,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
+      // MUHIM: Agar "delivered" bo'lsa → referral bonus berish
+      if (body.status === 'delivered') {
+        processReferralBonus(order.userId).catch((err) =>
+          console.error('Referral bonus error:', err),
+        );
+      }
+
       return reply.send({
         success: true,
         message: `Buyurtma statusi "${body.status}" ga o'zgartirildi`,
@@ -902,4 +991,97 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.send({ success: true, message: 'Rahmat! Bahoyingiz qabul qilindi' });
   });
+}
+
+// ============================================
+// Helper: Referral Ball — buyurtma delivered bo'lganda
+// Do'st xarid qilganda referrer ga +purchasePoints ball (bir marta, >= minPurchase)
+// ============================================
+async function processReferralBonus(userId: string): Promise<void> {
+  try {
+    // Foydalanuvchining referral yozuvi bormi va purchase bonus berilmaganmi?
+    const referral = await prisma.referral.findFirst({
+      where: {
+        referredId: userId,
+        purchaseBonusGiven: false,
+      },
+    });
+
+    if (!referral) return; // Referral yo'q yoki allaqachon berilgan
+
+    // Oxirgi delivered buyurtmani topish (total tekshirish uchun)
+    const lastDeliveredOrder = await prisma.order.findFirst({
+      where: { userId, status: 'delivered' },
+      orderBy: { deliveredAt: 'desc' },
+      select: { total: true },
+    });
+
+    if (!lastDeliveredOrder) return;
+
+    // Admin sozlamalaridan ball miqdorlarini olish
+    let purchasePoints = 5;
+    let minPurchaseAmount = 100000;
+    try {
+      const [purchSetting, minSetting] = await Promise.all([
+        prisma.adminSetting.findUnique({ where: { key: 'referral_purchase_points' } }),
+        prisma.adminSetting.findUnique({ where: { key: 'referral_min_purchase' } }),
+      ]);
+      if (purchSetting) purchasePoints = parseInt(purchSetting.value) || 5;
+      if (minSetting) minPurchaseAmount = parseInt(minSetting.value) || 100000;
+    } catch {}
+
+    // Minimum xarid summasi tekshirish
+    const orderTotal = Number(lastDeliveredOrder.total);
+    if (orderTotal < minPurchaseAmount) {
+      console.log(`Referral purchase bonus skipped: order total ${orderTotal} < min ${minPurchaseAmount}`);
+      return;
+    }
+
+    // Referred foydalanuvchi ismini olish
+    const referredProfile = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      // Referrer ga ball berish
+      await tx.profile.update({
+        where: { id: referral.referrerId },
+        data: { referralPoints: { increment: purchasePoints } },
+      });
+
+      // Ball log
+      await tx.referralPointLog.create({
+        data: {
+          profileId: referral.referrerId,
+          amount: purchasePoints,
+          type: 'friend_purchased',
+          description: `Do'st xarid qildi: ${referredProfile?.fullName || 'Foydalanuvchi'} (${orderTotal.toLocaleString()} so'm)`,
+          referralId: referral.id,
+        },
+      });
+
+      // Referral yozuvini yangilash
+      await tx.referral.update({
+        where: { id: referral.id },
+        data: {
+          purchaseBonusGiven: true,
+          referrerPaid: true,
+        },
+      });
+    });
+
+    console.log(`Referral purchase bonus: referrer=${referral.referrerId}, +${purchasePoints} ball, order=${orderTotal}`);
+
+    // Bildirishnoma yuborish (non-blocking)
+    const { createNotification } = await import('../../modules/notifications/notification.service.js');
+    createNotification(
+      referral.referrerId,
+      'referral_bonus' as any,
+      'Do\'stingiz xarid qildi!',
+      `${referredProfile?.fullName || 'Do\'stingiz'} xarid qildi! +${purchasePoints} ball qo'shildi`,
+    ).catch(() => {});
+  } catch (err) {
+    console.error('processReferralBonus error:', err);
+  }
 }

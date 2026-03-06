@@ -15,21 +15,35 @@ class InviteFriendScreen extends StatefulWidget {
 
 class _InviteFriendScreenState extends State<InviteFriendScreen> {
   final ApiClient _api = ApiClient();
+
+  // Referral data
   String _referralCode = '';
+  int _points = 0;
   int _totalInvited = 0;
-  int _totalEarned = 0;
-  int _bonusPerInvite = 50000;
-  List<Map<String, dynamic>> _recentReferrals = [];
+  int _registrationPoints = 10;
+  int _purchasePoints = 5;
+  int _minPurchaseAmount = 100000;
+  List<Map<String, dynamic>> _referrals = [];
+  List<Map<String, dynamic>> _pointLogs = [];
+
+  // Rewards
+  List<Map<String, dynamic>> _rewards = [];
+
   bool _isLoading = true;
+  String? _error;
 
   // Apply code
   final TextEditingController _applyCodeController = TextEditingController();
   bool _isApplying = false;
 
+  // Claiming reward
+  String? _claimingRewardId;
+
   @override
   void initState() {
     super.initState();
-    _loadReferralData();
+    print('📨 InviteFriend: initState called');
+    _loadAllData();
   }
 
   @override
@@ -38,31 +52,87 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     super.dispose();
   }
 
-  Future<void> _loadReferralData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadAllData() async {
+    print('📨 InviteFriend: _loadAllData START');
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    // Load referral code
     try {
-      // Load code and stats in parallel
-      final results = await Future.wait([
-        _api.get('/referral/code'),
-        _api.get('/referral/stats'),
-      ]);
-
-      final codeData = results[0].dataMap;
-      final statsData = results[1].dataMap;
-
-      setState(() {
-        _referralCode = codeData['code'] as String? ?? '';
-        _totalInvited = statsData['totalInvited'] as int? ?? 0;
-        _totalEarned = statsData['totalEarned'] as int? ?? 0;
-        _bonusPerInvite = statsData['bonusPerInvite'] as int? ?? 50000;
-        _recentReferrals = (statsData['recentReferrals'] as List?)
-                ?.map((e) => Map<String, dynamic>.from(e as Map))
-                .toList() ??
-            [];
-        _isLoading = false;
-      });
+      final codeResponse = await _api
+          .get('/referral/code')
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      final codeData = codeResponse.dataMap;
+      _referralCode = (codeData['code'] ?? '').toString();
     } catch (e) {
-      setState(() => _isLoading = false);
+      print('📨 InviteFriend: /referral/code ERROR: $e');
+    }
+
+    // Load stats + rewards in parallel
+    try {
+      final responses = await Future.wait([
+        _api.get('/referral/stats').timeout(const Duration(seconds: 10)),
+        _api.get('/referral/rewards').timeout(const Duration(seconds: 10)),
+      ]);
+      if (!mounted) return;
+
+      // Stats
+      final statsData = responses[0].dataMap;
+      _points = _toInt(statsData['points']);
+      _totalInvited = _toInt(statsData['totalInvited']);
+      _registrationPoints =
+          _toInt(statsData['registrationPoints'], fallback: 10);
+      _purchasePoints = _toInt(statsData['purchasePoints'], fallback: 5);
+      _minPurchaseAmount =
+          _toInt(statsData['minPurchaseAmount'], fallback: 100000);
+      _referrals = _toMapList(statsData['referrals']);
+      _pointLogs = _toMapList(statsData['pointLogs']);
+
+      // Rewards — data may come as List directly
+      final rewardsRaw = responses[1].data;
+      if (rewardsRaw is List) {
+        _rewards = _toMapList(rewardsRaw);
+      } else {
+        _rewards = _toMapList(responses[1].dataMap);
+      }
+    } catch (e) {
+      print('📨 InviteFriend: stats/rewards ERROR: $e');
+      if (_referralCode.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+        return;
+      }
+    }
+
+    print(
+        '📨 InviteFriend: DONE — code=$_referralCode, points=$_points, rewards=${_rewards.length}');
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
+
+  int _toInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  List<Map<String, dynamic>> _toMapList(dynamic value) {
+    if (value is! List) return [];
+    try {
+      return value
+          .map((e) =>
+              e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{})
+          .toList();
+    } catch (_) {
+      return [];
     }
   }
 
@@ -81,19 +151,52 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
             backgroundColor: AppColors.success,
           ),
         );
-        _loadReferralData();
+        _loadAllData();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$e'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
         );
       }
     }
-    setState(() => _isApplying = false);
+    if (mounted) setState(() => _isApplying = false);
+  }
+
+  Future<void> _claimReward(Map<String, dynamic> reward) async {
+    final id = reward['id'] as String;
+    final pointsCost = _toInt(reward['pointsCost']);
+
+    if (_points < pointsCost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.translate('not_enough_points')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _claimingRewardId = id);
+    try {
+      await _api.post('/referral/rewards/$id/claim', body: {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.translate('reward_claimed')),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        _loadAllData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+    if (mounted) setState(() => _claimingRewardId = null);
   }
 
   String get _referralLink => 'https://topla.uz/invite/$_referralCode';
@@ -109,129 +212,249 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(
-            l10n.translate('invite_friends'),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: Text(
           l10n.translate('invite_friends'),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadReferralData,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+      body: _safeBody(l10n),
+    );
+  }
+
+  Widget _safeBody(AppLocalizations l10n) {
+    try {
+      return _buildBody(l10n);
+    } catch (e, stack) {
+      print('📨 InviteFriend: BUILD ERROR: $e\n$stack');
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildHeaderBanner(),
-              const SizedBox(height: 20),
-              _buildHowItWorks(),
-              const SizedBox(height: 20),
-              _buildReferralCodeCard(),
-              const SizedBox(height: 20),
-              _buildApplyCodeCard(),
-              const SizedBox(height: 20),
-              _buildStats(),
-              if (_recentReferrals.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _buildRecentReferrals(),
-              ],
-              const SizedBox(height: 32),
+              const Icon(Icons.bug_report, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text('Sahifani ko\'rsatishda xatolik',
+                  style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text(e.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadAllData,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Qayta yuklash'),
+              ),
             ],
           ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildBody(AppLocalizations l10n) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline,
+                  size: 48, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text('Ma\'lumotlarni yuklab bo\'lmadi',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700)),
+              const SizedBox(height: 8),
+              Text(_error ?? '',
+                  textAlign: TextAlign.center,
+                  style:
+                      TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadAllData,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Qayta yuklash'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadAllData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            _safeBuild('PointsCard', () => _buildPointsCard(l10n)),
+            const SizedBox(height: 16),
+            _safeBuild('ReferralCode', () => _buildReferralCodeCard(l10n)),
+            const SizedBox(height: 16),
+            _safeBuild('HowItWorks', () => _buildHowItWorks(l10n)),
+            if (_rewards.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _safeBuild('Rewards', () => _buildRewardsSection(l10n)),
+            ],
+            const SizedBox(height: 20),
+            _safeBuild('ApplyCode', () => _buildApplyCodeCard(l10n)),
+            if (_referrals.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _safeBuild('Friends', () => _buildFriendsList(l10n)),
+            ],
+            if (_pointLogs.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _safeBuild(
+                  'PointsHistory', () => _buildPointsHistory(l10n)),
+            ],
+            const SizedBox(height: 32),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderBanner() {
-    final l10n = context.l10n;
+  Widget _safeBuild(String name, Widget Function() builder) {
+    try {
+      return builder();
+    } catch (e, stack) {
+      print('📨 InviteFriend: _safeBuild($name) ERROR: $e\n$stack');
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Text('$name xatolik: $e',
+            style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
+      );
+    }
+  }
+
+  // ==========================================
+  // Points Balance Card
+  // ==========================================
+  Widget _buildPointsCard(AppLocalizations l10n) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary,
-            AppColors.primaryDark,
-          ],
+          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Iconsax.gift, color: Colors.white, size: 36),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Iconsax.star_1,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.translate('my_points'),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_points ${l10n.translate('points_short')}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Invited count badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '$_totalInvited',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      l10n.translate('friends_count'),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          Text(
-            l10n.translate('for_each_friend'),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${_formatPrice(_bonusPerInvite)} ${l10n.translate('currency')}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 34,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            l10n.translate('get_and_gift'),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 20),
+          // Share button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _shareLink,
-              icon: const Icon(Iconsax.share, size: 20),
+              icon: const Icon(Iconsax.share, size: 18),
               label: Text(l10n.translate('share')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 textStyle: const TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 15,
+                  fontSize: 14,
                 ),
               ),
             ),
@@ -241,163 +464,78 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildHowItWorks() {
-    final l10n = context.l10n;
-    final steps = [
-      {
-        'icon': Iconsax.share,
-        'text': l10n.translate('step_share'),
-      },
-      {
-        'icon': Iconsax.user_add,
-        'text': l10n.translate('step_register'),
-      },
-      {
-        'icon': Iconsax.shopping_cart,
-        'text': l10n.translate('step_purchase'),
-      },
-      {
-        'icon': Iconsax.money_recive,
-        'text': l10n.translate('step_bonus'),
-      },
-    ];
-
+  // ==========================================
+  // Referral Code Card (compact)
+  // ==========================================
+  Widget _buildReferralCodeCard(AppLocalizations l10n) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            l10n.translate('how_it_works'),
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...steps.asMap().entries.map((entry) {
-            final index = entry.key + 1;
-            final step = entry.value;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      step['icon'] as IconData,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      '$index. ${step['text'] as String}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReferralCodeCard() {
-    final l10n = context.l10n;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            l10n.translate('your_code'),
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.25),
-                    width: 2,
-                  ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.translate('your_code'),
+                  style:
+                      TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
-                child: Text(
+                const SizedBox(height: 4),
+                Text(
                   _referralCode,
                   style: const TextStyle(
-                    fontSize: 26,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
-                    letterSpacing: 3,
+                    letterSpacing: 2,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              IconButton(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: _referralCode));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.translate('code_copied')),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                icon: const Icon(Iconsax.copy, color: AppColors.primary),
-                tooltip: l10n.translate('copy_code'),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
+          // Copy code button
+          Material(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: _referralCode));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(l10n.translate('code_copied')),
+                    backgroundColor: AppColors.success,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Iconsax.copy,
+                    color: AppColors.primary, size: 20),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Copy link button
+          Material(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
                 Clipboard.setData(ClipboardData(text: _referralLink));
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -407,15 +545,10 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   ),
                 );
               },
-              icon: const Icon(Iconsax.link, size: 18),
-              label: Text(l10n.translate('copy_link')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Iconsax.link,
+                    color: AppColors.primary, size: 20),
               ),
             ),
           ),
@@ -424,18 +557,321 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildApplyCodeCard() {
-    final l10n = context.l10n;
+  // ==========================================
+  // How It Works — compact info pills
+  // ==========================================
+  Widget _buildHowItWorks(AppLocalizations l10n) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.translate('how_it_works'),
+            style:
+                const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 14),
+          _buildInfoRow(
+            icon: Iconsax.user_add,
+            color: AppColors.primary,
+            label: l10n.translate('reg_bonus_info'),
+            value:
+                '+$_registrationPoints ${l10n.translate('points_short')}',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Iconsax.shopping_cart,
+            color: AppColors.success,
+            label: l10n.translate('purchase_bonus_info'),
+            value: '+$_purchasePoints ${l10n.translate('points_short')}',
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon: Iconsax.money_recive,
+            color: Colors.orange,
+            label: l10n.translate('min_purchase_info'),
+            value: '${_formatPrice(_minPurchaseAmount)} so\'m',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // Rewards Catalog
+  // ==========================================
+  Widget _buildRewardsSection(AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 12),
+          child: Text(
+            l10n.translate('rewards_catalog'),
+            style: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.bold),
+          ),
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate:
+              const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: _rewards.length,
+          itemBuilder: (context, index) =>
+              _buildRewardCard(_rewards[index], l10n),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRewardCard(
+      Map<String, dynamic> reward, AppLocalizations l10n) {
+    final name =
+        (reward['nameUz'] ?? reward['nameRu'] ?? '').toString();
+    final description = (reward['description'] ?? '').toString();
+    final pointsCost = _toInt(reward['pointsCost']);
+    final type = (reward['type'] ?? '').toString();
+    final stock = reward['stock'];
+    final isOutOfStock = stock != null && _toInt(stock) <= 0;
+    final canAfford = _points >= pointsCost;
+    final isClaiming = _claimingRewardId == reward['id'];
+
+    // Icon based on type
+    IconData rewardIcon;
+    Color iconColor;
+    switch (type) {
+      case 'promo_fixed':
+      case 'promo_percent':
+        rewardIcon = Iconsax.ticket_discount;
+        iconColor = AppColors.primary;
+        break;
+      case 'free_delivery':
+        rewardIcon = Iconsax.truck_fast;
+        iconColor = AppColors.success;
+        break;
+      case 'physical_gift':
+        rewardIcon = Iconsax.gift;
+        iconColor = Colors.orange;
+        break;
+      default:
+        rewardIcon = Iconsax.gift;
+        iconColor = AppColors.primary;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Icon
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(rewardIcon, color: iconColor, size: 22),
+          ),
+          const SizedBox(height: 10),
+          // Name
+          Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              description,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: Colors.grey.shade500, fontSize: 11),
+            ),
+          ],
+          const Spacer(),
+          // Cost + Claim button
+          Row(
+            children: [
+              // Points cost
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: canAfford
+                      ? AppColors.primary.withValues(alpha: 0.08)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Iconsax.star_1,
+                      size: 12,
+                      color: canAfford
+                          ? AppColors.primary
+                          : Colors.grey,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$pointsCost',
+                      style: TextStyle(
+                        color: canAfford
+                            ? AppColors.primary
+                            : Colors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              // Claim button
+              if (isOutOfStock)
+                Text(
+                  l10n.translate('out_of_stock'),
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 30,
+                  child: ElevatedButton(
+                    onPressed: (canAfford && !isClaiming)
+                        ? () => _claimReward(reward)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade200,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    child: isClaiming
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(l10n.translate('claim_reward')),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // Apply Code Card (compact)
+  // ==========================================
+  Widget _buildApplyCodeCard(AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -446,11 +882,9 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           Text(
             l10n.translate('have_friend_code'),
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
+                fontSize: 14, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -461,24 +895,28 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                     hintText: l10n.translate('enter_code_hint'),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
+                    isDense: true,
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               SizedBox(
-                height: 48,
+                height: 46,
                 child: ElevatedButton(
                   onPressed: _isApplying ? null : _applyCode,
                   style: ElevatedButton.styleFrom(
@@ -507,18 +945,19 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildStats() {
-    final l10n = context.l10n;
+  // ==========================================
+  // Friends List
+  // ==========================================
+  Widget _buildFriendsList(AppLocalizations l10n) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -526,159 +965,245 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.translate('statistics'),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: _buildStatItem(
-                  icon: Iconsax.people,
-                  value: '$_totalInvited',
-                  label: l10n.translate('invited_count'),
-                  color: AppColors.primary,
-                ),
+              const Icon(Iconsax.people,
+                  size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                l10n.translate('friends_count'),
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Iconsax.money_recive,
-                  value: _formatPrice(_totalEarned),
-                  label: l10n.translate('earned'),
-                  color: AppColors.cashback,
+              const Spacer(),
+              Text(
+                '$_totalInvited',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem({
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentReferrals() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.l10n.translate('last_invitations'),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
           const SizedBox(height: 12),
-          ..._recentReferrals.map((referral) {
-            final name = referral['friendName'] as String? ?? '???';
-            final createdAt = DateTime.tryParse(referral['createdAt'] ?? '');
+          ..._referrals.take(10).map((ref) {
+            final name =
+                (ref['friendName'] ?? 'Foydalanuvchi').toString();
+            final createdAt = DateTime.tryParse(
+                (ref['createdAt'] ?? '').toString());
+            final regBonus =
+                ref['registrationBonusGiven'] == true;
+            final purchaseBonus =
+                ref['purchaseBonusGiven'] == true;
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 20,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    radius: 18,
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.1),
                     child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      name.isNotEmpty
+                          ? name[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                        if (createdAt != null)
+                          Text(
+                            '${createdAt.day}.${createdAt.month.toString().padLeft(2, '0')}.${createdAt.year}',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Status badges
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildMiniStatus(
+                        icon: Iconsax.user_tick,
+                        isActive: regBonus,
+                        tooltip: l10n
+                            .translate('friend_registered'),
+                      ),
+                      const SizedBox(width: 4),
+                      _buildMiniStatus(
+                        icon: Iconsax.shopping_bag,
+                        isActive: purchaseBonus,
+                        tooltip: l10n
+                            .translate('friend_purchased'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStatus({
+    required IconData icon,
+    required bool isActive,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.success.withValues(alpha: 0.1)
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 14,
+          color: isActive
+              ? AppColors.success
+              : Colors.grey.shade400,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // Points History
+  // ==========================================
+  Widget _buildPointsHistory(AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Iconsax.clock,
+                  size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                l10n.translate('points_history'),
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ..._pointLogs.take(15).map((log) {
+            final amount = _toInt(log['amount']);
+            final type = (log['type'] ?? '').toString();
+            final description =
+                (log['description'] ?? '').toString();
+            final createdAt = DateTime.tryParse(
+                (log['createdAt'] ?? '').toString());
+            final isPositive = amount > 0;
+
+            // Icon & color per type
+            IconData logIcon;
+            Color logColor;
+            switch (type) {
+              case 'friend_registered':
+                logIcon = Iconsax.user_add;
+                logColor = AppColors.primary;
+                break;
+              case 'friend_purchased':
+                logIcon = Iconsax.shopping_cart;
+                logColor = AppColors.success;
+                break;
+              case 'reward_claimed':
+                logIcon = Iconsax.gift;
+                logColor = Colors.orange;
+                break;
+              case 'admin_adjustment':
+                logIcon = Iconsax.setting_2;
+                logColor = Colors.purple;
+                break;
+              default:
+                logIcon = Iconsax.star_1;
+                logColor = AppColors.primary;
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: logColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(logIcon,
+                        color: logColor, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
-                          name,
+                          description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
                         ),
                         if (createdAt != null)
                           Text(
                             '${createdAt.day}.${createdAt.month.toString().padLeft(2, '0')}.${createdAt.year}',
                             style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                            ),
+                                fontSize: 11,
+                                color: Colors.grey.shade500),
                           ),
                       ],
                     ),
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '+${_formatPrice(_bonusPerInvite)}',
-                      style: const TextStyle(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
+                  Text(
+                    '${isPositive ? '+' : ''}$amount',
+                    style: TextStyle(
+                      color: isPositive
+                          ? AppColors.success
+                          : Colors.red,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -690,6 +1215,9 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
+  // ==========================================
+  // Utils
+  // ==========================================
   String _formatPrice(int price) {
     final str = price.toString();
     final buffer = StringBuffer();

@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { sidebarVariants } from "@/lib/animations";
 import { useAuth } from "@/hooks/useAuth";
 import { vendorApi } from "@/lib/api/vendor";
+import { resolveImageUrl } from "@/lib/api/upload";
 import { useQuery } from "@tanstack/react-query";
 import {
   ShoppingBag,
@@ -246,7 +247,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={shop?.logoUrl || ""} />
+                    <AvatarImage src={resolveImageUrl(shop?.logoUrl || "")} />
                     <AvatarFallback className="bg-primary/10 text-primary">
                       {(shopName || "V").charAt(0).toUpperCase()}
                     </AvatarFallback>

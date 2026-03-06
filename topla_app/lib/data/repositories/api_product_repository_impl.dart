@@ -45,6 +45,17 @@ class ApiProductRepositoryImpl implements IProductRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> getProductByIdRaw(String id) async {
+    try {
+      final response = await _api.get('/products/$id', auth: false);
+      return response.dataMap;
+    } on ApiException catch (e) {
+      if (e.isNotFound) return null;
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10}) async {
     final response = await _api.get(
       '/products/featured',

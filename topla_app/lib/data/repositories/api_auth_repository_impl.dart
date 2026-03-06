@@ -102,7 +102,9 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
   @override
   Future<void> signInWithGoogle() async {
     // 1. Google Sign-In — avval signOut qilib, account picker chiqishini ta'minlaymiz
-    final googleSignIn = GoogleSignIn();
+    final googleSignIn = GoogleSignIn(
+      serverClientId: '541689366619-lj413c9ff4i5lf29upaopiu10b78ukn4.apps.googleusercontent.com',
+    );
     await googleSignIn.signOut();
     final googleUser = await googleSignIn.signIn();
 

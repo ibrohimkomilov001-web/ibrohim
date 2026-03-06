@@ -34,6 +34,7 @@ import { returnRoutes } from './modules/returns/return.routes.js';
 import { referralRoutes } from './modules/referral/referral.routes.js';
 import { pickupPointRoutes } from './modules/pickup-points/pickup-point.routes.js';
 import { supportRoutes } from './modules/support/support.routes.js';
+import { luckyWheelRoutes } from './modules/lucky-wheel/lucky-wheel.routes.js';
 import { initRedis } from './config/redis.js';
 import { initMeilisearch } from './services/search.service.js';
 import { startWorkers, closeQueues } from './services/queue.service.js';
@@ -174,6 +175,7 @@ await app.register(
     await api.register(referralRoutes);
     await api.register(pickupPointRoutes);
     await api.register(supportRoutes);
+    await api.register(luckyWheelRoutes);
   },
   { prefix: '/api/v1' },
 );

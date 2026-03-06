@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Star, MapPin, Phone, ExternalLink, Package, Truck, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { shopApi } from '@/lib/api/shop';
+import { resolveImageUrl } from '@/lib/api/upload';
 import { formatPrice } from '@/lib/utils';
 import { ProductGrid } from '@/components/shop/product-card';
 import { useTranslation } from '@/store/locale-store';
@@ -62,7 +63,7 @@ export default function ShopDetailPage() {
       {/* Banner */}
       <div className="relative h-48 sm:h-64 lg:h-72">
         {shop.bannerUrl ? (
-          <Image src={shop.bannerUrl} alt="" fill className="object-cover" />
+          <Image src={resolveImageUrl(shop.bannerUrl)} alt="" fill className="object-cover" unoptimized />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5" />
         )}
@@ -79,7 +80,7 @@ export default function ShopDetailPage() {
           <div className="flex items-start gap-4 sm:gap-6">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white dark:bg-card shadow-lg overflow-hidden shrink-0 -mt-12 border-4 border-background ring-2 ring-border/50">
               {shop.logoUrl ? (
-                <Image src={shop.logoUrl} alt="" width={96} height={96} className="object-cover w-full h-full" />
+                <Image src={resolveImageUrl(shop.logoUrl)} alt="" width={96} height={96} className="object-cover w-full h-full" />
               ) : (
                 <div className="w-full h-full bg-primary/10 flex items-center justify-center text-3xl">🏪</div>
               )}

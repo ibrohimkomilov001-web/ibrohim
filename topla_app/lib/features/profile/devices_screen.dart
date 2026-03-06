@@ -380,12 +380,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
                               Icon(Iconsax.logout_copy,
                                   color: Colors.red.shade400, size: 20),
                               const SizedBox(width: 12),
-                              const Text(
-                                'Boshqa barcha seanslarni yakunlash',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
+                              const Expanded(
+                                child: Text(
+                                  'Boshqa barcha seanslarni yakunlash',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],

@@ -23,11 +23,13 @@ class ApiCartRepositoryImpl implements ICartRepository {
   }
 
   @override
-  Future<void> addToCart(String productId, {int quantity = 1}) async {
-    await _api.post('/cart', body: {
+  Future<void> addToCart(String productId, {int quantity = 1, String? variantId}) async {
+    final body = <String, dynamic>{
       'productId': productId,
       'quantity': quantity,
-    });
+    };
+    if (variantId != null) body['variantId'] = variantId;
+    await _api.post('/cart', body: body);
   }
 
   @override

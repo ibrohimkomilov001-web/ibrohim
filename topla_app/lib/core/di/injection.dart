@@ -107,6 +107,11 @@ Future<void> setupDependencies() async {
     () => ApiCourierRepositoryImpl(getIt<ApiClient>()),
   );
 
+  // Lucky Wheel repository
+  getIt.registerLazySingleton<ILuckyWheelRepository>(
+    () => ApiLuckyWheelRepositoryImpl(getIt<ApiClient>()),
+  );
+
   // ==================== PROVIDERS ====================
 
   getIt.registerLazySingleton<AuthProvider>(
@@ -140,6 +145,10 @@ Future<void> setupDependencies() async {
 
   getIt.registerLazySingleton<ShopProvider>(
     () => ShopProvider(getIt<IShopRepository>()),
+  );
+
+  getIt.registerLazySingleton<LuckyWheelProvider>(
+    () => LuckyWheelProvider(getIt<ILuckyWheelRepository>()),
   );
 }
 

@@ -262,6 +262,27 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
+  /// Mahsulot ID bo'yicha olish (color sibling uchun)
+  Future<Map<String, dynamic>?> getProductById(String id) async {
+    try {
+      final product = await _productRepo.getProductById(id);
+      return product?.toJson();
+    } catch (e) {
+      AppLogger.e(_tag, 'getProductById error', e);
+      return null;
+    }
+  }
+
+  /// Mahsulot ID bo'yicha raw JSON olish (variants bilan)
+  Future<Map<String, dynamic>?> getProductByIdRaw(String id) async {
+    try {
+      return await _productRepo.getProductByIdRaw(id);
+    } catch (e) {
+      AppLogger.e(_tag, 'getProductByIdRaw error', e);
+      return null;
+    }
+  }
+
   /// Mahsulotlarni qidirish (Meilisearch)
   Future<List<ProductModel>> searchProducts(String query,
       {String? sort}) async {

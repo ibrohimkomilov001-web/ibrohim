@@ -1,4 +1,4 @@
-import { fetchShops, fetchShopStats, updateShopStatus as apiUpdateShopStatus, updateShopCommission as apiUpdateShopCommission } from "@/lib/api/admin";
+import { fetchShops, fetchShopStats, updateShopStatus as apiUpdateShopStatus, updateShopCommission as apiUpdateShopCommission, deleteShop as apiDeleteShop } from "@/lib/api/admin";
 
 export type Shop = {
   id: string;
@@ -57,4 +57,8 @@ export async function updateShopStatus(id: string, status: "active" | "blocked" 
 
 export async function updateShopCommission(id: string, commission: number): Promise<void> {
   await apiUpdateShopCommission(id, commission);
+}
+
+export async function deleteShop(id: string): Promise<void> {
+  await apiDeleteShop(id);
 }

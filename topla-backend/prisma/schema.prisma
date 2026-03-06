@@ -71,6 +71,14 @@ enum DiscountType {
   fixed
 }
 
+enum SpinPrizeType {
+  discount_percent
+  discount_fixed
+  free_delivery
+  physical_gift
+  nothing
+}
+
 enum BannerActionType {
   none
   link
@@ -105,50 +113,54 @@ enum ModerationAction {
 }
 
 model Profile {
-  id            String     @id @default(uuid()) @db.Uuid
-  phone         String     @unique
-  email         String?
-  fullName      String?    @map("full_name")
-  avatarUrl     String?    @map("avatar_url")
-  role          UserRole   @default(user)
-  status        UserStatus @default(active)
-  fcmToken      String?    @map("fcm_token")
-  language      String     @default("uz")
-  passwordHash  String?    @map("password_hash")
-  firebaseUid   String?    @unique @map("firebase_uid")
-  
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique
+  email        String?
+  fullName     String?    @map("full_name")
+  avatarUrl    String?    @map("avatar_url")
+  role         UserRole   @default(user)
+  status       UserStatus @default(active)
+  fcmToken     String?    @map("fcm_token")
+  language     String     @default("uz")
+  passwordHash String?    @map("password_hash")
+  firebaseUid  String?    @unique @map("firebase_uid")
+
   // Location
-  lastLatitude  Float?     @map("last_latitude")
-  lastLongitude Float?     @map("last_longitude")
-  
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  lastLatitude  Float? @map("last_latitude")
+  lastLongitude Float? @map("last_longitude")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  addresses       Address[]
-  orders          Order[]
-  cartItems       CartItem[]
-  favorites       Favorite[]
-  reviews         ShopReview[]
-  notifications   Notification[]
-  devices         UserDevice[]
-  shop            Shop?
-  courier         Courier?
-  deliveryRatings DeliveryRating[]
-  promoUsages     PromoCodeUsage[]
-  chatRoomsAsCustomer ChatRoom[] @relation("CustomerChats")
-  chatMessages    ChatMessage[]
-  moderationLogs  ProductModerationLog[]
-  productViews    ProductView[]
-  shopFollows     ShopFollow[]
-  productReviews  ProductReview[]
-  returns         Return[]
-  referralsMade   Referral[] @relation("ReferrerReferrals")
-  referralsReceived Referral[] @relation("ReferredReferrals")
-  referralCode    String?    @unique @map("referral_code")
-  searchHistory   UserSearchHistory[]
-  supportTicket   SupportTicket?
-  supportMessages SupportMessage[] @relation("SupportSender")
+  addresses           Address[]
+  orders              Order[]
+  cartItems           CartItem[]
+  favorites           Favorite[]
+  reviews             ShopReview[]
+  notifications       Notification[]
+  devices             UserDevice[]
+  shop                Shop?
+  courier             Courier?
+  deliveryRatings     DeliveryRating[]
+  promoUsages         PromoCodeUsage[]
+  chatRoomsAsCustomer ChatRoom[]             @relation("CustomerChats")
+  chatMessages        ChatMessage[]
+  moderationLogs      ProductModerationLog[]
+  productViews        ProductView[]
+  shopFollows         ShopFollow[]
+  productReviews      ProductReview[]
+  returns             Return[]
+  referralsMade       Referral[]             @relation("ReferrerReferrals")
+  referralsReceived   Referral[]             @relation("ReferredReferrals")
+  referralCode        String?                @unique @map("referral_code")
+  referralPoints      Int                    @default(0) @map("referral_points")
+  pointLogs           ReferralPointLog[]
+  rewardClaims        ReferralRewardClaim[]
+  searchHistory       UserSearchHistory[]
+  supportTicket       SupportTicket?
+  supportMessages     SupportMessage[]       @relation("SupportSender")
+  luckyWheelSpins     LuckyWheelSpin[]
 
   @@index([role, status])
   @@index([phone])
@@ -157,19 +169,19 @@ model Profile {
 }
 
 model UserDevice {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  fcmToken     String   @map("fcm_token")
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  fcmToken     String         @map("fcm_token")
   platform     DevicePlatform // android, ios, web
-  deviceId     String?  @map("device_id")
-  deviceName   String?  @map("device_name")
+  deviceId     String?        @map("device_id")
+  deviceName   String?        @map("device_name")
   browser      String?
-  ipAddress    String?  @map("ip_address")
-  location     String?  @map("location")
-  lastActiveAt DateTime @default(now()) @map("last_active_at")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  ipAddress    String?        @map("ip_address")
+  location     String?        @map("location")
+  lastActiveAt DateTime       @default(now()) @map("last_active_at")
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -182,20 +194,20 @@ model UserDevice {
 // ============================================
 
 model Address {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  name         String   // "Uy", "Ish", "Boshqa"
-  fullAddress  String   @map("full_address")
-  street       String?
-  building     String?
-  apartment    String?
-  entrance     String?
-  floor        String?
-  comment      String?
-  latitude     Float
-  longitude    Float
-  isDefault    Boolean  @default(false) @map("is_default")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String // "Uy", "Ish", "Boshqa"
+  fullAddress String   @map("full_address")
+  street      String?
+  building    String?
+  apartment   String?
+  entrance    String?
+  floor       String?
+  comment     String?
+  latitude    Float
+  longitude   Float
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   user   Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
@@ -216,55 +228,55 @@ enum ShopStatus {
 }
 
 enum FulfillmentType {
-  FBS   // Fulfilled by Seller
-  DBS   // Delivery by Seller
+  FBS // Fulfilled by Seller
+  DBS // Delivery by Seller
 }
 
 model Shop {
-  id             String          @id @default(uuid()) @db.Uuid
-  ownerId        String          @unique @map("owner_id") @db.Uuid
-  name           String
-  slug           String?         @unique
-  description    String?
-  logoUrl        String?         @map("logo_url")
-  bannerUrl      String?         @map("banner_url")
-  phone          String?
-  email          String?
-  website        String?
-  address        String?
-  latitude       Float?
-  longitude      Float?
-  status         ShopStatus      @default(pending)
+  id              String          @id @default(uuid()) @db.Uuid
+  ownerId         String          @unique @map("owner_id") @db.Uuid
+  name            String
+  slug            String?         @unique
+  description     String?
+  logoUrl         String?         @map("logo_url")
+  bannerUrl       String?         @map("banner_url")
+  phone           String?
+  email           String?
+  website         String?
+  address         String?
+  latitude        Float?
+  longitude       Float?
+  status          ShopStatus      @default(pending)
   fulfillmentType FulfillmentType @default(FBS) @map("fulfillment_type")
-  rating         Float           @default(0)
-  reviewCount    Int             @default(0) @map("review_count")
-  totalSales     Int             @default(0) @map("total_sales")
-  balance        Decimal         @default(0) @db.Decimal(12, 2)
-  commissionRate Decimal         @default(10) @map("commission_rate") @db.Decimal(5, 2)
-  
+  rating          Float           @default(0)
+  reviewCount     Int             @default(0) @map("review_count")
+  totalSales      Int             @default(0) @map("total_sales")
+  balance         Decimal         @default(0) @db.Decimal(12, 2)
+  commissionRate  Decimal         @default(10) @map("commission_rate") @db.Decimal(5, 2)
+
   // Business info
-  city           String?
-  businessType   String?         @map("business_type")
-  inn            String?
+  city         String?
+  businessType String? @map("business_type")
+  inn          String?
 
   // Social links
-  telegram       String?
-  instagram      String?
-  
-  // Working hours
-  workingHours   Json?           @map("working_hours")
-  isOpen         Boolean         @default(true) @map("is_open")
-  
-  // Delivery settings
-  minOrderAmount   Decimal?      @default(0) @map("min_order_amount") @db.Decimal(12, 2)
-  deliveryFee      Decimal?      @default(0) @map("delivery_fee") @db.Decimal(12, 2)
-  freeDeliveryFrom Decimal?      @map("free_delivery_from") @db.Decimal(12, 2)
-  deliveryRadius   Float?        @map("delivery_radius")
-  
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
+  telegram  String?
+  instagram String?
 
-  owner        Profile          @relation(fields: [ownerId], references: [id])
+  // Working hours
+  workingHours Json?   @map("working_hours")
+  isOpen       Boolean @default(true) @map("is_open")
+
+  // Delivery settings
+  minOrderAmount   Decimal? @default(0) @map("min_order_amount") @db.Decimal(12, 2)
+  deliveryFee      Decimal? @default(0) @map("delivery_fee") @db.Decimal(12, 2)
+  freeDeliveryFrom Decimal? @map("free_delivery_from") @db.Decimal(12, 2)
+  deliveryRadius   Float?   @map("delivery_radius")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  owner        Profile             @relation(fields: [ownerId], references: [id])
   products     Product[]
   reviews      ShopReview[]
   followers    ShopFollow[]
@@ -279,14 +291,14 @@ model Shop {
 }
 
 model ShopReview {
-  id             String    @id @default(uuid()) @db.Uuid
-  shopId         String    @map("shop_id") @db.Uuid
-  userId         String    @map("user_id") @db.Uuid
-  rating         Int       // 1-5
-  comment        String?
-  vendorReply    String?   @map("vendor_reply")
+  id              String    @id @default(uuid()) @db.Uuid
+  shopId          String    @map("shop_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  rating          Int // 1-5
+  comment         String?
+  vendorReply     String?   @map("vendor_reply")
   vendorRepliedAt DateTime? @map("vendor_replied_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   shop Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -313,22 +325,22 @@ model ShopFollow {
 // ============================================
 
 enum ProductStatus {
-  draft          // Vendor hali tugatmagan (qoralama)
-  on_review      // Avtomatik tekshiruvda
-  active         // Tekshiruvdan o'tdi, saytda ko'rinadi
-  has_errors     // Xatolar topildi, vendor tuzatishi kerak
-  blocked        // Admin/tizim bloklagan
-  hidden         // Vendor o'zi yashirgan
+  draft // Vendor hali tugatmagan (qoralama)
+  on_review // Avtomatik tekshiruvda
+  active // Tekshiruvdan o'tdi, saytda ko'rinadi
+  has_errors // Xatolar topildi, vendor tuzatishi kerak
+  blocked // Admin/tizim bloklagan
+  hidden // Vendor o'zi yashirgan
 }
 
 model Category {
-  id           String   @id @default(uuid()) @db.Uuid
-  nameUz       String   @map("name_uz")
-  nameRu       String   @map("name_ru")
-  icon         String?
-  imageUrl     String?  @map("image_url")
-  sortOrder    Int      @default(0) @map("sort_order")
-  isActive     Boolean  @default(true) @map("is_active")
+  id        String  @id @default(uuid()) @db.Uuid
+  nameUz    String  @map("name_uz")
+  nameRu    String  @map("name_ru")
+  icon      String?
+  imageUrl  String? @map("image_url")
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
 
   subcategories Subcategory[]
   products      Product[]
@@ -337,12 +349,12 @@ model Category {
 }
 
 model Subcategory {
-  id         String   @id @default(uuid()) @db.Uuid
-  categoryId String   @map("category_id") @db.Uuid
-  nameUz     String   @map("name_uz")
-  nameRu     String   @map("name_ru")
-  sortOrder  Int      @default(0) @map("sort_order")
-  isActive   Boolean  @default(true) @map("is_active")
+  id         String  @id @default(uuid()) @db.Uuid
+  categoryId String  @map("category_id") @db.Uuid
+  nameUz     String  @map("name_uz")
+  nameRu     String  @map("name_ru")
+  sortOrder  Int     @default(0) @map("sort_order")
+  isActive   Boolean @default(true) @map("is_active")
 
   category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   products Product[]
@@ -361,80 +373,94 @@ model Brand {
 }
 
 model Color {
-  id       String    @id @default(uuid()) @db.Uuid
-  nameUz   String    @map("name_uz")
-  nameRu   String    @map("name_ru")
-  hexCode  String    @map("hex_code")
-  products Product[]
+  id        String           @id @default(uuid()) @db.Uuid
+  nameUz    String           @map("name_uz")
+  nameRu    String           @map("name_ru")
+  hexCode   String           @map("hex_code")
+  sortOrder Int              @default(0) @map("sort_order")
+  products  Product[]
+  variants  ProductVariant[]
 
   @@map("colors")
 }
 
+model Size {
+  id        String           @id @default(uuid()) @db.Uuid
+  nameUz    String           @map("name_uz")
+  nameRu    String           @map("name_ru")
+  sortOrder Int              @default(0) @map("sort_order")
+  variants  ProductVariant[]
+
+  @@map("sizes")
+}
+
 model Product {
-  id             String        @id @default(uuid()) @db.Uuid
-  shopId         String        @map("shop_id") @db.Uuid
-  categoryId     String?       @map("category_id") @db.Uuid
-  subcategoryId  String?       @map("subcategory_id") @db.Uuid
-  brandId        String?       @map("brand_id") @db.Uuid
-  colorId        String?       @map("color_id") @db.Uuid
-  
+  id            String  @id @default(uuid()) @db.Uuid
+  shopId        String  @map("shop_id") @db.Uuid
+  categoryId    String? @map("category_id") @db.Uuid
+  subcategoryId String? @map("subcategory_id") @db.Uuid
+  brandId       String? @map("brand_id") @db.Uuid
+  colorId       String? @map("color_id") @db.Uuid
+
   // Multilingual fields
-  nameUz         String        @map("name_uz")
-  nameRu         String?       @map("name_ru")
-  descriptionUz  String?       @map("description_uz")
-  descriptionRu  String?       @map("description_ru")
-  
+  nameUz        String  @map("name_uz")
+  nameRu        String? @map("name_ru")
+  descriptionUz String? @map("description_uz")
+  descriptionRu String? @map("description_ru")
+
   // Legacy single-language (kept for migration compatibility)
-  name           String
-  description    String?
-  
+  name        String
+  description String?
+
   // Pricing
-  price          Decimal       @db.Decimal(12, 2)
-  originalPrice  Decimal?      @map("original_price") @db.Decimal(12, 2)
-  discountPercent Int?         @map("discount_percent")
-  
+  price           Decimal  @db.Decimal(12, 2)
+  originalPrice   Decimal? @map("original_price") @db.Decimal(12, 2)
+  discountPercent Int?     @map("discount_percent")
+
   // Media
-  images         String[]
-  thumbnailUrl   String?       @map("thumbnail_url")
-  
+  images       String[]
+  thumbnailUrl String?  @map("thumbnail_url")
+
   // Inventory
-  stock          Int           @default(0)
-  unit           String        @default("dona") // dona, kg, litr, metr
-  minOrder       Int           @default(1) @map("min_order")
-  sku            String?       // vendor internal product code
-  weight         Decimal?      @db.Decimal(8, 2) // kg
-  
+  stock    Int      @default(0)
+  unit     String   @default("dona") // dona, kg, litr, metr
+  minOrder Int      @default(1) @map("min_order")
+  sku      String? // vendor internal product code
+  weight   Decimal? @db.Decimal(8, 2) // kg
+
   // Moderation (Yandex Market style)
   status           ProductStatus @default(draft)
   qualityScore     Int           @default(0) @map("quality_score") // 0-100
   validationErrors Json?         @map("validation_errors") // [{field, message}]
   moderatedAt      DateTime?     @map("moderated_at")
   moderatedBy      String?       @map("moderated_by") @db.Uuid
-  
-  // Flags
-  isActive       Boolean       @default(true) @map("is_active")
-  isFeatured     Boolean       @default(false) @map("is_featured")
-  isFlashSale    Boolean       @default(false) @map("is_flash_sale")
-  flashSaleEnd   DateTime?     @map("flash_sale_end")
-  
-  // Stats
-  viewCount      Int           @default(0) @map("view_count")
-  salesCount     Int           @default(0) @map("sales_count")
-  rating         Float         @default(0)
-  
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  shop          Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  category      Category?     @relation(fields: [categoryId], references: [id])
-  subcategory   Subcategory?  @relation(fields: [subcategoryId], references: [id])
-  brand         Brand?        @relation(fields: [brandId], references: [id])
-  color         Color?        @relation(fields: [colorId], references: [id])
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
-  favorites     Favorite[]
+  // Flags
+  isActive     Boolean   @default(true) @map("is_active")
+  isFeatured   Boolean   @default(false) @map("is_featured")
+  isFlashSale  Boolean   @default(false) @map("is_flash_sale")
+  flashSaleEnd DateTime? @map("flash_sale_end")
+  hasVariants  Boolean   @default(false) @map("has_variants")
+
+  // Stats
+  viewCount  Int   @default(0) @map("view_count")
+  salesCount Int   @default(0) @map("sales_count")
+  rating     Float @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  shop           Shop                   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category       Category?              @relation(fields: [categoryId], references: [id])
+  subcategory    Subcategory?           @relation(fields: [subcategoryId], references: [id])
+  brand          Brand?                 @relation(fields: [brandId], references: [id])
+  color          Color?                 @relation(fields: [colorId], references: [id])
+  variants       ProductVariant[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  favorites      Favorite[]
   moderationLogs ProductModerationLog[]
-  views         ProductView[]
+  views          ProductView[]
   productReviews ProductReview[]
 
   @@index([shopId])
@@ -452,14 +478,44 @@ model Product {
   @@map("products")
 }
 
+model ProductVariant {
+  id        String  @id @default(uuid()) @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  colorId   String? @map("color_id") @db.Uuid
+  sizeId    String? @map("size_id") @db.Uuid
+
+  price          Decimal  @db.Decimal(12, 2)
+  compareAtPrice Decimal? @map("compare_at_price") @db.Decimal(12, 2)
+  stock          Int      @default(0)
+  sku            String?  @unique
+  images         String[] // variant-specific images (for color)
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color      Color?      @relation(fields: [colorId], references: [id])
+  size       Size?       @relation(fields: [sizeId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, colorId, sizeId])
+  @@index([productId, isActive])
+  @@index([colorId])
+  @@index([sizeId])
+  @@map("product_variants")
+}
+
 model ProductView {
   id        String   @id @default(uuid()) @db.Uuid
   productId String   @map("product_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([productId, userId, createdAt])
   @@index([productId])
@@ -476,13 +532,15 @@ model CartItem {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   productId String   @map("product_id") @db.Uuid
+  variantId String?  @map("variant_id") @db.Uuid
   quantity  Int      @default(1)
   createdAt DateTime @default(now()) @map("created_at")
 
-  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
-  @@unique([userId, productId])
+  @@unique([userId, productId, variantId])
   @@map("cart_items")
 }
 
@@ -504,16 +562,16 @@ model Favorite {
 // ============================================
 
 enum OrderStatus {
-  pending           // Mijoz buyurtma berdi
-  confirmed         // Vendor qabul qildi
-  processing        // Vendor tayyorlayapti
-  ready_for_pickup  // Tayyor - kuryerga berish mumkin
-  courier_assigned  // Kuryer tayinlandi
+  pending // Mijoz buyurtma berdi
+  confirmed // Vendor qabul qildi
+  processing // Vendor tayyorlayapti
+  ready_for_pickup // Tayyor - kuryerga berish mumkin
+  courier_assigned // Kuryer tayinlandi
   courier_picked_up // Kuryer oldi
-  shipping          // Yetkazilmoqda (GPS tracking)
-  at_pickup_point   // Topshirish punktida kutmoqda
-  delivered         // Yetkazildi
-  cancelled         // Bekor qilindi
+  shipping // Yetkazilmoqda (GPS tracking)
+  at_pickup_point // Topshirish punktida kutmoqda
+  delivered // Yetkazildi
+  cancelled // Bekor qilindi
 }
 
 enum PaymentStatus {
@@ -536,62 +594,62 @@ enum DeliveryMethod {
 }
 
 model Order {
-  id              String         @id @default(uuid()) @db.Uuid
-  orderNumber     String         @unique @map("order_number") // TOPLA-20260209-001
-  userId          String         @map("user_id") @db.Uuid
-  addressId       String?        @map("address_id") @db.Uuid
-  courierId       String?        @map("courier_id") @db.Uuid
-  
-  status          OrderStatus    @default(pending)
-  paymentStatus   PaymentStatus  @default(pending) @map("payment_status")
-  paymentMethod   PaymentMethod  @default(cash) @map("payment_method")
-  deliveryMethod  DeliveryMethod @default(courier) @map("delivery_method")
-  
-  // Pickup point
-  pickupPointId   String?        @map("pickup_point_id") @db.Uuid
-  pickupCode      String?        @map("pickup_code")     // 6 xonali raqam
-  pickupToken     String?        @unique @map("pickup_token") // UUID - QR uchun
-  pickupReadyAt   DateTime?      @map("pickup_ready_at")
-  pickedUpAt2     DateTime?      @map("picked_up_by_customer_at")
-  
-  // Amounts
-  subtotal        Decimal        @db.Decimal(12, 2)
-  deliveryFee     Decimal        @default(0) @map("delivery_fee") @db.Decimal(12, 2)
-  discount        Decimal        @default(0) @db.Decimal(12, 2)
-  total           Decimal        @db.Decimal(12, 2)
-  
-  // Recipient info
-  recipientName   String?        @map("recipient_name")
-  recipientPhone  String?        @map("recipient_phone")
-  
-  // Delivery schedule
-  deliveryDate    DateTime?      @map("delivery_date")
-  deliveryTimeSlot String?       @map("delivery_time_slot") // "09:00-12:00"
-  
-  // Promo
-  promoCode       String?        @map("promo_code")
-  
-  // Notes
-  note            String?
-  cancelReason    String?        @map("cancel_reason")
-  
-  // Timestamps
-  confirmedAt     DateTime?      @map("confirmed_at")
-  readyAt         DateTime?      @map("ready_at")
-  pickedUpAt      DateTime?      @map("picked_up_at")
-  shippingAt      DateTime?      @map("shipping_at")
-  deliveredAt     DateTime?      @map("delivered_at")
-  cancelledAt     DateTime?      @map("cancelled_at")
-  
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
+  id          String  @id @default(uuid()) @db.Uuid
+  orderNumber String  @unique @map("order_number") // TOPLA-20260209-001
+  userId      String  @map("user_id") @db.Uuid
+  addressId   String? @map("address_id") @db.Uuid
+  courierId   String? @map("courier_id") @db.Uuid
 
-  user    Profile      @relation(fields: [userId], references: [id])
-  address Address?     @relation(fields: [addressId], references: [id])
-  courier Courier?     @relation(fields: [courierId], references: [id])
-  pickupPoint PickupPoint? @relation(fields: [pickupPointId], references: [id])
-  items   OrderItem[]
-  statusHistory OrderStatusHistory[]
+  status         OrderStatus    @default(pending)
+  paymentStatus  PaymentStatus  @default(pending) @map("payment_status")
+  paymentMethod  PaymentMethod  @default(cash) @map("payment_method")
+  deliveryMethod DeliveryMethod @default(courier) @map("delivery_method")
+
+  // Pickup point
+  pickupPointId String?   @map("pickup_point_id") @db.Uuid
+  pickupCode    String?   @map("pickup_code") // 6 xonali raqam
+  pickupToken   String?   @unique @map("pickup_token") // UUID - QR uchun
+  pickupReadyAt DateTime? @map("pickup_ready_at")
+  pickedUpAt2   DateTime? @map("picked_up_by_customer_at")
+
+  // Amounts
+  subtotal    Decimal @db.Decimal(12, 2)
+  deliveryFee Decimal @default(0) @map("delivery_fee") @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  // Recipient info
+  recipientName  String? @map("recipient_name")
+  recipientPhone String? @map("recipient_phone")
+
+  // Delivery schedule
+  deliveryDate     DateTime? @map("delivery_date")
+  deliveryTimeSlot String?   @map("delivery_time_slot") // "09:00-12:00"
+
+  // Promo
+  promoCode String? @map("promo_code")
+
+  // Notes
+  note         String?
+  cancelReason String? @map("cancel_reason")
+
+  // Timestamps
+  confirmedAt DateTime? @map("confirmed_at")
+  readyAt     DateTime? @map("ready_at")
+  pickedUpAt  DateTime? @map("picked_up_at")
+  shippingAt  DateTime? @map("shipping_at")
+  deliveredAt DateTime? @map("delivered_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user           Profile              @relation(fields: [userId], references: [id])
+  address        Address?             @relation(fields: [addressId], references: [id])
+  courier        Courier?             @relation(fields: [courierId], references: [id])
+  pickupPoint    PickupPoint?         @relation(fields: [pickupPointId], references: [id])
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
   deliveryRating DeliveryRating?
   productReviews ProductReview[]
   returns        Return[]
@@ -607,24 +665,28 @@ model Order {
 }
 
 model OrderItem {
-  id         String  @id @default(uuid()) @db.Uuid
-  orderId    String  @map("order_id") @db.Uuid
-  productId  String  @map("product_id") @db.Uuid
-  shopId     String  @map("shop_id") @db.Uuid
-  
-  name       String
-  price      Decimal @db.Decimal(12, 2)
-  quantity   Int
-  imageUrl   String? @map("image_url")
-  
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-  shop    Shop    @relation(fields: [shopId], references: [id])
+  id        String  @id @default(uuid()) @db.Uuid
+  orderId   String  @map("order_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  variantId String? @map("variant_id") @db.Uuid
+  shopId    String  @map("shop_id") @db.Uuid
+
+  name         String
+  variantLabel String? @map("variant_label") // e.g. "Qizil / XL"
+  price        Decimal @db.Decimal(12, 2)
+  quantity     Int
+  imageUrl     String? @map("image_url")
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  shop    Shop            @relation(fields: [shopId], references: [id])
 
   @@index([orderId])
   @@index([shopId])
   @@index([shopId, orderId])
   @@index([productId])
+  @@index([variantId])
   @@map("order_items")
 }
 
@@ -647,52 +709,52 @@ model OrderStatusHistory {
 // ============================================
 
 enum CourierStatus {
-  offline     // Ishlamayapti
-  online      // Tayyor, buyurtma kutmoqda
-  busy        // Yetkazmoqda
-  on_break    // Tanaffus
+  offline // Ishlamayapti
+  online // Tayyor, buyurtma kutmoqda
+  busy // Yetkazmoqda
+  on_break // Tanaffus
 }
 
 enum VehicleType {
-  walking     // Piyoda
-  bicycle     // Velosiped
-  motorcycle  // Mototsikl
-  car         // Mashina
+  walking // Piyoda
+  bicycle // Velosiped
+  motorcycle // Mototsikl
+  car // Mashina
 }
 
 model Courier {
-  id            String        @id @default(uuid()) @db.Uuid
-  profileId     String        @unique @map("profile_id") @db.Uuid
-  
-  vehicleType   VehicleType   @default(motorcycle) @map("vehicle_type")
-  vehicleNumber String?       @map("vehicle_number")
-  
-  status        CourierStatus @default(offline)
-  isVerified    Boolean       @default(false) @map("is_verified")
-  
-  // Stats
-  rating        Float         @default(5.0)
-  totalDeliveries Int         @default(0) @map("total_deliveries")
-  totalEarnings Decimal       @default(0) @map("total_earnings") @db.Decimal(12, 2)
-  balance       Decimal       @default(0) @db.Decimal(12, 2)
-  
-  // Current location
-  currentLatitude  Float?     @map("current_latitude")
-  currentLongitude Float?     @map("current_longitude")
-  lastLocationAt   DateTime?  @map("last_location_at")
-  
-  // Delivery settings
-  maxDistance    Float         @default(10) @map("max_distance") // km
-  
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id        String @id @default(uuid()) @db.Uuid
+  profileId String @unique @map("profile_id") @db.Uuid
 
-  profile          Profile              @relation(fields: [profileId], references: [id])
-  orders           Order[]
-  locationHistory  CourierLocation[]
-  assignments      DeliveryAssignment[]
-  ratings          DeliveryRating[]
-  payouts          CourierPayout[]
+  vehicleType   VehicleType @default(motorcycle) @map("vehicle_type")
+  vehicleNumber String?     @map("vehicle_number")
+
+  status     CourierStatus @default(offline)
+  isVerified Boolean       @default(false) @map("is_verified")
+
+  // Stats
+  rating          Float   @default(5.0)
+  totalDeliveries Int     @default(0) @map("total_deliveries")
+  totalEarnings   Decimal @default(0) @map("total_earnings") @db.Decimal(12, 2)
+  balance         Decimal @default(0) @db.Decimal(12, 2)
+
+  // Current location
+  currentLatitude  Float?    @map("current_latitude")
+  currentLongitude Float?    @map("current_longitude")
+  lastLocationAt   DateTime? @map("last_location_at")
+
+  // Delivery settings
+  maxDistance Float @default(10) @map("max_distance") // km
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile         Profile              @relation(fields: [profileId], references: [id])
+  orders          Order[]
+  locationHistory CourierLocation[]
+  assignments     DeliveryAssignment[]
+  ratings         DeliveryRating[]
+  payouts         CourierPayout[]
 
   @@index([status, currentLatitude, currentLongitude])
   @@map("couriers")
@@ -703,9 +765,9 @@ model CourierLocation {
   courierId String   @map("courier_id") @db.Uuid
   latitude  Float
   longitude Float
-  speed     Float?   // km/h
-  heading   Float?   // degree 0-360
-  accuracy  Float?   // meters
+  speed     Float? // km/h
+  heading   Float? // degree 0-360
+  accuracy  Float? // meters
   createdAt DateTime @default(now()) @map("created_at")
 
   courier Courier @relation(fields: [courierId], references: [id], onDelete: Cascade)
@@ -715,18 +777,18 @@ model CourierLocation {
 }
 
 model DeliveryAssignment {
-  id         String   @id @default(uuid()) @db.Uuid
-  orderId    String   @map("order_id") @db.Uuid
-  courierId  String   @map("courier_id") @db.Uuid
-  status     DeliveryAssignmentStatus @default(pending) // pending, accepted, rejected, expired
-  
+  id        String                   @id @default(uuid()) @db.Uuid
+  orderId   String                   @map("order_id") @db.Uuid
+  courierId String                   @map("courier_id") @db.Uuid
+  status    DeliveryAssignmentStatus @default(pending) // pending, accepted, rejected, expired
+
   // Distance from courier to shop
-  distanceKm Float?   @map("distance_km")
-  estimatedMinutes Int? @map("estimated_minutes")
-  
-  assignedAt DateTime @default(now()) @map("assigned_at")
+  distanceKm       Float? @map("distance_km")
+  estimatedMinutes Int?   @map("estimated_minutes")
+
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
   respondedAt DateTime? @map("responded_at")
-  expiresAt  DateTime  @map("expires_at") // Auto-reject after timeout
+  expiresAt   DateTime  @map("expires_at") // Auto-reject after timeout
 
   courier Courier @relation(fields: [courierId], references: [id])
 
@@ -740,7 +802,7 @@ model DeliveryRating {
   orderId   String   @unique @map("order_id") @db.Uuid
   courierId String   @map("courier_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
-  rating    Int      // 1-5
+  rating    Int // 1-5
   comment   String?
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -753,13 +815,13 @@ model DeliveryRating {
 }
 
 model CourierPayout {
-  id        String   @id @default(uuid()) @db.Uuid
-  courierId String   @map("courier_id") @db.Uuid
-  amount    Decimal  @db.Decimal(12, 2)
-  status    PayoutStatus @default(pending) // pending, completed, failed
-  cardNumber String? @map("card_number")
-  processedAt DateTime? @map("processed_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String       @id @default(uuid()) @db.Uuid
+  courierId   String       @map("courier_id") @db.Uuid
+  amount      Decimal      @db.Decimal(12, 2)
+  status      PayoutStatus @default(pending) // pending, completed, failed
+  cardNumber  String?      @map("card_number")
+  processedAt DateTime?    @map("processed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   courier Courier @relation(fields: [courierId], references: [id])
 
@@ -773,19 +835,20 @@ model CourierPayout {
 // ============================================
 
 enum NotificationType {
-  order_new              // Vendor: yangi buyurtma
-  order_confirmed        // Mijoz: vendor qabul qildi
-  order_processing       // Mijoz: tayyorlanmoqda
-  order_ready            // Kuryer: tayyor, olib ketish
-  order_assigned         // Mijoz: kuryer tayinlandi
-  order_picked_up        // Mijoz: kuryer oldi
-  order_shipping         // Mijoz: yo'lda
-  order_at_pickup_point  // Mijoz: punktda tayyor
-  order_delivered        // Hammaga: yetkazildi
-  order_cancelled        // Tegishli: bekor qilindi
-  courier_new            // Kuryer: yangi yetkazma taklifi
-  promo                  // Mijoz: reklama/aksiya
-  system                 // Hammaga: tizim xabari
+  order_new // Vendor: yangi buyurtma
+  order_confirmed // Mijoz: vendor qabul qildi
+  order_processing // Mijoz: tayyorlanmoqda
+  order_ready // Kuryer: tayyor, olib ketish
+  order_assigned // Mijoz: kuryer tayinlandi
+  order_picked_up // Mijoz: kuryer oldi
+  order_shipping // Mijoz: yo'lda
+  order_at_pickup_point // Mijoz: punktda tayyor
+  order_delivered // Hammaga: yetkazildi
+  order_cancelled // Tegishli: bekor qilindi
+  courier_new // Kuryer: yangi yetkazma taklifi
+  promo // Mijoz: reklama/aksiya
+  system // Hammaga: tizim xabari
+  referral_bonus // Referral ball berildi
 }
 
 model Notification {
@@ -796,7 +859,7 @@ model Notification {
   body      String
   imageUrl  String?          @map("image_url")
   linkUrl   String?          @map("link_url")
-  data      Json?            // Additional payload
+  data      Json? // Additional payload
   isRead    Boolean          @default(false) @map("is_read")
   createdAt DateTime         @default(now()) @map("created_at")
 
@@ -811,15 +874,15 @@ model Notification {
 // ============================================
 
 model Transaction {
-  id              String   @id @default(uuid()) @db.Uuid
-  orderId         String   @map("order_id") @db.Uuid
-  amount          Decimal  @db.Decimal(12, 2)
-  paymentMethod   PaymentMethod @map("payment_method")
-  status          TransactionStatus @default(pending) // pending, completed, failed, refunded
-  providerTxnId   String?  @map("provider_txn_id")
-  providerData    Json?    @map("provider_data")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String            @id @default(uuid()) @db.Uuid
+  orderId       String            @map("order_id") @db.Uuid
+  amount        Decimal           @db.Decimal(12, 2)
+  paymentMethod PaymentMethod     @map("payment_method")
+  status        TransactionStatus @default(pending) // pending, completed, failed, refunded
+  providerTxnId String?           @map("provider_txn_id")
+  providerData  Json?             @map("provider_data")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
 
   @@index([orderId])
   @@index([status])
@@ -827,14 +890,14 @@ model Transaction {
 }
 
 model VendorTransaction {
-  id          String   @id @default(uuid()) @db.Uuid
-  shopId      String   @map("shop_id") @db.Uuid
-  orderId     String?  @map("order_id") @db.Uuid
-  amount      Decimal  @db.Decimal(12, 2)
-  commission  Decimal  @default(0) @db.Decimal(12, 2)
-  netAmount   Decimal  @map("net_amount") @db.Decimal(12, 2)
-  type        VendorTransactionType // sale, payout, adjustment
-  createdAt   DateTime @default(now()) @map("created_at")
+  id         String                @id @default(uuid()) @db.Uuid
+  shopId     String                @map("shop_id") @db.Uuid
+  orderId    String?               @map("order_id") @db.Uuid
+  amount     Decimal               @db.Decimal(12, 2)
+  commission Decimal               @default(0) @db.Decimal(12, 2)
+  netAmount  Decimal               @map("net_amount") @db.Decimal(12, 2)
+  type       VendorTransactionType // sale, payout, adjustment
+  createdAt  DateTime              @default(now()) @map("created_at")
 
   shop Shop @relation(fields: [shopId], references: [id])
 
@@ -843,13 +906,13 @@ model VendorTransaction {
 }
 
 model Payout {
-  id          String   @id @default(uuid()) @db.Uuid
-  shopId      String   @map("shop_id") @db.Uuid
-  amount      Decimal  @db.Decimal(12, 2)
+  id          String       @id @default(uuid()) @db.Uuid
+  shopId      String       @map("shop_id") @db.Uuid
+  amount      Decimal      @db.Decimal(12, 2)
   status      PayoutStatus @default(pending) // pending, completed, failed
-  cardNumber  String?  @map("card_number")
-  processedAt DateTime? @map("processed_at")
-  createdAt   DateTime @default(now()) @map("created_at")
+  cardNumber  String?      @map("card_number")
+  processedAt DateTime?    @map("processed_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   shop Shop @relation(fields: [shopId], references: [id])
 
@@ -859,15 +922,15 @@ model Payout {
 }
 
 model SavedCard {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  cardNumber String   @map("card_number") // masked: **** **** **** 1234
-  cardHolder String?  @map("card_holder")
-  expiryDate String?  @map("expiry_date")
-  token      String   // payment provider token
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @map("user_id") @db.Uuid
+  cardNumber String          @map("card_number") // masked: **** **** **** 1234
+  cardHolder String?         @map("card_holder")
+  expiryDate String?         @map("expiry_date")
+  token      String // payment provider token
   provider   PaymentProvider // payme, click
-  isDefault  Boolean  @default(false) @map("is_default")
-  createdAt  DateTime @default(now()) @map("created_at")
+  isDefault  Boolean         @default(false) @map("is_default")
+  createdAt  DateTime        @default(now()) @map("created_at")
 
   @@index([userId])
   @@map("saved_cards")
@@ -878,17 +941,17 @@ model SavedCard {
 // ============================================
 
 model PromoCode {
-  id             String   @id @default(uuid()) @db.Uuid
-  code           String   @unique
-  shopId         String?  @map("shop_id") @db.Uuid
+  id             String       @id @default(uuid()) @db.Uuid
+  code           String       @unique
+  shopId         String?      @map("shop_id") @db.Uuid
   discountType   DiscountType @map("discount_type") // percentage, fixed
-  discountValue  Decimal  @map("discount_value") @db.Decimal(12, 2)
-  minOrderAmount Decimal? @map("min_order_amount") @db.Decimal(12, 2)
-  maxUses        Int?     @map("max_uses")
-  currentUses    Int      @default(0) @map("current_uses")
-  expiresAt      DateTime? @map("expires_at")
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
+  discountValue  Decimal      @map("discount_value") @db.Decimal(12, 2)
+  minOrderAmount Decimal?     @map("min_order_amount") @db.Decimal(12, 2)
+  maxUses        Int?         @map("max_uses")
+  currentUses    Int          @default(0) @map("current_uses")
+  expiresAt      DateTime?    @map("expires_at")
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
 
   usages PromoCodeUsage[]
 
@@ -897,11 +960,11 @@ model PromoCode {
 }
 
 model PromoCodeUsage {
-  id        String   @id @default(uuid()) @db.Uuid
-  promoId   String   @map("promo_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  orderId   String?  @map("order_id") @db.Uuid
-  usedAt    DateTime @default(now()) @map("used_at")
+  id      String   @id @default(uuid()) @db.Uuid
+  promoId String   @map("promo_id") @db.Uuid
+  userId  String   @map("user_id") @db.Uuid
+  orderId String?  @map("order_id") @db.Uuid
+  usedAt  DateTime @default(now()) @map("used_at")
 
   promo PromoCode @relation(fields: [promoId], references: [id])
   user  Profile   @relation(fields: [userId], references: [id])
@@ -916,24 +979,24 @@ model PromoCodeUsage {
 // ============================================
 
 model Banner {
-  id          String   @id @default(uuid()) @db.Uuid
-  imageUrl    String   @map("image_url")
-  titleUz     String?  @map("title_uz")
-  titleRu     String?  @map("title_ru")
-  subtitleUz  String?  @map("subtitle_uz")
-  subtitleRu  String?  @map("subtitle_ru")
+  id          String           @id @default(uuid()) @db.Uuid
+  imageUrl    String           @map("image_url")
+  titleUz     String?          @map("title_uz")
+  titleRu     String?          @map("title_ru")
+  subtitleUz  String?          @map("subtitle_uz")
+  subtitleRu  String?          @map("subtitle_ru")
   actionType  BannerActionType @default(none) @map("action_type") // none, link, product, category
-  actionValue String?  @map("action_value")
-  sortOrder   Int      @default(0) @map("sort_order")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
+  actionValue String?          @map("action_value")
+  sortOrder   Int              @default(0) @map("sort_order")
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
 
   @@map("banners")
 }
 
 model AdminSetting {
-  id    String @id @default(uuid()) @db.Uuid
-  key   String @unique
+  id    String           @id @default(uuid()) @db.Uuid
+  key   String           @unique
   value String
   type  SettingValueType @default(string) // string, number, boolean, json
 
@@ -945,13 +1008,13 @@ model AdminSetting {
 // ============================================
 
 model DeliveryZone {
-  id           String   @id @default(uuid()) @db.Uuid
-  name         String
-  polygon      Json     // GeoJSON polygon
-  deliveryFee  Decimal  @map("delivery_fee") @db.Decimal(12, 2)
-  minOrder     Decimal? @map("min_order") @db.Decimal(12, 2)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  polygon     Json // GeoJSON polygon
+  deliveryFee Decimal  @map("delivery_fee") @db.Decimal(12, 2)
+  minOrder    Decimal? @map("min_order") @db.Decimal(12, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("delivery_zones")
 }
@@ -961,13 +1024,13 @@ model DeliveryZone {
 // ============================================
 
 model ProductModerationLog {
-  id        String   @id @default(uuid()) @db.Uuid
-  productId String   @map("product_id") @db.Uuid
-  adminId   String?  @map("admin_id") @db.Uuid
+  id        String           @id @default(uuid()) @db.Uuid
+  productId String           @map("product_id") @db.Uuid
+  adminId   String?          @map("admin_id") @db.Uuid
   action    ModerationAction // auto_approved, auto_rejected, admin_blocked, admin_unblocked
   reason    String?
-  errors    Json?    // validation errors snapshot
-  createdAt DateTime @default(now()) @map("created_at")
+  errors    Json? // validation errors snapshot
+  createdAt DateTime         @default(now()) @map("created_at")
 
   product Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   admin   Profile? @relation(fields: [adminId], references: [id])
@@ -986,16 +1049,16 @@ enum ChatRoomStatus {
 }
 
 model ChatRoom {
-  id           String         @id @default(uuid()) @db.Uuid
-  customerId   String         @map("customer_id") @db.Uuid
-  shopId       String         @map("shop_id") @db.Uuid
-  status       ChatRoomStatus @default(active)
-  lastMessageAt DateTime?     @map("last_message_at")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id            String         @id @default(uuid()) @db.Uuid
+  customerId    String         @map("customer_id") @db.Uuid
+  shopId        String         @map("shop_id") @db.Uuid
+  status        ChatRoomStatus @default(active)
+  lastMessageAt DateTime?      @map("last_message_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
 
-  customer Profile     @relation("CustomerChats", fields: [customerId], references: [id], onDelete: Cascade)
-  shop     Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer Profile       @relation("CustomerChats", fields: [customerId], references: [id], onDelete: Cascade)
+  shop     Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
 
   @@unique([customerId, shopId])
@@ -1005,14 +1068,14 @@ model ChatRoom {
 }
 
 model ChatMessage {
-  id        String   @id @default(uuid()) @db.Uuid
-  roomId    String   @map("room_id") @db.Uuid
-  senderId  String   @map("sender_id") @db.Uuid
+  id         String         @id @default(uuid()) @db.Uuid
+  roomId     String         @map("room_id") @db.Uuid
+  senderId   String         @map("sender_id") @db.Uuid
   senderRole ChatSenderRole @map("sender_role") // user, vendor
-  message   String?
-  imageUrl  String?  @map("image_url")
-  isRead    Boolean  @default(false) @map("is_read")
-  createdAt DateTime @default(now()) @map("created_at")
+  message    String?
+  imageUrl   String?        @map("image_url")
+  isRead     Boolean        @default(false) @map("is_read")
+  createdAt  DateTime       @default(now()) @map("created_at")
 
   room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   sender Profile  @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -1028,7 +1091,7 @@ model ChatMessage {
 model ActivityLog {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String?  @map("user_id") @db.Uuid
-  action     String   // product.block, shop.approve, user.block, etc.
+  action     String // product.block, shop.approve, user.block, etc.
   entityType String   @map("entity_type") // product, shop, user, order
   entityId   String?  @map("entity_id") @db.Uuid
   details    Json?
@@ -1059,15 +1122,15 @@ enum DocumentStatus {
 }
 
 model VendorDocument {
-  id          String         @id @default(uuid()) @db.Uuid
-  shopId      String         @map("shop_id") @db.Uuid
-  type        DocumentType   @default(other)
-  name        String
-  fileUrl     String         @map("file_url")
-  status      DocumentStatus @default(pending)
-  rejectedReason String?     @map("rejected_reason")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  id             String         @id @default(uuid()) @db.Uuid
+  shopId         String         @map("shop_id") @db.Uuid
+  type           DocumentType   @default(other)
+  name           String
+  fileUrl        String         @map("file_url")
+  status         DocumentStatus @default(pending)
+  rejectedReason String?        @map("rejected_reason")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
@@ -1085,7 +1148,7 @@ model ProductReview {
   productId String   @map("product_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   orderId   String?  @map("order_id") @db.Uuid
-  rating    Int      // 1-5
+  rating    Int // 1-5
   comment   String?
   images    String[] @default([])
   createdAt DateTime @default(now()) @map("created_at")
@@ -1106,11 +1169,11 @@ model ProductReview {
 // ============================================
 
 model SearchQuery {
-  id        String   @id @default(uuid()) @db.Uuid
-  query     String
-  count     Int      @default(1)
+  id             String   @id @default(uuid()) @db.Uuid
+  query          String
+  count          Int      @default(1)
   lastSearchedAt DateTime @default(now()) @map("last_searched_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@unique([query])
   @@index([count(sort: Desc)])
@@ -1139,17 +1202,17 @@ model UserSearchHistory {
 // ============================================
 
 model Return {
-  id          String       @id @default(uuid()) @db.Uuid
-  orderId     String       @map("order_id") @db.Uuid
-  userId      String       @map("user_id") @db.Uuid
-  reason      String
-  description String?
-  images      String[]     @default([])
-  status      ReturnStatus @default(pending)
-  adminNote   String?      @map("admin_note")
-  refundAmount Float?      @map("refund_amount")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  id           String       @id @default(uuid()) @db.Uuid
+  orderId      String       @map("order_id") @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  reason       String
+  description  String?
+  images       String[]     @default([])
+  status       ReturnStatus @default(pending)
+  adminNote    String?      @map("admin_note")
+  refundAmount Float?       @map("refund_amount")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
   order Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user  Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1169,20 +1232,26 @@ enum ReturnStatus {
 }
 
 // ============================================
-// 20. REFERRAL (Do'stlarni taklif qilish)
+// 20. REFERRAL (Do'stlarni taklif qilish — ball tizimi)
 // ============================================
 
 model Referral {
-  id              String   @id @default(uuid()) @db.Uuid
-  referrerId      String   @map("referrer_id") @db.Uuid
-  referredId      String   @map("referred_id") @db.Uuid
-  bonusAmount     Float    @default(50000) @map("bonus_amount")
-  referrerPaid    Boolean  @default(false) @map("referrer_paid")
-  referredPaid    Boolean  @default(false) @map("referred_paid")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  referrerId   String   @map("referrer_id") @db.Uuid
+  referredId   String   @map("referred_id") @db.Uuid
+  bonusAmount  Float    @default(50000) @map("bonus_amount")
+  referrerPaid Boolean  @default(false) @map("referrer_paid")
+  referredPaid Boolean  @default(false) @map("referred_paid")
 
-  referrer Profile @relation("ReferrerReferrals", fields: [referrerId], references: [id])
-  referred Profile @relation("ReferredReferrals", fields: [referredId], references: [id])
+  // Ball tizimi uchun yangi ustunlar
+  registrationBonusGiven Boolean @default(false) @map("registration_bonus_given")
+  purchaseBonusGiven     Boolean @default(false) @map("purchase_bonus_given")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  referrer  Profile            @relation("ReferrerReferrals", fields: [referrerId], references: [id])
+  referred  Profile            @relation("ReferredReferrals", fields: [referredId], references: [id])
+  pointLogs ReferralPointLog[]
 
   @@unique([referrerId, referredId])
   @@index([referrerId])
@@ -1191,27 +1260,114 @@ model Referral {
 }
 
 // ============================================
+// 20.1 REFERRAL POINTS LOG (Ball tarixi)
+// ============================================
+
+enum PointLogType {
+  friend_registered
+  friend_purchased
+  reward_claimed
+  admin_adjustment
+}
+
+model ReferralPointLog {
+  id          String       @id @default(uuid()) @db.Uuid
+  profileId   String       @map("profile_id") @db.Uuid
+  amount      Int          // +10, -50, etc.
+  type        PointLogType
+  description String?
+  referralId  String?      @map("referral_id") @db.Uuid
+  claimId     String?      @map("claim_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  profile  Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  referral Referral?            @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  claim    ReferralRewardClaim? @relation(fields: [claimId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, createdAt(sort: Desc)])
+  @@map("referral_point_logs")
+}
+
+// ============================================
+// 20.2 REFERRAL REWARDS CATALOG (Sovg'alar katalogi)
+// ============================================
+
+enum RewardType {
+  promo_fixed
+  promo_percent
+  free_delivery
+  physical_gift
+}
+
+enum RewardClaimStatus {
+  pending
+  fulfilled
+  cancelled
+}
+
+model ReferralReward {
+  id          String     @id @default(uuid()) @db.Uuid
+  nameUz      String     @map("name_uz")
+  nameRu      String     @map("name_ru")
+  description String?
+  pointsCost  Int        @map("points_cost")
+  type        RewardType
+  value       Decimal?   @db.Decimal(12, 2) // 10000 so'm, 15%, etc.
+  imageUrl    String?    @map("image_url")
+  stock       Int?       // null = cheksiz
+  totalClaimed Int       @default(0) @map("total_claimed")
+  isActive    Boolean    @default(true) @map("is_active")
+  sortOrder   Int        @default(0) @map("sort_order")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  claims ReferralRewardClaim[]
+
+  @@index([isActive, sortOrder])
+  @@map("referral_rewards")
+}
+
+model ReferralRewardClaim {
+  id          String            @id @default(uuid()) @db.Uuid
+  profileId   String            @map("profile_id") @db.Uuid
+  rewardId    String            @map("reward_id") @db.Uuid
+  pointsSpent Int               @map("points_spent")
+  promoCodeId String?           @map("promo_code_id") @db.Uuid
+  status      RewardClaimStatus @default(pending)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  profile   Profile            @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  reward    ReferralReward     @relation(fields: [rewardId], references: [id])
+  pointLogs ReferralPointLog[]
+
+  @@index([profileId, createdAt(sort: Desc)])
+  @@index([rewardId])
+  @@map("referral_reward_claims")
+}
+
+// ============================================
 // PICKUP POINTS (Topshirish punktlari)
 // ============================================
 
 model PickupPoint {
-  id            String   @id @default(uuid()) @db.Uuid
-  name          String                            // "TOPLA Punkt #1 - Chilanzar"
-  address       String                            // "Chilanzar 9, Mega Planet yonida"
-  latitude      Float
-  longitude     Float
-  phone         String?
-  workingHours  Json?    @map("working_hours")    // {"mon":"09:00-21:00",...}
-  isActive      Boolean  @default(true) @map("is_active")
-  
-  // Punkt xodimi login
-  loginCode     String?  @unique @map("login_code")      // "punkt-001"
-  pinCode       String?  @map("pin_code")                 // hashed pin
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String  @id @default(uuid()) @db.Uuid
+  name         String // "TOPLA Punkt #1 - Chilanzar"
+  address      String // "Chilanzar 9, Mega Planet yonida"
+  latitude     Float
+  longitude    Float
+  phone        String?
+  workingHours Json?   @map("working_hours") // {"mon":"09:00-21:00",...}
+  isActive     Boolean @default(true) @map("is_active")
 
-  orders        Order[]
+  // Punkt xodimi login
+  loginCode String? @unique @map("login_code") // "punkt-001"
+  pinCode   String? @map("pin_code") // hashed pin
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
 
   @@map("pickup_points")
 }
@@ -1228,18 +1384,18 @@ enum PickupApplicationStatus {
 }
 
 model PickupPointApplication {
-  id            String                  @id @default(uuid()) @db.Uuid
-  fullName      String                  @map("full_name")
-  phone         String
-  city          String
-  address       String
-  areaSize      Float?                  @map("area_size")       // Maydon hajmi (m²)
-  note          String?                                          // Qo'shimcha izoh
-  status        PickupApplicationStatus @default(pending)
-  adminNote     String?                 @map("admin_note")       // Admin izohi
-  reviewedAt    DateTime?               @map("reviewed_at")
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
+  id         String                  @id @default(uuid()) @db.Uuid
+  fullName   String                  @map("full_name")
+  phone      String
+  city       String
+  address    String
+  areaSize   Float?                  @map("area_size") // Maydon hajmi (m²)
+  note       String? // Qo'shimcha izoh
+  status     PickupApplicationStatus @default(pending)
+  adminNote  String?                 @map("admin_note") // Admin izohi
+  reviewedAt DateTime?               @map("reviewed_at")
+  createdAt  DateTime                @default(now()) @map("created_at")
+  updatedAt  DateTime                @updatedAt @map("updated_at")
 
   @@map("pickup_point_applications")
 }
@@ -1282,4 +1438,49 @@ model SupportMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+// ============================================
+// LUCKY WHEEL (Omad Barabani)
+// ============================================
+
+model LuckyWheelPrize {
+  id              String        @id @default(uuid()) @db.Uuid
+  nameUz          String        @map("name_uz")
+  nameRu          String        @map("name_ru")
+  type            SpinPrizeType
+  value           Decimal?      @db.Decimal(12, 2) // chegirma miqdori yoki null
+  probability     Decimal       @db.Decimal(5, 4) // 0.0000 – 1.0000
+  color           String        @default("#FF6B35") // segment rangi
+  imageUrl        String?       @map("image_url")
+  promoCodePrefix String?       @map("promo_code_prefix") // TOPLA-WHEEL yoki boshqa
+  stock           Int? // fizik sovg'alar uchun
+  totalWon        Int           @default(0) @map("total_won") // necha marta yutilgan
+  sortOrder       Int           @default(0) @map("sort_order")
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  spins LuckyWheelSpin[]
+
+  @@map("lucky_wheel_prizes")
+}
+
+model LuckyWheelSpin {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  prizeId   String?       @map("prize_id") @db.Uuid
+  promoCode String?       @map("promo_code") // yutilgan promo kod
+  prizeType SpinPrizeType @map("prize_type")
+  prizeName String?       @map("prize_name")
+  spinDate  DateTime      @map("spin_date") @db.Date // faqat sana — kunlik limit
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  user  Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prize LuckyWheelPrize? @relation(fields: [prizeId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, spinDate])
+  @@index([userId])
+  @@index([spinDate])
+  @@map("lucky_wheel_spins")
 }

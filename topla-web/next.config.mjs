@@ -22,6 +22,10 @@ const nextConfig = {
         hostname: 'topla.uz',
       },
       {
+        protocol: 'https',
+        hostname: 'api.topla.uz',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },

@@ -203,6 +203,17 @@ class AppTheme {
           ),
         ),
       ),
+
+      // Sahifa o'tish animatsiyalarini o'chirish
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _NoTransitionBuilder(),
+          TargetPlatform.iOS: _NoTransitionBuilder(),
+          TargetPlatform.windows: _NoTransitionBuilder(),
+          TargetPlatform.macOS: _NoTransitionBuilder(),
+          TargetPlatform.linux: _NoTransitionBuilder(),
+        },
+      ),
     );
   }
 
@@ -294,5 +305,21 @@ class AppTheme {
         color: secondaryColor,
       ),
     );
+  }
+}
+
+/// Sahifa o'tish animatsiyasiz builder
+class _NoTransitionBuilder extends PageTransitionsBuilder {
+  const _NoTransitionBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
   }
 }

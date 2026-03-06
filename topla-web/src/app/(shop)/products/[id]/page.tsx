@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { resolveImageUrl } from '@/lib/api/upload';
 import { useQuery } from '@tanstack/react-query';
 import {
   Share2, Heart, Star, ShoppingCart, Plus, Minus,
@@ -316,7 +317,7 @@ export default function ProductDetailPage() {
             >
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
                 {product.shop.logoUrl ? (
-                  <Image src={product.shop.logoUrl} alt="" width={48} height={48} className="object-cover" />
+                  <Image src={resolveImageUrl(product.shop.logoUrl)} alt="" width={48} height={48} className="object-cover" />
                 ) : (
                   <Store className="w-6 h-6 text-primary" />
                 )}

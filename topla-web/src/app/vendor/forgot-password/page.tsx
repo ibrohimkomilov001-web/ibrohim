@@ -21,6 +21,7 @@ import {
   EyeOff,
   Loader2,
   Mail,
+  Smartphone,
 } from "lucide-react";
 
 const API_BASE_URL =
@@ -41,6 +42,7 @@ export default function ForgotPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [maskedPhone, setMaskedPhone] = useState("");
 
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +65,9 @@ export default function ForgotPasswordPage() {
       // Dev mode: auto-fill token if returned
       if (data.resetToken) {
         setToken(data.resetToken);
+      }
+      if (data.phone) {
+        setMaskedPhone(data.phone);
       }
 
       setStep("token");
@@ -118,9 +123,9 @@ export default function ForgotPasswordPage() {
             <CardTitle className="text-2xl">Parolni tiklash</CardTitle>
             <CardDescription>
               {step === "email" &&
-                "Email manzilingizni kiriting, tiklash ko'rsatmalari yuboriladi"}
+                "Email manzilingizni kiriting, tiklash kodi SMS orqali yuboriladi"}
               {step === "token" &&
-                "Emailingizga yuborilgan tokenni va yangi parolni kiriting"}
+                `Telefon raqamingizga (${maskedPhone}) yuborilgan kodni kiriting`}
               {step === "success" && "Parolingiz muvaffaqiyatli yangilandi"}
             </CardDescription>
           </CardHeader>
@@ -174,21 +179,27 @@ export default function ForgotPasswordPage() {
             {/* Step 2: Token + New Password */}
             {step === "token" && (
               <form onSubmit={handleConfirmReset} className="space-y-4">
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300">
-                  <strong>{email}</strong> manziliga tiklash tokeni yuborildi.
-                  Emailingizni tekshiring.
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 text-sm text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                  <Smartphone className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>{maskedPhone}</strong> raqamiga 6 xonali tiklash kodi yuborildi.
+                    SMS xabarni tekshiring. Kod 15 daqiqa amal qiladi.
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="token">Tiklash tokeni</Label>
+                  <Label htmlFor="token">Tiklash kodi</Label>
                   <Input
                     id="token"
                     type="text"
-                    placeholder="Token kodini kiriting"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="6 xonali kod"
                     value={token}
-                    onChange={(e) => setToken(e.target.value)}
+                    onChange={(e) => setToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     required
                     autoFocus={!token}
+                    className="text-center text-lg tracking-widest"
                   />
                 </div>
 
@@ -256,6 +267,10 @@ export default function ForgotPasswordPage() {
                 >
                   ← Emailni qayta kiritish
                 </button>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  SMS kelmadimi? 60 soniyadan keyin qayta so&apos;rang.
+                </p>
               </form>
             )}
 

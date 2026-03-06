@@ -10,6 +10,7 @@ import '../../models/user_role.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
 import 'edit_profile_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -121,11 +122,15 @@ class _ProfileScreenState extends State<ProfileScreen>
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F6FE),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFEEF0FC),
-          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -289,6 +294,25 @@ class _ProfileScreenState extends State<ProfileScreen>
           label: context.l10n.myOrders,
           iconColor: Colors.blue,
           onTap: () => Navigator.pushNamed(context, '/orders'),
+        ),
+        _divider(),
+        _buildMenuItem(
+          icon: Iconsax.notification_copy,
+          label: 'Bildirishnomalar',
+          iconColor: const Color(0xFF8B5CF6),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const NotificationsScreen(),
+            ),
+          ),
+        ),
+        _divider(),
+        _buildMenuItem(
+          icon: Iconsax.ticket_discount_copy,
+          label: 'Promokodlarim',
+          iconColor: const Color(0xFFE91E63),
+          onTap: () => Navigator.pushNamed(context, '/my-promo-codes'),
         ),
         _divider(),
         _buildMenuItem(

@@ -14,6 +14,9 @@ abstract class IProductRepository {
   /// Bitta mahsulotni olish
   Future<ProductModel?> getProductById(String id);
 
+  /// Bitta mahsulotni raw JSON sifatida olish (variants bilan)
+  Future<Map<String, dynamic>?> getProductByIdRaw(String id);
+
   /// Tavsiya etilgan mahsulotlar
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10});
 

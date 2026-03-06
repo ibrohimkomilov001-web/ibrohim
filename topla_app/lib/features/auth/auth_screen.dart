@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/api_client.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -80,7 +81,32 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// Backend orqali OTP yuborish (Eskiz SMS)
   Future<void> _sendOtp() async {
-    if (!_formKey.currentState!.validate()) return;
+    final phoneDigits = _phoneController.text.replaceAll(' ', '');
+    if (phoneDigits.isEmpty || phoneDigits.length < 9) {
+      final l10n = AppLocalizations.of(context);
+      final msg = phoneDigits.isEmpty
+          ? (l10n?.translate('phone_required') ?? 'Telefon raqamni kiriting')
+          : (l10n?.translate('phone_incomplete') ??
+              'Telefon raqam to\'liq emas');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg,
+              style: const TextStyle(
+                  color: Color(0xFF333333),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
+          backgroundColor: const Color(0xFFF0F0F0),
+          behavior: SnackBarBehavior.floating,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          margin: const EdgeInsets.only(left: 40, right: 40, bottom: 80),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -104,9 +130,11 @@ class _AuthScreenState extends State<AuthScreen> {
         });
         _startResendCountdown();
 
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('SMS kod yuborildi'),
+          SnackBar(
+            content:
+                Text(l10n?.translate('sms_code_sent') ?? 'SMS kod yuborildi'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -129,9 +157,11 @@ class _AuthScreenState extends State<AuthScreen> {
   /// Backend'da OTP tekshirish va JWT olish
   Future<void> _verifyOtp() async {
     if (_otpController.text.length != 4) {
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('4 xonali kodni kiriting'),
+        SnackBar(
+          content: Text(l10n?.translate('enter_4_digit_code') ??
+              '4 xonali kodni kiriting'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -224,15 +254,17 @@ class _AuthScreenState extends State<AuthScreen> {
           return;
         }
 
+        final l10n = AppLocalizations.of(context);
         String message =
-            'Google kirish xatoligi: ${e.toString().length > 100 ? e.toString().substring(0, 100) : e.toString()}';
+            '${l10n?.translate('google_sign_in_error') ?? 'Google kirish xatoligi'}: ${e.toString().length > 100 ? e.toString().substring(0, 100) : e.toString()}';
         if (errorStr.contains('network') ||
             errorStr.contains('internet') ||
             errorStr.contains('socket') ||
             errorStr.contains('connection') ||
             errorStr.contains('unreachable') ||
             errorStr.contains('timeout')) {
-          message = 'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
+          message = l10n?.translate('no_internet_check') ??
+              'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -252,6 +284,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   String _getErrorMessage(String error) {
+    final l10n = AppLocalizations.of(context);
     final lower = error.toLowerCase();
     if (lower.contains('network') ||
         lower.contains('internet') ||
@@ -259,22 +292,24 @@ class _AuthScreenState extends State<AuthScreen> {
         lower.contains('connection') ||
         lower.contains('unreachable') ||
         lower.contains('timeout')) {
-      return 'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
+      return l10n?.translate('no_internet_check') ??
+          'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
     }
     if (lower.contains('invalid phone')) {
-      return 'Noto\'g\'ri telefon raqami';
+      return l10n?.translate('invalid_phone') ?? 'Noto\'g\'ri telefon raqami';
     }
     if (lower.contains('invalid otp') || lower.contains('token has expired')) {
-      return 'Kod xato yoki muddati tugagan';
+      return l10n?.translate('invalid_otp') ?? 'Kod xato yoki muddati tugagan';
     }
     if (lower.contains('phone not confirmed')) {
-      return 'Telefon tasdiqlanmagan';
+      return l10n?.translate('phone_not_confirmed') ?? 'Telefon tasdiqlanmagan';
     }
     return error;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     // Check if keyboard is visible
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final isKeyboardVisible = bottomInset > 0.0;
@@ -332,7 +367,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 // Title
                 Text(
-                  _isOtpSent ? 'Tasdiqlash' : 'Kirish',
+                  _isOtpSent
+                      ? (l10n?.translate('verify') ?? 'Tasdiqlash')
+                      : (l10n?.translate('login') ?? 'Kirish'),
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
@@ -345,8 +382,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 Text(
                   _isOtpSent
-                      ? '${_formatPhoneNumber(_phoneController.text.trim())} ga yuborilgan kodni kiriting'
-                      : 'Telefon raqamingizni kiriting',
+                      ? '${_formatPhoneNumber(_phoneController.text.trim())} ${l10n?.translate('code_sent_to_number') ?? 'ga yuborilgan kodni kiriting'}'
+                      : (l10n?.translate('enter_phone') ??
+                          'Telefon raqamingizni kiriting'),
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade500,
@@ -393,7 +431,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                           Expanded(
-                            child: TextFormField(
+                            child: TextField(
                               controller: _phoneController,
                               focusNode: _phoneFocusNode,
                               keyboardType: TextInputType.phone,
@@ -418,20 +456,12 @@ class _AuthScreenState extends State<AuthScreen> {
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
                                 contentPadding:
                                     const EdgeInsets.fromLTRB(12, 16, 0, 16),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Telefon raqamni kiriting';
-                                }
-                                final digits = value.replaceAll(' ', '');
-                                if (digits.length != 9) {
-                                  return 'Telefon raqam to\'liq emas';
-                                }
-                                return null;
-                              },
-                              onFieldSubmitted: (_) => _sendOtp(),
+                              onSubmitted: (_) => _sendOtp(),
                             ),
                           ),
                         ],
@@ -504,9 +534,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               padding: EdgeInsets.zero,
                               minimumSize: const Size(0, 36),
                             ),
-                            child: const Text(
-                              'Qaytadan yuborish',
-                              style: TextStyle(
+                            child: Text(
+                              l10n?.translate('resend') ?? 'Qaytadan yuborish',
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -554,7 +584,10 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                             )
                           : Text(
-                              _isOtpSent ? 'Tasdiqlash' : 'Davom etish',
+                              _isOtpSent
+                                  ? (l10n?.translate('verify') ?? 'Tasdiqlash')
+                                  : (l10n?.translate('continue') ??
+                                      'Davom etish'),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -577,7 +610,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'yoki',
+                          l10n?.translate('or_text') ?? 'yoki',
                           style: TextStyle(
                             color: Colors.grey.shade400,
                             fontSize: 13,
@@ -615,9 +648,10 @@ class _AuthScreenState extends State<AuthScreen> {
                               children: [
                                 _buildGoogleLogo(),
                                 const SizedBox(width: 12),
-                                const Text(
-                                  'Google orqali kirish',
-                                  style: TextStyle(
+                                Text(
+                                  l10n?.translate('login_with_google') ??
+                                      'Google orqali kirish',
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.black87,

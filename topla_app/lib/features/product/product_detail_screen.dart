@@ -11,6 +11,7 @@ import '../../providers/providers.dart';
 import '../../widgets/product_card.dart';
 import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
+import 'product_reviews_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -29,21 +30,56 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late List<String> _productImages;
   late String _productId;
 
-  // Variant tanlash
-  int _selectedColorIndex = 0;
-  int _selectedSizeIndex = -1;
+  // === VARIANT SYSTEM (Uzum style) ===
+  List<Map<String, dynamic>> _variants = [];
+  List<Map<String, dynamic>> _uniqueColors = [];  // [{id, nameUz, hexCode}]
+  List<Map<String, dynamic>> _uniqueSizes = [];   // [{id, nameUz}]
+  String? _selectedColorId;
+  String? _selectedSizeId;
+
+  bool get _hasVariants => _variants.isNotEmpty;
+  bool get _hasColors => _uniqueColors.isNotEmpty;
+  bool get _hasSizes => _uniqueSizes.isNotEmpty;
+
+  /// Hozir tanlangan variantni topish
+  Map<String, dynamic>? get _selectedVariant {
+    if (!_hasVariants) return null;
+    for (final v in _variants) {
+      final vc = v['colorId'] ?? v['color_id'];
+      final vs = v['sizeId'] ?? v['size_id'];
+      if (vc == _selectedColorId && vs == _selectedSizeId) return v;
+      // Faqat rang bo'lsa (o'lchamsiz)
+      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null) return v;
+      // Faqat o'lcham bo'lsa (rangsiz)
+      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null) return v;
+    }
+    return null;
+  }
+
+  /// Tanlangan variant narxi (yoki mahsulot default narxi)
+  dynamic get _displayPrice {
+    final v = _selectedVariant;
+    if (v != null) return v['price'];
+    return widget.product['price'];
+  }
+
+  /// Tanlangan variant eski narxi
+  dynamic get _displayOldPrice {
+    final v = _selectedVariant;
+    if (v != null) return v['compareAtPrice'] ?? v['compare_at_price'];
+    return widget.product['oldPrice'] ?? widget.product['originalPrice'];
+  }
+
+  /// Tanlangan variant stoki
+  int get _displayStock {
+    final v = _selectedVariant;
+    if (v != null) return (v['stock'] ?? 0) is int ? v['stock'] as int : int.tryParse(v['stock'].toString()) ?? 0;
+    return (widget.product['stock'] ?? 100) is int ? (widget.product['stock'] ?? 100) as int : 100;
+  }
+
+  // Eski field - backward compat
   // ignore: unused_field
-  String? _selectedVariant;
-
-  // Dinamik variantlar - mahsulotdan olinadi
-  List<Map<String, dynamic>> _colors = [];
-  List<String> _sizes = [];
-
-  // Kategoriyaga qarab variantlar
-  bool get _hasColors => _colors.isNotEmpty;
-  bool get _hasSizes => _sizes.isNotEmpty;
-  // ignore: unused_element
-  bool get _hasVariants => widget.product['variants'] != null;
+  List<Map<String, dynamic>> _colorSiblings = [];
 
   // Xususiyatlar - mahsulotdan dinamik olinadi
   List<Map<String, String>> get _specifications {
@@ -94,122 +130,97 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     // Mahsulot variantlarini yuklash
     _loadProductVariants();
+    // Backenddan to'liq mahsulot ma'lumotlarini olish (variants bilan)
+    _fetchFullProduct();
   }
 
-  /// Mahsulot kategoriyasi va ma'lumotlariga qarab variantlarni yuklash
+  /// Backenddan to'liq mahsulot olish (variantlar bilan)
+  Future<void> _fetchFullProduct() async {
+    try {
+      final productsProvider = context.read<ProductsProvider>();
+      final raw = await productsProvider.getProductByIdRaw(_productId);
+      if (raw != null && mounted) {
+        _parseVariants(raw);
+      }
+    } catch (e) {
+      debugPrint('Fetch full product error: $e');
+    }
+  }
+
+  /// Variantlarni parse qilish
+  void _parseVariants(Map<String, dynamic> product) {
+    final variants = product['variants'];
+    if (variants == null || variants is! List || (variants as List).isEmpty) return;
+
+    final variantList = List<Map<String, dynamic>>.from(
+      variants.map((v) => Map<String, dynamic>.from(v as Map)),
+    );
+
+    // Unique ranglarni olish
+    final colorMap = <String, Map<String, dynamic>>{};
+    final sizeMap = <String, Map<String, dynamic>>{};
+
+    for (final v in variantList) {
+      final color = v['color'];
+      if (color != null && color is Map) {
+        final cId = color['id']?.toString();
+        if (cId != null && !colorMap.containsKey(cId)) {
+          colorMap[cId] = Map<String, dynamic>.from(color);
+        }
+      }
+      final size = v['size'];
+      if (size != null && size is Map) {
+        final sId = size['id']?.toString();
+        if (sId != null && !sizeMap.containsKey(sId)) {
+          sizeMap[sId] = Map<String, dynamic>.from(size);
+        }
+      }
+    }
+
+    setState(() {
+      _variants = variantList;
+      _uniqueColors = colorMap.values.toList();
+      _uniqueSizes = sizeMap.values.toList();
+      // Birinchi rangni tanlash
+      if (_uniqueColors.isNotEmpty && _selectedColorId == null) {
+        _selectedColorId = _uniqueColors.first['id']?.toString();
+      }
+      // Birinchi o'lchamni tanlash
+      if (_uniqueSizes.isNotEmpty && _selectedSizeId == null) {
+        _selectedSizeId = _uniqueSizes.first['id']?.toString();
+      }
+      // Tanlangan variant rasmlarini yangilash
+      _updateImagesForVariant();
+    });
+  }
+
+  /// Tanlangan variant rasmlarini ko'rsatish
+  void _updateImagesForVariant() {
+    final v = _selectedVariant;
+    if (v != null && v['images'] != null && (v['images'] as List).isNotEmpty) {
+      _productImages = List<String>.from(v['images']);
+      _selectedImageIndex = 0;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+    }
+  }
+
+  /// Mahsulot variantlarini yuklash (eski colorSiblings uchun backward compat)
   void _loadProductVariants() {
     final product = widget.product;
-    final category = product['category']?.toString().toLowerCase() ?? '';
-    final categoryId = product['category_id']?.toString() ?? '';
 
-    // Mahsulotdan kelgan variantlar
-    if (product['colors'] != null && product['colors'] is List) {
-      _colors = List<Map<String, dynamic>>.from(
-        (product['colors'] as List).map((c) => {
-              'name': c['name'] ?? c.toString(),
-              'color': _parseColor(c['hex'] ?? c['color']),
-            }),
+    // Agar product map da allaqachon variants bo'lsa
+    if (product['variants'] != null && product['variants'] is List) {
+      _parseVariants(product);
+    }
+
+    // Eski tizim: colorSiblings
+    if (product['colorSiblings'] != null && product['colorSiblings'] is List) {
+      _colorSiblings = List<Map<String, dynamic>>.from(
+        (product['colorSiblings'] as List).map((s) => Map<String, dynamic>.from(s)),
       );
     }
-
-    if (product['sizes'] != null && product['sizes'] is List) {
-      _sizes = List<String>.from(product['sizes']);
-    }
-
-    // Agar mahsulotda variant yo'q bo'lsa, kategoriyaga qarab default variantlar
-    if (_colors.isEmpty && _sizes.isEmpty) {
-      _setDefaultVariantsByCategory(category, categoryId);
-    }
-  }
-
-  /// Kategoriyaga qarab default variantlar
-  void _setDefaultVariantsByCategory(String category, String categoryId) {
-    // Kiyim-kechak kategoriyalari
-    final clothingCategories = [
-      'kiyim',
-      'clothing',
-      'fashion',
-      'apparel',
-      'wear',
-      'ko\'ylak',
-      'shim',
-      'kurtka',
-      'palto',
-      'futbolka',
-      't-shirt',
-      'shirt',
-      'pants',
-      'jacket',
-      'dress',
-      'erkaklar kiyimi',
-      'ayollar kiyimi',
-      'bolalar kiyimi',
-    ];
-
-    // Poyabzal kategoriyalari
-    final footwearCategories = [
-      'poyabzal',
-      'oyoq kiyim',
-      'footwear',
-      'shoes',
-      'boots',
-      'krossovka',
-      'tufli',
-      'sandal',
-      'shippak',
-    ];
-
-    // Elektronika kategoriyalari (faqat rang)
-    final electronicsCategories = [
-      'elektronika',
-      'electronics',
-      'telefon',
-      'phone',
-      'smartphone',
-      'noutbuk',
-      'laptop',
-      'kompyuter',
-      'computer',
-      'planshet',
-      'tablet',
-      'quloqchin',
-      'headphones',
-      'earbuds',
-      'smart watch',
-      'soat',
-    ];
-
-    // Kategoriyani tekshirish
-    final lowerCategory = category.toLowerCase();
-
-    if (clothingCategories.any((c) => lowerCategory.contains(c))) {
-      // Kiyim uchun rang va o'lcham
-      _colors = [
-        {'name': 'Qora', 'color': Colors.black},
-        {'name': 'Oq', 'color': Colors.white},
-        {'name': 'Ko\'k', 'color': Colors.blue},
-        {'name': 'Qizil', 'color': Colors.red},
-      ];
-      _sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-    } else if (footwearCategories.any((c) => lowerCategory.contains(c))) {
-      // Poyabzal uchun rang va o'lcham (oyoq o'lchami)
-      _colors = [
-        {'name': 'Qora', 'color': Colors.black},
-        {'name': 'Oq', 'color': Colors.white},
-        {'name': 'Kulrang', 'color': Colors.grey},
-      ];
-      _sizes = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45'];
-    } else if (electronicsCategories.any((c) => lowerCategory.contains(c))) {
-      // Elektronika uchun faqat rang
-      _colors = [
-        {'name': 'Qora', 'color': Colors.black},
-        {'name': 'Oq', 'color': Colors.white},
-        {'name': 'Kumush', 'color': Colors.grey.shade400},
-      ];
-      // O'lcham yo'q
-      _sizes = [];
-    }
-    // Boshqa kategoriyalar uchun hech narsa ko'rsatilmaydi
   }
 
   /// Rang kodini Color ga o'girish
@@ -247,9 +258,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    final hasDiscount = product['oldPrice'] != null;
+    final hasDiscount = _displayOldPrice != null || product['oldPrice'] != null;
     final discountPercent = product['discount'] ?? 0;
-    final stock = product['stock'] ?? 100;
+    final stock = _displayStock;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -270,45 +281,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 children: [
                   const SizedBox(height: 20),
 
+                  // Warranty badge
+                  _buildWarrantyBadge(product),
+
+                  const SizedBox(height: 12),
+
                   // Name and Rating
                   _buildNameAndRating(product),
 
                   const SizedBox(height: 16),
 
-                  // 💰 Price Section
+                  // 📦 STOCK & SALES INFO
+                  _buildStockAndSalesInfo(stock, product),
+
+                  const SizedBox(height: 16),
+
+                  // 💰 Price Section (compact, after rating/stock)
                   _buildPriceSection(product, hasDiscount),
 
-                  const SizedBox(height: 12),
-
-                  //  YETKAZIB BERISH
-                  _buildDeliverySection(),
-
                   const SizedBox(height: 16),
 
-                  // 📦 STOCK STATUS
-                  _buildStockStatus(stock),
+                  // 🎨 VARIANTS - COLOR
+                  if (_hasColors && _hasVariants) ...[
+                    _buildColorSelectorWithImages(),
+                    const SizedBox(height: 16),
+                  ],
 
-                  const SizedBox(height: 16),
+                  // 📏 VARIANTS - SIZE
+                  if (_hasSizes && _hasVariants) ...[
+                    _buildSizeSelector(),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Agar variant bo'lmasa, shunchaki bo'sh joy
+                  if (!_hasVariants) const SizedBox(height: 8),
 
                   // 🏪 SHOP INFO
                   _buildShopInfo(),
 
                   const SizedBox(height: 20),
-
-                  // 🎨 VARIANTS - COLOR (faqat ranglar bo'lsa)
-                  if (_hasColors) ...[
-                    _buildColorSelector(),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 📏 VARIANTS - SIZE (faqat o'lchamlar bo'lsa)
-                  if (_hasSizes) ...[
-                    _buildSizeSelector(),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Agar variant bo'lmasa, shunchaki bo'sh joy
-                  if (!_hasColors && !_hasSizes) const SizedBox(height: 8),
 
                   //  Description
                   _buildDescription(product),
@@ -322,11 +333,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   // 🚚 Delivery Info
                   _buildDeliveryInfo(),
-
-                  const SizedBox(height: 24),
-
-                  // ⭐ REVIEWS SECTION
-                  _buildReviewsSection(product),
 
                   const SizedBox(height: 24),
 
@@ -349,10 +355,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ============ SLIVER APP BAR ============
   Widget _buildSliverAppBar(
       Map<String, dynamic> product, bool hasDiscount, int discountPercent) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final productName = product['name'] ?? 'Mahsulot';
     return SliverAppBar(
-      expandedHeight: 350,
+      expandedHeight: screenHeight * 0.48,
       pinned: true,
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      foregroundColor: Colors.black,
       leading: _buildBackButton(),
       actions: [
         Consumer<ProductsProvider>(
@@ -400,7 +410,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             final message =
                 '$productName - $productPrice so\'m\n\nTOPLA Market da xarid qiling!\nhttps://topla.uz';
 
-            // Native share dialog
             await Share.share(
               message,
               subject: productName,
@@ -409,13 +418,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         const SizedBox(width: 8),
       ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          final top = constraints.biggest.height;
+          final statusBarHeight = MediaQuery.of(context).padding.top;
+          final collapsedHeight = kToolbarHeight + statusBarHeight;
+          final isCollapsed = top <= collapsedHeight + 10;
+          return FlexibleSpaceBar(
+            title: isCollapsed
+                ? Text(
+                    productName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : null,
+            titlePadding: const EdgeInsets.only(left: 56, right: 100, bottom: 14),
+            background: Stack(
           children: [
-            Container(
-              color: Colors.white,
-              child: _productImages.isNotEmpty
-                  ? PageView.builder(
+            Positioned.fill(
+              child: Container(
+                color: Colors.grey.shade100,
+                child: _productImages.isNotEmpty
+                    ? PageView.builder(
                       controller: _pageController,
                       itemCount: _productImages.length,
                       onPageChanged: (index) =>
@@ -423,28 +452,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       itemBuilder: (context, index) {
                         return GestureDetector(
                           onTap: () => _showFullScreenImage(index),
-                          child: Center(
-                            child: Hero(
-                              tag: index == 0
-                                  ? 'product_${product['name']}'
-                                  : 'product_${product['name']}_$index',
-                              child: CachedNetworkImage(
-                                imageUrl: _productImages[index],
-                                fit: BoxFit.contain,
-                                height: 280,
-                                errorWidget: (_, __, ___) =>
-                                    _buildPlaceholderImage(),
-                              ),
+                          child: Hero(
+                            tag: index == 0
+                                ? 'product_${product['name']}'
+                                : 'product_${product['name']}_$index',
+                            child: CachedNetworkImage(
+                              imageUrl: _productImages[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorWidget: (_, __, ___) =>
+                                  _buildPlaceholderImage(),
                             ),
                           ),
                         );
                       },
                     )
-                  : Center(child: _buildPlaceholderImage()),
+                    : Center(child: _buildPlaceholderImage()),
+              ),
             ),
             if (_productImages.length > 1)
               Positioned(
-                bottom: 20,
+                bottom: 16,
                 left: 0,
                 right: 0,
                 child: Row(
@@ -462,81 +490,184 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         height: 6,
                         decoration: BoxDecoration(
                           color:
-                              isActive ? Colors.black87 : Colors.grey.shade400,
+                              isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(3),
-                          boxShadow: isActive
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 1),
-                                  )
-                                ]
-                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            )
+                          ],
                         ),
                       ),
                     );
                   }),
                 ),
               ),
-            if (_productImages.length > 1)
-              Positioned(
-                top: 100,
-                right: 16,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Text(
-                      '${_selectedImageIndex + 1}/${_productImages.length}',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12)),
-                ),
-              ),
           ],
         ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ============ WARRANTY BADGE ============
+  Widget _buildWarrantyBadge(Map<String, dynamic> product) {
+    final warranty = product['warranty'] ?? '1 OY';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Icon(Icons.verified, color: Colors.blue.shade700, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            'KAFOLAT $warranty',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // ============ NAME AND RATING ============
   Widget _buildNameAndRating(Map<String, dynamic> product) {
+    final rating = (product['rating'] ?? 4.5).toDouble();
+    final reviewCount = product['reviewCount'] ?? 0;
+    final sold = product['sold'] ?? 0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(product['name'] ?? 'Mahsulot',
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(8)),
-                child: Row(
-                  children: [
-                    const Icon(Iconsax.star, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    Text('${product['rating'] ?? 4.5}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text('${product['sold'] ?? 0} ta sotilgan',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-            ],
+          Text(
+            product['name'] ?? 'Mahsulot',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+              letterSpacing: -0.3,
+            ),
           ),
+          const SizedBox(height: 12),
+          // Rating row - tappable -> sharhlar sahifasiga o'tish
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProductReviewsScreen(
+                    productId: _productId,
+                    productName: product['name'] ?? 'Mahsulot',
+                    rating: rating,
+                    reviewCount: reviewCount,
+                    reviews: _reviews,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  ...List.generate(5, (index) {
+                    return Icon(
+                      Icons.star_rounded,
+                      color: index < rating.floor()
+                          ? Colors.amber
+                          : Colors.amber.shade100,
+                      size: 16,
+                    );
+                  }),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$reviewCount ta sharh · ${sold}+ buyurtma',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 18),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============ STOCK & SALES INFO ============
+  Widget _buildStockAndSalesInfo(int stock, Map<String, dynamic> product) {
+    final sold = product['sold'] ?? 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          // Stock info
+          if (stock > 0)
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.check, color: AppColors.success, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  '$stock dona xarid qilish mumkin',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          if (stock > 0) const SizedBox(height: 10),
+          // Sales info
+          if (sold > 0)
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Iconsax.box_tick, color: Colors.amber.shade700, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Bu haftada $sold kishi sotib oldi',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -544,203 +675,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   // ============ PRICE SECTION ============
   Widget _buildPriceSection(Map<String, dynamic> product, bool hasDiscount) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [
-          AppColors.primary.withValues(alpha: 0.1),
-          AppColors.primary.withValues(alpha: 0.05)
-        ]),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (hasDiscount)
-                Text(
-                  '${_formatPrice(product['oldPrice'])} ${AppStrings.currency}',
-                  style: TextStyle(
-                      decoration: TextDecoration.lineThrough,
-                      color: Colors.grey.shade500,
-                      fontSize: 14),
-                ),
-              Text(
-                '${_formatPrice(product['price'])} ${AppStrings.currency}',
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    final price = _displayPrice ?? product['price'];
+    final oldPrice = _displayOldPrice ?? product['oldPrice'];
+    final showDiscount = oldPrice != null && oldPrice != price;
 
-  // ============ YETKAZIB BERISH ============
-  Widget _buildDeliverySection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Iconsax.truck_fast,
-                  color: Colors.blue.shade600,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Market yetkazish xizmati',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.circle, size: 8, color: Colors.blue),
-                        SizedBox(width: 4),
-                        Text(
-                          'Ertaga',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          ', klik bilan ',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Text(
-                          '0 so\'m',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============ STOCK STATUS ============
-  Widget _buildStockStatus(int stock) {
-    if (stock <= 0) {
-      return _buildStockCard(
-        icon: Iconsax.box_remove,
-        title: 'Omborda tugagan',
-        subtitle: 'Tez orada qaytadan keladi',
-        color: AppColors.error,
-        trailing:
-            const Icon(Iconsax.close_circle, color: AppColors.error, size: 24),
-      );
-    } else if (stock <= 5) {
-      return _buildStockCard(
-        icon: Iconsax.warning_2,
-        title: 'Faqat $stock ta qoldi!',
-        subtitle: 'Tezroq buyurtma bering',
-        color: Colors.orange,
-        trailing: const Icon(Iconsax.flash_1, color: Colors.orange, size: 24),
-      );
-    } else {
-      return _buildStockCard(
-        icon: Iconsax.box_tick,
-        title: 'Omborda mavjud',
-        subtitle: 'Tez yetkazib beramiz',
-        color: AppColors.success,
-        trailing:
-            const Icon(Iconsax.tick_circle, color: AppColors.success, size: 24),
-      );
-    }
-  }
-
-  Widget _buildStockCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    Widget? trailing,
-  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showDiscount)
+            Text(
+              '${_formatPrice(oldPrice)} ${AppStrings.currency}',
+              style: TextStyle(
+                  decoration: TextDecoration.lineThrough,
+                  color: Colors.grey.shade500,
+                  fontSize: 14),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: color, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            if (trailing != null) trailing,
-          ],
-        ),
+          Text(
+            '${_formatPrice(price)} ${AppStrings.currency}',
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Colors.black),
+          ),
+        ],
       ),
     );
   }
@@ -892,9 +851,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // ============ COLOR SELECTOR ============
+  // ============ COLOR SELECTOR (old - kept for backwards compat) ============
   Widget _buildColorSelector() {
-    if (_colors.isEmpty) return const SizedBox.shrink();
+    return _buildColorSelectorWithImages();
+  }
+
+  // ============ COLOR SELECTOR - UZUM STYLE ============
+  Widget _buildColorSelectorWithImages() {
+    if (_uniqueColors.isEmpty) return const SizedBox.shrink();
+
+    // Hozir tanlangan rangning nomi
+    String selectedColorName = '';
+    for (final c in _uniqueColors) {
+      if (c['id']?.toString() == _selectedColorId) {
+        selectedColorName = c['nameUz'] ?? c['name_uz'] ?? c['nameRu'] ?? '';
+        break;
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -903,67 +876,115 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         children: [
           Row(
             children: [
-              const Text(
-                'Rang',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              Text(
+                'Rang: ',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
-              const SizedBox(width: 8),
-              if (_selectedColorIndex < _colors.length)
-                Text(
-                  _colors[_selectedColorIndex]['name'] ?? '',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
+              Text(
+                selectedColorName,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: List.generate(_colors.length, (index) {
-              final color = _colors[index]['color'] as Color? ?? Colors.grey;
-              final isSelected = _selectedColorIndex == index;
+          const SizedBox(height: 10),
+          // Gorizontal rang tanlagich - faqat rasmlar
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _uniqueColors.map((colorInfo) {
+              final cId = colorInfo['id']?.toString();
+              final isSelected = cId == _selectedColorId;
+              final hexCode = colorInfo['hexCode'] ?? colorInfo['hex_code'] ?? '';
+              final color = _parseColor(hexCode);
+
+              // Shu rang uchun birinchi variant rasmini olish
+              String? imageUrl;
+              for (final v in _variants) {
+                final vc = v['colorId'] ?? v['color_id'];
+                if (vc?.toString() == cId) {
+                  if (v['images'] != null && (v['images'] as List).isNotEmpty) {
+                    imageUrl = (v['images'] as List).first.toString();
+                  }
+                  break;
+                }
+              }
+
               return GestureDetector(
-                onTap: () => setState(() => _selectedColorIndex = index),
+                onTap: () {
+                  if (isSelected) return;
+                  setState(() {
+                    _selectedColorId = cId;
+                    _updateImagesForVariant();
+                  });
+                },
                 child: Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  width: 40,
-                  height: 40,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color:
-                          isSelected ? AppColors.primary : Colors.grey.shade300,
-                      width: isSelected ? 3 : 1,
+                      color: isSelected ? Colors.black87 : Colors.grey.shade300,
+                      width: isSelected ? 2.5 : 1,
                     ),
-                    boxShadow: [
-                      if (isSelected)
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                    ],
                   ),
-                  child: isSelected
-                      ? Icon(
-                          Icons.check,
-                          color: color == Colors.white
-                              ? Colors.black
-                              : Colors.white,
-                          size: 20,
-                        )
-                      : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(isSelected ? 7.5 : 9),
+                    child: imageUrl != null && imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              color: color,
+                              child: const Icon(Iconsax.image,
+                                  color: Colors.white, size: 18),
+                            ),
+                          )
+                        : Container(
+                            color: color,
+                            child: color == Colors.white
+                                ? null
+                                : null,
+                          ),
+                  ),
                 ),
               );
-            }),
+            }).toList(),
           ),
         ],
       ),
     );
   }
 
-  // ============ SIZE SELECTOR ============
+  /// Boshqa rangli mahsulotga o'tish (eski tizim uchun)
+  void _navigateToColorSibling(String productId) async {
+    try {
+      final productsProvider = context.read<ProductsProvider>();
+      final product = await productsProvider.getProductById(productId);
+      if (product != null && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: product),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Color sibling navigation error: $e');
+    }
+  }
+
+  // ============ SIZE SELECTOR - UZUM STYLE ============
   Widget _buildSizeSelector() {
-    if (_sizes.isEmpty) return const SizedBox.shrink();
+    if (_uniqueSizes.isEmpty) return const SizedBox.shrink();
+
+    // Hozir tanlangan o'lcham nomi
+    String selectedSizeName = '';
+    for (final s in _uniqueSizes) {
+      if (s['id']?.toString() == _selectedSizeId) {
+        selectedSizeName = s['nameUz'] ?? s['name_uz'] ?? '';
+        break;
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -973,27 +994,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Row(
             children: [
               const Text(
-                'O\'lcham',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                'O\'lcham: ',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
-              const SizedBox(width: 8),
-              if (_selectedSizeIndex >= 0 && _selectedSizeIndex < _sizes.length)
-                Text(
-                  _sizes[_selectedSizeIndex],
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {
-                  // Show size guide
-                },
-                child: Text(
-                  'O\'lcham jadvali',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 13,
-                  ),
-                ),
+              Text(
+                selectedSizeName,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -1001,33 +1007,61 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: List.generate(_sizes.length, (index) {
-              final isSelected = _selectedSizeIndex == index;
+            children: _uniqueSizes.map((sizeInfo) {
+              final sId = sizeInfo['id']?.toString();
+              final isSelected = sId == _selectedSizeId;
+              final sizeName = sizeInfo['nameUz'] ?? sizeInfo['name_uz'] ?? '';
+
+              // Bu o'lcham + hozirgi rang kombinatsiyasi mavjudmi tekshirish
+              bool isAvailable = true;
+              if (_selectedColorId != null) {
+                isAvailable = _variants.any((v) {
+                  final vc = (v['colorId'] ?? v['color_id'])?.toString();
+                  final vs = (v['sizeId'] ?? v['size_id'])?.toString();
+                  return vc == _selectedColorId && vs == sId && (v['stock'] ?? 0) > 0;
+                });
+              }
+
               return GestureDetector(
-                onTap: () => setState(() => _selectedSizeIndex = index),
+                onTap: () {
+                  if (!isAvailable) return;
+                  setState(() {
+                    _selectedSizeId = sId;
+                    _updateImagesForVariant();
+                  });
+                },
                 child: Container(
-                  width: 50,
-                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : Colors.white,
+                    color: isSelected
+                        ? AppColors.primary
+                        : isAvailable
+                            ? Colors.white
+                            : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color:
-                          isSelected ? AppColors.primary : Colors.grey.shade300,
+                      color: isSelected
+                          ? AppColors.primary
+                          : isAvailable
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade200,
                     ),
                   ),
-                  child: Center(
-                    child: Text(
-                      _sizes[index],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
+                  child: Text(
+                    sizeName,
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : isAvailable
+                              ? Colors.black
+                              : Colors.grey.shade400,
+                      fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
-                    ),
                   ),
                 ),
               );
-            }),
+            }).toList(),
           ),
         ],
       ),
@@ -1615,6 +1649,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ============ BOTTOM BAR ============
   Widget _buildBottomBar(Map<String, dynamic> product, int stock) {
     final isOutOfStock = stock <= 0;
+    // Calculate delivery date (3-7 days from now)
+    final deliveryDate = DateTime.now().add(const Duration(days: 6));
+    final months = ['yan', 'fev', 'mar', 'apr', 'may', 'iyun', 'iyul', 'avg', 'sen', 'okt', 'noy', 'dek'];
+    final deliveryText = '${deliveryDate.day}-${months[deliveryDate.month - 1]}';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1622,51 +1660,52 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 10,
-              offset: const Offset(0, -5))
+              offset: const Offset(0, -3))
         ],
       ),
       child: SafeArea(
         child: Row(
           children: [
-            // "Hozir sotib olish" tugmasi - oq fon, qora chiziq
+            // Price section
             Expanded(
-              child: OutlinedButton(
-                onPressed: isOutOfStock ? null : () => _buyNow(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(
-                    color: isOutOfStock
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade400,
-                    width: 1.5,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text(isOutOfStock ? 'Tugagan' : 'Hozir sotib olish',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_formatPrice(_displayPrice ?? product['price'])} ${AppStrings.currency}',
                     style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isOutOfStock ? Colors.grey : Colors.black87)),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  if (!isOutOfStock)
+                    Text(
+                      'Yetkazish: $deliveryText',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 12),
-            // "Savatga" tugmasi yoki miqdor counter
+            // Cart button
             Expanded(
               child: _isInCart && !isOutOfStock
                   ? Container(
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF6D00),
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          // Minus tugmasi
                           InkWell(
                             onTap: () {
                               if (_cartItemQuantity > 1) {
@@ -1692,7 +1731,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                           ),
-                          // Miqdor
                           Text(
                             '$_cartItemQuantity',
                             style: const TextStyle(
@@ -1701,7 +1739,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          // Plus tugmasi
                           InkWell(
                             onTap: () {
                               setState(() => _cartItemQuantity++);
@@ -1723,21 +1760,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     )
                   : ElevatedButton(
-                      onPressed:
-                          isOutOfStock ? null : () => _addToCart(context),
+                      onPressed: isOutOfStock ? null : () => _addToCart(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isOutOfStock
-                            ? Colors.grey
-                            : const Color(0xFFFF6D00),
+                        backgroundColor:
+                            isOutOfStock ? Colors.grey : AppColors.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(isOutOfStock ? 'Tugagan' : 'Savatga',
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600)),
+                      child: Text(
+                        isOutOfStock ? 'Tugagan' : 'Savatga',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
                     ),
             ),
           ],
@@ -1755,7 +1792,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final productId = widget.product['id']?.toString() ??
         DateTime.now().millisecondsSinceEpoch.toString();
 
-    cartProvider.addToCart(productId, quantity: 1).then((_) {
+    // Variant tanlangan bo'lsa, variantId ni ham yuborish
+    final variant = _selectedVariant;
+    final variantId = variant?['id']?.toString();
+
+    cartProvider.addToCart(productId, quantity: 1, variantId: variantId).then((_) {
       if (!mounted) return;
       // Rasmiylashtirish sahifasiga o'tish
       Navigator.push(
@@ -1781,19 +1822,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: GestureDetector(
         onTap: () => Navigator.pop(context),
         child: Container(
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
+            color: Colors.grey.shade200.withValues(alpha: 0.85),
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 8,
-              )
-            ],
           ),
-          child: const Icon(Icons.arrow_back_ios_new, size: 18),
+          child: const Icon(Icons.arrow_back_ios_new, size: 16),
         ),
       ),
     );
@@ -1805,18 +1840,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08), blurRadius: 6)
-            ]),
-        child: IconButton(
-            icon: Icon(icon, color: color ?? Colors.grey.shade700, size: 22),
-            onPressed: onTap),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200.withValues(alpha: 0.85),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color ?? Colors.grey.shade700, size: 20),
+        ),
       ),
     );
   }
@@ -1883,7 +1918,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final productId = widget.product['id']?.toString() ??
         DateTime.now().millisecondsSinceEpoch.toString();
 
-    cartProvider.addToCart(productId, quantity: 1).then((_) {
+    // Variant tanlangan bo'lsa, variantId ni ham yuborish
+    final variant = _selectedVariant;
+    final variantId = variant?['id']?.toString();
+
+    cartProvider.addToCart(productId, quantity: 1, variantId: variantId).then((_) {
       if (!mounted) return;
       HapticUtils.success();
       setState(() {

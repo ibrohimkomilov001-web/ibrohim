@@ -43,31 +43,39 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
    */
   const addToCartSchema = z.object({
     productId: z.string().uuid('Noto\'g\'ri mahsulot IDsi'),
+    variantId: z.string().uuid().nullish(),
     quantity: z.number().int().positive().max(999).default(1),
   });
 
   app.post('/cart', { preHandler: authMiddleware }, async (request, reply) => {
-    const { productId, quantity } = addToCartSchema.parse(request.body);
+    const { productId, variantId, quantity } = addToCartSchema.parse(request.body);
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product || !product.isActive) throw new NotFoundError('Mahsulot');
     if (product.stock < quantity) throw new AppError('Yetarli mahsulot yo\'q');
 
-    const cartItem = await prisma.cartItem.upsert({
-      where: {
-        userId_productId: {
-          userId: request.user!.userId,
-          productId,
-        },
-      },
-      update: { quantity: { increment: quantity } },
-      create: {
-        userId: request.user!.userId,
-        productId,
-        quantity,
-      },
-      include: { product: true },
+    const userId = request.user!.userId;
+    const vId = variantId ?? null;
+
+    // variantId null bo'lganda compound unique upsert ishlamaydi,
+    // shuning uchun findFirst + create/update ishlatamiz
+    const existing = await prisma.cartItem.findFirst({
+      where: { userId, productId, variantId: vId },
     });
+
+    let cartItem;
+    if (existing) {
+      cartItem = await prisma.cartItem.update({
+        where: { id: existing.id },
+        data: { quantity: existing.quantity + quantity },
+        include: { product: true },
+      });
+    } else {
+      cartItem = await prisma.cartItem.create({
+        data: { userId, productId, variantId: vId, quantity },
+        include: { product: true },
+      });
+    }
 
     return reply.send({ success: true, data: cartItem });
   });
@@ -98,23 +106,21 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
-      const cartItem = await prisma.cartItem.upsert({
+      // For PUT we don't have variantId in params, so update all matching items
+      const cartItem = await prisma.cartItem.updateMany({
         where: {
-          userId_productId: {
-            userId: request.user!.userId,
-            productId,
-          },
-        },
-        update: { quantity },
-        create: {
           userId: request.user!.userId,
           productId,
-          quantity,
         },
+        data: { quantity },
+      });
+
+      const updated = await prisma.cartItem.findFirst({
+        where: { userId: request.user!.userId, productId },
         include: { product: true },
       });
 
-      return reply.send({ success: true, data: cartItem });
+      return reply.send({ success: true, data: updated });
     } catch (e: any) {
       throw new AppError('Savatni yangilashda xatolik', 500);
     }

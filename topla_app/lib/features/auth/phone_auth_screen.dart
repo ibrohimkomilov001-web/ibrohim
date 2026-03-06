@@ -28,7 +28,32 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   }
 
   Future<void> _sendOtp() async {
-    if (!_formKey.currentState!.validate()) return;
+    final phone = _phoneController.text.replaceAll(' ', '');
+    if (phone.isEmpty || phone.length < 9) {
+      final msg = phone.isEmpty
+          ? (AppLocalizations.of(context)?.translate('phone_required') ??
+              'Telefon raqamini kiriting')
+          : (AppLocalizations.of(context)?.translate('phone_incomplete') ??
+              'Telefon raqami to\'liq emas');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg,
+              style: const TextStyle(
+                  color: Color(0xFF333333),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
+          backgroundColor: const Color(0xFFF0F0F0),
+          behavior: SnackBarBehavior.floating,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          margin: const EdgeInsets.only(left: 40, right: 40, bottom: 80),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -80,19 +105,27 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         },
         verificationFailed: (FirebaseAuthException e) {
           setState(() => _isLoading = false);
-          String message = 'Xatolik yuz berdi';
+          final l10n = AppLocalizations.of(context);
+          String message =
+              l10n?.translate('error_occurred') ?? 'Xatolik yuz berdi';
           if (e.code == 'invalid-phone-number') {
-            message = 'Telefon raqami noto\'g\'ri';
+            message = l10n?.translate('invalid_phone') ??
+                'Telefon raqami noto\'g\'ri';
           } else if (e.code == 'too-many-requests') {
-            message = 'Juda ko\'p urinish. Keyinroq qayta urinib ko\'ring';
+            message = l10n?.translate('too_many_requests') ??
+                'Juda ko\'p urinish. Keyinroq qayta urinib ko\'ring';
           } else if (e.code == 'web-context-cancelled') {
-            message = 'reCAPTCHA bekor qilindi';
+            message = l10n?.translate('recaptcha_cancelled') ??
+                'reCAPTCHA bekor qilindi';
           } else if (e.code == 'captcha-check-failed') {
-            message = 'reCAPTCHA tekshiruvi muvaffaqiyatsiz';
+            message = l10n?.translate('recaptcha_failed') ??
+                'reCAPTCHA tekshiruvi muvaffaqiyatsiz';
           } else if (e.code == 'missing-client-identifier') {
-            message = 'Iltimos, Android yoki iOS qurilmada sinab ko\'ring';
+            message = l10n?.translate('try_on_device') ??
+                'Iltimos, Android yoki iOS qurilmada sinab ko\'ring';
           } else {
-            message = 'Xatolik: ${e.message ?? e.code}';
+            message =
+                '${l10n?.translate('error_prefix') ?? 'Xatolik'}: ${e.message ?? e.code}';
           }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -116,7 +149,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       setState(() => _isLoading = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text(
+                '${AppLocalizations.of(context)?.translate('error_prefix') ?? 'Xatolik'}: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -191,9 +227,10 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
                       // Phone Number Input
                       Expanded(
-                        child: TextFormField(
+                        child: TextField(
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.done,
                           style:
                               const TextStyle(fontSize: 18, letterSpacing: 1),
                           inputFormatters: [
@@ -205,20 +242,14 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                             hintText: '00 000 00 00',
                             hintStyle: TextStyle(color: Colors.grey.shade300),
                             border: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 16,
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Telefon raqamini kiriting';
-                            }
-                            if (value.replaceAll(' ', '').length < 9) {
-                              return 'Telefon raqami to\'liq emas';
-                            }
-                            return null;
-                          },
+                          onSubmitted: (_) => _sendOtp(),
                         ),
                       ),
                     ],

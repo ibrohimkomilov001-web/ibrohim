@@ -98,16 +98,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
     HapticFeedback.selectionClick();
-    // Yonma-yon sahifalar — smooth animatsiya, uzoq sahifalar — darhol o'tish
-    if ((index - _currentIndex).abs() == 1) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      _pageController.jumpToPage(index);
-    }
+    _pageController.jumpToPage(index);
   }
 
   /// Orqaga tugmasi - boshqa tabda bo'lsa Home'ga qaytaradi, Home'da 2 marta bosish kerak

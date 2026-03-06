@@ -76,6 +76,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _scheduledDate = DateTime.now().add(const Duration(days: 1));
     // Manzillarni yuklash
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Default yetkazish narxi (courier = 35 000)
+      context.read<CartProvider>().setDeliveryFee(35000);
+
       final addressProvider = context.read<AddressesProvider>();
       addressProvider.loadAddresses().then((_) {
         // Asosiy manzilni tanlash
@@ -231,7 +234,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               value: 'courier',
               title: context.l10n.translate('courier'),
               subtitle: context.l10n.translate('tomorrow_or_later'),
-              extraInfo: '50 000 so\'m',
+              extraInfo: '35 000 so\'m',
               extraInfoColor: Colors.black87,
               isEnabled: true,
             ),
@@ -256,9 +259,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? () {
               HapticUtils.lightImpact();
               setState(() => _deliveryMethod = value);
-              // Pickup tanlanganda punktlar sahifasini ochish
+              // Yetkazish narxini yangilash
+              final cartProv = context.read<CartProvider>();
               if (value == 'pickup') {
+                cartProv.setDeliveryFee(0);
                 _openPickupPointSelector();
+              } else {
+                cartProv.setDeliveryFee(35000);
               }
             }
           : null,

@@ -33,6 +33,19 @@ const createProductSchema = z.object({
   minOrder: z.number().int().min(1).default(1),
   sku: z.string().optional(),
   weight: z.number().optional(),
+  // Variant support
+  hasVariants: z.boolean().optional(),
+  variants: z.array(z.object({
+    colorId: z.string().uuid().nullable().optional(),
+    sizeId: z.string().uuid().nullable().optional(),
+    price: z.number().positive(),
+    compareAtPrice: z.number().positive().nullable().optional(),
+    stock: z.number().int().min(0).default(0),
+    sku: z.string().nullable().optional(),
+    images: z.array(z.string()).default([]),
+    isActive: z.boolean().default(true),
+    sortOrder: z.number().int().default(0),
+  })).optional(),
 });
 
 const updateProductSchema = createProductSchema.partial();
@@ -444,6 +457,14 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           subcategory: true,
           brand: true,
           color: true,
+          variants: {
+            where: { isActive: true },
+            include: {
+              color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+              size: { select: { id: true, nameUz: true, nameRu: true } },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
         },
       });
       if (product) cacheSet(prodDetailKey, product, 60).catch(() => {});
@@ -512,9 +533,56 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       isFavorite = !!fav;
     }
 
+    // 🎨 Color siblings: shu mahsulotning boshqa ranglardagi versiyalari
+    let colorSiblings: any[] = [];
+    if (product.colorId && product.shopId) {
+      try {
+        const siblings = await prisma.product.findMany({
+          where: {
+            shopId: product.shopId,
+            nameUz: product.nameUz,
+            colorId: { not: null },
+            isActive: true,
+            status: 'active',
+            id: { not: product.id }, // o'zini chiqarma
+          },
+          select: {
+            id: true,
+            nameUz: true,
+            nameRu: true,
+            price: true,
+            images: true,
+            thumbnailUrl: true,
+            stock: true,
+            color: {
+              select: { id: true, nameUz: true, nameRu: true, hexCode: true },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 10,
+        });
+        // O'zini ham qo'shamiz (birinchi bo'lib)
+        colorSiblings = [
+          {
+            id: product.id,
+            nameUz: product.nameUz,
+            nameRu: product.nameRu,
+            price: product.price,
+            images: product.images,
+            thumbnailUrl: product.thumbnailUrl,
+            stock: product.stock,
+            color: product.color,
+          },
+          ...siblings,
+        ];
+      } catch {
+        // Xatolik bo'lsa bo'sh ro'yxat
+      }
+    }
+
     return reply.send({
       success: true,
-      data: { ...product, isFavorite },
+      data: { ...product, isFavorite, colorSiblings },
     });
   });
 
@@ -619,9 +687,21 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const cached = await cacheGet<any>(CacheKeys.COLORS_ALL);
     if (cached) return reply.send({ success: true, data: cached });
 
-    const colors = await prisma.color.findMany({ orderBy: { nameUz: 'asc' } });
+    const colors = await prisma.color.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }] });
     await cacheSet(CacheKeys.COLORS_ALL, colors, 600); // 10 min
     return reply.send({ success: true, data: colors });
+  });
+
+  /**
+   * GET /sizes
+   */
+  app.get('/sizes', async (_request, reply) => {
+    const cached = await cacheGet<any>('sizes:all');
+    if (cached) return reply.send({ success: true, data: cached });
+
+    const sizes = await prisma.size.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }] });
+    await cacheSet('sizes:all', sizes, 600); // 10 min
+    return reply.send({ success: true, data: sizes });
   });
 
   // ============================================
@@ -680,7 +760,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Determine status based on validation
       const status = validation.isValid ? 'active' : 'has_errors';
 
-      const { categoryId, subcategoryId, brandId, colorId, ...restBody } = body;
+      const { categoryId, subcategoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, ...restBody } = body;
 
       const product = await prisma.product.create({
         data: {
@@ -691,6 +771,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           descriptionRu: body.descriptionRu || body.description || null,
           status,
           qualityScore,
+          hasVariants: !!(hasVariantsFlag && variantsData && variantsData.length > 0),
           validationErrors: validation.isValid ? [] : validation.errors.map(e => e.message),
           thumbnailUrl: body.images?.[0] || null,
           moderatedAt: new Date(),
@@ -705,6 +786,33 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           shop: { select: { id: true, name: true } },
         },
       });
+
+      // Create variants if provided
+      let createdVariants: any[] = [];
+      if (hasVariantsFlag && variantsData && variantsData.length > 0) {
+        createdVariants = await Promise.all(
+          variantsData.map((v, idx) =>
+            prisma.productVariant.create({
+              data: {
+                productId: product.id,
+                colorId: v.colorId || null,
+                sizeId: v.sizeId || null,
+                price: v.price,
+                compareAtPrice: v.compareAtPrice || null,
+                stock: v.stock,
+                sku: v.sku || null,
+                images: v.images || [],
+                isActive: v.isActive ?? true,
+                sortOrder: v.sortOrder ?? idx,
+              },
+              include: {
+                color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+                size: { select: { id: true, nameUz: true, nameRu: true } },
+              },
+            })
+          )
+        );
+      }
 
       // Index in Meilisearch if active (via BullMQ — non-blocking)
       if (status === 'active') {
@@ -726,6 +834,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         success: true,
         data: {
           ...product,
+          variants: createdVariants,
           qualityScore,
           validationErrors: validation.errors,
           moderationStatus: status,
@@ -788,25 +897,84 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const qualityScore = calculateQualityScore(merged);
       const status = validation.isValid ? 'active' : 'has_errors';
 
+      // Extract variant data and relation IDs from body
+      const { categoryId: bodyCategoryId, subcategoryId: bodySubcategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, ...updateFields } = body;
+
       const updated = await prisma.product.update({
         where: { id },
         data: {
-          ...body,
+          ...updateFields,
           nameUz: merged.nameUz,
           nameRu: merged.nameRu,
           descriptionUz: merged.descriptionUz || null,
           descriptionRu: merged.descriptionRu || null,
           status,
           qualityScore,
+          hasVariants: hasVariantsFlag !== undefined ? !!(hasVariantsFlag && variantsData && variantsData.length > 0) : undefined,
           validationErrors: validation.isValid ? [] : validation.errors.map(e => e.message),
           thumbnailUrl: merged.images?.[0] || (product as any).thumbnailUrl,
           moderatedAt: new Date(),
+          ...(bodyCategoryId !== undefined && {
+            category: bodyCategoryId ? { connect: { id: bodyCategoryId } } : { disconnect: true },
+          }),
+          ...(bodySubcategoryId !== undefined && {
+            subcategory: bodySubcategoryId ? { connect: { id: bodySubcategoryId } } : { disconnect: true },
+          }),
+          ...(bodyBrandId !== undefined && {
+            brand: bodyBrandId ? { connect: { id: bodyBrandId } } : { disconnect: true },
+          }),
+          ...(bodyColorId !== undefined && {
+            color: bodyColorId ? { connect: { id: bodyColorId } } : { disconnect: true },
+          }),
         } as any,
         include: {
           category: { select: { id: true, nameUz: true, nameRu: true } },
           shop: { select: { id: true, name: true } },
         },
       });
+
+      // Update variants if provided (replace all strategy)
+      let updatedVariants: any[] = [];
+      if (variantsData !== undefined) {
+        // Delete existing variants
+        await prisma.productVariant.deleteMany({ where: { productId: id } });
+        
+        // Create new variants
+        if (variantsData && variantsData.length > 0) {
+          updatedVariants = await Promise.all(
+            variantsData.map((v, idx) =>
+              prisma.productVariant.create({
+                data: {
+                  productId: id,
+                  colorId: v.colorId || null,
+                  sizeId: v.sizeId || null,
+                  price: v.price,
+                  compareAtPrice: v.compareAtPrice || null,
+                  stock: v.stock,
+                  sku: v.sku || null,
+                  images: v.images || [],
+                  isActive: v.isActive ?? true,
+                  sortOrder: v.sortOrder ?? idx,
+                },
+                include: {
+                  color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+                  size: { select: { id: true, nameUz: true, nameRu: true } },
+                },
+              })
+            )
+          );
+        }
+      } else {
+        // Fetch existing variants for response
+        updatedVariants = await prisma.productVariant.findMany({
+          where: { productId: id },
+          include: {
+            color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+            size: { select: { id: true, nameUz: true, nameRu: true } },
+          },
+          orderBy: { sortOrder: 'asc' },
+        });
+      }
 
       // Update Meilisearch index (via BullMQ — non-blocking)
       if (status === 'active') {
@@ -831,6 +999,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         success: true,
         data: {
           ...updated,
+          variants: updatedVariants,
           qualityScore,
           validationErrors: validation.errors,
           moderationStatus: status,

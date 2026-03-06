@@ -182,13 +182,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     });
 
     try {
-      await _api.put('/notifications/$id/read');
+      await _api.put('/notifications/$id/read', body: {});
     } catch (e) {
       debugPrint('O\'qilgan deb belgilashda xatolik: $e');
     }
   }
 
   Future<void> _markAllAsRead() async {
+    // Optimistic update
+    final oldNotifications =
+        _notifications.map((n) => Map<String, dynamic>.from(n)).toList();
+    final oldUnread = _unreadCount;
+
     setState(() {
       for (var n in _notifications) {
         n['isRead'] = true;
@@ -197,9 +202,22 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     });
 
     try {
-      await _api.put('/notifications/read-all');
+      await _api.put('/notifications/read-all', body: {});
     } catch (e) {
       debugPrint('Barchasini o\'qishda xatolik: $e');
+      // Rollback on failure
+      if (mounted) {
+        setState(() {
+          _notifications = oldNotifications;
+          _unreadCount = oldUnread;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Xatolik yuz berdi, qaytadan urinib ko\'ring'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -255,18 +273,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             child: TabBar(
               controller: _tabController,
               onTap: (_) => setState(() {}),
+              isScrollable: false,
               indicatorColor: AppColors.primary,
               indicatorWeight: 2.5,
               labelColor: AppColors.primary,
               unselectedLabelColor: const Color(0xFF94A3B8),
               labelStyle: const TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
               unselectedLabelStyle: const TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
               dividerColor: const Color(0xFFE2E8F0),
               tabs: _tabs.map((t) => Tab(text: t)).toList(),
             ),
@@ -495,8 +515,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                                 fontSize: 13,
                                 height: 1.4,
                               ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 8),
 

@@ -40,6 +40,8 @@ import {
   FileCheck,
   MapPin,
   ClipboardList,
+  Dices,
+  UserPlus,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { isAdminAuthenticated, removeAdminToken } from "@/lib/api/admin";
@@ -55,6 +57,8 @@ const sidebarItems = [
   { icon: FolderTree, label: "Kategoriyalar", href: "/admin/categories" },
   { icon: Image, label: "Bannerlar", href: "/admin/banners" },
   { icon: Ticket, label: "Promo kodlar", href: "/admin/promo-codes" },
+  { icon: Dices, label: "Omad g'ildiragi", href: "/admin/lucky-wheel" },
+  { icon: UserPlus, label: "Referrallar", href: "/admin/referrals" },
   { icon: Truck, label: "Yetkazib berish", href: "/admin/delivery-zones" },
   { icon: MapPin, label: "Topshirish punktlari", href: "/admin/pickup-points" },
   { icon: ClipboardList, label: "Punkt arizalari", href: "/admin/pickup-applications" },

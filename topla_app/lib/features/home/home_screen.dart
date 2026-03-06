@@ -17,7 +17,7 @@ import '../../models/models.dart';
 import '../search/search_screen.dart';
 import '../product/product_detail_screen.dart';
 import '../catalog/catalog_screen.dart';
-import '../notifications/notifications_screen.dart';
+import '../lucky_wheel/lucky_wheel_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -147,28 +147,20 @@ class _HomeScreenState extends State<HomeScreen>
 
           const SizedBox(width: AppSizes.md),
 
-          // Notification Button
+          // Lucky Wheel Button
           GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
+                  builder: (context) => const LuckyWheelScreen(),
                 ),
               );
             },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFECECEC),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Icon(
-                Icons.notifications_none_rounded,
-                color: Colors.grey.shade500,
-                size: 22,
-              ),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              color: Color(0xFFFFD700),
+              size: 30,
             ),
           ),
         ],

@@ -1,14 +1,12 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
-
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
+import '../../widgets/product_card.dart';
 import '../product/product_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -55,14 +53,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       body: Consumer<ProductsProvider>(
         builder: (context, provider, _) {
           if (provider.isFavoritesLoading) {
-            // Shimmer skeleton loading
             return GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.52,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 0.62,
               ),
               itemCount: 4,
               itemBuilder: (_, __) => const ProductCardSkeleton(),
@@ -75,210 +72,45 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             );
           }
 
-          return _buildFavoritesList(provider.favorites);
+          return _buildFavoritesGrid(provider, provider.favorites);
         },
       ),
     );
   }
 
-  Widget _buildFavoritesList(List<ProductModel> favorites) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+  Widget _buildFavoritesGrid(ProductsProvider provider, List<ProductModel> favorites) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 0.62,
+      ),
       itemCount: favorites.length,
       itemBuilder: (context, index) {
         final product = favorites[index];
-        return _buildFavoriteCard(product);
+        return ProductCard(
+          name: product.nameUz,
+          price: product.price.toInt(),
+          oldPrice: product.oldPrice?.toInt(),
+          discount: product.discountPercent,
+          rating: product.rating,
+          sold: product.soldCount,
+          imageUrl: product.firstImage,
+          isFavorite: true,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProductDetailScreen(product: product.toMap()),
+              ),
+            );
+          },
+          onAddToCart: () => _addToCart(product),
+          onFavoriteToggle: () => _removeFromFavorites(product.id),
+        );
       },
-    );
-  }
-
-  Widget _buildFavoriteCard(ProductModel product) {
-    final productMap = product.toMap();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProductDetailScreen(product: productMap),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Product Image
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: product.firstImage != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: CachedNetworkImage(
-                                imageUrl: product.firstImage!,
-                                fit: BoxFit.cover,
-                                width: 100,
-                                height: 100,
-                                errorWidget: (_, __, ___) => Icon(
-                                  Iconsax.image,
-                                  size: 40,
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              Iconsax.image,
-                              size: 40,
-                              color: Colors.grey.shade400,
-                            ),
-                    ),
-                    if (product.discountPercent > 0)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '-${product.discountPercent}%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              // Product Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.nameUz,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Iconsax.star_1,
-                          color: Colors.amber,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${product.rating}',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${product.soldCount} ${context.l10n.soldCount}',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '${_formatPrice(product.price)} ${context.l10n.translate('currency')}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppColors.primary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (product.oldPrice != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatPrice(product.oldPrice!),
-                            style: TextStyle(
-                              decoration: TextDecoration.lineThrough,
-                              color: Colors.grey.shade500,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Actions
-              Column(
-                children: [
-                  IconButton(
-                    onPressed: () => _removeFromFavorites(product.id),
-                    icon: Icon(
-                      Iconsax.heart,
-                      color: AppColors.error,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _addToCart(product),
-                    icon: Icon(
-                      Iconsax.shopping_cart,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -300,7 +132,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Iconsax.tick_circle, color: Colors.white),
+              const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 12),
               Text(context.l10n.addedToCart),
             ],
@@ -351,16 +183,4 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  String _formatPrice(dynamic price) {
-    if (price == null) return '0';
-    String priceStr = price.toString();
-    // Remove trailing .0 for whole numbers
-    if (priceStr.endsWith('.0')) {
-      priceStr = priceStr.substring(0, priceStr.length - 2);
-    }
-    return priceStr.replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]} ',
-    );
-  }
 }

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
-import { uploadApi } from "@/lib/api/upload";
+import { uploadApi, resolveImageUrl } from "@/lib/api/upload";
 import { toast } from "sonner";
 import {
   Store,
@@ -101,7 +101,7 @@ export default function SettingsPage() {
     if (!file) return;
     setIsUploading(true);
     try {
-      const result = await uploadApi.uploadImage(file);
+      const result = await uploadApi.uploadImage(file, 'shop');
       setLogoUrl(result.url);
       toast.success("Logo yuklandi");
     } catch (err: any) {
@@ -116,7 +116,7 @@ export default function SettingsPage() {
     if (!file) return;
     setIsUploading(true);
     try {
-      const result = await uploadApi.uploadImage(file);
+      const result = await uploadApi.uploadImage(file, 'shop');
       setBannerUrl(result.url);
       toast.success("Banner yuklandi");
     } catch (err: any) {
@@ -130,7 +130,7 @@ export default function SettingsPage() {
     const errs: Record<string, string> = {};
     if (!shopName.trim()) errs.shopName = "Do'kon nomini kiriting";
     if (!shopPhone.trim()) errs.shopPhone = "Telefon raqamini kiriting";
-    else if (!/^\+998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}$/.test(shopPhone.trim()))
+    else if (!/^\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}$/.test(shopPhone.trim().replace(/[\-()]/g, '')))
       errs.shopPhone = "Format: +998 XX XXX XX XX";
     if (shopEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shopEmail.trim()))
       errs.shopEmail = "Email formati noto'g'ri";
@@ -215,7 +215,7 @@ export default function SettingsPage() {
                 <Label className="mb-2 block">Logo</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={logoUrl} />
+                    <AvatarImage src={resolveImageUrl(logoUrl)} />
                     <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                       {shopName?.charAt(0) || "S"}
                     </AvatarFallback>
@@ -238,7 +238,7 @@ export default function SettingsPage() {
                 <label className="block cursor-pointer">
                   <div className="aspect-[3/1] rounded-xl border-2 border-dashed border-muted-foreground/30 overflow-hidden hover:border-primary/50 transition-colors relative">
                     {bannerUrl ? (
-                      <Image src={bannerUrl} alt="Banner" fill className="object-cover" />
+                      <Image src={resolveImageUrl(bannerUrl)} alt="Banner" fill className="object-cover" unoptimized />
                     ) : (
                       <div className="flex items-center justify-center h-full text-muted-foreground">
                         <Upload className="h-6 w-6 mr-2" />

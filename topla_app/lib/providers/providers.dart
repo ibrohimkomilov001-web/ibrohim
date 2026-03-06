@@ -7,3 +7,4 @@ export 'addresses_provider.dart';
 export 'vendor_provider.dart';
 // theme_provider.dart - dark mode o'chirilgan
 export 'shop_provider.dart';
+export 'lucky_wheel_provider.dart';

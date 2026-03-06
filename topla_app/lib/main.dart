@@ -35,6 +35,10 @@ import 'features/profile/returns_screen.dart';
 import 'features/profile/reviews_questions_screen.dart';
 import 'features/profile/devices_screen.dart';
 import 'features/auth/complete_profile_screen.dart';
+import 'features/notifications/notifications_screen.dart';
+import 'features/profile/my_promo_codes_screen.dart';
+import 'features/lucky_wheel/all_prizes_screen.dart';
+import 'features/lucky_wheel/spin_history_screen.dart';
 import 'core/widgets/auth_guard.dart';
 
 void main() async {
@@ -163,6 +167,7 @@ class ToplaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => getIt<AddressesProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<VendorProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<ShopProvider>()),
+        ChangeNotifierProvider(create: (_) => getIt<LuckyWheelProvider>()),
         ChangeNotifierProvider(
           create: (_) => ConnectivityProvider(ConnectivityService()),
         ),
@@ -228,6 +233,14 @@ class ToplaApp extends StatelessWidget {
               '/reviews-questions': (context) =>
                   const AuthGuard(child: ReviewsQuestionsScreen()),
               '/devices': (context) => const AuthGuard(child: DevicesScreen()),
+              '/notifications': (context) =>
+                  const AuthGuard(child: NotificationsScreen()),
+              '/my-promo-codes': (context) =>
+                  const AuthGuard(child: MyPromoCodesScreen()),
+              '/lucky-wheel/prizes': (context) =>
+                  const AuthGuard(child: AllPrizesScreen()),
+              '/lucky-wheel/history': (context) =>
+                  const AuthGuard(child: SpinHistoryScreen()),
               '/mobile-vendor': (context) =>
                   const AuthGuard(child: VendorDashboardScreen()),
 
