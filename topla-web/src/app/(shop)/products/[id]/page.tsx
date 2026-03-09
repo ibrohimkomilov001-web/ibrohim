@@ -13,6 +13,7 @@ import {
 import { motion } from 'framer-motion';
 import { shopApi } from '@/lib/api/shop';
 import { formatPrice } from '@/lib/utils';
+import { ProductRecommendations } from '@/components/shop/product-recommendations';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart-store';
 import { useFavoritesStore } from '@/store/favorites-store';
@@ -155,7 +156,7 @@ export default function ProductDetailPage() {
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <button
                   onClick={() => toggleFavorite(id)}
-                  className="w-10 h-10 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
                 </button>
@@ -172,7 +173,7 @@ export default function ProductDetailPage() {
                       alert(locale === 'ru' ? 'Ссылка скопирована' : 'Havola nusxalandi');
                     }
                   }}
-                  className="w-10 h-10 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Share2 className="w-5 h-5" />
                 </button>
@@ -270,14 +271,14 @@ export default function ProductDetailPage() {
             <div className="flex items-center glass rounded-xl overflow-hidden">
               <button
                 onClick={() => setQty(Math.max(1, qty - 1))}
-                className="w-10 h-10 flex items-center justify-center hover:bg-muted transition-colors"
+                className="w-11 h-11 flex items-center justify-center hover:bg-muted transition-colors"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <span className="w-12 text-center font-medium">{qty}</span>
               <button
                 onClick={() => setQty(Math.min(product.stock, qty + 1))}
-                className="w-10 h-10 flex items-center justify-center hover:bg-muted transition-colors"
+                className="w-11 h-11 flex items-center justify-center hover:bg-muted transition-colors"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -313,7 +314,7 @@ export default function ProductDetailPage() {
           {product.shop && (
             <Link
               href={`/shops/${product.shop.id}`}
-              className="glass rounded-2xl p-4 flex items-center gap-4 hover-spring block group"
+              className="glass rounded-2xl p-4 flex items-center gap-4 hover-spring group"
             >
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
                 {product.shop.logoUrl ? (
@@ -431,6 +432,9 @@ export default function ProductDetailPage() {
           </div>
         </div>
       )}
+
+      {/* AI Recommendations: Cross-sell & Up-sell */}
+      <ProductRecommendations productId={id} />
     </div>
   );
 }

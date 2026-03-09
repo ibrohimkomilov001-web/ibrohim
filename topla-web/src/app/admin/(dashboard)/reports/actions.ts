@@ -1,4 +1,4 @@
-import { fetchReports } from "@/lib/api/admin";
+import { fetchReports, fetchAnalyticsRevenue, fetchAnalyticsOrders, fetchAnalyticsUsers } from "@/lib/api/admin";
 
 export type ReportData = {
   salesOverview: {
@@ -18,35 +18,78 @@ export type ReportData = {
   revenueByDay: { date: string; revenue: number }[];
 };
 
-export async function getReportData(period: "week" | "month" | "year"): Promise<ReportData> {
+const periodMap: Record<string, string> = {
+  week: '7d',
+  month: '30d',
+  year: '1y',
+};
+
+export async function getReportData(period: string): Promise<ReportData> {
+  const apiPeriod = periodMap[period] || '30d';
+
   try {
-    const data = await fetchReports(period);
+    const [reportData, revenueData, ordersData, usersData] = await Promise.all([
+      fetchReports(apiPeriod).catch(() => null),
+      fetchAnalyticsRevenue(apiPeriod, true).catch(() => null),
+      fetchAnalyticsOrders(apiPeriod).catch(() => null),
+      fetchAnalyticsUsers(apiPeriod, true).catch(() => null),
+    ]);
+
+    // Revenue summary from analytics (has compare data)
+    const summary = revenueData?.summary || {};
+    const currentRevSeries = revenueData?.current || [];
+    const previousRevSeries = revenueData?.previous || [];
+
+    const totalRevenue = summary.totalRevenue || 0;
+    const totalOrders = summary.totalOrders || 0;
+    const avgOrderValue = summary.avgOrderValue || (totalOrders > 0 ? totalRevenue / totalOrders : 0);
+
+    // Calculate previous period totals
+    const previousRevenue = previousRevSeries.reduce((sum: number, d: any) => sum + Number(d.revenue || 0), 0);
+    const previousOrders = previousRevSeries.reduce((sum: number, d: any) => sum + Number(d.orders || 0), 0);
+
+    // Order status breakdown from analytics
+    const ordersByStatus = (ordersData?.statusBreakdown || reportData?.orderStats || []).map((d: any) => ({
+      status: d.status,
+      count: Number(d.count || d._count?.id || d._count || 0),
+    })).filter((d: { status: string; count: number }) => d.count > 0);
+
+    // User stats from analytics
+    const userSummary = usersData?.summary || {};
+    const newUsers = userSummary.totalNew || reportData?.newUsers || 0;
+
+    // Revenue by day from analytics time series
+    const revenueByDay = currentRevSeries.map((d: any) => ({
+      date: d.date,
+      revenue: Number(d.revenue || 0),
+    }));
+
     return {
       salesOverview: {
-        totalRevenue: data.orderStats?.totalRevenue || 0,
-        previousRevenue: 0,
-        totalOrders: data.orderStats?.totalOrders || 0,
-        previousOrders: 0,
-        averageOrderValue: data.orderStats?.avgOrderValue || 0,
+        totalRevenue,
+        previousRevenue,
+        totalOrders,
+        previousOrders,
+        averageOrderValue: avgOrderValue,
       },
       userStats: {
-        totalUsers: data.newUsers?.length || 0,
-        newUsersThisMonth: data.newUsers?.length || 0,
+        totalUsers: newUsers,
+        newUsersThisMonth: newUsers,
       },
-      ordersByStatus: [],
-      topShops: (data.revenueByShop || []).map((s: any) => ({
-        id: s.shopId || s.id,
-        name: s.shopName || s.name,
-        revenue: Number(s.revenue || 0),
-        orders_count: s.orderCount || 0,
+      ordersByStatus,
+      topShops: (reportData?.revenueByShop || []).map((s: any) => ({
+        id: s.shopId || s.id || '',
+        name: s.shopName || s.name || '-',
+        revenue: Number(s.amount || s.revenue || 0),
+        orders_count: Number(s.orderCount || 0),
       })),
-      topProducts: (data.topProducts || []).map((p: any) => ({
-        id: p.productId || p.id,
-        name: p.productName || p.name,
-        revenue: Number(p.revenue || 0),
-        orders_count: p.orderCount || 0,
+      topProducts: (reportData?.topProducts || []).map((p: any) => ({
+        id: p.id || p.productId || '',
+        name: p.nameUz || p.productName || p.name || '-',
+        revenue: Number(p.price || 0) * Number(p.salesCount || 0),
+        orders_count: Number(p.salesCount || p.orderCount || 0),
       })),
-      revenueByDay: [],
+      revenueByDay,
     };
   } catch {
     return {

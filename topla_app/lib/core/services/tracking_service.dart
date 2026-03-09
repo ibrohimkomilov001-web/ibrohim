@@ -218,8 +218,6 @@ class OrderStatusUpdate {
     switch (status) {
       case 'pending':
         return 'Buyurtma kutilmoqda';
-      case 'confirmed':
-        return 'Buyurtma tasdiqlandi';
       case 'processing':
         return 'Tayyorlanmoqda';
       case 'ready_for_pickup':

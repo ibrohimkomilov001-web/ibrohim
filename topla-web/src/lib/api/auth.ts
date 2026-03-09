@@ -22,6 +22,10 @@ export interface RegisterRequest {
   businessType?: string;
   fulfillmentType?: 'FBS' | 'DBS';
   inn?: string;
+  bankName?: string;
+  bankAccount?: string;
+  mfo?: string;
+  oked?: string;
 }
 
 export interface AuthResponse {

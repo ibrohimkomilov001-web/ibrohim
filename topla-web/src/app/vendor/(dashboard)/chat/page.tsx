@@ -1,12 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageCircle, Send, ArrowLeft, User, Clock } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MessageCircle, Send, ArrowLeft, User, Clock, Wifi, WifiOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDateTime, formatTime } from '@/lib/utils';
 import api from '@/lib/api/client';
+import { useChatSocket, type ChatMessage as SocketMessage } from '@/hooks/use-chat-socket';
+
+function getVendorToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
+}
 
 interface ChatRoom {
   id: string;
@@ -37,11 +43,13 @@ function RoomList({
   selectedRoom,
   onSelect,
   isLoading,
+  typingRoomCheck,
 }: {
   rooms: ChatRoom[];
   selectedRoom: string | null;
   onSelect: (id: string) => void;
   isLoading: boolean;
+  typingRoomCheck: (roomId: string) => boolean;
 }) {
   if (isLoading) {
     return (
@@ -100,9 +108,13 @@ function RoomList({
                 </span>
               )}
             </div>
-            {room.messages?.[0]?.message && (
-              <p className="text-xs text-muted-foreground truncate mt-0.5">{room.messages[0].message}</p>
-            )}
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {typingRoomCheck(room.id) ? (
+                <span className="text-primary italic">Yozmoqda...</span>
+              ) : (
+                room.messages?.[0]?.message || ''
+              )}
+            </p>
           </div>
         </button>
       ))}
@@ -120,6 +132,7 @@ function ChatPanel({
   isSending,
   onBack,
   messagesEndRef,
+  isTyping,
 }: {
   room?: ChatRoom;
   messages: ChatMessage[];
@@ -129,6 +142,7 @@ function ChatPanel({
   isSending: boolean;
   onBack: () => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  isTyping: boolean;
 }) {
   if (!room) {
     return (
@@ -156,9 +170,13 @@ function ChatPanel({
           <p className="font-semibold text-sm">
             {room.customer?.fullName || 'Mijoz'}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {room.status === 'active' ? 'Faol' : 'Yopilgan'}
-          </p>
+          {isTyping ? (
+            <p className="text-xs text-primary animate-pulse">Yozmoqda...</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {room.status === 'active' ? 'Faol' : 'Yopilgan'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -176,6 +194,7 @@ function ChatPanel({
                 <p className="text-sm">{msg.message || msg.content}</p>
                 <p className={`text-[10px] mt-1 ${isVendor ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                   {formatTime(msg.createdAt)}
+                  {isVendor && msg.isRead && ' ✓✓'}
                 </p>
               </div>
             </div>
@@ -211,10 +230,37 @@ function ChatPanel({
 /* ── Main Page ── */
 export default function VendorChatPage() {
   const queryClient = useQueryClient();
+  const [token] = useState(() => getVendorToken());
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
+  // Socket.IO real-time connection
+  const handleNewMessage = useCallback((msg: SocketMessage) => {
+    setRealtimeMessages(prev => {
+      if (prev.some(m => m.id === msg.id)) return prev;
+      return [...prev, {
+        id: msg.id,
+        message: msg.message,
+        senderId: msg.senderId,
+        senderRole: msg.senderRole,
+        isRead: false,
+        createdAt: msg.createdAt,
+      }];
+    });
+    // Refresh room list to update last message / unread count
+    queryClient.invalidateQueries({ queryKey: ['vendor-chat-rooms'] });
+  }, [queryClient]);
+
+  const { connected, joinRoom, leaveRoom, sendMessage, startTyping, stopTyping, isRoomTyping } = useChatSocket({
+    token,
+    onNewMessage: handleNewMessage,
+  });
+
+  // Fetch rooms (initial load, no polling)
   const { data: roomsData, isLoading: roomsLoading } = useQuery({
     queryKey: ['vendor-chat-rooms'],
     queryFn: () => api.get<ChatRoom[]>('/chat/rooms'),
@@ -222,41 +268,83 @@ export default function VendorChatPage() {
 
   const rooms = Array.isArray(roomsData) ? roomsData : [];
 
+  // Fetch messages for selected room (initial load, no polling)
   const { data: messagesData } = useQuery({
     queryKey: ['vendor-chat-messages', selectedRoom],
     queryFn: () =>
       api.get<{ items: ChatMessage[]; pagination: any }>(`/chat/rooms/${selectedRoom}/messages`),
     enabled: !!selectedRoom,
-    refetchInterval: 3000,
   });
 
-  const messages = (messagesData as any)?.items || (Array.isArray(messagesData) ? messagesData : []);
+  const fetchedMessages: ChatMessage[] = (messagesData as any)?.items || (Array.isArray(messagesData) ? messagesData : []);
 
-  const sendMutation = useMutation({
-    mutationFn: (content: string) =>
-      api.post(`/chat/rooms/${selectedRoom}/messages`, { content }),
-    onSuccess: () => {
-      setMessage('');
-      queryClient.invalidateQueries({ queryKey: ['vendor-chat-messages', selectedRoom] });
-      queryClient.invalidateQueries({ queryKey: ['vendor-chat-rooms'] });
-    },
-  });
+  // Merge fetched + real-time messages (deduplicated)
+  const allMessages = [
+    ...fetchedMessages,
+    ...realtimeMessages.filter(rm => !fetchedMessages.some(fm => fm.id === rm.id)),
+  ];
+
+  // Select a room
+  const handleSelectRoom = useCallback((roomId: string) => {
+    if (selectedRoom) leaveRoom(selectedRoom);
+    setSelectedRoom(roomId);
+    setRealtimeMessages([]);
+    if (connected) joinRoom(roomId);
+  }, [selectedRoom, connected, joinRoom, leaveRoom]);
+
+  // Join room when connection established
+  useEffect(() => {
+    if (connected && selectedRoom) joinRoom(selectedRoom);
+  }, [connected, selectedRoom, joinRoom]);
 
   // Mark as read
   useEffect(() => {
     if (selectedRoom) {
       api.put(`/chat/rooms/${selectedRoom}/read`).catch(() => {});
     }
-  }, [selectedRoom, messages]);
+  }, [selectedRoom, allMessages.length]);
 
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [allMessages.length]);
 
-  const handleSend = () => {
+  // Send message via Socket.IO (with REST fallback)
+  const handleSend = useCallback(async () => {
     if (!message.trim() || !selectedRoom) return;
-    sendMutation.mutate(message.trim());
-  };
+    const content = message.trim();
+    setMessage('');
+    setIsSending(true);
+    stopTyping(selectedRoom);
+
+    if (connected) {
+      sendMessage(selectedRoom, content);
+      setIsSending(false);
+    } else {
+      try {
+        // REST fallback — backend expects { message } not { content }
+        await api.post(`/chat/rooms/${selectedRoom}/messages`, { message: content });
+        queryClient.invalidateQueries({ queryKey: ['vendor-chat-messages', selectedRoom] });
+      } catch {
+        setMessage(content);
+      } finally {
+        setIsSending(false);
+      }
+    }
+  }, [message, selectedRoom, connected, sendMessage, stopTyping, queryClient]);
+
+  // Handle typing indicator
+  const handleInputChange = useCallback((value: string) => {
+    setMessage(value);
+    if (!selectedRoom || !connected) return;
+    if (value.trim()) {
+      startTyping(selectedRoom);
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => stopTyping(selectedRoom), 2000);
+    } else {
+      stopTyping(selectedRoom);
+    }
+  }, [selectedRoom, connected, startTyping, stopTyping]);
 
   const currentRoom = rooms.find((r) => r.id === selectedRoom);
 
@@ -271,13 +359,21 @@ export default function VendorChatPage() {
           <h1 className="text-lg font-bold flex items-center gap-2">
             <MessageCircle className="w-5 h-5" /> Chat
           </h1>
-          <p className="text-sm text-muted-foreground">Mijozlar bilan muloqot</p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Mijozlar bilan muloqot</span>
+            {connected ? (
+              <Wifi className="w-3 h-3 text-green-500" />
+            ) : (
+              <WifiOff className="w-3 h-3 text-red-500" />
+            )}
+          </div>
         </div>
         <RoomList
           rooms={rooms}
           selectedRoom={selectedRoom}
-          onSelect={setSelectedRoom}
+          onSelect={handleSelectRoom}
           isLoading={roomsLoading}
+          typingRoomCheck={isRoomTyping}
         />
       </div>
 
@@ -288,13 +384,14 @@ export default function VendorChatPage() {
       )}>
         <ChatPanel
           room={currentRoom}
-          messages={messages}
+          messages={allMessages}
           message={message}
-          setMessage={setMessage}
+          setMessage={handleInputChange}
           onSend={handleSend}
-          isSending={sendMutation.isPending}
-          onBack={() => setSelectedRoom(null)}
+          isSending={isSending}
+          onBack={() => { if (selectedRoom) leaveRoom(selectedRoom); setSelectedRoom(null); }}
           messagesEndRef={messagesEndRef}
+          isTyping={selectedRoom ? isRoomTyping(selectedRoom) : false}
         />
       </div>
     </div>

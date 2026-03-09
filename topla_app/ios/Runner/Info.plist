@@ -45,5 +45,21 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Camera (image_picker) -->
+	<key>NSCameraUsageDescription</key>
+	<string>TOPLA ilovasi profil rasmingizni o'zgartirish va mahsulot rasmlarini yuklash uchun kameradan foydalanadi.</string>
+	<!-- Photo Library (image_picker) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TOPLA ilovasi profil rasmingizni tanlash va mahsulot rasmlarini yuklash uchun gallereyadan foydalanadi.</string>
+	<!-- Location (geolocator, geocoding) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TOPLA ilovasi yetkazib berish manzilingizni aniqlash uchun joylashuvingizdan foydalanadi.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>TOPLA ilovasi kuryer sifatida buyurtmalarni yetkazish uchun joylashuvingizni kuzatadi.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>TOPLA ilovasi yetkazib berish va kuryer kuzatuvi uchun joylashuvingizdan foydalanadi.</string>
+	<!-- Biometric Authentication (local_auth) -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>TOPLA ilovasi hisobingizga xavfsiz kirish uchun Face ID dan foydalanadi.</string>
 </dict>
 </plist>

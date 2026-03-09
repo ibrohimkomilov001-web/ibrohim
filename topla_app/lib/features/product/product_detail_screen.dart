@@ -112,6 +112,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<Map<String, dynamic>> _similarProducts = [];
   bool _isSimilarLoading = false;
 
+  // WOW narx mahsulotlar
+  List<Map<String, dynamic>> _wowProducts = [];
+  bool _isWowLoading = false;
+
+  // Tab indices
+  int _descTabIndex = 0; // 0=Tavsif, 1=Xususiyatlar
+  int _bottomTabIndex = 0; // 0=O'xshash, 1=WOW narx
+
   // Do'kon ma'lumotlari - mahsulotdan olinadi
   Map<String, dynamic> get _shop {
     final shop = widget.product['shop'];
@@ -142,6 +150,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _fetchFullProduct();
     // O'xshash mahsulotlarni yuklash
     _loadSimilarProducts();
+    // WOW narx mahsulotlarni yuklash
+    _loadWowProducts();
   }
 
   /// O'xshash mahsulotlarni yuklash (shu kategoriya bo'yicha)
@@ -187,6 +197,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
+  /// WOW narx mahsulotlar (arzon + chegirmali)
+  Future<void> _loadWowProducts() async {
+    setState(() => _isWowLoading = true);
+    try {
+      final provider = context.read<ProductsProvider>();
+      final allProducts = await provider.getAllProducts(limit: 30);
+      if (!mounted) return;
+      setState(() {
+        _wowProducts = allProducts
+            .where((p) =>
+                p.id != _productId &&
+                (p.discountPercent > 0 || p.price < 100000))
+            .take(8)
+            .map((p) => {
+                  'id': p.id,
+                  'name': p.nameUz,
+                  'price': p.price.toInt(),
+                  'oldPrice': p.oldPrice?.toInt(),
+                  'rating': p.rating,
+                  'sold': p.soldCount,
+                  'image': p.images.isNotEmpty ? p.images.first : null,
+                  'images': p.images,
+                  'stock': p.stock,
+                  'categoryId': p.categoryId,
+                  'shopId': p.shopId,
+                  'description': p.descriptionUz,
+                })
+            .toList();
+        _isWowLoading = false;
+      });
+    } catch (e) {
+      debugPrint('WOW products error: $e');
+      if (mounted) setState(() => _isWowLoading = false);
+    }
+  }
+
   /// Backenddan to'liq mahsulot olish (variantlar bilan)
   Future<void> _fetchFullProduct() async {
     try {
@@ -203,8 +249,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// Variantlarni parse qilish
   void _parseVariants(Map<String, dynamic> product) {
     final variants = product['variants'];
-    if (variants == null || variants is! List || (variants as List).isEmpty)
-      return;
+    if (variants == null || variants is! List || variants.isEmpty) return;
 
     final variantList = List<Map<String, dynamic>>.from(
       variants.map((v) => Map<String, dynamic>.from(v as Map)),
@@ -376,18 +421,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   const SizedBox(height: 20),
 
-                  //  Description
-                  _buildDescription(product),
+                  // TABBED: Tavsif | Xususiyatlar
+                  _buildDescSpecTabs(product),
 
                   const SizedBox(height: 24),
 
-                  // 📋 SPECIFICATIONS
-                  _buildSpecifications(),
-
-                  const SizedBox(height: 24),
-
-                  //  SIMILAR PRODUCTS
-                  _buildSimilarProducts(),
+                  // TABBED: O'xshash mahsulotlar | WOW narx
+                  _buildBottomTabs(),
 
                   const SizedBox(height: 120),
                 ],
@@ -424,6 +464,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               color: isFavorite ? AppColors.error : null,
               onTap: () async {
                 if (_productId.isEmpty) return;
+                if (!context.read<AuthProvider>().isLoggedIn) {
+                  Navigator.pushNamed(context, '/auth');
+                  return;
+                }
                 try {
                   await provider.toggleFavorite(_productId);
                   if (context.mounted) {
@@ -981,11 +1025,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  // ============ COLOR SELECTOR (old - kept for backwards compat) ============
-  Widget _buildColorSelector() {
-    return _buildColorSelectorWithImages();
-  }
-
   // ============ COLOR SELECTOR - UZUM STYLE ============
   Widget _buildColorSelectorWithImages() {
     if (_uniqueColors.isEmpty) return const SizedBox.shrink();
@@ -1083,24 +1122,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ],
       ),
     );
-  }
-
-  /// Boshqa rangli mahsulotga o'tish (eski tizim uchun)
-  void _navigateToColorSibling(String productId) async {
-    try {
-      final productsProvider = context.read<ProductsProvider>();
-      final product = await productsProvider.getProductById(productId);
-      if (product != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: product),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Color sibling navigation error: $e');
-    }
   }
 
   // ============ SIZE SELECTOR - UZUM STYLE ============
@@ -1202,697 +1223,291 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // ============ DESCRIPTION ============
-  Widget _buildDescription(Map<String, dynamic> product) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(context.l10n.translate('description'),
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(
-            product['description'] ??
-                'Bu mahsulot haqida batafsil ma\'lumot. Sifatli materiallardan tayyorlangan, uzoq muddat xizmat qiladi.',
-            style: TextStyle(
-                color: Colors.grey.shade700, fontSize: 15, height: 1.5),
-          ),
-        ],
+  // ============ TAB SELECTOR HELPER ============
+  Widget _buildTabBar({
+    required List<String> labels,
+    required int selectedIndex,
+    required ValueChanged<int> onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final isSelected = i == selectedIndex;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onTap(i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  labels[i],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? Colors.black : Colors.grey.shade500,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 
-  // ============ SPECIFICATIONS ============
-  Widget _buildSpecifications() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
+  // ============ TAVSIF + XUSUSIYATLAR TABS ============
+  Widget _buildDescSpecTabs(Map<String, dynamic> product) {
+    return Column(
+      children: [
+        _buildTabBar(
+          labels: [
+            context.l10n.translate('description'),
             'Xususiyatlar',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: _specifications.asMap().entries.map((entry) {
-                final index = entry.key;
-                final spec = entry.value;
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    border: index < _specifications.length - 1
-                        ? Border(
-                            bottom: BorderSide(color: Colors.grey.shade200))
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          spec['key'] ?? '',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          spec['value'] ?? '',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
+          ],
+          selectedIndex: _descTabIndex,
+          onTap: (i) => setState(() => _descTabIndex = i),
+        ),
+        const SizedBox(height: 16),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _descTabIndex == 0
+              ? _buildDescriptionContent(product)
+              : _buildSpecificationsContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDescriptionContent(Map<String, dynamic> product) {
+    return Padding(
+      key: const ValueKey('desc'),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        product['description'] ??
+            'Bu mahsulot haqida batafsil ma\'lumot. Sifatli materiallardan tayyorlangan, uzoq muddat xizmat qiladi.',
+        style:
+            TextStyle(color: Colors.grey.shade700, fontSize: 15, height: 1.5),
       ),
     );
   }
 
-  // ============ DELIVERY INFO ============
-  Widget _buildDeliveryInfo() {
+  Widget _buildSpecificationsContent() {
+    if (_specifications.isEmpty) {
+      return Padding(
+        key: const ValueKey('specs_empty'),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(
+          'Xususiyatlar haqida ma\'lumot yo\'q',
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+        ),
+      );
+    }
     return Padding(
+      key: const ValueKey('specs'),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
-          children: [
-            _buildDeliveryRow(
-              icon: Iconsax.truck_fast,
-              title: 'Bepul yetkazib berish',
-              subtitle: '3-7 kun ichida',
-              color: AppColors.success,
-              isFirst: true,
-            ),
-            Divider(height: 1, color: Colors.grey.shade100),
-            _buildDeliveryRow(
-              icon: Iconsax.shield_tick,
-              title: 'Kafolat',
-              subtitle: '3 kunlik qaytarish',
-              color: AppColors.primary,
-            ),
-            Divider(height: 1, color: Colors.grey.shade100),
-            _buildDeliveryRow(
-              icon: Iconsax.verify,
-              title: 'Original mahsulot',
-              subtitle: 'Sifat kafolatlanadi',
-              color: Colors.orange.shade600,
-              isLast: true,
-            ),
+          children: _specifications.asMap().entries.map((entry) {
+            final index = entry.key;
+            final spec = entry.value;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                border: index < _specifications.length - 1
+                    ? Border(bottom: BorderSide(color: Colors.grey.shade200))
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      spec['key'] ?? '',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      spec['value'] ?? '',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // ============ O'XSHASH + WOW NARX TABS ============
+  Widget _buildBottomTabs() {
+    return Column(
+      children: [
+        _buildTabBar(
+          labels: [
+            'O\'xshash mahsulotlar',
+            'WOW narx',
           ],
+          selectedIndex: _bottomTabIndex,
+          onTap: (i) => setState(() => _bottomTabIndex = i),
         ),
-      ),
+        const SizedBox(height: 16),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _bottomTabIndex == 0
+              ? _buildSimilarProductsContent()
+              : _buildWowProductsContent(),
+        ),
+      ],
     );
   }
 
-  Widget _buildDeliveryRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    bool isFirst = false,
-    bool isLast = false,
+  Widget _buildSimilarProductsContent() {
+    return _buildProductHorizontalList(
+      key: const ValueKey('similar'),
+      products: _similarProducts,
+      isLoading: _isSimilarLoading,
+    );
+  }
+
+  Widget _buildWowProductsContent() {
+    return _buildProductHorizontalList(
+      key: const ValueKey('wow'),
+      products: _wowProducts,
+      isLoading: _isWowLoading,
+    );
+  }
+
+  Widget _buildProductHorizontalList({
+    required Key key,
+    required List<Map<String, dynamic>> products,
+    required bool isLoading,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.vertical(
-          top: isFirst ? const Radius.circular(16) : Radius.zero,
-          bottom: isLast ? const Radius.circular(16) : Radius.zero,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
+    if (isLoading) {
+      return SizedBox(
+        key: key,
+        height: 220,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: 3,
+          itemBuilder: (_, __) => Container(
+            width: 160,
+            margin: const EdgeInsets.only(right: 14),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Iconsax.tick_circle,
-              size: 18, color: color.withValues(alpha: 0.6)),
-        ],
-      ),
-    );
-  }
-
-  // ============ REVIEWS SECTION ============
-  Widget _buildReviewsSection(Map<String, dynamic> product) {
-    final rating = (product['rating'] ?? 4.5).toDouble();
-    final reviewCount = product['reviewCount'] ?? _reviews.length;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              const Text(
-                'Sharhlar',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  'Barchasi ($reviewCount)',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Rating Overview
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: Colors.grey.shade100,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              children: [
-                // Big rating
-                Column(
-                  children: [
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 42,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Row(
-                      children: List.generate(5, (index) {
-                        return Icon(
-                          index < rating.floor()
-                              ? Iconsax.star_1
-                              : Iconsax.star,
-                          color: Colors.amber,
-                          size: 16,
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$reviewCount ta sharh',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(width: 24),
-
-                // Rating bars
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildRatingBar(5, 0.7),
-                      _buildRatingBar(4, 0.2),
-                      _buildRatingBar(3, 0.05),
-                      _buildRatingBar(2, 0.03),
-                      _buildRatingBar(1, 0.02),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ),
-
-          const SizedBox(height: 16),
-
-          // Review cards
-          ...(_reviews.take(2).map((review) => _buildReviewCard(review))),
-
-          const SizedBox(height: 12),
-
-          // Write review button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showWriteReviewSheet,
-              icon: const Icon(Iconsax.edit),
-              label: Text(context.l10n.translate('write_review')),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                side: BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRatingBar(int stars, double percentage) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Text('$stars',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          const SizedBox(width: 4),
-          const Icon(Iconsax.star_1, size: 12, color: Colors.amber),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: percentage,
-                backgroundColor: Colors.grey.shade200,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
-                minHeight: 6,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 35,
-            child: Text(
-              '${(percentage * 100).toInt()}%',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReviewCard(Map<String, dynamic> review) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                child: Text(
-                  review['userName']?.substring(0, 1) ?? 'U',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          review['userName'] ?? 'Foydalanuvchi',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14),
-                        ),
-                        if (review['isVerified'] == true) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Iconsax.verify,
-                                    size: 10, color: AppColors.success),
-                                SizedBox(width: 2),
-                                Text(
-                                  'Sotib olgan',
-                                  style: TextStyle(
-                                      fontSize: 9,
-                                      color: AppColors.success,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Text(
-                      review['date'] ?? '',
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                children: List.generate(5, (index) {
-                  return Icon(
-                    index < (review['rating'] ?? 5)
-                        ? Iconsax.star_1
-                        : Iconsax.star,
-                    color: Colors.amber,
-                    size: 14,
-                  );
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            review['comment'] ?? '',
-            style: TextStyle(
-                color: Colors.grey.shade700, fontSize: 13, height: 1.4),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              InkWell(
-                onTap: () {},
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    children: [
-                      Icon(Iconsax.like_1,
-                          size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Foydali (${review['likes'] ?? 0})',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showWriteReviewSheet() {
-    int selectedRating = 5;
-    final commentController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  context.l10n.translate('write_review'),
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                Text(context.l10n.translate('your_rating'),
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return GestureDetector(
-                      onTap: () =>
-                          setModalState(() => selectedRating = index + 1),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Icon(
-                          index < selectedRating
-                              ? Iconsax.star_1
-                              : Iconsax.star,
-                          color: Colors.amber,
-                          size: 36,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: commentController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: context.l10n.translate('write_your_opinion'),
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(Iconsax.tick_circle,
-                                  color: Colors.white),
-                              const SizedBox(width: 12),
-                              Text(context.l10n.translate('review_submitted')),
-                            ],
-                          ),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(context.l10n.translate('submit'),
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============ SIMILAR PRODUCTS ============
-  Widget _buildSimilarProducts() {
-    // Yuklanayotgan bo'lsa
-    if (_isSimilarLoading) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'O\'xshash mahsulotlar',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: 3,
-                itemBuilder: (_, __) => Container(
-                  width: 160,
-                  margin: const EdgeInsets.only(right: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       );
     }
 
-    // Bo'sh bo'lsa — ko'rsatmaslik
-    if (_similarProducts.isEmpty) {
-      return const SizedBox.shrink();
+    if (products.isEmpty) {
+      return SizedBox(
+        key: key,
+        height: 60,
+        child: Center(
+          child: Text(
+            'Mahsulotlar topilmadi',
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          ),
+        ),
+      );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'O\'xshash mahsulotlar',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 280,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _similarProducts.length,
-            itemBuilder: (context, index) {
-              final product = _similarProducts[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 14),
-                child: SizedBox(
-                  width: 160,
-                  child: ProductCard(
-                    name: product['name'] ?? '',
-                    price: product['price'] ?? 0,
-                    oldPrice: product['oldPrice'],
-                    rating: product['rating']?.toDouble(),
-                    sold: product['sold'],
-                    imageUrl: product['image'],
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductDetailScreen(product: product),
+    return SizedBox(
+      key: key,
+      height: 280,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: products.length,
+        itemBuilder: (context, index) {
+          final product = products[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: SizedBox(
+              width: 160,
+              child: ProductCard(
+                name: product['name'] ?? '',
+                price: product['price'] ?? 0,
+                oldPrice: product['oldPrice'],
+                rating: product['rating']?.toDouble(),
+                sold: product['sold'],
+                imageUrl: product['image'],
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(product: product),
+                    ),
+                  );
+                },
+                onAddToCart: () {
+                  final cartProvider =
+                      Provider.of<CartProvider>(context, listen: false);
+                  final pid = product['id']?.toString() ?? '';
+                  cartProvider.addToCart(pid).then((_) {
+                    if (!mounted) return;
+                    HapticUtils.addToCart();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Iconsax.tick_circle,
+                                color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Text(context.l10n.translate('added_to_cart')),
+                          ],
                         ),
-                      );
-                    },
-                    onAddToCart: () {
-                      final cartProvider =
-                          Provider.of<CartProvider>(context, listen: false);
-                      final pid = product['id']?.toString() ?? '';
-                      cartProvider.addToCart(pid).then((_) {
-                        if (!mounted) return;
-                        HapticUtils.addToCart();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Iconsax.tick_circle,
-                                    color: Colors.white, size: 18),
-                                const SizedBox(width: 8),
-                                Text(context.l10n.translate('added_to_cart')),
-                              ],
-                            ),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      });
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  });
+                },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -2073,6 +1688,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   /// Hozir sotib olish - to'g'ri checkout sahifasiga o'tish
   void _buyNow(BuildContext context) {
+    if (!context.read<AuthProvider>().isLoggedIn) {
+      Navigator.pushNamed(context, '/auth');
+      return;
+    }
     // Haptic feedback
     HapticUtils.addToCart();
 
@@ -2166,33 +1785,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Icon(Iconsax.image, size: 80, color: Colors.grey.shade400));
   }
 
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Row(
-      children: [
-        Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color)),
-        const SizedBox(width: 12),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-          Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        ]),
-      ],
-    );
-  }
-
   String _formatPrice(dynamic price) {
     if (price == null) return '0';
     final numPrice =
@@ -2202,6 +1794,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   void _addToCart(BuildContext context) {
+    if (!context.read<AuthProvider>().isLoggedIn) {
+      Navigator.pushNamed(context, '/auth');
+      return;
+    }
     HapticUtils.addToCart();
 
     final cartProvider = Provider.of<CartProvider>(context, listen: false);

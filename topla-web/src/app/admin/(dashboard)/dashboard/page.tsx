@@ -24,7 +24,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
-import { getDashboardStats, getRecentOrders, getPendingShops } from "./actions";
+import { getAllDashboardData, getDashboardChartData, type DashboardChartData } from "./actions";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
+  BarChart, Bar,
+} from 'recharts';
 
 // Types
 type Stats = {
@@ -55,7 +60,6 @@ type Shop = {
 
 const statusColors: Record<string, "default" | "warning" | "success" | "secondary" | "destructive"> = {
   pending: "warning",
-  confirmed: "default",
   shipped: "secondary",
   delivered: "success",
   cancelled: "destructive",
@@ -66,15 +70,19 @@ const statusColors: Record<string, "default" | "warning" | "success" | "secondar
 
 const statusLabels: Record<string, string> = {
   pending: "Kutilmoqda",
-  confirmed: "Tasdiqlangan",
   ordered: "Buyurtma qilindi",
   shipped: "Yetkazilmoqda",
   delivered: "Yetkazildi",
   cancelled: "Bekor qilindi",
   refunded: "Qaytarildi",
   preparing: "Tayyorlanmoqda",
-  ready: "Tayyor"
+  ready: "Tayyor",
+  processing: "Tayyorlanmoqda",
+  shipping: "Yetkazilmoqda",
+  at_pickup_point: "Punktda",
 };
+
+const PIE_COLORS = ['#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444', '#6366f1', '#ec4899', '#14b8a6'];
 
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -86,19 +94,19 @@ export default function AdminDashboard() {
   });
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [pendingShopsList, setPendingShopsList] = useState<Shop[]>([]);
+  const [chartData, setChartData] = useState<DashboardChartData | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [statsData, ordersData, shopsData] = await Promise.all([
-          getDashboardStats(),
-          getRecentOrders(),
-          getPendingShops()
-        ]);
+        const { stats: statsData, recentOrders: ordersData, pendingShops: shopsData } = await getAllDashboardData();
 
         setStats(statsData);
         setRecentOrders(ordersData as any);
         setPendingShopsList(shopsData as any);
+
+        // Load charts in background
+        getDashboardChartData().then(setChartData).catch(() => {});
       } catch (error) {
         console.error("Dashboard data gathering failed:", error);
       } finally {
@@ -176,6 +184,103 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Revenue Trend */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Haftalik daromad trendi</CardTitle>
+            <CardDescription>Oxirgi 7 kun</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chartData && chartData.revenueTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData.revenueTrend}>
+                  <defs>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} className="text-muted-foreground" />
+                  <Tooltip formatter={(value: number) => [formatPrice(value), 'Daromad']} />
+                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRev)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
+                {chartData ? "Ma'lumot yo'q" : <Loader2 className="h-5 w-5 animate-spin" />}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order Status Pie */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Buyurtma statuslari</CardTitle>
+            <CardDescription>Oxirgi 30 kun</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chartData && chartData.statusBreakdown.length > 0 ? (
+              <div className="flex flex-col items-center">
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={chartData.statusBreakdown}
+                      cx="50%" cy="50%"
+                      innerRadius={40} outerRadius={70}
+                      dataKey="count" nameKey="status"
+                      paddingAngle={2}
+                    >
+                      {chartData.statusBreakdown.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number, name: string) => [value, statusLabels[name] || name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                  {chartData.statusBreakdown.slice(0, 5).map((s, i) => (
+                    <div key={s.status} className="flex items-center gap-1 text-xs">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                      {statusLabels[s.status] || s.status}: {s.count}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+                {chartData ? "Ma'lumot yo'q" : <Loader2 className="h-5 w-5 animate-spin" />}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Categories */}
+      {chartData && chartData.topCategories.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Top kategoriyalar (daromad bo'yicha)</CardTitle>
+            <CardDescription>Oxirgi 30 kun</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData.topCategories} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={100} />
+                <Tooltip formatter={(value: number) => [formatPrice(value), 'Daromad']} />
+                <Bar dataKey="revenue" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Alerts */}
       <div className="grid gap-4 md:grid-cols-2">

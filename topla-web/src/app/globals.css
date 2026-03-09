@@ -603,6 +603,12 @@
     min-width: 44px;
   }
 }
+@media (pointer: coarse) {
+  .touch-action-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 
 /* ── PERFORMANCE: REDUCED MOTION ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

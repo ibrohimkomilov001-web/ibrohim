@@ -446,6 +446,77 @@ export const vendorApi = {
 
   markAllNotificationsRead: () =>
     api.put('/notifications/read-all', {}),
+
+  // --- Funnel Analytics (COMPETE-001) ---
+  getFunnelAnalytics: (period?: string) =>
+    api.get<any>(`/vendor/analytics/funnel${period ? `?period=${period}` : ''}`),
+
+  // --- Product Reviews (COMPETE-007) ---
+  getProductReviews: (params?: { page?: number; limit?: number; rating?: number; productId?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.rating) query.set('rating', String(params.rating));
+    if (params?.productId) query.set('productId', params.productId);
+    const qs = query.toString();
+    return api.get<any>(`/vendor/product-reviews${qs ? `?${qs}` : ''}`);
+  },
+
+  // --- Product Boosts (COMPETE-002) ---
+  getBoosts: (params?: { page?: number; limit?: number; status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString();
+    return api.get<any>(`/vendor/boosts${qs ? `?${qs}` : ''}`);
+  },
+
+  createBoost: (data: { productId: string; dailyBudget: number; totalBudget: number; startDate: string; endDate: string }) =>
+    api.post<any>('/vendor/boosts', data),
+
+  pauseBoost: (id: string) =>
+    api.patch<any>(`/vendor/boosts/${id}/pause`, {}),
+
+  resumeBoost: (id: string) =>
+    api.patch<any>(`/vendor/boosts/${id}/resume`, {}),
+
+  cancelBoost: (id: string) =>
+    api.delete<any>(`/vendor/boosts/${id}`),
+
+  // --- Penalties (COMPETE-009) ---
+  getPenalties: (params?: { page?: number; limit?: number; status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.status) query.set('status', params.status);
+    const qs = query.toString();
+    return api.get<any>(`/vendor/penalties${qs ? `?${qs}` : ''}`);
+  },
+
+  appealPenalty: (id: string, note: string) =>
+    api.post<any>(`/vendor/penalties/${id}/appeal`, { note }),
+
+  // Delivery / Logistics (COMPETE-006)
+  getDeliverySettings: () => api.get<any>('/vendor/delivery-settings'),
+  updateDeliverySettings: (data: any) => api.put<any>('/vendor/delivery-settings', data),
+  getOrderTracking: (orderId: string) => api.get<any>(`/vendor/orders/${orderId}/tracking`),
+  addTrackingNumber: (orderId: string, data: { trackingNumber: string; carrier?: string }) =>
+    api.post<any>(`/vendor/orders/${orderId}/tracking`, data),
+
+  // --- ADVANCED-001: AI Price Suggestion ---
+  getAIPriceSuggestion: (productId: string) =>
+    api.get<any>(`/vendor/ai/price-suggestion/${productId}`),
+
+  getAIPriceAlerts: () =>
+    api.get<any>('/vendor/ai/price-alerts'),
+
+  // --- ADVANCED-006: Vendor Finance Dashboard ---
+  getFinanceSummary: (period?: string) =>
+    api.get<any>(`/vendor/finance/summary${period ? `?period=${period}` : ''}`),
+
+  getFinanceReports: () =>
+    api.get<any>('/vendor/finance/reports'),
 };
 
 export interface PromoCode {
@@ -471,6 +542,14 @@ export interface Notification {
   isRead: boolean;
   data?: any;
   createdAt: string;
+}
+
+// Delivery / Logistics (COMPETE-006)
+export interface DeliverySettings {
+  fulfillmentType: string;
+  returnPolicy: string;
+  returnDays: number;
+  freeDeliveryThreshold: number | null;
 }
 
 export default vendorApi;

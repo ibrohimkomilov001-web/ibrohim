@@ -57,18 +57,19 @@ class EmptyStateWidget extends StatelessWidget {
             const SizedBox(height: 28),
 
             // Title
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
+            if (title.isNotEmpty)
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
 
             // Subtitle
-            if (subtitle != null) ...[
+            if (subtitle != null && subtitle!.isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(
                 subtitle!,
@@ -499,181 +500,18 @@ class _EmptyFavoritesWidgetState extends State<EmptyFavoritesWidget>
 // PURCHASED PRODUCTS - Animated Shopping Bag Empty State
 // ════════════════════════════════════════════════════════
 
-class EmptyPurchasedWidget extends StatefulWidget {
+class EmptyPurchasedWidget extends StatelessWidget {
   final VoidCallback onShopNow;
 
   const EmptyPurchasedWidget({super.key, required this.onShopNow});
 
   @override
-  State<EmptyPurchasedWidget> createState() => _EmptyPurchasedWidgetState();
-}
-
-class _EmptyPurchasedWidgetState extends State<EmptyPurchasedWidget>
-    with TickerProviderStateMixin {
-  late AnimationController _bounceController;
-  late AnimationController _sparkleController;
-  late Animation<double> _bounceAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-
-    _bounceAnimation = Tween<double>(begin: 0, end: -12).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
-    );
-
-    _sparkleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2500),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _bounceController.dispose();
-    _sparkleController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return EmptyStateWidget(
-      title: context.l10n.translate('purchased_empty'),
+      title: '',
       subtitle: context.l10n.translate('purchased_empty_desc'),
       actionText: context.l10n.translate('shop_now'),
-      onAction: widget.onShopNow,
-      customIllustration: SizedBox(
-        width: 180,
-        height: 180,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Sparkle particles
-            ...List.generate(6, (i) {
-              return AnimatedBuilder(
-                animation: _sparkleController,
-                builder: (context, child) {
-                  final progress = (_sparkleController.value + i * 0.167) % 1.0;
-                  final angle = i * (math.pi / 3);
-                  final radius = 45.0 + progress * 35;
-                  final x = math.cos(angle) * radius;
-                  final y = math.sin(angle) * radius - 10;
-                  final opacity = (1.0 - progress).clamp(0.0, 0.7);
-                  final scale = 1.0 - progress * 0.5;
-                  return Transform.translate(
-                    offset: Offset(x, y),
-                    child: Transform.scale(
-                      scale: scale,
-                      child: Opacity(
-                        opacity: opacity,
-                        child: Icon(
-                          Icons.star_rounded,
-                          size: 10 + (i % 3) * 4.0,
-                          color: [
-                            const Color(0xFF90CAF9),
-                            const Color(0xFFBBDEFB),
-                            const Color(0xFF64B5F6),
-                            const Color(0xFFE3F2FD),
-                            const Color(0xFF42A5F5),
-                            const Color(0xFF90CAF9),
-                          ][i],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            }),
-            // Background circle
-            Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFFE3F2FD),
-                    const Color(0xFFBBDEFB),
-                  ],
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    blurRadius: 20,
-                    spreadRadius: 3,
-                  ),
-                ],
-              ),
-            ),
-            // Bouncing bag icon
-            AnimatedBuilder(
-              animation: _bounceController,
-              builder: (context, child) {
-                return Transform.translate(
-                  offset: Offset(0, _bounceAnimation.value),
-                  child: ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF42A5F5), Color(0xFF1976D2)],
-                    ).createShader(bounds),
-                    child: const Icon(
-                      Icons.shopping_bag_rounded,
-                      size: 56,
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-              },
-            ),
-            // Check badge
-            Positioned(
-              bottom: 38,
-              right: 38,
-              child: AnimatedBuilder(
-                animation: _sparkleController,
-                builder: (context, child) {
-                  final scale = 0.9 +
-                      0.1 * math.sin(_sparkleController.value * math.pi * 2);
-                  return Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF66BB6A), Color(0xFF43A047)],
-                        ),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                const Color(0xFF43A047).withValues(alpha: 0.3),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.check_rounded,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      onAction: onShopNow,
     );
   }
 }

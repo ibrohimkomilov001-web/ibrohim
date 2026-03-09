@@ -109,9 +109,11 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addToCart(String productId, {int quantity = 1, String? variantId}) async {
+  Future<void> addToCart(String productId,
+      {int quantity = 1, String? variantId}) async {
     try {
-      await _cartRepo.addToCart(productId, quantity: quantity, variantId: variantId);
+      await _cartRepo.addToCart(productId,
+          quantity: quantity, variantId: variantId);
       // Manually reload to ensure cart updates immediately
       try {
         _items = await _cartRepo.getCart();
@@ -192,6 +194,17 @@ class CartProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  /// Logout bo'lganda barcha ma'lumotlarni tozalash
+  void clearOnLogout() {
+    _cartSubscription?.cancel();
+    _cartSubscription = null;
+    _items = [];
+    _isLoading = false;
+    _deliveryFee = 0;
+    _error = null;
+    notifyListeners();
   }
 
   @override

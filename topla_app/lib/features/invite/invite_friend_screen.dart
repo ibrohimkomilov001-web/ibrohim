@@ -39,6 +39,9 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
   // Claiming reward
   String? _claimingRewardId;
 
+  // Concurrent load guard
+  bool _isLoadingInProgress = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,35 +56,47 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
   }
 
   Future<void> _loadAllData() async {
-    print('📨 InviteFriend: _loadAllData START');
-    if (!mounted) return;
+    // Prevent concurrent loads
+    if (_isLoadingInProgress) return;
+    _isLoadingInProgress = true;
+
+    if (!mounted) {
+      _isLoadingInProgress = false;
+      return;
+    }
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    // Load referral code
+    int successCount = 0;
+    String? lastError;
+
+    // 1) Load referral code
     try {
-      final codeResponse = await _api
-          .get('/referral/code')
-          .timeout(const Duration(seconds: 10));
-      if (!mounted) return;
+      final codeResponse =
+          await _api.get('/referral/code').timeout(const Duration(seconds: 15));
+      if (!mounted) {
+        _isLoadingInProgress = false;
+        return;
+      }
       final codeData = codeResponse.dataMap;
       _referralCode = (codeData['code'] ?? '').toString();
+      successCount++;
     } catch (e) {
-      print('📨 InviteFriend: /referral/code ERROR: $e');
+      lastError = e.toString();
     }
 
-    // Load stats + rewards in parallel
+    // 2) Load stats (independent — doesn't affect rewards)
     try {
-      final responses = await Future.wait([
-        _api.get('/referral/stats').timeout(const Duration(seconds: 10)),
-        _api.get('/referral/rewards').timeout(const Duration(seconds: 10)),
-      ]);
-      if (!mounted) return;
-
-      // Stats
-      final statsData = responses[0].dataMap;
+      final statsResponse = await _api
+          .get('/referral/stats')
+          .timeout(const Duration(seconds: 15));
+      if (!mounted) {
+        _isLoadingInProgress = false;
+        return;
+      }
+      final statsData = statsResponse.dataMap;
       _points = _toInt(statsData['points']);
       _totalInvited = _toInt(statsData['totalInvited']);
       _registrationPoints =
@@ -91,30 +106,47 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           _toInt(statsData['minPurchaseAmount'], fallback: 100000);
       _referrals = _toMapList(statsData['referrals']);
       _pointLogs = _toMapList(statsData['pointLogs']);
+      successCount++;
+    } catch (e) {
+      lastError = e.toString();
+    }
 
-      // Rewards — data may come as List directly
-      final rewardsRaw = responses[1].data;
+    // 3) Load rewards (independent — doesn't affect stats)
+    try {
+      final rewardsResponse = await _api
+          .get('/referral/rewards')
+          .timeout(const Duration(seconds: 15));
+      if (!mounted) {
+        _isLoadingInProgress = false;
+        return;
+      }
+      final rewardsRaw = rewardsResponse.data;
       if (rewardsRaw is List) {
         _rewards = _toMapList(rewardsRaw);
       } else {
-        _rewards = _toMapList(responses[1].dataMap);
+        _rewards = _toMapList(rewardsResponse.dataMap);
       }
+      successCount++;
     } catch (e) {
-      print('📨 InviteFriend: stats/rewards ERROR: $e');
-      if (_referralCode.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-          _error = e.toString();
-        });
-        return;
-      }
+      lastError = e.toString();
     }
 
-    print(
-        '📨 InviteFriend: DONE — code=$_referralCode, points=$_points, rewards=${_rewards.length}');
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+    if (!mounted) {
+      _isLoadingInProgress = false;
+      return;
+    }
+
+    // If ALL 3 calls failed — show error
+    if (successCount == 0) {
+      setState(() {
+        _isLoading = false;
+        _error = lastError ?? 'Xatolik yuz berdi';
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+
+    _isLoadingInProgress = false;
   }
 
   int _toInt(dynamic value, {int fallback = 0}) {
@@ -164,7 +196,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
   }
 
   Future<void> _claimReward(Map<String, dynamic> reward) async {
-    final id = reward['id'] as String;
+    final id = (reward['id'] ?? '').toString();
     final pointsCost = _toInt(reward['pointsCost']);
 
     if (_points < pointsCost) {
@@ -202,10 +234,20 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
   String get _referralLink => 'https://topla.uz/invite/$_referralCode';
 
   void _shareLink() {
-    final l10n = context.l10n;
-    final text =
-        '${l10n.translate('share_text')}: $_referralCode $_referralLink';
-    Share.share(text);
+    try {
+      final l10n = context.l10n;
+      final text =
+          '${l10n.translate('share_text')}: $_referralCode $_referralLink';
+      Share.share(text);
+    } catch (e) {
+      // Fallback if share fails on some devices
+      if (mounted) {
+        Clipboard.setData(ClipboardData(text: _referralLink));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Link nusxalandi')),
+        );
+      }
+    }
   }
 
   @override
@@ -238,8 +280,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               const Icon(Icons.bug_report, size: 48, color: Colors.red),
               const SizedBox(height: 16),
               const Text('Sahifani ko\'rsatishda xatolik',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Text(e.toString(),
                   textAlign: TextAlign.center,
@@ -269,8 +310,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline,
-                  size: 48, color: Colors.grey.shade400),
+              Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
               const SizedBox(height: 16),
               Text('Ma\'lumotlarni yuklab bo\'lmadi',
                   style: TextStyle(
@@ -280,8 +320,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               const SizedBox(height: 8),
               Text(_error ?? '',
                   textAlign: TextAlign.center,
-                  style:
-                      TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadAllData,
@@ -320,8 +359,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
             ],
             if (_pointLogs.isNotEmpty) ...[
               const SizedBox(height: 20),
-              _safeBuild(
-                  'PointsHistory', () => _buildPointsHistory(l10n)),
+              _safeBuild('PointsHistory', () => _buildPointsHistory(l10n)),
             ],
             const SizedBox(height: 32),
           ],
@@ -380,8 +418,8 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Iconsax.star_1,
-                    color: Colors.white, size: 22),
+                child:
+                    const Icon(Iconsax.star_1, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -409,8 +447,8 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               ),
               // Invited count badge
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -489,8 +527,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               children: [
                 Text(
                   l10n.translate('your_code'),
-                  style:
-                      TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -523,8 +560,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               },
               child: const Padding(
                 padding: EdgeInsets.all(10),
-                child: Icon(Iconsax.copy,
-                    color: AppColors.primary, size: 20),
+                child: Icon(Iconsax.copy, color: AppColors.primary, size: 20),
               ),
             ),
           ),
@@ -547,8 +583,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               },
               child: const Padding(
                 padding: EdgeInsets.all(10),
-                child: Icon(Iconsax.link,
-                    color: AppColors.primary, size: 20),
+                child: Icon(Iconsax.link, color: AppColors.primary, size: 20),
               ),
             ),
           ),
@@ -579,16 +614,14 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         children: [
           Text(
             l10n.translate('how_it_works'),
-            style:
-                const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
           _buildInfoRow(
             icon: Iconsax.user_add,
             color: AppColors.primary,
             label: l10n.translate('reg_bonus_info'),
-            value:
-                '+$_registrationPoints ${l10n.translate('points_short')}',
+            value: '+$_registrationPoints ${l10n.translate('points_short')}',
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
@@ -638,8 +671,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           ),
         ),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
@@ -668,19 +700,17 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           padding: const EdgeInsets.only(left: 2, bottom: 12),
           child: Text(
             l10n.translate('rewards_catalog'),
-            style: const TextStyle(
-                fontSize: 17, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
           ),
         ),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.85,
+            childAspectRatio: 0.70,
           ),
           itemCount: _rewards.length,
           itemBuilder: (context, index) =>
@@ -690,17 +720,16 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     );
   }
 
-  Widget _buildRewardCard(
-      Map<String, dynamic> reward, AppLocalizations l10n) {
-    final name =
-        (reward['nameUz'] ?? reward['nameRu'] ?? '').toString();
+  Widget _buildRewardCard(Map<String, dynamic> reward, AppLocalizations l10n) {
+    final name = (reward['nameUz'] ?? reward['nameRu'] ?? '').toString();
     final description = (reward['description'] ?? '').toString();
     final pointsCost = _toInt(reward['pointsCost']);
     final type = (reward['type'] ?? '').toString();
     final stock = reward['stock'];
     final isOutOfStock = stock != null && _toInt(stock) <= 0;
     final canAfford = _points >= pointsCost;
-    final isClaiming = _claimingRewardId == reward['id'];
+    final rewardId = (reward['id'] ?? '').toString();
+    final isClaiming = _claimingRewardId == rewardId;
 
     // Icon based on type
     IconData rewardIcon;
@@ -767,63 +796,56 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
               description,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: Colors.grey.shade500, fontSize: 11),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
             ),
           ],
           const Spacer(),
-          // Cost + Claim button
-          Row(
-            children: [
-              // Points cost
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: canAfford
-                      ? AppColors.primary.withValues(alpha: 0.08)
-                      : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(6),
+          // Cost
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: canAfford
+                  ? AppColors.primary.withValues(alpha: 0.08)
+                  : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Iconsax.star_1,
+                  size: 14,
+                  color: canAfford ? AppColors.primary : Colors.grey,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Iconsax.star_1,
-                      size: 12,
-                      color: canAfford
-                          ? AppColors.primary
-                          : Colors.grey,
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '$pointsCost',
+                const SizedBox(width: 4),
+                Text(
+                  '$pointsCost',
+                  style: TextStyle(
+                    color: canAfford ? AppColors.primary : Colors.grey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Claim button
+          SizedBox(
+            width: double.infinity,
+            height: 32,
+            child: isOutOfStock
+                ? Center(
+                    child: Text(
+                      l10n.translate('out_of_stock'),
                       style: TextStyle(
-                        color: canAfford
-                            ? AppColors.primary
-                            : Colors.grey,
+                        color: Colors.grey.shade400,
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              // Claim button
-              if (isOutOfStock)
-                Text(
-                  l10n.translate('out_of_stock'),
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                )
-              else
-                SizedBox(
-                  height: 30,
-                  child: ElevatedButton(
+                  )
+                : ElevatedButton(
                     onPressed: (canAfford && !isClaiming)
                         ? () => _claimReward(reward)
                         : null,
@@ -831,14 +853,12 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: Colors.grey.shade200,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12),
+                      padding: EdgeInsets.zero,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                       textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600),
+                          fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     child: isClaiming
                         ? const SizedBox(
@@ -851,8 +871,6 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                           )
                         : Text(l10n.translate('claim_reward')),
                   ),
-                ),
-            ],
           ),
         ],
       ),
@@ -881,8 +899,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         children: [
           Text(
             l10n.translate('have_friend_code'),
-            style: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           Row(
@@ -895,18 +912,15 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                     hintText: l10n.translate('enter_code_hint'),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                          color: AppColors.primary),
+                      borderSide: const BorderSide(color: AppColors.primary),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 12),
@@ -967,13 +981,12 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         children: [
           Row(
             children: [
-              const Icon(Iconsax.people,
-                  size: 18, color: AppColors.primary),
+              const Icon(Iconsax.people, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
                 l10n.translate('friends_count'),
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               Text(
@@ -988,14 +1001,11 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           ),
           const SizedBox(height: 12),
           ..._referrals.take(10).map((ref) {
-            final name =
-                (ref['friendName'] ?? 'Foydalanuvchi').toString();
-            final createdAt = DateTime.tryParse(
-                (ref['createdAt'] ?? '').toString());
-            final regBonus =
-                ref['registrationBonusGiven'] == true;
-            final purchaseBonus =
-                ref['purchaseBonusGiven'] == true;
+            final name = (ref['friendName'] ?? 'Foydalanuvchi').toString();
+            final createdAt =
+                DateTime.tryParse((ref['createdAt'] ?? '').toString());
+            final regBonus = ref['registrationBonusGiven'] == true;
+            final purchaseBonus = ref['purchaseBonusGiven'] == true;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -1003,12 +1013,9 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                 children: [
                   CircleAvatar(
                     radius: 18,
-                    backgroundColor:
-                        AppColors.primary.withValues(alpha: 0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     child: Text(
-                      name.isNotEmpty
-                          ? name[0].toUpperCase()
-                          : '?',
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -1019,19 +1026,16 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(name,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
+                                fontWeight: FontWeight.w600, fontSize: 13)),
                         if (createdAt != null)
                           Text(
                             '${createdAt.day}.${createdAt.month.toString().padLeft(2, '0')}.${createdAt.year}',
                             style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500),
+                                fontSize: 11, color: Colors.grey.shade500),
                           ),
                       ],
                     ),
@@ -1043,15 +1047,13 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                       _buildMiniStatus(
                         icon: Iconsax.user_tick,
                         isActive: regBonus,
-                        tooltip: l10n
-                            .translate('friend_registered'),
+                        tooltip: l10n.translate('friend_registered'),
                       ),
                       const SizedBox(width: 4),
                       _buildMiniStatus(
                         icon: Iconsax.shopping_bag,
                         isActive: purchaseBonus,
-                        tooltip: l10n
-                            .translate('friend_purchased'),
+                        tooltip: l10n.translate('friend_purchased'),
                       ),
                     ],
                   ),
@@ -1083,9 +1085,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         child: Icon(
           icon,
           size: 14,
-          color: isActive
-              ? AppColors.success
-              : Colors.grey.shade400,
+          color: isActive ? AppColors.success : Colors.grey.shade400,
         ),
       ),
     );
@@ -1113,13 +1113,12 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         children: [
           Row(
             children: [
-              const Icon(Iconsax.clock,
-                  size: 18, color: AppColors.primary),
+              const Icon(Iconsax.clock, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
                 l10n.translate('points_history'),
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1127,10 +1126,9 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           ..._pointLogs.take(15).map((log) {
             final amount = _toInt(log['amount']);
             final type = (log['type'] ?? '').toString();
-            final description =
-                (log['description'] ?? '').toString();
-            final createdAt = DateTime.tryParse(
-                (log['createdAt'] ?? '').toString());
+            final description = (log['description'] ?? '').toString();
+            final createdAt =
+                DateTime.tryParse((log['createdAt'] ?? '').toString());
             final isPositive = amount > 0;
 
             // Icon & color per type
@@ -1169,29 +1167,25 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                       color: logColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(logIcon,
-                        color: logColor, size: 16),
+                    child: Icon(logIcon, color: logColor, size: 16),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           description,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500),
+                              fontSize: 13, fontWeight: FontWeight.w500),
                         ),
                         if (createdAt != null)
                           Text(
                             '${createdAt.day}.${createdAt.month.toString().padLeft(2, '0')}.${createdAt.year}',
                             style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500),
+                                fontSize: 11, color: Colors.grey.shade500),
                           ),
                       ],
                     ),
@@ -1199,9 +1193,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                   Text(
                     '${isPositive ? '+' : ''}$amount',
                     style: TextStyle(
-                      color: isPositive
-                          ? AppColors.success
-                          : Colors.red,
+                      color: isPositive ? AppColors.success : Colors.red,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),

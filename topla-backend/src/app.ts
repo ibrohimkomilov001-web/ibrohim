@@ -4,9 +4,10 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import Redis from 'ioredis';
 
 import { env } from './config/env.js';
-import { connectDatabase, disconnectDatabase } from './config/database.js';
+import { connectDatabase, disconnectDatabase, prisma } from './config/database.js';
 import { initFirebase } from './config/firebase.js';
 import { initStorage } from './config/storage.js';
 import { initWebSocket } from './websocket/socket.js';
@@ -35,7 +36,7 @@ import { referralRoutes } from './modules/referral/referral.routes.js';
 import { pickupPointRoutes } from './modules/pickup-points/pickup-point.routes.js';
 import { supportRoutes } from './modules/support/support.routes.js';
 import { luckyWheelRoutes } from './modules/lucky-wheel/lucky-wheel.routes.js';
-import { initRedis } from './config/redis.js';
+import { initRedis, getRedis } from './config/redis.js';
 import { initMeilisearch } from './services/search.service.js';
 import { startWorkers, closeQueues } from './services/queue.service.js';
 import fastifyStatic from '@fastify/static';
@@ -117,9 +118,11 @@ if (env.NODE_ENV !== 'production') {
 await app.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute',
+  redis: process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : undefined,
+  keyGenerator: (req) => req.ip,
 });
 
-// Static files (uploaded images in development)
+// Static files (uploaded images)
 await app.register(fastifyStatic, {
   root: path.join(process.cwd(), 'uploads'),
   prefix: '/uploads/',
@@ -142,12 +145,41 @@ app.setErrorHandler(errorHandler);
 // Health Check
 // ============================================
 
-app.get('/health', async () => ({
-  status: 'ok',
-  timestamp: new Date().toISOString(),
-  uptime: process.uptime(),
-  version: '1.0.0',
-}));
+app.get('/health', async (_request, reply) => {
+  const checks: Record<string, string> = {};
+
+  // Database check
+  try {
+    await prisma.$executeRaw`SELECT 1`;
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+  }
+
+  // Redis check
+  try {
+    const redis = getRedis();
+    if (redis) {
+      await redis.ping();
+      checks.redis = 'ok';
+    } else {
+      checks.redis = 'unavailable';
+    }
+  } catch {
+    checks.redis = 'error';
+  }
+
+  const allOk = checks.database === 'ok';
+  const statusCode = allOk ? 200 : 503;
+
+  return reply.status(statusCode).send({
+    status: allOk ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: '1.0.0',
+    checks,
+  });
+});
 
 // ============================================
 // API Routes (v1)

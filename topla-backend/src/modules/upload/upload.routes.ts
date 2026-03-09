@@ -60,7 +60,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
    * Returns: { url, mediumUrl, thumbnailUrl, fileName, originalSize, optimizedSize }
    */
   app.post('/upload/image', {
-    preHandler: [authMiddleware],
+    preHandler: [authMiddleware, requireRole('vendor', 'admin', 'super_admin')],
   }, async (request: FastifyRequest, reply) => {
     const data = await request.file();
     if (!data) {
@@ -181,7 +181,7 @@ export async function uploadRoutes(app: FastifyInstance): Promise<void> {
    * Returns: { files: [{ url, mediumUrl, thumbnailUrl, originalSize, optimizedSize }], count }
    */
   app.post('/upload/images', {
-    preHandler: [authMiddleware],
+    preHandler: [authMiddleware, requireRole('vendor', 'admin', 'super_admin')],
   }, async (request: FastifyRequest, reply) => {
     const parts = request.parts();
     const results: Array<{

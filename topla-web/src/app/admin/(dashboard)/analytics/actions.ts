@@ -58,7 +58,6 @@ export const regionLabels: Record<string, string> = {
 
 export const statusLabels: Record<string, string> = {
   pending: "Kutilmoqda",
-  confirmed: "Tasdiqlangan",
   processing: "Tayyorlanmoqda",
   ready_for_pickup: "Tayyor",
   courier_assigned: "Kuryer tayinlangan",

@@ -44,4 +44,12 @@ class ApiLuckyWheelRepositoryImpl implements ILuckyWheelRepository {
     final codes = data['promoCodes'] as List<dynamic>? ?? [];
     return codes.map((e) => MyPromoCode.fromJson(e)).toList();
   }
+
+  @override
+  Future<Map<String, dynamic>> verifyPromoCode(String code) async {
+    final response = await _api.post('/promo-codes/verify', body: {
+      'code': code,
+    });
+    return response.dataMap;
+  }
 }

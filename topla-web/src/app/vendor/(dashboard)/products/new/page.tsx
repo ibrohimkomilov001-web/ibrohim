@@ -450,7 +450,7 @@ export default function NewProductPage() {
                       <Image src={url} alt="" fill className="object-cover" />
                       <button
                         type="button"
-                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                         onClick={() => removeImage(index)}
                       >
                         <X className="h-3 w-3" />

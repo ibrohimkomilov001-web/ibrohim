@@ -9,15 +9,15 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, Plus, MapPin, Trash2, ToggleLeft, ToggleRight, Edit } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { getDeliveryZones, getDeliveryZoneStats, createDeliveryZone, toggleDeliveryZoneStatus, deleteDeliveryZone, type DeliveryZone } from './actions'
-import { useToast } from '@/components/ui/use-toast'
+import { getDeliveryZonesWithStats, createDeliveryZone, toggleDeliveryZoneStatus, deleteDeliveryZone, type DeliveryZone } from './actions'
+import { toast } from 'sonner'
+import { useUrlState } from '@/hooks/use-url-state'
 
 export default function AdminDeliveryZonesPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [zones, setZones] = useState<DeliveryZone[]>([])
   const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 })
-  const [searchQuery, setSearchQuery] = useState('')
+  const [{ search: searchQuery }, setFilters] = useUrlState({ search: '' })
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
@@ -33,15 +33,12 @@ export default function AdminDeliveryZonesPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [zonesData, statsData] = await Promise.all([
-        getDeliveryZones(),
-        getDeliveryZoneStats()
-      ])
+      const { zones: zonesData, stats: statsData } = await getDeliveryZonesWithStats()
       setZones(zonesData)
       setStats(statsData)
     } catch (error) {
       console.error(error)
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" })
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
@@ -58,7 +55,7 @@ export default function AdminDeliveryZonesPage() {
 
   const handleCreate = async () => {
     if (!formData.name) {
-      toast({ title: "Xatolik", description: "Zona nomini kiriting", variant: "destructive" })
+      toast.error("Zona nomini kiriting")
       return
     }
 
@@ -73,11 +70,11 @@ export default function AdminDeliveryZonesPage() {
         estimated_time: formData.estimated_time || undefined
       })
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Zona yaratildi" })
+      toast.success("Zona yaratildi")
       setCreateDialogOpen(false)
       setFormData({ name: '', region: '', districts: '', delivery_fee: '', min_order_amount: '', estimated_time: '' })
     } catch (error) {
-      toast({ title: "Xatolik", description: "Zona yaratishda xatolik", variant: "destructive" })
+      toast.error("Zona yaratishda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -87,9 +84,9 @@ export default function AdminDeliveryZonesPage() {
     try {
       await toggleDeliveryZoneStatus(id, !isActive)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: isActive ? "Zona o'chirildi" : "Zona yoqildi" })
+      toast.success(isActive ? "Zona o'chirildi" : "Zona yoqildi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "Statusni o'zgartirishda xatolik", variant: "destructive" })
+      toast.error("Statusni o'zgartirishda xatolik")
     }
   }
 
@@ -98,9 +95,9 @@ export default function AdminDeliveryZonesPage() {
     try {
       await deleteDeliveryZone(id)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Zona o'chirildi" })
+      toast.success("Zona o'chirildi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "O'chirishda xatolik", variant: "destructive" })
+      toast.error("O'chirishda xatolik")
     }
   }
 
@@ -161,7 +158,7 @@ export default function AdminDeliveryZonesPage() {
             <Input
               placeholder="Qidirish..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setFilters({ search: e.target.value })}
               className="w-full sm:w-64"
             />
           </div>

@@ -42,38 +42,63 @@ import {
   ClipboardList,
   Dices,
   UserPlus,
+  MessageCircle,
+  Percent,
+  Megaphone,
+  AlertTriangle,
+  ShieldCheck,
+  Shield,
+  TrendingUp,
+  Trophy,
+  CreditCard,
+  Key,
+  HelpCircle,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { isAdminAuthenticated, removeAdminToken } from "@/lib/api/admin";
+import { useTranslation } from "@/store/locale-store";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 
 const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  { icon: Users, label: "Foydalanuvchilar", href: "/admin/users" },
-  { icon: Store, label: "Do'konlar", href: "/admin/shops" },
-  { icon: Package, label: "Mahsulotlar", href: "/admin/products" },
-  { icon: ShoppingCart, label: "Buyurtmalar", href: "/admin/orders" },
-  { icon: Wallet, label: "To'lovlar", href: "/admin/payouts" },
-  { icon: FolderTree, label: "Kategoriyalar", href: "/admin/categories" },
-  { icon: Image, label: "Bannerlar", href: "/admin/banners" },
-  { icon: Ticket, label: "Promo kodlar", href: "/admin/promo-codes" },
-  { icon: Dices, label: "Omad g'ildiragi", href: "/admin/lucky-wheel" },
-  { icon: UserPlus, label: "Referrallar", href: "/admin/referrals" },
-  { icon: Truck, label: "Yetkazib berish", href: "/admin/delivery-zones" },
-  { icon: MapPin, label: "Topshirish punktlari", href: "/admin/pickup-points" },
-  { icon: ClipboardList, label: "Punkt arizalari", href: "/admin/pickup-applications" },
-  { icon: FileCheck, label: "Hujjatlar", href: "/admin/documents" },
-  { icon: Bell, label: "Bildirishnomalar", href: "/admin/notifications" },
-  { icon: LineChart, label: "Analitika", href: "/admin/analytics" },
-  { icon: BarChart3, label: "Hisobotlar", href: "/admin/reports" },
-  { icon: FileText, label: "Loglar", href: "/admin/logs" },
-  { icon: Settings, label: "Sozlamalar", href: "/admin/settings" },
+  { icon: LayoutDashboard, key: 'dashboard', href: "/admin/dashboard" },
+  { icon: Users, key: 'users', href: "/admin/users" },
+  { icon: Store, key: 'shops', href: "/admin/shops" },
+  { icon: Package, key: 'products', href: "/admin/products" },
+  { icon: ShoppingCart, key: 'orders', href: "/admin/orders" },
+  { icon: Wallet, key: 'payments', href: "/admin/payouts" },
+  { icon: FolderTree, key: 'categories', href: "/admin/categories" },
+  { icon: Image, key: 'banners', href: "/admin/banners" },
+  { icon: Ticket, key: 'promoCodes', href: "/admin/promo-codes" },
+  { icon: Dices, key: 'luckyWheel', href: "/admin/lucky-wheel" },
+  { icon: UserPlus, key: 'referrals', href: "/admin/referrals" },
+  { icon: Truck, key: 'deliveryZones', href: "/admin/delivery-zones" },
+  { icon: MapPin, key: 'pickupPoints', href: "/admin/pickup-points" },
+  { icon: ClipboardList, key: 'pickupApplications', href: "/admin/pickup-applications" },
+  { icon: FileCheck, key: 'documents', href: "/admin/documents" },
+  { icon: MessageCircle, key: 'chat', href: "/admin/chat" },
+  { icon: Bell, key: 'notifications', href: "/admin/notifications" },
+  { icon: LineChart, key: 'analytics', href: "/admin/analytics" },
+  { icon: BarChart3, key: 'reports', href: "/admin/reports" },
+  { icon: FileText, key: 'logs', href: "/admin/logs" },
+  { icon: Percent, key: 'commissions', href: "/admin/commissions" },
+  { icon: Megaphone, key: 'promotions', href: "/admin/promotions" },
+  { icon: AlertTriangle, key: 'penalties', href: "/admin/penalties" },
+  { icon: ShieldCheck, key: 'moderation', href: "/admin/moderation" },
+  { icon: Shield, key: 'roles', href: "/admin/roles" },
+  { icon: TrendingUp, key: 'extendedAnalytics', href: "/admin/extended-analytics" },
+  { icon: Trophy, key: 'loyalty', href: "/admin/loyalty" },
+  { icon: CreditCard, key: 'paymentSettings', href: "/admin/payment-settings" },
+  { icon: Key, key: 'apiKeys', href: "/admin/api-keys" },
+  { icon: HelpCircle, key: 'faq', href: "/admin/faq" },
+  { icon: Settings, key: 'settings', href: "/admin/settings" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -133,6 +158,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <ShoppingBag className="h-5 w-5 text-primary-foreground" />
             </div>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-8 w-8 shrink-0"
+            onClick={() => setMobileOpen(false)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Navigation */}
@@ -152,7 +185,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onClick={() => setMobileOpen(false)}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span>{t(item.key)}</span>}
               </Link>
             );
           })}
@@ -184,7 +217,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-semibold hidden sm:block">Admin Panel</h1>
+            <h1 className="text-lg font-semibold hidden sm:block">{t('adminPanel')}</h1>
           </div>
 
           <div className="flex items-center gap-2">
@@ -196,6 +229,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
+
+            <LanguageSwitcher />
 
             <Button variant="ghost" size="icon" className="relative" onClick={() => router.push('/admin/notifications')}>
               <Bell className="h-5 w-5" />
@@ -215,19 +250,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
-                  Admin
+                  {t('admin')}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/admin/settings">
                     <Settings className="mr-2 h-4 w-4" />
-                    Sozlamalar
+                    {t('settings')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Chiqish
+                  {t('exit')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

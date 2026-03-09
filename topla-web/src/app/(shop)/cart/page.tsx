@@ -114,14 +114,14 @@ export default function CartPage() {
                         <div className="flex items-center glass rounded-xl overflow-hidden">
                           <button
                             onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1))}
-                            className="w-9 h-9 flex items-center justify-center hover:bg-muted transition-colors"
+                            className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-muted transition-colors"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                           <span className="w-10 text-center text-sm font-medium">{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item.productId, Math.min(item.stock, item.quantity + 1))}
-                            className="w-9 h-9 flex items-center justify-center hover:bg-muted transition-colors"
+                            className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-muted transition-colors"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
@@ -133,7 +133,7 @@ export default function CartPage() {
                           </span>
                           <button
                             onClick={() => removeItem(item.productId)}
-                            className="p-2 rounded-lg hover:bg-destructive/10 transition-colors"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-destructive/10 transition-colors"
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </button>

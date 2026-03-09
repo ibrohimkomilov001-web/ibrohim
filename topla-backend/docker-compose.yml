@@ -9,10 +9,10 @@ services:
     container_name: topla-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=3001
       - DATABASE_URL=postgresql://${POSTGRES_USER:-topla_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-topla_db}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - JWT_SECRET=${JWT_SECRET}
@@ -26,7 +26,6 @@ services:
       - FCM_SERVER_KEY=${FCM_SERVER_KEY}
       - ESKIZ_EMAIL=${ESKIZ_EMAIL}
       - ESKIZ_PASSWORD=${ESKIZ_PASSWORD}
-      - TELEGRAM_GATEWAY_TOKEN=${TELEGRAM_GATEWAY_TOKEN}
       - PAYME_WEBHOOK_SECRET=${PAYME_WEBHOOK_SECRET}
       - CLICK_WEBHOOK_SECRET=${CLICK_WEBHOOK_SECRET}
       - CORS_ORIGINS=https://topla.uz,https://admin.topla.uz

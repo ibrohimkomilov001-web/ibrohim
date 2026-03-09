@@ -67,6 +67,13 @@ class _ReturnsScreenState extends State<ReturnsScreen>
           icon: const Icon(Icons.arrow_back_ios, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, size: 24, color: Colors.black),
+            onPressed: () => _showCreateReturnSheet(),
+          ),
+          const SizedBox(width: 4),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -86,13 +93,6 @@ class _ReturnsScreenState extends State<ReturnsScreen>
           _buildRulesTab(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateReturnSheet(),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Iconsax.add),
-        label: Text(context.l10n.translate('new_return')),
-      ),
     );
   }
 
@@ -101,9 +101,6 @@ class _ReturnsScreenState extends State<ReturnsScreen>
   Widget _buildReturnsTab() {
     return Column(
       children: [
-        // Status filter
-        _buildStatusFilter(),
-
         // Returns list
         Expanded(
           child: _isLoading
@@ -121,52 +118,6 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                     ),
         ),
       ],
-    );
-  }
-
-  Widget _buildStatusFilter() {
-    final statuses = [
-      {'value': null, 'label': context.l10n.translate('all')},
-      {'value': 'pending', 'label': context.l10n.translate('waiting')},
-      {'value': 'approved', 'label': context.l10n.translate('approved')},
-      {'value': 'rejected', 'label': context.l10n.translate('rejected')},
-      {'value': 'refunded', 'label': context.l10n.translate('returned')},
-    ];
-
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: statuses.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final status = statuses[index];
-          final isActive = _selectedStatus == status['value'];
-          return ChoiceChip(
-            label: Text(status['label'] as String),
-            selected: isActive,
-            onSelected: (_) {
-              setState(() => _selectedStatus = status['value']);
-              _loadReturns();
-            },
-            selectedColor: AppColors.primary,
-            labelStyle: TextStyle(
-              color: isActive ? Colors.white : Colors.grey.shade700,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-            backgroundColor: Colors.white,
-            side: BorderSide(
-              color: isActive ? AppColors.primary : Colors.grey.shade300,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -413,196 +364,68 @@ class _ReturnsScreenState extends State<ReturnsScreen>
 
   Widget _buildRulesTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Policy header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Iconsax.shield_tick,
-                      color: Colors.white, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.translate('return_guarantee_title'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        context.l10n.translate('return_guarantee_desc'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _buildFaqItem(
+            icon: Icons.help_outline,
+            title: "Qaysi buyurtmalarni qaytarish mumkin?",
+            description:
+                "Ilovada faqat yetkazib berilgan buyurtmalar bo'yicha qaytarish arizasi yuborish mumkin. Mahsulot qaytarish shartlariga mos bo'lishi va taqiqlangan toifaga kirmasligi kerak.",
           ),
-          const SizedBox(height: 16),
-
-          // Steps
-          _buildStepCard(
-            1,
-            context.l10n.translate('return_step1_title'),
-            context.l10n.translate('return_step1_desc'),
-            Iconsax.document_text,
+          _buildFaqItem(
+            icon: Icons.edit_outlined,
+            title: "Qaytarish arizasi qanday yuboriladi?",
+            description:
+                "Qaytarishlar sahifasidagi + tugmasini bosing, yetkazilgan buyurtmani tanlang, sababni ko'rsating va kerak bo'lsa izoh hamda rasmlarni qo'shing. Shundan so'ng ariza ko'rib chiqish uchun yuboriladi.",
           ),
-          _buildStepCard(
-            2,
-            context.l10n.translate('return_step2_title'),
-            context.l10n.translate('return_step2_desc'),
-            Iconsax.timer_1,
+          _buildFaqItem(
+            icon: Icons.block_outlined,
+            title: "Qaysi mahsulotlar qabul qilinmaydi?",
+            description:
+                "Oziq-ovqat, dori vositalari, kosmetika, gigiyena vositalari va foydalanish izi yaqqol ko'rinadigan mahsulotlar odatda qaytarib olinmaydi. Qadoq jiddiy shikastlangan yoki tovar ishlatilgan bo'lsa, ariza rad etilishi mumkin.",
           ),
-          _buildStepCard(
-            3,
-            context.l10n.translate('return_step3_title'),
-            context.l10n.translate('return_step3_desc'),
-            Iconsax.money_recive,
+          _buildFaqItem(
+            icon: Icons.calendar_today_outlined,
+            title: "Qaytarish muddati qancha?",
+            description:
+                "Qaytarish arizasini buyurtma yetkazilgandan keyin imkon qadar tez yuboring. Odatda arizalar 7 kun ichida qabul qilinadi, ayrim toifalarda esa muddat qisqaroq bo'lishi mumkin.",
           ),
-
-          const SizedBox(height: 16),
-
-          // Rules list
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.translate('return_conditions'),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildRuleItem(
-                  Iconsax.calendar_1,
-                  context.l10n.translate('return_rule_14_days'),
-                ),
-                _buildRuleItem(
-                  Iconsax.box_1,
-                  context.l10n.translate('return_rule_packaging'),
-                ),
-                _buildRuleItem(
-                  Iconsax.document_text,
-                  context.l10n.translate('return_rule_receipt'),
-                ),
-                _buildRuleItem(
-                  Iconsax.camera,
-                  context.l10n.translate('return_rule_photo'),
-                ),
-                _buildRuleItem(
-                  Iconsax.danger,
-                  context.l10n.translate('return_rule_hygiene'),
-                  isLast: true,
-                ),
-              ],
-            ),
+          _buildFaqItem(
+            icon: Icons.inventory_2_outlined,
+            title: "Rasm yoki izoh qo'shish kerakmi?",
+            description:
+                "Agar mahsulotda muammo bo'lsa, 1-5 ta rasm va qisqa izoh qo'shish tavsiya etiladi. Bu arizani tezroq ko'rib chiqish va to'g'ri qaror qabul qilishga yordam beradi.",
+          ),
+          _buildFaqItem(
+            icon: Icons.credit_card_outlined,
+            title: "Pul mablag'i qachon qaytariladi?",
+            description:
+                "Ariza tasdiqlangandan keyin mablag' to'lov usulingizga qaytariladi. Odatda bu 2-3 kun ichida amalga oshadi, ayrim hollarda bank yoki to'lov tizimiga qarab 10 ish kunigacha cho'zilishi mumkin.",
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStepCard(
-      int step, String title, String description, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+  Widget _buildFaqItem({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary.withValues(alpha: 0.12),
-                  AppColors.primary.withValues(alpha: 0.06),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
             ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(icon, color: AppColors.primary, size: 22),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$step',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: Icon(icon, size: 22, color: Colors.black87),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -612,17 +435,18 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                 Text(
                   title,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 8),
                 Text(
                   description,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    height: 1.3,
+                    fontSize: 14,
+                    color: Colors.black87,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -630,45 +454,6 @@ class _ReturnsScreenState extends State<ReturnsScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildRuleItem(IconData icon, String text, {bool isLast = false}) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: AppColors.primary, size: 16),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade700,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!isLast) Divider(height: 1, color: Colors.grey.shade100),
-      ],
     );
   }
 
@@ -685,8 +470,16 @@ class _ReturnsScreenState extends State<ReturnsScreen>
     if (deliveredOrders.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.l10n.translate('no_delivered_orders')),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.only(bottom: 24, left: 40, right: 40),
+          content: Text(
+            context.l10n.translate('no_delivered_orders'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13),
+          ),
           backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape: const StadiumBorder(),
         ),
       );
       return;

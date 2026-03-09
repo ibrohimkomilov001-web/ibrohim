@@ -351,10 +351,8 @@ class _OrdersScreenState extends State<OrdersScreen>
     switch (status) {
       case OrderStatus.pending:
         return 0.1;
-      case OrderStatus.confirmed:
-        return 0.25;
       case OrderStatus.processing:
-        return 0.4;
+        return 0.25;
       case OrderStatus.readyForPickup:
         return 0.55;
       case OrderStatus.courierAssigned:
@@ -380,12 +378,6 @@ class _OrdersScreenState extends State<OrdersScreen>
           'text': context.l10n.translate('status_order_received'),
           'color': AppColors.warning,
           'icon': Iconsax.clock,
-        };
-      case OrderStatus.confirmed:
-        return {
-          'text': context.l10n.translate('status_order_confirmed'),
-          'color': const Color(0xFF4CAF50),
-          'icon': Iconsax.tick_square,
         };
       case OrderStatus.processing:
         return {

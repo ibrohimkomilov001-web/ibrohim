@@ -29,7 +29,7 @@ import {
   type Category,
 } from './actions'
 import { Loader2, Plus, Edit, Trash2, ChevronDown, ChevronRight, Power, FolderPlus } from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 import { IconPicker, CategoryIcon } from '@/components/ui/icon-picker'
 
 // ─── Types ───────────────────────────────────
@@ -63,7 +63,6 @@ const defaultSubForm: SubcategoryFormData = {
 
 // ─── Page ────────────────────────────────────
 export default function AdminCategoriesPage() {
-  const { toast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -93,7 +92,7 @@ export default function AdminCategoriesPage() {
       setCategories(data)
     } catch (error) {
       console.error(error)
-      toast({ title: 'Xatolik', description: 'Kategoriyalarni yuklashda xatolik', variant: 'destructive' })
+      toast.error('Kategoriyalarni yuklashda xatolik')
     } finally {
       setLoading(false)
     }
@@ -112,7 +111,7 @@ export default function AdminCategoriesPage() {
 
   const handleAdd = async () => {
     if (!formData.nameUz.trim()) {
-      toast({ title: 'Xatolik', description: "Kategoriya nomi (O'zbek) kiritilishi shart", variant: 'destructive' })
+      toast.error("Kategoriya nomi (O'zbek) kiritilishi shart")
       return
     }
     try {
@@ -126,9 +125,9 @@ export default function AdminCategoriesPage() {
       await loadCategories()
       setAddDialogOpen(false)
       setFormData({ ...defaultCategoryForm })
-      toast({ title: 'Muvaffaqiyatli', description: "Kategoriya qo'shildi" })
+      toast.success("Kategoriya qo'shildi")
     } catch {
-      toast({ title: 'Xatolik', description: "Kategoriya qo'shishda xatolik", variant: 'destructive' })
+      toast.error("Kategoriya qo'shishda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -148,9 +147,9 @@ export default function AdminCategoriesPage() {
       await loadCategories()
       setEditDialogOpen(false)
       setSelectedCategory(null)
-      toast({ title: 'Muvaffaqiyatli', description: 'Kategoriya yangilandi' })
+      toast.success('Kategoriya yangilandi')
     } catch {
-      toast({ title: 'Xatolik', description: 'Kategoriya yangilashda xatolik', variant: 'destructive' })
+      toast.error('Kategoriya yangilashda xatolik')
     } finally {
       setActionLoading(false)
     }
@@ -161,9 +160,9 @@ export default function AdminCategoriesPage() {
     try {
       await deleteCategory(id)
       await loadCategories()
-      toast({ title: 'Muvaffaqiyatli', description: "Kategoriya o'chirildi" })
+      toast.success("Kategoriya o'chirildi")
     } catch {
-      toast({ title: 'Xatolik', description: "Kategoriya o'chirishda xatolik", variant: 'destructive' })
+      toast.error("Kategoriya o'chirishda xatolik")
     }
   }
 
@@ -172,7 +171,7 @@ export default function AdminCategoriesPage() {
       await toggleCategoryStatus(cat.id, !cat.is_active)
       await loadCategories()
     } catch {
-      toast({ title: 'Xatolik', description: "Status o'zgartirishda xatolik", variant: 'destructive' })
+      toast.error("Status o'zgartirishda xatolik")
     }
   }
 
@@ -198,7 +197,7 @@ export default function AdminCategoriesPage() {
 
   const handleAddSub = async () => {
     if (!subFormData.nameUz.trim()) {
-      toast({ title: 'Xatolik', description: "Subcategoriya nomi kiritilishi shart", variant: 'destructive' })
+      toast.error("Subcategoriya nomi kiritilishi shart")
       return
     }
     try {
@@ -214,9 +213,9 @@ export default function AdminCategoriesPage() {
       if (!expandedCategories.includes(subParentId)) {
         setExpandedCategories((prev) => [...prev, subParentId])
       }
-      toast({ title: 'Muvaffaqiyatli', description: "Subcategoriya qo'shildi" })
+      toast.success("Subcategoriya qo'shildi")
     } catch {
-      toast({ title: 'Xatolik', description: "Subcategoriya qo'shishda xatolik", variant: 'destructive' })
+      toast.error("Subcategoriya qo'shishda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -244,9 +243,9 @@ export default function AdminCategoriesPage() {
       await loadCategories()
       setEditSubDialogOpen(false)
       setSelectedSub(null)
-      toast({ title: 'Muvaffaqiyatli', description: 'Subcategoriya yangilandi' })
+      toast.success('Subcategoriya yangilandi')
     } catch {
-      toast({ title: 'Xatolik', description: 'Subcategoriya yangilashda xatolik', variant: 'destructive' })
+      toast.error('Subcategoriya yangilashda xatolik')
     } finally {
       setActionLoading(false)
     }
@@ -257,9 +256,9 @@ export default function AdminCategoriesPage() {
     try {
       await deleteSubcategoryAction(parentId, subId)
       await loadCategories()
-      toast({ title: 'Muvaffaqiyatli', description: "Subcategoriya o'chirildi" })
+      toast.success("Subcategoriya o'chirildi")
     } catch {
-      toast({ title: 'Xatolik', description: "Subcategoriya o'chirishda xatolik", variant: 'destructive' })
+      toast.error("Subcategoriya o'chirishda xatolik")
     }
   }
 
@@ -276,9 +275,9 @@ export default function AdminCategoriesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Kategoriyalar</h1>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Kategoriyalar</h1>
           <p className="text-muted-foreground">
             Mahsulot kategoriyalarini boshqaring — {categories.length} ta kategoriya
           </p>
@@ -291,13 +290,13 @@ export default function AdminCategoriesPage() {
               <Plus className="mr-2 h-4 w-4" /> Kategoriya qo&apos;shish
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Yangi kategoriya</DialogTitle>
               <DialogDescription>Yangi asosiy kategoriya qo&apos;shing</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nomi (O&apos;zbek) *</Label>
                   <Input
@@ -345,8 +344,87 @@ export default function AdminCategoriesPage() {
         </Dialog>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile Card View */}
+      <div className="block sm:hidden space-y-3">
+        {categories.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Kategoriyalar mavjud emas
+            </CardContent>
+          </Card>
+        ) : (
+          categories.map((category) => (
+            <Card key={category.id}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <CategoryIcon iconName={category.icon} size={20} />
+                    <span className="font-medium">{category.name_uz}</span>
+                  </div>
+                  <Badge
+                    variant={category.is_active ? 'default' : 'secondary'}
+                    className={category.is_active ? 'bg-green-500' : 'bg-gray-400'}
+                  >
+                    {category.is_active ? 'Faol' : 'Nofaol'}
+                  </Badge>
+                </div>
+                {category.name_ru && (
+                  <p className="text-sm text-muted-foreground mb-2">{category.name_ru}</p>
+                )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {category.children?.length || 0} subcategoriya
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">#{category.sort_order}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600" onClick={() => openAddSubDialog(category.id)}>
+                      <FolderPlus className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEditDialog(category)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleToggleStatus(category)}>
+                      <Power className={`h-4 w-4 ${category.is_active ? 'text-green-500' : 'text-gray-400'}`} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500" onClick={() => handleDelete(category.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                {/* Subcategories */}
+                {category.children && category.children.length > 0 && (
+                  <div className="mt-3 pt-3 border-t space-y-2">
+                    {category.children.map((sub) => (
+                      <div key={sub.id} className="flex items-center justify-between pl-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">↳</span>
+                          <span className="text-sm">{sub.name_uz}</span>
+                          <Badge variant="outline" className={`text-[10px] ${sub.is_active ? 'border-green-500 text-green-500' : 'border-gray-400 text-gray-400'}`}>
+                            {sub.is_active ? 'Faol' : 'Nofaol'}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditSubDialog(category.id, sub)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeleteSub(category.id, sub.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Table (Desktop) */}
+      <Card className="hidden sm:block">
         <CardHeader>
           <CardTitle>Kategoriyalar ro&apos;yxati</CardTitle>
           <CardDescription>
@@ -518,7 +596,7 @@ export default function AdminCategoriesPage() {
 
       {/* Edit Category Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Kategoriyani tahrirlash</DialogTitle>
             <DialogDescription>
@@ -526,7 +604,7 @@ export default function AdminCategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nomi (O&apos;zbek)</Label>
                 <Input
@@ -542,7 +620,7 @@ export default function AdminCategoriesPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tartib raqami</Label>
                 <Input
@@ -593,7 +671,7 @@ export default function AdminCategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nomi (O&apos;zbek) *</Label>
                 <Input
@@ -645,7 +723,7 @@ export default function AdminCategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nomi (O&apos;zbek)</Label>
                 <Input

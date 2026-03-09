@@ -34,13 +34,9 @@ const NOTIFICATION_MESSAGES: Record<string, Record<string, (orderNum: string, ex
 
   // Mijozga
   customer: {
-    order_confirmed: (orderNum) => ({
-      title: '✅ Qabul qilindi',
-      body: `Buyurtma #${orderNum} do'kon tomonidan qabul qilindi`,
-    }),
     order_processing: (orderNum) => ({
-      title: '👨‍🍳 Tayyorlanmoqda',
-      body: `Buyurtma #${orderNum} tayyorlanmoqda`,
+      title: '👨‍🍳 Do\'kon tayyorlamoqda',
+      body: `Buyurtma #${orderNum} do'kon tayyorlashni boshladi`,
     }),
     order_ready: (orderNum) => ({
       title: '📦 Tayyor!',

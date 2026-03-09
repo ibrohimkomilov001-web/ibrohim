@@ -1,4 +1,5 @@
 import { fetchUsers, updateUserStatus as apiUpdateUserStatus, updateUserRole as apiUpdateUserRole } from "@/lib/api/admin";
+import { PaginationMeta } from "@/components/ui/data-table-pagination";
 
 export type User = {
   id: string;
@@ -9,14 +10,25 @@ export type User = {
   is_active?: boolean;
   avatar_url?: string;
   created_at?: string;
-  [key: string]: any;
 };
 
-export async function getUsers(): Promise<User[]> {
+export type UsersParams = {
+  page?: number;
+  search?: string;
+  role?: string;
+};
+
+const defaultPagination: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false };
+
+export async function getUsers(params?: UsersParams): Promise<{ users: User[]; pagination: PaginationMeta }> {
   try {
-    const data = await fetchUsers();
-    const users = data.items || data.users || [];
-    return users.map((u: any) => ({
+    const data = await fetchUsers({
+      search: params?.search || undefined,
+      role: params?.role && params.role !== 'all' ? params.role : undefined,
+      page: params?.page || 1,
+    });
+    const items = data.items || data.users || [];
+    const users = items.map((u: any) => ({
       id: u.id,
       full_name: u.fullName,
       email: u.email,
@@ -26,24 +38,12 @@ export async function getUsers(): Promise<User[]> {
       avatar_url: u.avatarUrl,
       created_at: u.createdAt,
     }));
-  } catch {
-    return [];
-  }
-}
-
-export async function getUserStats(): Promise<{ total: number; customers: number; vendors: number; admins: number; active: number }> {
-  try {
-    const data = await fetchUsers();
-    const users = data.items || data.users || [];
     return {
-      total: data.pagination?.total || users.length,
-      customers: users.filter((u: any) => u.role === 'user' || u.role === 'customer').length,
-      vendors: users.filter((u: any) => u.role === 'vendor').length,
-      admins: users.filter((u: any) => u.role === 'admin').length,
-      active: users.filter((u: any) => u.status === 'active' || u.isActive).length,
+      users,
+      pagination: data.pagination || { ...defaultPagination, total: users.length, totalPages: 1 },
     };
   } catch {
-    return { total: 0, customers: 0, vendors: 0, admins: 0, active: 0 };
+    return { users: [], pagination: defaultPagination };
   }
 }
 

@@ -267,7 +267,6 @@ class PushNotificationService {
       case 'order':
       case 'order_status':
       case 'order_new':
-      case 'order_confirmed':
       case 'order_processing':
       case 'order_ready':
       case 'order_assigned':
@@ -438,7 +437,6 @@ class PushNotificationService {
 /// Notification types
 class NotificationTypes {
   static const String orderCreated = 'order_created';
-  static const String orderConfirmed = 'order_confirmed';
   static const String orderShipped = 'order_shipped';
   static const String orderDelivered = 'order_delivered';
   static const String orderCancelled = 'order_cancelled';

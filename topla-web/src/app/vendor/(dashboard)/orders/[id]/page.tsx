@@ -17,7 +17,6 @@ import {
 
 const statusLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: 'Kutilmoqda', color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="w-4 h-4" /> },
-  confirmed: { label: 'Tasdiqlangan', color: 'bg-blue-100 text-blue-800', icon: <CheckCircle className="w-4 h-4" /> },
   processing: { label: 'Tayyorlanmoqda', color: 'bg-purple-100 text-purple-800', icon: <Package className="w-4 h-4" /> },
   ready_for_pickup: { label: 'Tayyor - kuryerga berish', color: 'bg-indigo-100 text-indigo-800', icon: <Package className="w-4 h-4" /> },
   courier_assigned: { label: 'Kuryer tayinlandi', color: 'bg-cyan-100 text-cyan-800', icon: <Truck className="w-4 h-4" /> },
@@ -28,8 +27,7 @@ const statusLabels: Record<string, { label: string; color: string; icon: React.R
 };
 
 const nextStatus: Record<string, string> = {
-  pending: 'confirmed',
-  confirmed: 'processing',
+  pending: 'processing',
   processing: 'ready_for_pickup',
 };
 

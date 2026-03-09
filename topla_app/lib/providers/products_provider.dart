@@ -104,6 +104,9 @@ class ProductsProvider extends ChangeNotifier {
   /// Home screen uchun kerakli ma'lumotlarni yuklash
   Future<void> loadHomeData() async {
     AppLogger.d(_tag, 'Loading home data...');
+    // Bannerlarni har doim yangilab turish (yangi banner qo'shilgan bo'lishi mumkin)
+    _bannersLoaded = false;
+    _featuredLoaded = false;
     await Future.wait([
       loadBanners(),
       loadFeaturedProducts(),
@@ -533,6 +536,14 @@ class ProductsProvider extends ChangeNotifier {
   void stopProductsRealtimeSubscription() {
     _productsSubscription?.cancel();
     _productsSubscription = null;
+  }
+
+  /// Logout bo'lganda sevimlilar ma'lumotlarini tozalash
+  void clearFavoritesOnLogout() {
+    _favorites = [];
+    _favoriteIds = {};
+    _favoritesLoaded = false;
+    notifyListeners();
   }
 
   @override

@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import '../core/services/api_client.dart';
 import '../models/models.dart';
 
@@ -62,86 +60,90 @@ class CardBindingResult {
   final String? bindingId;
   final String? redirectUrl;
   final String? errorMessage;
+  final Map<String, dynamic>? cardData;
 
   CardBindingResult({
     required this.success,
     this.bindingId,
     this.redirectUrl,
     this.errorMessage,
+    this.cardData,
   });
 }
 
-/// Asia Alliance Bank Payment Service
+/// Bo'lib to'lash rejasi
+class InstallmentPlan {
+  final String id;
+  final int months;
+  final double monthlyAmount;
+  final double totalAmount;
+  final double interestRate;
+  final String provider;
+
+  InstallmentPlan({
+    required this.id,
+    required this.months,
+    required this.monthlyAmount,
+    required this.totalAmount,
+    required this.interestRate,
+    required this.provider,
+  });
+
+  factory InstallmentPlan.fromJson(Map<String, dynamic> json) {
+    return InstallmentPlan(
+      id: json['id']?.toString() ?? '',
+      months: json['months'] ?? 0,
+      monthlyAmount:
+          (json['monthlyAmount'] ?? json['monthly_amount'] ?? 0).toDouble(),
+      totalAmount:
+          (json['totalAmount'] ?? json['total_amount'] ?? 0).toDouble(),
+      interestRate:
+          (json['interestRate'] ?? json['interest_rate'] ?? 0).toDouble(),
+      provider: json['provider'] ?? 'aliance',
+    );
+  }
+}
+
+/// TOPLA Payment Service
 ///
-/// Bu servis Asia Alliance Bank "Alliance e-com" API bilan ishlaydi.
-/// Hozircha API dokumentatsiyasi kutilmoqda, shuning uchun umumiy
-/// arxitektura yaratilgan. Bank API tayyor bo'lgach, tegishli endpoint
-/// va parametrlarni yangilash kerak bo'ladi.
+/// Barcha to'lov operatsiyalari backend orqali amalga oshiriladi.
+/// Flutter to'g'ridan-to'g'ri bank API ga so'rov yubormaydi —
+/// backend proxy vazifasini bajaradi. Bu xavfsizroq, chunki
+/// merchant credentials faqat serverda saqlanadi.
 class PaymentService {
-  // ============================================================
-  // CONFIGURATION - Bank bilan shartnomadan keyin yangilang
-  // ============================================================
-
-  /// API Base URL (sandbox/production)
-  static const String _baseUrl = 'https://api.aab.uz/ecom/v1'; // O'zgartiring
-
-  /// Merchant credentials (Bank beradi)
-  static const String _merchantId = 'YOUR_MERCHANT_ID';
-  static const String _terminalId = 'YOUR_TERMINAL_ID';
-  // ignore: unused_field
-  static const String _secretKey = 'YOUR_SECRET_KEY';
-
-  /// Callback URLs
-  static const String _successUrl = 'https://yourapp.com/payment/success';
-  // ignore: unused_field
-  static const String _failureUrl = 'https://yourapp.com/payment/failure';
-  static const String _callbackUrl =
-      'https://api.topla.uz/api/v1/payments/callback';
-
-  // ============================================================
-  // API CLIENT
-  // ============================================================
-
   static final ApiClient _api = ApiClient();
 
   // ============================================================
   // CARD BINDING (TOKENIZATION) - Karta saqlash
   // ============================================================
 
-  /// Yangi karta qo'shish uchun binding jarayonini boshlash
+  /// Yangi karta qo'shish jarayonini boshlash.
   ///
-  /// Qaytarilgan URL ga foydalanuvchini yo'naltiring.
-  /// U yerda karta ma'lumotlarini kiritadi va OTP tasdiqlaydi.
-  /// Muvaffaqiyatli bo'lsa, callback URL ga token qaytadi.
+  /// Backend bank API ga so'rov yuboradi va redirect URL qaytaradi.
+  /// Foydalanuvchi shu URL da karta ma'lumotlarini kiritadi.
+  /// Muvaffaqiyatli bo'lsa, callback orqali token serverga qaytadi.
   static Future<CardBindingResult> initCardBinding({
     required String userId,
     String? returnUrl,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/binding/init'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'merchant_id': _merchantId,
-          'terminal_id': _terminalId,
-          'client_id': userId,
-          'return_url': returnUrl ?? _successUrl,
-          'callback_url': _callbackUrl,
-        }),
-      );
+      final response = await _api.post('/payments/init-binding', body: {
+        'returnUrl': returnUrl,
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = response.dataMap;
+
+      if (data['redirectUrl'] != null || data['redirect_url'] != null) {
         return CardBindingResult(
           success: true,
-          redirectUrl: data['redirect_url'],
-        );
-      } else {
-        return CardBindingResult(
-          success: false,
-          errorMessage: 'Karta qo\'shishda xatolik: ${response.statusCode}',
+          redirectUrl: data['redirectUrl'] ?? data['redirect_url'],
         );
       }
+
+      return CardBindingResult(
+        success: false,
+        errorMessage: data['message'] ?? 'Karta qo\'shishda xatolik',
+      );
     } catch (e) {
       debugPrint('Card binding error: $e');
       return CardBindingResult(
@@ -151,26 +153,51 @@ class PaymentService {
     }
   }
 
-  /// Binding callback'dan kelgan tokenni saqlash
-  static Future<SavedCardModel?> saveCardFromCallback({
-    required String userId,
-    required String bindingId,
-    required String maskedPan,
-    required String cardType,
+  /// Binding callback natijasini tekshirish.
+  /// Bank redirect qilgandan keyin chaqiriladi.
+  static Future<CardBindingResult> checkBindingStatus(String bindingId) async {
+    try {
+      final response = await _api.get('/payments/binding-status/$bindingId');
+      final data = response.dataMap;
+
+      return CardBindingResult(
+        success: data['status'] == 'completed',
+        bindingId: data['bindingId'] ?? data['binding_id'],
+        cardData: data['card'] != null
+            ? Map<String, dynamic>.from(data['card'])
+            : null,
+        errorMessage: data['status'] != 'completed'
+            ? 'Karta qo\'shish yakunlanmadi'
+            : null,
+      );
+    } catch (e) {
+      return CardBindingResult(
+        success: false,
+        errorMessage: 'Status tekshirishda xatolik: $e',
+      );
+    }
+  }
+
+  /// Karta qo'shish (manual — backend ga token yuborish)
+  static Future<SavedCardModel?> addCard({
+    required String cardNumber,
     required String expiryDate,
+    required String provider,
+    String? cardHolder,
+    String? token,
   }) async {
     try {
-      // API ga saqlash
       final response = await _api.post('/payments/cards', body: {
-        'cardNumber': maskedPan,
-        'token': bindingId,
-        'provider': cardType.toLowerCase() == 'click' ? 'click' : 'payme',
+        'cardNumber': cardNumber,
         'expiryDate': expiryDate,
+        'provider': provider,
+        'cardHolder': cardHolder,
+        'token': token ?? 'manual_${DateTime.now().millisecondsSinceEpoch}',
       });
 
       return SavedCardModel.fromJson(response.dataMap);
     } catch (e) {
-      debugPrint('Save card error: $e');
+      debugPrint('Add card error: $e');
       return null;
     }
   }
@@ -189,9 +216,7 @@ class PaymentService {
   /// Kartani asosiy qilish
   static Future<bool> setDefaultCard(String userId, String cardId) async {
     try {
-      // API orqali default kartani belgilash
       await _api.put('/payments/cards/$cardId/default', body: {});
-
       return true;
     } catch (e) {
       debugPrint('Set default card error: $e');
@@ -203,7 +228,6 @@ class PaymentService {
   static Future<List<SavedCardModel>> getSavedCards(String userId) async {
     try {
       final response = await _api.get('/payments/cards');
-
       return (response.dataList)
           .map((e) => SavedCardModel.fromJson(e))
           .toList();
@@ -219,64 +243,48 @@ class PaymentService {
 
   /// Saqlangan karta bilan to'lov (ONE_STEP - bir bosqichli)
   ///
-  /// Pul darhol yechiladi. Oddiy savdo uchun.
+  /// Backend bank API ga so'rov yuboradi. Agar 3D Secure kerak bo'lsa,
+  /// redirectUrl qaytariladi.
   static Future<PaymentResult> payWithSavedCard({
     required String orderId,
     required String bindingId,
-    required int amountInTiyin, // 1 so'm = 100 tiyin
+    required int amountInTiyin,
     String? description,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment/charge'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'merchant_id': _merchantId,
-          'terminal_id': _terminalId,
-          'order_id': orderId,
-          'amount': amountInTiyin,
-          'currency': 860, // UZS
-          'binding_id': bindingId,
-          'description': description ?? 'TOPLA buyurtma #$orderId',
-          'callback_url': _callbackUrl,
-        }),
-      );
+      final response = await _api.post('/payments/process', body: {
+        'orderId': orderId,
+        'cardId': bindingId,
+        'amount': amountInTiyin,
+        'description': description ?? 'TOPLA buyurtma #$orderId',
+        'paymentType': 'ONE_STEP',
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = response.dataMap;
 
-        if (data['status'] == 'success') {
-          // To'lov muvaffaqiyatli
-          await _recordTransaction(
-            orderId: orderId,
-            transactionId: data['transaction_id'],
-            amount: amountInTiyin,
-            status: 'completed',
-          );
-
-          return PaymentResult.success(
-            transactionId: data['transaction_id'],
-            data: data,
-          );
-        } else if (data['status'] == 'pending' &&
-            data['redirect_url'] != null) {
-          // 3D Secure kerak
-          return PaymentResult.redirect(data['redirect_url']);
-        } else {
-          return PaymentResult.failure(data['message'] ?? 'To\'lov rad etildi');
-        }
+      if (data['status'] == 'completed' || data['status'] == 'success') {
+        return PaymentResult.success(
+          transactionId: data['transactionId'] ?? data['transaction_id'] ?? '',
+          data: data,
+        );
+      } else if (data['redirectUrl'] != null || data['redirect_url'] != null) {
+        return PaymentResult.redirect(
+          data['redirectUrl'] ?? data['redirect_url'],
+        );
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure(
+          data['message'] ?? 'To\'lov rad etildi',
+        );
       }
     } catch (e) {
       debugPrint('Payment error: $e');
-      return PaymentResult.failure('Tarmoq xatosi: $e');
+      return PaymentResult.failure('To\'lov xatosi: $e');
     }
   }
 
   /// Yangi karta bilan to'lov (karta saqlanmaydi)
   ///
-  /// Foydalanuvchi redirect qilinadi, karta kiritadi va to'laydi.
+  /// Backend redirect URL qaytaradi, foydalanuvchi u yerda karta kiritadi.
   static Future<PaymentResult> payWithNewCard({
     required String orderId,
     required int amountInTiyin,
@@ -284,40 +292,21 @@ class PaymentService {
     String? returnUrl,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment/init'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'merchant_id': _merchantId,
-          'terminal_id': _terminalId,
-          'order_id': orderId,
-          'amount': amountInTiyin,
-          'currency': 860,
-          'description': description ?? 'TOPLA buyurtma #$orderId',
-          'return_url': returnUrl ?? _successUrl,
-          'callback_url': _callbackUrl,
-          'payment_type': 'ONE_STEP',
-        }),
-      );
+      final response = await _api.post('/payments/init-payment', body: {
+        'orderId': orderId,
+        'amount': amountInTiyin,
+        'description': description ?? 'TOPLA buyurtma #$orderId',
+        'returnUrl': returnUrl,
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = response.dataMap;
 
-        if (data['redirect_url'] != null) {
-          // To'lov sahifasiga yo'naltirish
-          await _recordTransaction(
-            orderId: orderId,
-            transactionId: data['payment_id'],
-            amount: amountInTiyin,
-            status: 'pending',
-          );
-
-          return PaymentResult.redirect(data['redirect_url']);
-        } else {
-          return PaymentResult.failure('Redirect URL olinmadi');
-        }
+      if (data['redirectUrl'] != null || data['redirect_url'] != null) {
+        return PaymentResult.redirect(
+          data['redirectUrl'] ?? data['redirect_url'],
+        );
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure('Redirect URL olinmadi');
       }
     } catch (e) {
       debugPrint('Payment init error: $e');
@@ -328,7 +317,7 @@ class PaymentService {
   /// TWO_STEP to'lov - Hold (Marketplace uchun)
   ///
   /// Pul kartada "band" qilinadi, lekin yechilmaydi.
-  /// Buyurtma yakunlanganda complete() chaqiriladi.
+  /// Buyurtma yakunlanganda completePayment() chaqiriladi.
   static Future<PaymentResult> holdPayment({
     required String orderId,
     required String bindingId,
@@ -336,320 +325,254 @@ class PaymentService {
     String? description,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment/hold'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'merchant_id': _merchantId,
-          'terminal_id': _terminalId,
-          'order_id': orderId,
-          'amount': amountInTiyin,
-          'currency': 860,
-          'binding_id': bindingId,
-          'description': description ?? 'TOPLA buyurtma #$orderId',
-          'payment_type': 'TWO_STEP',
-          'callback_url': _callbackUrl,
-        }),
-      );
+      final response = await _api.post('/payments/process', body: {
+        'orderId': orderId,
+        'cardId': bindingId,
+        'amount': amountInTiyin,
+        'description': description ?? 'TOPLA buyurtma #$orderId',
+        'paymentType': 'TWO_STEP',
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = response.dataMap;
 
-        if (data['status'] == 'held') {
-          await _recordTransaction(
-            orderId: orderId,
-            transactionId: data['transaction_id'],
-            amount: amountInTiyin,
-            status: 'held',
-          );
-
-          return PaymentResult.success(
-            transactionId: data['transaction_id'],
-            data: data,
-          );
-        } else if (data['redirect_url'] != null) {
-          return PaymentResult.redirect(data['redirect_url']);
-        } else {
-          return PaymentResult.failure(data['message'] ?? 'Hold rad etildi');
-        }
+      if (data['status'] == 'held') {
+        return PaymentResult.success(
+          transactionId: data['transactionId'] ?? data['transaction_id'] ?? '',
+          data: data,
+        );
+      } else if (data['redirectUrl'] != null) {
+        return PaymentResult.redirect(data['redirectUrl']);
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure(data['message'] ?? 'Hold rad etildi');
       }
     } catch (e) {
       debugPrint('Hold payment error: $e');
-      return PaymentResult.failure('Tarmoq xatosi: $e');
+      return PaymentResult.failure('Hold xatosi: $e');
     }
   }
 
   /// TWO_STEP to'lov - Complete (Pul yechish)
-  ///
-  /// Hold qilingan pulni yechish. Buyurtma yetkazilgandan keyin chaqiriladi.
   static Future<PaymentResult> completePayment({
     required String transactionId,
-    int? amountInTiyin, // Agar partial capture kerak bo'lsa
+    int? amountInTiyin,
   }) async {
     try {
-      final body = {
-        'merchant_id': _merchantId,
-        'terminal_id': _terminalId,
-        'transaction_id': transactionId,
-      };
+      final response = await _api.post('/payments/complete', body: {
+        'transactionId': transactionId,
+        if (amountInTiyin != null) 'amount': amountInTiyin,
+      });
 
-      if (amountInTiyin != null) {
-        body['amount'] = amountInTiyin.toString();
-      }
+      final data = response.dataMap;
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment/complete'),
-        headers: _getHeaders(),
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['status'] == 'completed') {
-          await _updateTransactionStatus(transactionId, 'completed');
-
-          return PaymentResult.success(
-            transactionId: transactionId,
-            data: data,
-          );
-        } else {
-          return PaymentResult.failure(
-              data['message'] ?? 'Complete rad etildi');
-        }
+      if (data['status'] == 'completed') {
+        return PaymentResult.success(
+          transactionId: transactionId,
+          data: data,
+        );
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure(data['message'] ?? 'Complete rad etildi');
       }
     } catch (e) {
-      debugPrint('Complete payment error: $e');
-      return PaymentResult.failure('Tarmoq xatosi: $e');
+      return PaymentResult.failure('Complete xatosi: $e');
     }
   }
 
   /// TWO_STEP to'lov - Reverse (Bekor qilish)
-  ///
-  /// Hold qilingan pulni qaytarish. Buyurtma bekor qilinganda.
   static Future<PaymentResult> reversePayment({
     required String transactionId,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment/reverse'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'merchant_id': _merchantId,
-          'terminal_id': _terminalId,
-          'transaction_id': transactionId,
-        }),
-      );
+      final response = await _api.post('/payments/reverse', body: {
+        'transactionId': transactionId,
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = response.dataMap;
 
-        if (data['status'] == 'reversed') {
-          await _updateTransactionStatus(transactionId, 'reversed');
-
-          return PaymentResult.success(
-            transactionId: transactionId,
-            data: data,
-          );
-        } else {
-          return PaymentResult.failure(data['message'] ?? 'Reverse rad etildi');
-        }
+      if (data['status'] == 'reversed') {
+        return PaymentResult.success(
+          transactionId: transactionId,
+          data: data,
+        );
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure(data['message'] ?? 'Reverse rad etildi');
       }
     } catch (e) {
-      debugPrint('Reverse payment error: $e');
-      return PaymentResult.failure('Tarmoq xatosi: $e');
+      return PaymentResult.failure('Reverse xatosi: $e');
     }
   }
 
   /// Refund - To'lovni qaytarish
-  ///
-  /// Completed to'lovni qaytarish. Faqat admin bajarishi mumkin.
   static Future<PaymentResult> refundPayment({
     required String transactionId,
-    int? amountInTiyin, // Partial refund uchun
+    int? amountInTiyin,
   }) async {
     try {
-      final body = {
-        'merchant_id': _merchantId,
-        'terminal_id': _terminalId,
-        'transaction_id': transactionId,
-      };
+      final response = await _api.post('/payments/refund', body: {
+        'transactionId': transactionId,
+        if (amountInTiyin != null) 'amount': amountInTiyin,
+      });
 
-      if (amountInTiyin != null) {
-        body['amount'] = amountInTiyin.toString();
-      }
+      final data = response.dataMap;
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment/refund'),
-        headers: _getHeaders(),
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['status'] == 'refunded') {
-          await _updateTransactionStatus(transactionId, 'refunded');
-
-          return PaymentResult.success(
-            transactionId: transactionId,
-            data: data,
-          );
-        } else {
-          return PaymentResult.failure(data['message'] ?? 'Refund rad etildi');
-        }
+      if (data['status'] == 'refunded') {
+        return PaymentResult.success(
+          transactionId: transactionId,
+          data: data,
+        );
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure(data['message'] ?? 'Refund rad etildi');
       }
     } catch (e) {
-      debugPrint('Refund payment error: $e');
-      return PaymentResult.failure('Tarmoq xatosi: $e');
+      return PaymentResult.failure('Refund xatosi: $e');
     }
   }
 
   // ============================================================
-  // VENDOR PAYOUT - Vendorga pul o'tkazish (A2C)
+  // INSTALLMENT - Bo'lib to'lash
   // ============================================================
 
-  /// Vendor balansidan kartaga pul o'tkazish
-  static Future<PaymentResult> payoutToCard({
-    required String payoutId,
-    required String cardNumber,
+  /// Bo'lib to'lash rejalarini olish
+  static Future<List<InstallmentPlan>> getInstallmentPlans({
     required int amountInTiyin,
+  }) async {
+    try {
+      final response = await _api.get(
+        '/payments/installment-plans?amount=$amountInTiyin',
+      );
+
+      return (response.dataList)
+          .map((e) => InstallmentPlan.fromJson(e))
+          .toList();
+    } catch (e) {
+      debugPrint('Get installment plans error: $e');
+      return [];
+    }
+  }
+
+  /// Bo'lib to'lash bilan to'lov
+  static Future<PaymentResult> payWithInstallment({
+    required String orderId,
+    required String cardId,
+    required int amountInTiyin,
+    required int months,
     String? description,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payout/card'),
-        headers: _getHeaders(),
-        body: jsonEncode({
-          'merchant_id': _merchantId,
-          'terminal_id': _terminalId,
-          'payout_id': payoutId,
-          'card_number': cardNumber,
-          'amount': amountInTiyin,
-          'currency': 860,
-          'description': description ?? 'TOPLA payout #$payoutId',
-        }),
-      );
+      final response = await _api.post('/payments/installment', body: {
+        'orderId': orderId,
+        'cardId': cardId,
+        'amount': amountInTiyin,
+        'months': months,
+        'description': description ?? 'TOPLA buyurtma #$orderId',
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final data = response.dataMap;
 
-        if (data['status'] == 'success') {
-          return PaymentResult.success(
-            transactionId: data['transaction_id'],
-            data: data,
-          );
-        } else {
-          return PaymentResult.failure(data['message'] ?? 'Payout rad etildi');
-        }
+      if (data['status'] == 'completed' || data['status'] == 'success') {
+        return PaymentResult.success(
+          transactionId: data['transactionId'] ?? data['transaction_id'] ?? '',
+          data: data,
+        );
+      } else if (data['redirectUrl'] != null) {
+        return PaymentResult.redirect(data['redirectUrl']);
       } else {
-        return PaymentResult.failure('Server xatosi: ${response.statusCode}');
+        return PaymentResult.failure(
+          data['message'] ?? 'Bo\'lib to\'lash rad etildi',
+        );
       }
     } catch (e) {
-      debugPrint('Payout error: $e');
-      return PaymentResult.failure('Tarmoq xatosi: $e');
+      return PaymentResult.failure('Bo\'lib to\'lash xatosi: $e');
     }
   }
 
   // ============================================================
-  // HELPER METHODS
+  // TRANSACTION STATUS
   // ============================================================
-
-  /// API uchun headerlar
-  static Map<String, String> _getHeaders() {
-    // Signature yaratish (HMAC yoki boshqa algoritm - bank spesifikatsiyasiga qarab)
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-
-    return {
-      'Content-Type': 'application/json',
-      'X-Merchant-Id': _merchantId,
-      'X-Terminal-Id': _terminalId,
-      'X-Timestamp': timestamp,
-      'X-Signature': _generateSignature(timestamp),
-    };
-  }
-
-  /// Signature yaratish
-  static String _generateSignature(String timestamp) {
-    // TODO: Bank spesifikatsiyasiga qarab implement qilish
-    // Odatda: HMAC-SHA256(merchantId + timestamp + secretKey)
-    return 'signature_placeholder';
-  }
-
-  /// Tranzaksiyani bazaga yozish
-  static Future<void> _recordTransaction({
-    required String orderId,
-    required String transactionId,
-    required int amount,
-    required String status,
-  }) async {
-    try {
-      await _api.post('/payments/transactions', body: {
-        'orderId': orderId,
-        'transactionId': transactionId,
-        'amount': amount,
-        'currency': 'UZS',
-        'status': status,
-        'provider': 'asia_alliance',
-      });
-    } catch (e) {
-      debugPrint('Record transaction error: $e');
-    }
-  }
-
-  /// Tranzaksiya statusini yangilash
-  static Future<void> _updateTransactionStatus(
-    String transactionId,
-    String status,
-  ) async {
-    try {
-      await _api.put('/payments/transactions/$transactionId', body: {
-        'status': status,
-      });
-    } catch (e) {
-      debugPrint('Update transaction status error: $e');
-    }
-  }
 
   /// Tranzaksiya holatini tekshirish
   static Future<String?> checkTransactionStatus(String transactionId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/payment/status?transaction_id=$transactionId'),
-        headers: _getHeaders(),
+      final response = await _api.get(
+        '/payments/transactions/status/$transactionId',
       );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['status'];
-      }
-      return null;
+      return response.dataMap['status'];
     } catch (e) {
       debugPrint('Check transaction status error: $e');
       return null;
     }
   }
 
+  /// Buyurtma tranzaksiyalarini olish
+  static Future<List<TransactionModel>> getOrderTransactions(
+    String orderId,
+  ) async {
+    try {
+      final response = await _api.get('/payments/transactions/$orderId');
+      return (response.dataList)
+          .map((e) => TransactionModel.fromJson(e))
+          .toList();
+    } catch (e) {
+      debugPrint('Get order transactions error: $e');
+      return [];
+    }
+  }
+
   // ============================================================
-  // COMMISSION CALCULATION - Komissiya hisoblash
+  // VENDOR PAYOUT - Vendorga pul o'tkazish
   // ============================================================
 
-  /// Buyurtma uchun komissiyalarni hisoblash
+  /// Vendor balansidan kartaga pul o'tkazish (backend orqali)
+  static Future<PaymentResult> requestPayout({
+    required String cardId,
+    required int amountInTiyin,
+    String? description,
+  }) async {
+    try {
+      final response = await _api.post('/payments/payout', body: {
+        'cardId': cardId,
+        'amount': amountInTiyin,
+        'description': description,
+      });
+
+      final data = response.dataMap;
+
+      if (data['status'] == 'success' || data['status'] == 'processing') {
+        return PaymentResult.success(
+          transactionId: data['payoutId'] ?? data['payout_id'] ?? '',
+          data: data,
+        );
+      } else {
+        return PaymentResult.failure(data['message'] ?? 'Payout rad etildi');
+      }
+    } catch (e) {
+      return PaymentResult.failure('Payout xatosi: $e');
+    }
+  }
+
+  // ============================================================
+  // PAYMENT SETTINGS
+  // ============================================================
+
+  /// To'lov tizimi sozlamalarini olish (admin uchun)
+  static Future<Map<String, dynamic>> getPaymentSettings() async {
+    try {
+      final response = await _api.get('/payments/settings');
+      return response.dataMap;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  // ============================================================
+  // COMMISSION CALCULATION
+  // ============================================================
+
+  /// Buyurtma uchun komissiyalarni hisoblash (lokal)
   static PaymentCommission calculateCommission({
     required double orderTotal,
-    required double
-        vendorCommissionRate, // Vendor komissiya foizi (masalan, 10.0)
+    required double vendorCommissionRate,
     required String cardType,
   }) {
-    // Bank komissiyasi (karta turiga qarab)
     double bankRate;
     switch (cardType.toLowerCase()) {
       case 'uzcard':

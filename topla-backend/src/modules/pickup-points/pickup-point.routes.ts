@@ -225,7 +225,7 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
       const activeOrders = await prisma.order.count({
         where: {
           pickupPointId: id,
-          status: { in: ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'at_pickup_point'] },
+          status: { in: ['pending', 'processing', 'ready_for_pickup', 'at_pickup_point'] },
         },
       });
 

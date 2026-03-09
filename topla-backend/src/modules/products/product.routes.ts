@@ -441,7 +441,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
    * Mahsulot tafsilotlari
    */
   app.get('/products/:id', { preHandler: optionalAuth }, async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
 
     // Cache: mahsulot tafsilotlari (60 sek)
     const prodDetailKey = `product:detail:${id}`;
@@ -640,7 +640,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
    * GET /categories/:id — birta kategoriya
    */
   app.get('/categories/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     const category = await prisma.category.findUnique({
       where: { id },
       include: {
@@ -1282,5 +1282,279 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       where: { userId, query: query.toLowerCase().trim() },
     });
     return reply.send({ success: true });
+  });
+
+  // ============================================
+  // ADVANCED-002: AI MAHSULOT TAVSIYASI
+  // "Siz ham yoqtirishingiz mumkin", Cross-sell, Up-sell
+  // ============================================
+
+  /**
+   * GET /products/:id/recommendations
+   * Mahsulotga asoslangan tavsiyalar (similar + cross-sell)
+   */
+  app.get('/products/:id/recommendations', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true, subcategoryId: true, price: true, shopId: true, name: true },
+    });
+    if (!product) throw new NotFoundError('Mahsulot');
+
+    // Similar products (same subcategory, similar price range)
+    const priceMin = Number(product.price) * 0.5;
+    const priceMax = Number(product.price) * 2;
+
+    const similar = await prisma.product.findMany({
+      where: {
+        subcategoryId: product.subcategoryId,
+        id: { not: id },
+        status: 'active',
+        price: { gte: priceMin, lte: priceMax },
+      },
+      select: {
+        id: true, name: true, price: true,
+        images: true, rating: true, salesCount: true, viewCount: true,
+        shop: { select: { id: true, name: true } },
+      },
+      orderBy: { salesCount: 'desc' },
+      take: 8,
+    });
+
+    // Cross-sell: products bought together (from same orders)
+    const orderItemsWithProduct = await prisma.orderItem.findMany({
+      where: { productId: id },
+      select: { orderId: true },
+      take: 50,
+    });
+    const orderIds = orderItemsWithProduct.map(oi => oi.orderId);
+
+    let crossSell: any[] = [];
+    if (orderIds.length > 0) {
+      const crossItems = await prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          orderId: { in: orderIds },
+          productId: { not: id },
+        },
+        _count: { productId: true },
+        orderBy: { _count: { productId: 'desc' } },
+        take: 6,
+      });
+
+      const crossIds = crossItems.map(c => c.productId);
+      crossSell = await prisma.product.findMany({
+        where: { id: { in: crossIds }, status: 'active' },
+        select: {
+          id: true, name: true, price: true,
+          images: true, rating: true, salesCount: true,
+          shop: { select: { id: true, name: true } },
+        },
+      });
+    }
+
+    // Up-sell: more expensive products in same subcategory
+    const upSell = await prisma.product.findMany({
+      where: {
+        subcategoryId: product.subcategoryId,
+        id: { not: id },
+        status: 'active',
+        price: { gt: product.price },
+      },
+      select: {
+        id: true, name: true, price: true,
+        images: true, rating: true, salesCount: true,
+        shop: { select: { id: true, name: true } },
+      },
+      orderBy: [{ rating: 'desc' }, { salesCount: 'desc' }],
+      take: 4,
+    });
+
+    return reply.send({
+      success: true,
+      data: { similar, crossSell, upSell },
+    });
+  });
+
+  /**
+   * GET /recommendations/personal
+   * Foydalanuvchiga shaxsiy tavsiyalar (browsing history-based)
+   */
+  app.get('/recommendations/personal', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    // Get user's recently viewed product categories
+    const recentViews = await prisma.productView.findMany({
+      where: { userId },
+      select: { product: { select: { subcategoryId: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const subcatIds = [...new Set(recentViews.map(v => v.product.subcategoryId).filter(Boolean))];
+
+    if (subcatIds.length === 0) {
+      // Fallback: trending products
+      const trending = await prisma.product.findMany({
+        where: { status: 'active' },
+        select: {
+          id: true, name: true, price: true,
+          images: true, rating: true, salesCount: true,
+          shop: { select: { id: true, name: true } },
+        },
+        orderBy: { salesCount: 'desc' },
+        take: 12,
+      });
+      return reply.send({ success: true, data: { type: 'trending', products: trending } });
+    }
+
+    // Products from user's interested categories, excluding already viewed
+    const viewedProductIds = await prisma.productView.findMany({
+      where: { userId },
+      select: { productId: true },
+      distinct: ['productId'],
+    });
+    const viewedIds = viewedProductIds.map(v => v.productId);
+
+    const recommendations = await prisma.product.findMany({
+      where: {
+        subcategoryId: { in: subcatIds as string[] },
+        status: 'active',
+        id: { notIn: viewedIds },
+      },
+      select: {
+        id: true, name: true, price: true,
+        images: true, rating: true, salesCount: true,
+        shop: { select: { id: true, name: true } },
+      },
+      orderBy: [{ rating: 'desc' }, { salesCount: 'desc' }],
+      take: 12,
+    });
+
+    return reply.send({ success: true, data: { type: 'personal', products: recommendations } });
+  });
+
+  // ============================================
+  // ADVANCED-004: LOYALTY — User-facing endpoints
+  // ============================================
+
+  /**
+   * GET /loyalty/my-account
+   * Foydalanuvchi loyalty hisobi
+   */
+  app.get('/loyalty/my-account', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    let account = await prisma.loyaltyAccount.findUnique({
+      where: { userId },
+      include: {
+        pointLogs: { orderBy: { createdAt: 'desc' }, take: 20 },
+      },
+    });
+
+    if (!account) {
+      account = await prisma.loyaltyAccount.create({
+        data: { userId },
+        include: { pointLogs: { orderBy: { createdAt: 'desc' }, take: 20 } },
+      });
+    }
+
+    // Tier progress
+    const tierThresholds = { bronze: 0, silver: 5000, gold: 20000, platinum: 50000 };
+    const nextTier = account.tier === 'platinum' ? null
+      : account.tier === 'gold' ? 'platinum'
+      : account.tier === 'silver' ? 'gold' : 'silver';
+    const nextThreshold = nextTier ? tierThresholds[nextTier as keyof typeof tierThresholds] : null;
+    const progress = nextThreshold ? Math.min(100, Math.round((account.lifetimePoints / nextThreshold) * 100)) : 100;
+
+    return reply.send({
+      success: true,
+      data: {
+        ...account,
+        tierProgress: { nextTier, nextThreshold, progress },
+        tierBenefits: {
+          bronze: ['Har xarid uchun 1% ball'],
+          silver: ['Har xarid uchun 2% ball', 'Bepul yetkazib berish (50,000+)'],
+          gold: ['Har xarid uchun 3% ball', 'Bepul yetkazib berish', 'Maxsus chegirmalar'],
+          platinum: ['Har xarid uchun 5% ball', 'Bepul yetkazib berish', 'VIP qo\'llab-quvvatlash', 'Maxsus aksiyalar'],
+        },
+      },
+    });
+  });
+
+  /**
+   * POST /loyalty/daily-login
+   * Kundalik kirish bonusi
+   */
+  app.post('/loyalty/daily-login', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    let account = await prisma.loyaltyAccount.findUnique({ where: { userId } });
+    if (!account) {
+      account = await prisma.loyaltyAccount.create({ data: { userId } });
+    }
+
+    // Check if already claimed today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (account.lastDailyLogin && account.lastDailyLogin >= today) {
+      return reply.send({ success: false, message: 'Bugungi bonus allaqachon olingan' });
+    }
+
+    const dailyPoints = 10; // 10 points per daily login
+    await prisma.$transaction([
+      prisma.loyaltyAccount.update({
+        where: { id: account.id },
+        data: {
+          availablePoints: { increment: dailyPoints },
+          totalPoints: { increment: dailyPoints },
+          lifetimePoints: { increment: dailyPoints },
+          lastDailyLogin: new Date(),
+        },
+      }),
+      prisma.loyaltyPointLog.create({
+        data: {
+          accountId: account.id,
+          action: 'daily_login',
+          points: dailyPoints,
+          description: 'Kundalik kirish bonusi',
+        },
+      }),
+    ]);
+
+    return reply.send({ success: true, data: { pointsEarned: dailyPoints } });
+  });
+
+  // ============================================
+  // ADVANCED-008: FAQ BOT (public)
+  // ============================================
+
+  /**
+   * GET /faq
+   * Public FAQ endpoint
+   */
+  app.get('/faq', async (request, reply) => {
+    const { category, q } = request.query as { category?: string; q?: string };
+
+    const where: any = { isActive: true };
+    if (category) where.category = category;
+
+    let entries = await prisma.faqEntry.findMany({
+      where,
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    // Simple keyword search
+    if (q) {
+      const query = q.toLowerCase();
+      entries = entries.filter(e =>
+        e.question.toLowerCase().includes(query) ||
+        e.answer.toLowerCase().includes(query) ||
+        e.keywords.some(k => k.toLowerCase().includes(query))
+      );
+    }
+
+    return reply.send({ success: true, data: entries });
   });
 }

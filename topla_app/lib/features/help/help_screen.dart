@@ -37,19 +37,6 @@ class _HelpScreenState extends State<HelpScreen> {
     }
   }
 
-  List<Map<String, String>> _getFaqs(AppLocalizations l10n) {
-    return [
-      {'q': l10n.translate('faq_q1'), 'a': l10n.translate('faq_a1')},
-      {'q': l10n.translate('faq_q2'), 'a': l10n.translate('faq_a2')},
-      {'q': l10n.translate('faq_q3'), 'a': l10n.translate('faq_a3')},
-      {'q': l10n.translate('faq_q4'), 'a': l10n.translate('faq_a4')},
-      {'q': l10n.translate('faq_q5'), 'a': l10n.translate('faq_a5')},
-      {'q': l10n.translate('faq_q6'), 'a': l10n.translate('faq_a6')},
-      {'q': l10n.translate('faq_q7'), 'a': l10n.translate('faq_a7')},
-      {'q': l10n.translate('faq_q8'), 'a': l10n.translate('faq_a8')},
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -78,7 +65,8 @@ class _HelpScreenState extends State<HelpScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const SupportChatScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const SupportChatScreen()),
                       );
                     },
                     borderRadius: BorderRadius.circular(16),
@@ -160,116 +148,10 @@ class _HelpScreenState extends State<HelpScreen> {
             ),
 
             const SizedBox(height: 24),
-
-            // ── FAQ section ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                l10n.translate('faq_title'),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildFaqList(_getFaqs(l10n)),
-            const SizedBox(height: 24),
             _buildAppInfo(l10n),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildFaqList(List<Map<String, String>> faqs) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: faqs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final faq = entry.value;
-          return Column(
-            children: [
-              _buildFaqItem(faq, index),
-              if (index < faqs.length - 1)
-                Divider(height: 1, color: Colors.grey.shade200),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildFaqItem(Map<String, String> faq, int index) {
-    return ExpansionTile(
-      title: Text(
-        faq['q'] ?? '',
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
-      ),
-      leading: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Center(
-          child: Text(
-            '${index + 1}',
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Iconsax.info_circle,
-                size: 18,
-                color: AppColors.primary,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  faq['a'] ?? '',
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -291,25 +173,40 @@ class _HelpScreenState extends State<HelpScreen> {
       child: Column(
         children: [
           _buildInfoRow(
-            icon: Iconsax.document_text,
+            icon: Icons.help_outline_rounded,
+            title: l10n.translate('faq_title'),
+            onTap: () async {
+              final uri = Uri.parse('https://topla.uz/faq');
+              try {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (_) {}
+            },
+          ),
+          Divider(height: 24, color: Colors.grey.shade200),
+          _buildInfoRow(
+            icon: Icons.description_outlined,
             title: l10n.translate('terms_of_use'),
             onTap: () async {
               final uri = Uri.parse('https://topla.uz/terms');
-              try { await launchUrl(uri, mode: LaunchMode.externalApplication); } catch (_) {}
+              try {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (_) {}
             },
           ),
           Divider(height: 24, color: Colors.grey.shade200),
           _buildInfoRow(
-            icon: Iconsax.shield_tick,
+            icon: Icons.shield_outlined,
             title: l10n.translate('privacy_policy'),
             onTap: () async {
               final uri = Uri.parse('https://topla.uz/privacy');
-              try { await launchUrl(uri, mode: LaunchMode.externalApplication); } catch (_) {}
+              try {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } catch (_) {}
             },
           ),
           Divider(height: 24, color: Colors.grey.shade200),
           _buildInfoRow(
-            icon: Iconsax.info_circle,
+            icon: Icons.info_outline_rounded,
             title: l10n.translate('about_app'),
             trailing: Text(
               _appVersion.isNotEmpty ? _appVersion : '...',
@@ -335,7 +232,7 @@ class _HelpScreenState extends State<HelpScreen> {
       onTap: onTap,
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey.shade600),
+          Icon(icon, color: Colors.black87, size: 22),
           const SizedBox(width: 16),
           Expanded(
             child: Text(

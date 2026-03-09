@@ -7,12 +7,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, RefreshCw } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { getReportData, type ReportData } from './actions'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
+import { useUrlState } from '@/hooks/use-url-state'
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts'
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#f59e0b',
+  processing: '#8b5cf6',
+  shipping: '#06b6d4',
+  delivered: '#10b981',
+  cancelled: '#ef4444',
+  ready_for_pickup: '#6366f1',
+  courier_assigned: '#ec4899',
+  courier_picked_up: '#14b8a6',
+  at_pickup_point: '#f97316',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Kutilmoqda',
+  processing: 'Tayyorlanmoqda',
+  shipping: 'Yetkazilmoqda',
+  delivered: 'Yetkazildi',
+  cancelled: 'Bekor qilindi',
+  ready_for_pickup: 'Tayyor',
+  courier_assigned: 'Kuryer tayinlandi',
+  courier_picked_up: 'Kuryer oldi',
+  at_pickup_point: 'Punktda',
+}
 
 export default function AdminReportsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month')
+  const [{ period }, setFilters] = useUrlState({ period: 'month' })
   const [data, setData] = useState<ReportData | null>(null)
 
   const loadData = async () => {
@@ -22,7 +50,7 @@ export default function AdminReportsPage() {
       setData(reportData)
     } catch (error) {
       console.error(error)
-      toast({ title: "Xatolik", description: "Hisobotni yuklashda xatolik", variant: "destructive" })
+      toast.error("Hisobotni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
@@ -56,7 +84,7 @@ export default function AdminReportsPage() {
           <p className="text-sm sm:text-base text-muted-foreground">Savdo va statistika hisobotlari</p>
         </div>
         <div className="flex gap-2">
-          <Select value={period} onValueChange={(v: typeof period) => setPeriod(v)}>
+          <Select value={period} onValueChange={(v) => setFilters({ period: v })}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -121,20 +149,38 @@ export default function AdminReportsPage() {
         </Card>
       </div>
 
-      {/* Orders by Status */}
+      {/* Orders by Status — Pie Chart */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Buyurtmalar holati</CardTitle>
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {data.ordersByStatus.map((item) => (
-              <div key={item.status} className="bg-muted rounded-lg p-3 text-center">
-                <div className="text-lg sm:text-2xl font-bold">{item.count}</div>
-                <div className="text-xs text-muted-foreground capitalize">{item.status}</div>
-              </div>
-            ))}
-          </div>
+          {data.ordersByStatus.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">Ma'lumot yo'q</p>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={data.ordersByStatus.map(d => ({ ...d, label: STATUS_LABELS[d.status] || d.status }))}
+                    cx="50%" cy="50%"
+                    innerRadius={50} outerRadius={90}
+                    dataKey="count" nameKey="label"
+                    paddingAngle={2}
+                  >
+                    {data.ordersByStatus.map((item) => (
+                      <Cell key={item.status} fill={STATUS_COLORS[item.status] || '#94a3b8'} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend
+                    layout="vertical" align="right" verticalAlign="middle"
+                    formatter={(value) => <span className="text-xs">{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -198,7 +244,7 @@ export default function AdminReportsPage() {
         </Card>
       </div>
 
-      {/* Revenue Chart (Simple) */}
+      {/* Revenue Chart */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Kunlik daromad</CardTitle>
@@ -207,26 +253,24 @@ export default function AdminReportsPage() {
           {data.revenueByDay.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">Ma'lumot yo'q</p>
           ) : (
-            <div className="space-y-2">
-              {data.revenueByDay.slice(-7).map((day) => {
-                const maxRevenue = Math.max(...data.revenueByDay.map(d => d.revenue))
-                const percentage = maxRevenue > 0 ? (day.revenue / maxRevenue) * 100 : 0
-                return (
-                  <div key={day.date} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground w-20">
-                      {new Date(day.date).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short' })}
-                    </span>
-                    <div className="flex-1 bg-muted rounded-full h-4 overflow-hidden">
-                      <div 
-                        className="bg-primary h-full rounded-full transition-all"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium w-24 text-right">{formatPrice(day.revenue)}</span>
-                  </div>
-                )
-              })}
-            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={data.revenueByDay.map(d => ({
+                ...d,
+                label: new Date(d.date).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short' }),
+              }))}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(value: number) => [formatPrice(value), 'Daromad']} />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#revenueGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
           )}
         </CardContent>
       </Card>

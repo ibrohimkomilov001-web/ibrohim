@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Package, Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { getProducts, getProductStats, approveProduct, rejectProduct, deleteProduct, type Product } from './actions'
-import { useToast } from '@/components/ui/use-toast'
+import { getProducts, approveProduct, rejectProduct, deleteProduct, type Product } from './actions'
+import { toast } from 'sonner'
+import { useUrlState } from '@/hooks/use-url-state'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   pending: 'secondary',
@@ -29,55 +32,54 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function AdminProductsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 })
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false })
   
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('pending')
+  const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'pending', page: '1' })
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const [productsData, statsData] = await Promise.all([
-        getProducts(),
-        getProductStats()
-      ])
+      const { products: productsData, stats: statsData, pagination: pag } = await getProducts({
+        page: parseInt(page) || 1,
+        search: debouncedSearch || undefined,
+        status: activeTab !== 'all' ? activeTab : undefined,
+      })
       setProducts(productsData)
       setStats(statsData)
+      setPagination(pag)
     } catch (error) {
       console.error(error)
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" })
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, activeTab, page])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
-  const filteredProducts = products.filter(product => {
-    const nameStr = product.name_uz || ''
-    const matchesSearch = !searchQuery || nameStr.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.shop?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesTab = activeTab === 'all' || product.status === activeTab
-    return matchesSearch && matchesTab
-  })
+  useEffect(() => {
+    const p = parseInt(page)
+    if (p > 1) setFilters({ page: '1' })
+  }, [debouncedSearch, activeTab])
 
   const handleApprove = async (productId: string) => {
     try {
       setActionLoading(true)
       await approveProduct(productId)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Mahsulot tasdiqlandi" })
+      toast.success("Mahsulot tasdiqlandi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "Mahsulotni tasdiqlashda xatolik", variant: "destructive" })
+      toast.error("Mahsulotni tasdiqlashda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -90,12 +92,12 @@ export default function AdminProductsPage() {
       setActionLoading(true)
       await rejectProduct(selectedProduct.id, rejectReason)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Mahsulot rad etildi" })
+      toast.success("Mahsulot rad etildi")
       setRejectDialogOpen(false)
       setRejectReason('')
       setSelectedProduct(null)
     } catch (error) {
-      toast({ title: "Xatolik", description: "Mahsulotni rad etishda xatolik", variant: "destructive" })
+      toast.error("Mahsulotni rad etishda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -107,18 +109,10 @@ export default function AdminProductsPage() {
     try {
       await deleteProduct(productId)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Mahsulot o'chirildi" })
+      toast.success("Mahsulot o'chirildi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "Mahsulotni o'chirishda xatolik", variant: "destructive" })
+      toast.error("Mahsulotni o'chirishda xatolik")
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
   }
 
   return (
@@ -147,13 +141,13 @@ export default function AdminProductsPage() {
             <Input
               placeholder="Qidirish..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setFilters({ search: e.target.value })}
               className="w-full sm:w-64"
             />
           </div>
         </CardHeader>
         <CardContent className="p-2 sm:p-6 sm:pt-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })}>
             <div className="overflow-x-auto pb-2">
               <TabsList className="inline-flex w-max sm:w-auto">
                 <TabsTrigger value="pending" className="text-xs sm:text-sm">
@@ -169,15 +163,17 @@ export default function AdminProductsPage() {
             </div>
 
             <TabsContent value={activeTab} className="mt-4">
+              <div className="relative">
+              {loading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               {/* Mobile Card View */}
               <div className="block sm:hidden space-y-3">
-                {filteredProducts.length === 0 ? (
+                {products.length === 0 && !loading ? (
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                     <p className="text-muted-foreground">Mahsulotlar topilmadi</p>
                   </div>
                 ) : (
-                  filteredProducts.map((product) => (
+                  products.map((product) => (
                     <div key={product.id} className="border rounded-lg p-3 space-y-2">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -228,7 +224,7 @@ export default function AdminProductsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.length === 0 ? (
+                  {products.length === 0 && !loading ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-12">
                         <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
@@ -236,7 +232,7 @@ export default function AdminProductsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredProducts.map((product) => (
+                    products.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -300,6 +296,8 @@ export default function AdminProductsPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
+              <DataTablePagination pagination={pagination} onPageChange={(p) => setFilters({ page: String(p) })} />
               </div>
             </TabsContent>
           </Tabs>

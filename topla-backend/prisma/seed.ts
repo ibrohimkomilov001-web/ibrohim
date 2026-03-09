@@ -666,7 +666,7 @@ async function main() {
       status: 'active',
     },
   });
-  console.log('✅ Admin user created: admin@topla.uz / admin123');
+  console.log('✅ Admin user created');
 
   // ============================================
   // Vendor User + Shop

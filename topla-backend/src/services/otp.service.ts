@@ -1,24 +1,19 @@
 /**
- * OTP Service — Dual Channel (Telegram Gateway + Eskiz SMS)
+ * OTP Service — Eskiz SMS
  *
  * Redis-backed store (in-memory fallback agar Redis yo'q bo'lsa)
  * - 4 xonali tasodifiy kod
  * - 2 daqiqa (120 soniya) TTL
  * - Maksimum 3 ta urinish
  * - Rate limiting: 1 daqiqada 1 ta
- *
- * Kanallar:
- * - telegram: Telegram Gateway API (rasmiy, bot kerak emas!)
- * - sms: Eskiz orqali (95 so'm/sms)
  */
 
 import { env } from '../config/env.js';
 import { randomInt } from 'crypto';
 import { sendSmsViaEskiz } from '../config/eskiz.js';
-import { sendOtpViaTelegram, isTelegramGatewayConfigured } from '../config/telegram.js';
 import { setWithExpiry, getValue, deleteKey } from '../config/redis.js';
 
-export type OtpChannel = 'sms' | 'telegram';
+export type OtpChannel = 'sms';
 
 interface OtpEntry {
   code: string;
@@ -144,17 +139,7 @@ function generateOtpCode(length: number = 4): string {
 }
 
 /**
- * Telegram Gateway sozlanganmi
- */
-export function isTelegramConfigured(): boolean {
-  return isTelegramGatewayConfigured();
-}
-
-/**
- * OTP yuborish — kanal tanlash
- *
- * telegram: Telegram Gateway API orqali (bot kerak emas, foydalanuvchi hech narsa qilmaydi)
- * sms: Eskiz SMS orqali
+ * OTP yuborish — Eskiz SMS orqali
  */
 export async function sendOtp(
   phone: string,
@@ -196,47 +181,8 @@ export async function sendOtp(
     return { success: true, channel: 'sms' };
   }
 
-  // 5. Kanalga qarab yuborish
-  let result: { success: boolean; error?: string };
-
-  if (channel === 'telegram') {
-    if (!isTelegramGatewayConfigured()) {
-      // Gateway sozlanmagan — SMS fallback
-      result = await sendSmsViaEskiz(
-        phone,
-        `TOPLA tasdiqlash kodi: ${code}. Kod 2 daqiqa amal qiladi.`,
-      );
-      if (result.success) {
-        await storeRate(phone, now);
-        return { ...result, channel: 'sms' };
-      }
-      await removeOtp(phone);
-      return { ...result, channel: 'sms' };
-    }
-
-    // Telegram Gateway orqali yuborish — telefon raqam orqali to'g'ridan-to'g'ri
-    result = await sendOtpViaTelegram(phone, code, env.OTP_TTL_SECONDS);
-
-    if (!result.success) {
-      // Telegram xatolik (raqam Telegramda yo'q va h.k.) — SMS fallback
-      result = await sendSmsViaEskiz(
-        phone,
-        `TOPLA tasdiqlash kodi: ${code}. Kod 2 daqiqa amal qiladi.`,
-      );
-      if (result.success) {
-        await storeRate(phone, now);
-        return { ...result, channel: 'sms' };
-      }
-      await removeOtp(phone);
-      return { ...result, channel: 'sms' };
-    }
-
-    await storeRate(phone, now);
-    return { success: true, channel: 'telegram' };
-  }
-
-  // SMS kanal (default)
-  result = await sendSmsViaEskiz(
+  // 5. Eskiz SMS orqali yuborish
+  const result = await sendSmsViaEskiz(
     phone,
     `TOPLA tasdiqlash kodi: ${code}. Kod 2 daqiqa amal qiladi.`,
   );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -42,6 +43,9 @@ import 'core/widgets/auth_guard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Google Fonts — lokal fayllardan yuklash (tarmoqdan emas)
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Release modda barcha debugPrint larni o'chirish
   // (logcat'ga ma'lumot chiqmasligi uchun)

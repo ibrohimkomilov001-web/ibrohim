@@ -276,7 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               height: 32,
               color: Colors.transparent,
               child: const Icon(Iconsax.edit_2_copy,
-                  color: AppColors.primary, size: 20),
+                  color: Colors.black87, size: 20),
             ),
           ),
         ],
@@ -290,7 +290,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       title: context.l10n.translate('shopping'),
       children: [
         _buildMenuItem(
-          icon: Iconsax.clipboard_text_copy,
+          icon: Iconsax.note_2_copy,
           label: context.l10n.myOrders,
           iconColor: Colors.blue,
           onTap: () => Navigator.pushNamed(context, '/orders'),
@@ -414,7 +414,24 @@ class _ProfileScreenState extends State<ProfileScreen>
           onTap: () => Navigator.pushNamed(context, '/help'),
         ),
         // Vendor / Admin / Open Shop
-        if (isLoggedIn) ...[
+        if (!isLoggedIn) ...[
+          _divider(),
+          _buildMenuItem(
+            icon: Iconsax.shop_add_copy,
+            label: context.l10n.translate('open_shop'),
+            subtitle: context.l10n.translate('become_seller'),
+            iconColor: Colors.orange.shade700,
+            onTap: () => _openVendorWebsite(),
+          ),
+          _divider(),
+          _buildMenuItem(
+            icon: Iconsax.location_copy,
+            label: context.l10n.translate('open_pickup_point'),
+            subtitle: context.l10n.translate('become_pickup_partner'),
+            iconColor: Colors.teal.shade600,
+            onTap: () => _openPickupPartnerWebsite(),
+          ),
+        ] else ...[
           _divider(),
           Consumer<AuthProvider>(
             builder: (context, authProvider, _) {
@@ -813,6 +830,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             isDestructiveAction: true,
             onPressed: () async {
               Navigator.pop(ctx);
+              context.read<OrdersProvider>().clearOnLogout();
+              context.read<CartProvider>().clearOnLogout();
+              context.read<ProductsProvider>().clearFavoritesOnLogout();
               await context.read<AuthProvider>().signOut();
             },
             child: Text(

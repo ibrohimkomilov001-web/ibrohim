@@ -43,7 +43,8 @@ class MockCartRepository implements ICartRepository {
   }
 
   @override
-  Future<void> addToCart(String productId, {int quantity = 1}) async {
+  Future<void> addToCart(String productId,
+      {int quantity = 1, String? variantId}) async {
     await Future.delayed(const Duration(milliseconds: 10));
 
     // Check if item already exists

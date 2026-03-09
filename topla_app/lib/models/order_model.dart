@@ -118,6 +118,7 @@ class OrderItemModel {
   final String id;
   final String orderId;
   final String? productId;
+  final String? shopId;
   final String productName;
   final String? productImage;
   final double price;
@@ -128,6 +129,7 @@ class OrderItemModel {
     required this.id,
     required this.orderId,
     this.productId,
+    this.shopId,
     required this.productName,
     this.productImage,
     required this.price,
@@ -144,6 +146,7 @@ class OrderItemModel {
       id: json['id'] as String,
       orderId: (json['order_id'] ?? json['orderId']) as String? ?? '',
       productId: (json['product_id'] ?? json['productId']) as String?,
+      shopId: (json['shop_id'] ?? json['shopId']) as String?,
       productName: (json['product_name'] ?? json['name']) as String? ?? '',
       productImage:
           json['product_image'] ?? json['imageUrl'] ?? json['image_url'],
@@ -157,7 +160,6 @@ class OrderItemModel {
 /// Buyurtma holati
 enum OrderStatus {
   pending,
-  confirmed,
   processing,
   readyForPickup,
   courierAssigned,
@@ -189,8 +191,6 @@ enum OrderStatus {
     switch (this) {
       case OrderStatus.pending:
         return 'Kutilmoqda';
-      case OrderStatus.confirmed:
-        return 'Tasdiqlangan';
       case OrderStatus.processing:
         return 'Tayyorlanmoqda';
       case OrderStatus.readyForPickup:
@@ -214,8 +214,6 @@ enum OrderStatus {
     switch (this) {
       case OrderStatus.pending:
         return 'Ожидает';
-      case OrderStatus.confirmed:
-        return 'Подтвержден';
       case OrderStatus.processing:
         return 'Готовится';
       case OrderStatus.readyForPickup:

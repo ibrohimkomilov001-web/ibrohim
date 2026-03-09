@@ -169,7 +169,7 @@ export default function AdminPayoutsPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
+            <TabsList className="overflow-x-auto w-full justify-start">
               <TabsTrigger value="pending">
                 Kutilmoqda
                 {pendingCount > 0 && (

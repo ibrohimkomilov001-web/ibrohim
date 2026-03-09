@@ -12,10 +12,13 @@ export type DeliveryZone = {
   [key: string]: any;
 };
 
-export async function getDeliveryZones(): Promise<DeliveryZone[]> {
+export async function getDeliveryZonesWithStats(): Promise<{
+  zones: DeliveryZone[];
+  stats: { total: number; active: number; inactive: number };
+}> {
   try {
     const data = await fetchDeliveryZones();
-    return (data || []).map((z: any) => ({
+    const zones = (data || []).map((z: any) => ({
       id: z.id,
       name: z.name,
       region: z.region,
@@ -25,21 +28,16 @@ export async function getDeliveryZones(): Promise<DeliveryZone[]> {
       estimated_time: z.estimatedTime,
       is_active: z.isActive,
     }));
-  } catch {
-    return [];
-  }
-}
-
-export async function getDeliveryZoneStats(): Promise<{ total: number; active: number; inactive: number }> {
-  try {
-    const zones = await getDeliveryZones();
     return {
-      total: zones.length,
-      active: zones.filter(z => z.is_active).length,
-      inactive: zones.filter(z => !z.is_active).length,
+      zones,
+      stats: {
+        total: zones.length,
+        active: zones.filter((z: DeliveryZone) => z.is_active).length,
+        inactive: zones.filter((z: DeliveryZone) => !z.is_active).length,
+      },
     };
   } catch {
-    return { total: 0, active: 0, inactive: 0 };
+    return { zones: [], stats: { total: 0, active: 0, inactive: 0 } };
   }
 }
 

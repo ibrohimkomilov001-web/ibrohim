@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -15,7 +17,7 @@ import { AreaChart, BarChart, DonutChart } from "@tremor/react";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice } from "@/lib/utils";
-import { ClipboardList, Package, DollarSign, BarChart3 } from "lucide-react";
+import { ClipboardList, Package, DollarSign, BarChart3, Eye, ShoppingCart, TrendingUp, ArrowRight } from "lucide-react";
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<"week" | "month" | "year">("week");
@@ -25,11 +27,18 @@ export default function AnalyticsPage() {
     queryFn: () => vendorApi.getAnalytics(period),
   });
 
-  // Prepare chart data — dailyRevenue contains both revenue & orders columns
+  const { data: funnelData, isLoading: funnelLoading } = useQuery({
+    queryKey: ["vendor-funnel", period],
+    queryFn: () => vendorApi.getFunnelAnalytics(period),
+  });
+
+  // Prepare chart data
   const chartData = analytics?.dailyRevenue || [];
   const statusData = analytics?.ordersByStatus || [];
   const topProducts = analytics?.topProducts || [];
   const summary = analytics?.summary;
+  const funnel = funnelData?.funnel;
+  const conversionRates = funnelData?.conversionRates;
 
   return (
     <div className="space-y-6">
@@ -54,76 +63,134 @@ export default function AnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Daromad</span>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Daromad</span>
+            </div>
+            {isLoading ? (
+              <Skeleton className="h-7 w-28" />
+            ) : (
+              <div className="text-xl font-bold">
+                {formatPrice(summary?.totalRevenue || 0)} <span className="text-xs font-normal text-muted-foreground">so&apos;m</span>
               </div>
-              {isLoading ? (
-                <Skeleton className="h-7 w-28" />
-              ) : (
-                <div className="text-xl font-bold">
-                  {formatPrice(summary?.totalRevenue || 0)} <span className="text-xs font-normal text-muted-foreground">so&apos;m</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Buyurtmalar</span>
-              </div>
-              {isLoading ? (
-                <Skeleton className="h-7 w-16" />
-              ) : (
-                <div className="text-xl font-bold">{summary?.totalOrders || 0}</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Buyurtmalar</span>
+            </div>
+            {isLoading ? (
+              <Skeleton className="h-7 w-16" />
+            ) : (
+              <div className="text-xl font-bold">{summary?.totalOrders || 0}</div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Komissiya</span>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Komissiya</span>
+            </div>
+            {isLoading ? (
+              <Skeleton className="h-7 w-16" />
+            ) : (
+              <div className="text-xl font-bold">
+                {formatPrice(summary?.totalCommission || 0)} <span className="text-xs font-normal text-muted-foreground">so&apos;m</span>
               </div>
-              {isLoading ? (
-                <Skeleton className="h-7 w-16" />
-              ) : (
-                <div className="text-xl font-bold">
-                  {formatPrice(summary?.totalCommission || 0)} <span className="text-xs font-normal text-muted-foreground">so&apos;m</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Package className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">O&apos;rtacha chek</span>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">O&apos;rtacha chek</span>
+            </div>
+            {isLoading ? (
+              <Skeleton className="h-7 w-24" />
+            ) : (
+              <div className="text-xl font-bold">
+                {formatPrice(summary?.averageOrderValue || 0)} <span className="text-xs font-normal text-muted-foreground">so&apos;m</span>
               </div>
-              {isLoading ? (
-                <Skeleton className="h-7 w-24" />
-              ) : (
-                <div className="text-xl font-bold">
-                  {formatPrice(summary?.averageOrderValue || 0)} <span className="text-xs font-normal text-muted-foreground">so&apos;m</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Funnel Analytics — COMPETE-001 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Konversiya voronkasi
+          </CardTitle>
+          <CardDescription>Ko&apos;rish → Savat → Buyurtma → Yetkazildi</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {funnelLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : funnel ? (
+            <div className="space-y-6">
+              {/* Funnel Steps */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                {[
+                  { label: "Ko'rishlar", value: funnel.views, icon: Eye, color: "bg-blue-500" },
+                  { label: "Savatga", value: funnel.cartAdds, icon: ShoppingCart, color: "bg-yellow-500" },
+                  { label: "Buyurtma", value: funnel.orders, icon: ClipboardList, color: "bg-green-500" },
+                  { label: "Yetkazildi", value: funnel.delivered, icon: Package, color: "bg-emerald-600" },
+                ].map((step, i) => (
+                  <div key={step.label} className="flex items-center gap-2 flex-1">
+                    <div className="flex-1 text-center p-3 rounded-xl bg-muted/50">
+                      <step.icon className={`h-5 w-5 mx-auto mb-1 text-muted-foreground`} />
+                      <div className="text-2xl font-bold">{step.value.toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">{step.label}</div>
+                    </div>
+                    {i < 3 && (
+                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Conversion Rates */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="text-center p-3 rounded-lg border">
+                  <div className="text-lg font-bold text-blue-600">{conversionRates?.viewToCart}%</div>
+                  <div className="text-xs text-muted-foreground">Ko&apos;rish → Savat</div>
+                </div>
+                <div className="text-center p-3 rounded-lg border">
+                  <div className="text-lg font-bold text-yellow-600">{conversionRates?.cartToOrder}%</div>
+                  <div className="text-xs text-muted-foreground">Savat → Buyurtma</div>
+                </div>
+                <div className="text-center p-3 rounded-lg border">
+                  <div className="text-lg font-bold text-green-600">{conversionRates?.orderToDelivered}%</div>
+                  <div className="text-xs text-muted-foreground">Buyurtma → Yetkazildi</div>
+                </div>
+                <div className="text-center p-3 rounded-lg border bg-primary/5">
+                  <div className="text-lg font-bold text-primary">{conversionRates?.overall}%</div>
+                  <div className="text-xs text-muted-foreground">Umumiy konversiya</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-[120px] flex items-center justify-center text-muted-foreground">
+              Ma&apos;lumotlar yetarli emas
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
@@ -188,7 +255,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Category Breakdown */}
+        {/* Status Donut */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Buyurtma holatlari</CardTitle>

@@ -89,21 +89,6 @@ class _ReviewsQuestionsScreenState extends State<ReviewsQuestionsScreen>
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
             ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                  context, '/main', (route) => false),
-              icon: const Icon(Iconsax.shop, size: 18),
-              label: Text(context.l10n.translate('start_shopping')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
           ],
         ),
       ),

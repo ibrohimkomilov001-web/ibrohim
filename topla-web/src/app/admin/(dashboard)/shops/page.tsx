@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,10 @@ import {
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { getShops, getShopStats, updateShopStatus, updateShopCommission, deleteShop, type Shop } from "./actions";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner';
+import { useUrlState } from '@/hooks/use-url-state';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination';
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Faol", variant: "default" },
@@ -62,13 +65,13 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 };
 
 export default function AdminShopsPage() {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [shops, setShops] = useState<Shop[]>([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, blocked: 0 });
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false });
   
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'all', page: '1' });
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCommissionOpen, setIsCommissionOpen] = useState(false);
@@ -77,44 +80,46 @@ export default function AdminShopsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [shopsData, statsData] = await Promise.all([
-        getShops(),
+      const [{ shops: shopsData, pagination: pag }, statsData] = await Promise.all([
+        getShops({
+          page: parseInt(page) || 1,
+          search: debouncedSearch || undefined,
+          status: activeTab !== 'all' ? activeTab : undefined,
+        }),
         getShopStats()
       ]);
       setShops(shopsData);
       setStats(statsData);
+      setPagination(pag);
     } catch (error) {
       console.error(error);
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" });
+      toast.error("Ma'lumotlarni yuklashda xatolik");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, activeTab, page]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
-  const filteredShops = shops.filter((shop) => {
-    const matchesSearch =
-      shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shop.owner?.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab = activeTab === "all" || shop.status === activeTab;
-    return matchesSearch && matchesTab;
-  });
+  useEffect(() => {
+    const p = parseInt(page);
+    if (p > 1) setFilters({ page: '1' });
+  }, [debouncedSearch, activeTab]);
 
   const handleStatusChange = async (shop: Shop, newStatus: "active" | "inactive" | "blocked") => {
     try {
       setActionLoading(true);
       await updateShopStatus(shop.id, newStatus);
       await loadData();
-      toast({ title: "Muvaffaqiyatli", description: `Do'kon statusi "${statusConfig[newStatus].label}" ga o'zgartirildi` });
+      toast.success(`Do'kon statusi "${statusConfig[newStatus].label}" ga o'zgartirildi`);
       setIsDetailOpen(false);
     } catch (error) {
-      toast({ title: "Xatolik", description: "Statusni o'zgartirishda xatolik", variant: "destructive" });
+      toast.error("Statusni o'zgartirishda xatolik");
     } finally {
       setActionLoading(false);
     }
@@ -127,10 +132,10 @@ export default function AdminShopsPage() {
       setActionLoading(true);
       await updateShopCommission(selectedShop.id, parseFloat(newCommission));
       await loadData();
-      toast({ title: "Muvaffaqiyatli", description: "Komissiya foizi yangilandi" });
+      toast.success("Komissiya foizi yangilandi");
       setIsCommissionOpen(false);
     } catch (error) {
-      toast({ title: "Xatolik", description: "Komissiyani yangilashda xatolik", variant: "destructive" });
+      toast.error("Komissiyani yangilashda xatolik");
     } finally {
       setActionLoading(false);
     }
@@ -143,25 +148,17 @@ export default function AdminShopsPage() {
       setActionLoading(true);
       await deleteShop(selectedShop.id);
       await loadData();
-      toast({ title: "Muvaffaqiyatli", description: `"${selectedShop.name}" do'koni o'chirildi` });
+      toast.success(`"${selectedShop.name}" do'koni o'chirildi`);
       setIsDeleteOpen(false);
       setDeleteConfirmName("");
       setSelectedShop(null);
     } catch (error: any) {
       const msg = error?.message || "Do'konni o'chirishda xatolik";
-      toast({ title: "Xatolik", description: msg, variant: "destructive" });
+      toast.error(msg);
     } finally {
       setActionLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -174,7 +171,7 @@ export default function AdminShopsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })} className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="overflow-x-auto pb-1">
             <TabsList className="inline-flex w-max sm:w-auto">
@@ -192,14 +189,16 @@ export default function AdminShopsPage() {
                 placeholder="Qidirish..."
                 className="pl-9 w-full sm:w-[200px]"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setFilters({ search: e.target.value })}
               />
             </div>
           </div>
         </div>
 
         <TabsContent value={activeTab} className="space-y-4">
-          {filteredShops.length === 0 ? (
+          <div className="relative">
+          {loading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+          {shops.length === 0 && !loading ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Store className="h-12 w-12 text-muted-foreground mb-4" />
@@ -210,7 +209,7 @@ export default function AdminShopsPage() {
             <>
               {/* Mobile Card View */}
               <div className="block sm:hidden space-y-3">
-                {filteredShops.map((shop) => (
+                {shops.map((shop) => (
                   <Card key={shop.id} className="overflow-hidden">
                     <CardContent className="p-3 space-y-3">
                       <div className="flex items-center gap-3">
@@ -286,7 +285,7 @@ export default function AdminShopsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredShops.map((shop) => (
+                      {shops.map((shop) => (
                         <TableRow key={shop.id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -375,6 +374,8 @@ export default function AdminShopsPage() {
               </div>
             </>
           )}
+          <DataTablePagination pagination={pagination} onPageChange={(p) => setFilters({ page: String(p) })} />
+          </div>
         </TabsContent>
       </Tabs>
 

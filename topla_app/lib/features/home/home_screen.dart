@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen>
       body: Consumer<ProductsProvider>(
         builder: (context, productsProvider, _) {
           return ToplaRefreshIndicator(
-            onRefresh: () => productsProvider.loadAll(),
+            onRefresh: () => productsProvider.loadAll(forceReload: true),
             child: CustomScrollView(
               slivers: [
                 // Status bar uchun padding
@@ -651,16 +651,29 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildFilterChips() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 8), // Sal oshirdim
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: _filterOptions.map((filter) {
-            final isSelected = _selectedFilter == filter;
-            return Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: GestureDetector(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        clipBehavior: Clip.none,
+        child: Container(
+          padding: const EdgeInsets.all(2), // 3 dan 2 ga qisqartirdik
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.circular(16), // 18 dan 16 ga qisqartirdik
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            children: _filterOptions.map((filter) {
+              final isSelected = _selectedFilter == filter;
+              return GestureDetector(
                 onTap: () {
                   HapticUtils.lightImpact();
                   setState(() {
@@ -672,32 +685,30 @@ class _HomeScreenState extends State<HomeScreen>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOut,
+                  margin: const EdgeInsets.symmetric(horizontal: 1),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    horizontal: 10, // 12 dan 10 ga qisqartirdik
+                    vertical: 4, // 6 dan 4 ga qisqartirdik
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFF374151) // Ochroq qora (gray-700)
+                        ? const Color(0xFFF3F4F6)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
-                    border: isSelected
-                        ? null
-                        : Border.all(color: Colors.grey.shade300, width: 1),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     context.l10n.translate(filter),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14, // 11.5 dan 14 ga qaytardik (standart)
                       fontWeight:
                           isSelected ? FontWeight.w500 : FontWeight.w400,
-                      color: isSelected ? Colors.white : Colors.grey.shade600,
+                      color: isSelected ? Colors.black : Colors.black87,
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -790,6 +801,26 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _addToCart(ProductModel product) async {
+    final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
+    if (!isLoggedIn) {
+      HapticUtils.error();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.translate('login_to_add_cart'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13),
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: const StadiumBorder(),
+          margin: const EdgeInsets.only(bottom: 24, left: 32, right: 32),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      Navigator.pushNamed(context, '/auth');
+      return;
+    }
     HapticUtils.addToCart();
     try {
       await context.read<CartProvider>().addToCart(product.id, quantity: 1);
@@ -799,11 +830,7 @@ class _HomeScreenState extends State<HomeScreen>
         HapticUtils.error();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              e.toString().contains('Tizimga kiring')
-                  ? context.l10n.translate('login_to_add_cart')
-                  : context.l10n.translate('error_occurred'),
-            ),
+            content: Text(context.l10n.translate('error_occurred')),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -813,6 +840,26 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _toggleFavorite(String productId) async {
+    final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
+    if (!isLoggedIn) {
+      HapticUtils.error();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.translate('login_to_add_favorites'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13),
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: const StadiumBorder(),
+          margin: const EdgeInsets.only(bottom: 24, left: 32, right: 32),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      Navigator.pushNamed(context, '/auth');
+      return;
+    }
     // Haptic feedback
     HapticUtils.favorite();
 
@@ -823,9 +870,7 @@ class _HomeScreenState extends State<HomeScreen>
         HapticUtils.error();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().contains('Tizimga kiring')
-                ? context.l10n.translate('login_to_add_favorites')
-                : context.l10n.translate('error_occurred')),
+            content: Text(context.l10n.translate('error_occurred')),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),

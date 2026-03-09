@@ -92,7 +92,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           {/* Favorite button */}
           <button
             className={cn(
-              'absolute top-2 right-2 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
+              'absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
               'sm:opacity-0 sm:group-hover:opacity-100'
             )}
             onClick={(e) => {

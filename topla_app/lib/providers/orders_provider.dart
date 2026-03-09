@@ -32,7 +32,7 @@ class OrdersProvider extends ChangeNotifier {
   bool get isCreatingOrder => _isCreatingOrder;
   String? get error => _error;
 
-  /// Faol (pending, confirmed, preparing, delivering) buyurtmalar
+  /// Faol (pending, processing, delivering) buyurtmalar
   List<OrderModel> get activeOrders => _orders
       .where((o) =>
           o.status != OrderStatus.delivered &&
@@ -198,6 +198,18 @@ class OrdersProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Logout bo'lganda barcha ma'lumotlarni tozalash
+  void clearOnLogout() {
+    _ordersSubscription?.cancel();
+    _ordersSubscription = null;
+    _orders = [];
+    _currentOrder = null;
+    _isLoading = false;
+    _isCreatingOrder = false;
+    _error = null;
+    notifyListeners();
   }
 
   @override

@@ -166,8 +166,8 @@ export default function EditProductPage() {
       const variants = (product as any).variants as ProductVariant[] | undefined;
       if ((product as any).hasVariants && variants && variants.length > 0) {
         setHasVariants(true);
-        const cIds = [...new Set(variants.filter(v => v.colorId).map(v => v.colorId!))];
-        const sIds = [...new Set(variants.filter(v => v.sizeId).map(v => v.sizeId!))];
+        const cIds = Array.from(new Set(variants.filter(v => v.colorId).map(v => v.colorId!)));
+        const sIds = Array.from(new Set(variants.filter(v => v.sizeId).map(v => v.sizeId!)));
         setSelectedColorIds(cIds);
         setSelectedSizeIds(sIds);
 
@@ -374,7 +374,7 @@ export default function EditProductPage() {
                 <Image src={img} alt="" fill className="object-cover" />
                 <button
                   onClick={() => removeImage(i)}
-                  className="absolute top-1 right-1 w-6 h-6 bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1 right-1 w-6 h-6 bg-destructive rounded-full flex items-center justify-center opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                 >
                   <X className="w-3 h-3 text-white" />
                 </button>

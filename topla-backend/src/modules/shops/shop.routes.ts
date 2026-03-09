@@ -6,6 +6,8 @@ import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { cacheGet, cacheSet } from '../../config/redis.js';
 
+const idParamSchema = z.object({ id: z.string().uuid('Noto\'g\'ri ID formati') });
+
 const createShopSchema = z.object({
   name: z.string().min(2).max(200),
   description: z.string().optional(),
@@ -81,13 +83,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
    * GET /shops/:id
    */
   app.get('/shops/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-
-    // UUID format tekshiruvi
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-      throw new NotFoundError('Do\'kon');
-    }
+    const { id } = idParamSchema.parse(request.params);
 
     const shop = await prisma.shop.findUnique({
       where: { id },
@@ -105,7 +101,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
    * GET /shops/:id/products
    */
   app.get('/shops/:id/products', async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = idParamSchema.parse(request.params);
     const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
     const { page: pg2, limit: lim2, skip: skip2 } = parsePagination({ page, limit });
 
@@ -130,18 +126,28 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
    * GET /shops/:id/reviews
    */
   app.get('/shops/:id/reviews', async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = idParamSchema.parse(request.params);
+    const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
+    const { page: pg, limit: lim, skip } = parsePagination({ page, limit });
 
-    const reviews = await prisma.shopReview.findMany({
-      where: { shopId: id },
-      include: {
-        user: { select: { id: true, fullName: true, avatarUrl: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
+    const [reviews, total] = await Promise.all([
+      prisma.shopReview.findMany({
+        where: { shopId: id },
+        include: {
+          user: { select: { id: true, fullName: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: lim,
+      }),
+      prisma.shopReview.count({ where: { shopId: id } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: reviews,
+      pagination: paginationMeta(pg, lim, total),
     });
-
-    return reply.send({ success: true, data: reviews });
   });
 
   /**
@@ -151,8 +157,6 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     rating: z.number().int().min(1, 'Baho kamida 1').max(5, 'Baho 5 dan oshmasligi kerak'),
     comment: z.string().max(500).optional(),
   });
-  const idParamSchema = z.object({ id: z.string().uuid() });
-
   app.post('/shops/:id/reviews', { preHandler: authMiddleware }, async (request, reply) => {
     const { id } = idParamSchema.parse(request.params);
     const { rating, comment } = reviewSchema.parse(request.body);

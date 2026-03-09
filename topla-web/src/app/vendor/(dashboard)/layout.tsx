@@ -44,28 +44,41 @@ import {
   X,
   MessageCircle,
   Tag,
+  Rocket,
+  AlertTriangle,
+  GraduationCap,
+  TrendingUp,
+  DollarSign,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./components/NotificationBell";
+import { useTranslation } from "@/store/locale-store";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/vendor/dashboard" },
-  { icon: Package, label: "Mahsulotlar", href: "/vendor/products" },
-  { icon: ClipboardList, label: "Buyurtmalar", href: "/vendor/orders" },
-  { icon: MessageCircle, label: "Chat", href: "/vendor/chat" },
-  { icon: Wallet, label: "Hisobim", href: "/vendor/balance" },
-  { icon: BarChart3, label: "Statistika", href: "/vendor/analytics" },
-  { icon: Star, label: "Sharhlar", href: "/vendor/reviews" },
-  { icon: Tag, label: "Promo kodlar", href: "/vendor/promo-codes" },
-  { icon: FileText, label: "Hujjatlar", href: "/vendor/documents" },
-  { icon: Settings, label: "Sozlamalar", href: "/vendor/settings" },
-  { icon: HelpCircle, label: "Yordam", href: "/vendor/help" },
+  { icon: LayoutDashboard, key: 'dashboard', href: "/vendor/dashboard" },
+  { icon: Package, key: 'vendorProducts', href: "/vendor/products" },
+  { icon: ClipboardList, key: 'vendorOrders', href: "/vendor/orders" },
+  { icon: MessageCircle, key: 'vendorChat', href: "/vendor/chat" },
+  { icon: Wallet, key: 'vendorPayouts', href: "/vendor/balance" },
+  { icon: BarChart3, key: 'analytics', href: "/vendor/analytics" },
+  { icon: TrendingUp, key: 'aiPricing', href: "/vendor/ai-pricing" },
+  { icon: DollarSign, key: 'vendorFinance', href: "/vendor/finance" },
+  { icon: Star, key: 'vendorReviews', href: "/vendor/reviews" },
+  { icon: Tag, key: 'vendorPromoCodes', href: "/vendor/promo-codes" },
+  { icon: Rocket, key: 'vendorBoosts', href: "/vendor/boosts" },
+  { icon: AlertTriangle, key: 'vendorPenalties', href: "/vendor/penalties" },
+  { icon: FileText, key: 'vendorDocuments', href: "/vendor/documents" },
+  { icon: Settings, key: 'vendorSettings', href: "/vendor/settings" },
+  { icon: GraduationCap, key: 'vendorOnboarding', href: "/vendor/onboarding" },
+  { icon: HelpCircle, key: 'help', href: "/vendor/help" },
 ];
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -150,7 +163,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <ShoppingBag className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-bold">Sotuvchi Panel</span>
+              <span className="font-bold">{t('vendorPanel')}</span>
             </Link>
           ) : (
             <Link href="/vendor/dashboard" className="mx-auto">
@@ -186,7 +199,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 {!collapsed && (
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">{t(item.key)}</span>
                 )}
                 {!collapsed && item.href === "/vendor/orders" && pendingOrders > 0 && (
                   <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
@@ -241,6 +254,8 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
 
+            <LanguageSwitcher />
+
             <NotificationBell />
 
             <DropdownMenu>
@@ -265,19 +280,19 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
                 <DropdownMenuItem asChild>
                   <Link href="/vendor/settings" className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
-                    Sozlamalar
+                    {t('settings')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/vendor/help" className="cursor-pointer">
                     <HelpCircle className="mr-2 h-4 w-4" />
-                    Yordam
+                    {t('help')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Chiqish
+                  {t('exit')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

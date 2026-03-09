@@ -1,4 +1,4 @@
-import { fetchDashboardStats } from "@/lib/api/admin";
+import { fetchDashboardStats, fetchAnalyticsRevenue, fetchAnalyticsOrders, fetchAnalyticsCategories } from "@/lib/api/admin";
 
 export type DashboardStats = {
   revenue: number;
@@ -26,50 +26,84 @@ export type PendingShop = {
   email?: string;
 };
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getAllDashboardData(): Promise<{
+  stats: DashboardStats;
+  recentOrders: RecentOrder[];
+  pendingShops: PendingShop[];
+}> {
   try {
     const data = await fetchDashboardStats();
-    const stats = data.stats || data;
+    const s = data.stats || data;
     return {
-      revenue: stats.totalRevenue || data.totalRevenue || 0,
-      todayOrders: stats.todayOrders || data.todayOrders || 0,
-      pendingShops: stats.pendingShops || data.pendingShops || 0,
-      pendingProducts: stats.pendingProducts || data.pendingProducts || 0,
+      stats: {
+        revenue: s.totalRevenue || data.totalRevenue || 0,
+        todayOrders: s.todayOrders || data.todayOrders || 0,
+        pendingShops: s.pendingShops || data.pendingShops || 0,
+        pendingProducts: s.pendingProducts || data.pendingProducts || 0,
+      },
+      recentOrders: (data.recentOrders || []).map((o: any) => ({
+        id: o.id,
+        order_number: o.orderNumber || `#${o.id.slice(0, 8)}`,
+        customer: o.user?.fullName || o.customer?.fullName || o.customer?.phone || '-',
+        shop: o.items?.[0]?.shop?.name || o.shop?.name || '-',
+        total: Number(o.totalAmount || 0),
+        status: o.status,
+        date: new Date(o.createdAt).toLocaleDateString('uz-UZ'),
+      })),
+      pendingShops: (data.pendingShopsList || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        owner: s.owner?.fullName || '-',
+        phone: s.owner?.phone,
+        email: s.email,
+        date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('uz-UZ') : undefined,
+      })),
     };
   } catch {
-    return { revenue: 0, todayOrders: 0, pendingShops: 0, pendingProducts: 0 };
+    return {
+      stats: { revenue: 0, todayOrders: 0, pendingShops: 0, pendingProducts: 0 },
+      recentOrders: [],
+      pendingShops: [],
+    };
   }
 }
 
-export async function getRecentOrders(): Promise<RecentOrder[]> {
-  try {
-    const data = await fetchDashboardStats();
-    return (data.recentOrders || []).map((o: any) => ({
-      id: o.id,
-      order_number: o.orderNumber || `#${o.id.slice(0, 8)}`,
-      customer: o.user?.fullName || o.customer?.fullName || o.customer?.phone || '-',
-      shop: o.items?.[0]?.shop?.name || o.shop?.name || '-',
-      total: Number(o.totalAmount || 0),
-      status: o.status,
-      date: new Date(o.createdAt).toLocaleDateString('uz-UZ'),
-    }));
-  } catch {
-    return [];
-  }
-}
+// Chart data types
+export type RevenuePoint = { date: string; revenue: number; orders: number };
+export type StatusCount = { status: string; count: number };
+export type CategoryStat = { name: string; count: number; revenue: number };
 
-export async function getPendingShops(): Promise<PendingShop[]> {
+export type DashboardChartData = {
+  revenueTrend: RevenuePoint[];
+  statusBreakdown: StatusCount[];
+  topCategories: CategoryStat[];
+};
+
+export async function getDashboardChartData(): Promise<DashboardChartData> {
   try {
-    const data = await fetchDashboardStats();
-    return (data.pendingShopsList || []).map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      owner: s.owner?.fullName || '-',
-      phone: s.owner?.phone,
-      email: s.email,
-      date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('uz-UZ') : undefined,
-    }));
+    const [revenueData, ordersData, categoriesData] = await Promise.all([
+      fetchAnalyticsRevenue('7d').catch(() => null),
+      fetchAnalyticsOrders('30d').catch(() => null),
+      fetchAnalyticsCategories('30d').catch(() => null),
+    ]);
+
+    return {
+      revenueTrend: (revenueData?.current || []).map((d: any) => ({
+        date: new Date(d.date).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' }),
+        revenue: Number(d.revenue || 0),
+        orders: Number(d.orders || 0),
+      })),
+      statusBreakdown: (ordersData?.statusBreakdown || []).map((d: any) => ({
+        status: d.status,
+        count: Number(d.count || d._count?.id || 0),
+      })),
+      topCategories: (categoriesData || []).slice(0, 6).map((d: any) => ({
+        name: d.name || d.nameUz || '-',
+        count: Number(d.count || 0),
+        revenue: Number(d.revenue || 0),
+      })),
+    };
   } catch {
-    return [];
+    return { revenueTrend: [], statusBreakdown: [], topCategories: [] };
   }
 }

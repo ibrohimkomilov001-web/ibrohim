@@ -117,6 +117,22 @@ class MockProductRepository implements IProductRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> getProductByIdRaw(String id) async {
+    await Future.delayed(const Duration(milliseconds: 10));
+    try {
+      final product = _products.firstWhere((p) => p.id == id);
+      return {
+        'id': product.id,
+        'name_uz': product.nameUz,
+        'name_ru': product.nameRu,
+        'price': product.price,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10}) async {
     return getProducts(isFeatured: true, limit: limit);
   }

@@ -1,4 +1,5 @@
 import { fetchShops, fetchShopStats, updateShopStatus as apiUpdateShopStatus, updateShopCommission as apiUpdateShopCommission, deleteShop as apiDeleteShop } from "@/lib/api/admin";
+import type { PaginationMeta } from "@/components/ui/data-table-pagination";
 
 export type Shop = {
   id: string;
@@ -13,32 +14,50 @@ export type Shop = {
   balance: number;
   created_at: string;
   total_orders: number;
+  total_products?: number;
+  slug?: string;
   business_type?: string;
   inn?: string;
   owner?: { full_name?: string; phone?: string; email?: string };
-  [key: string]: any;
 };
 
-export async function getShops(): Promise<Shop[]> {
-  const data = await fetchShops();
-  const shops = data.items || data.shops || [];
-  return shops.map((s: any) => ({
-    id: s.id,
-    name: s.name,
-    status: s.status,
-    phone: s.phone,
-    email: s.email,
-    address: s.address,
-    city: s.city,
-    logo_url: s.logoUrl,
-    commission_rate: Number(s.commissionRate) || 0,
-    balance: Number(s.balance || 0),
-    created_at: s.createdAt,
-    total_orders: s._count?.orders || s._count?.orderItems || 0,
-    business_type: s.businessType,
-    inn: s.inn,
-    owner: s.owner ? { full_name: s.owner.fullName, phone: s.owner.phone, email: s.owner.email } : undefined,
-  }));
+export type ShopsParams = {
+  page?: number;
+  search?: string;
+  status?: string;
+};
+
+export async function getShops(params?: ShopsParams): Promise<{ shops: Shop[]; pagination: PaginationMeta }> {
+  try {
+    const data = await fetchShops({
+      search: params?.search,
+      status: params?.status,
+      page: params?.page,
+    });
+    const shops = (data.items || data.shops || []).map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      status: s.status,
+      phone: s.phone,
+      email: s.email,
+      address: s.address,
+      city: s.city,
+      logo_url: s.logoUrl,
+      commission_rate: Number(s.commissionRate) || 0,
+      balance: Number(s.balance || 0),
+      created_at: s.createdAt,
+      total_orders: s._count?.orders || s._count?.orderItems || 0,
+      total_products: s._count?.products || 0,
+      slug: s.slug,
+      business_type: s.businessType,
+      inn: s.inn,
+      owner: s.owner ? { full_name: s.owner.fullName, phone: s.owner.phone, email: s.owner.email } : undefined,
+    }));
+    const pagination = data.pagination || { page: 1, limit: 20, total: shops.length, totalPages: 1, hasMore: false };
+    return { shops, pagination };
+  } catch {
+    return { shops: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false } };
+  }
 }
 
 export async function getShopStats(): Promise<{ total: number; pending: number; active: number; blocked: number }> {

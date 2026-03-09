@@ -78,7 +78,6 @@ function StatCard({
 function OrderStatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     pending: { label: "Kutilmoqda", variant: "secondary" },
-    confirmed: { label: "Tasdiqlangan", variant: "default" },
     preparing: { label: "Tayyorlanmoqda", variant: "default" },
     shipping: { label: "Yetkazilmoqda", variant: "default" },
     delivered: { label: "Yetkazildi", variant: "outline" },

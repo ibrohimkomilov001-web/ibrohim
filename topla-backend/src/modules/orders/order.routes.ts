@@ -41,7 +41,7 @@ const createOrderSchema = z.object({
   addressId: z.string().uuid().optional(),
   pickupPointId: z.string().uuid().optional(),
   deliveryMethod: z.enum(['courier', 'pickup']).default('courier'),
-  paymentMethod: z.enum(['cash', 'card', 'payme', 'click']).default('cash'),
+  paymentMethod: z.enum(['cash', 'card']).default('cash'),
   recipientName: z.string().optional(),
   recipientPhone: z.string().optional(),
   deliveryDate: z.string().optional(),
@@ -57,7 +57,6 @@ const createOrderSchema = z.object({
 
 const updateStatusSchema = z.object({
   status: z.enum([
-    'confirmed',
     'processing',
     'ready_for_pickup',
     'at_pickup_point',
@@ -86,8 +85,7 @@ function generateOrderNumber(): string {
 // ============================================
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['processing', 'cancelled'],
+  pending: ['processing', 'cancelled'],
   processing: ['ready_for_pickup', 'cancelled'],
   ready_for_pickup: ['courier_assigned', 'at_pickup_point', 'cancelled'],
   at_pickup_point: ['delivered', 'cancelled'],
@@ -432,7 +430,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      // Buyurtma yaratish (darhol confirmed — auto-confirm)
+      // Buyurtma yaratish (darhol processing — do'kon tayyorlaydi)
       // Pickup buyurtmalar uchun darhol QR kod generatsiya (Yandex Market uslubida)
       const isPickup = body.deliveryMethod === 'pickup';
       const newOrder = await tx.order.create({
@@ -440,7 +438,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           orderNumber: generateOrderNumber(),
           userId,
           addressId: body.addressId || null,
-          status: 'confirmed',
+          status: 'processing',
           paymentStatus: body.paymentMethod === 'cash' ? 'pending' : 'pending',
           paymentMethod: body.paymentMethod,
           deliveryMethod: body.deliveryMethod,
@@ -491,13 +489,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Status history (confirmed — auto)
+      // Status history (processing — auto)
       await tx.orderStatusHistory.create({
         data: {
           orderId: newOrder.id,
-          status: 'confirmed',
+          status: 'processing',
           changedBy: userId,
-          note: 'Avtomatik tasdiqlandi',
+          note: 'Do\'kon tayyorlayapti',
         },
       });
 
@@ -652,8 +650,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
 
     if (!order) throw new NotFoundError('Buyurtma');
 
-    // Faqat pending va confirmed holatlarda bekor qilish mumkin
-    if (!['pending', 'confirmed'].includes(order.status)) {
+    // Faqat pending va processing holatlarda bekor qilish mumkin
+    if (!['pending', 'processing'].includes(order.status)) {
       throw new AppError('Bu holatda buyurtmani bekor qilib bo\'lmaydi');
     }
 
@@ -674,6 +672,38 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { increment: item.quantity } },
+        });
+      }
+
+      // Promo kod qaytarish
+      if (order.promoCode) {
+        const promo = await tx.promoCode.findFirst({
+          where: { code: order.promoCode },
+        });
+        if (promo) {
+          // PromoCodeUsage o'chirish
+          await tx.promoCodeUsage.deleteMany({
+            where: { promoId: promo.id, userId: order.userId },
+          });
+          // currentUses kamaytirish
+          await tx.promoCode.update({
+            where: { id: promo.id },
+            data: { currentUses: { decrement: 1 } },
+          });
+        }
+      }
+
+      // Karta to'lov qaytarish (refund)
+      if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cash') {
+        // Tranzaksiyani refunded qilish
+        await tx.transaction.updateMany({
+          where: { orderId: id, status: 'completed' },
+          data: { status: 'refunded' },
+        });
+        // Order paymentStatus ni refunded qilish
+        await tx.order.update({
+          where: { id },
+          data: { paymentStatus: 'refunded' },
         });
       }
 
@@ -769,7 +799,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     '/vendor/orders/:id',
     { preHandler: [authMiddleware, requireRole('vendor', 'admin')] },
     async (request, reply) => {
-      const { id } = request.params as { id: string };
+      const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
 
       const shop = await prisma.shop.findUnique({
         where: { ownerId: request.user!.userId },
@@ -808,15 +838,14 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
    * Vendor buyurtma statusini yangilash
    * 
    * FLOW:
-   * pending → confirmed (Vendor qabul qildi)
-   * confirmed → processing (Vendor tayyorlayapti)
+   * pending → processing (Do'kon tayyorlayapti)
    * processing → ready_for_pickup (Tayyor - kuryerga berish)
    */
   app.put(
     '/vendor/orders/:id/status',
     { preHandler: [authMiddleware, requireRole('vendor', 'admin')] },
     async (request, reply) => {
-      const { id } = request.params as { id: string };
+      const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
       const body = updateStatusSchema.parse(request.body);
 
       // Vendorning do'konini topish
@@ -844,7 +873,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Vendor faqat o'z bosqichlarigacha o'zgartira oladi
-      const vendorAllowed = ['confirmed', 'processing', 'ready_for_pickup', 'at_pickup_point', 'cancelled'];
+      const vendorAllowed = ['processing', 'ready_for_pickup', 'at_pickup_point', 'cancelled'];
       if (!vendorAllowed.includes(body.status)) {
         throw new AppError('Vendor bu statusni o\'zgartira olmaydi');
       }
@@ -852,7 +881,6 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       // Status yangilash
       const timestamps: Record<string, Date> = {};
       const extraData: Record<string, any> = {};
-      if (body.status === 'confirmed') timestamps.confirmedAt = new Date();
       if (body.status === 'ready_for_pickup') timestamps.readyAt = new Date();
       if (body.status === 'cancelled') timestamps.cancelledAt = new Date();
 

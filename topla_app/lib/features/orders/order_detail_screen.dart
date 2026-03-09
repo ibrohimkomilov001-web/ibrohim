@@ -8,6 +8,8 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
+import '../product/product_detail_screen.dart';
+import '../shop/shop_detail_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -99,7 +101,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
           ),
           bottomSheet: order.status == OrderStatus.pending ||
-                  order.status == OrderStatus.confirmed
+                  order.status == OrderStatus.processing
               ? _buildBottomActions(order)
               : null,
         );
@@ -114,25 +116,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final statusColor = statusInfo['color'] as Color;
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
           // Status icon
           Container(
-            width: 64,
-            height: 64,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
@@ -140,39 +142,42 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             child: Icon(
               statusInfo['icon'] as IconData,
               color: statusColor,
-              size: 32,
+              size: 20,
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Status text
-          Text(
-            statusInfo['text'] as String,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: statusColor,
+          const SizedBox(width: 12),
+          // Status text + date
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusInfo['text'] as String,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${order.orderNumber} • $formattedDate',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-
-          // Order number + date
-          Text(
-            '${order.orderNumber} • $formattedDate',
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Progress bar
+          // Progress indicator
           if (order.status != OrderStatus.cancelled)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
                 value: progress,
-                minHeight: 6,
+                strokeWidth: 3,
                 backgroundColor: Colors.grey.shade100,
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
               ),
@@ -186,10 +191,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     switch (status) {
       case OrderStatus.pending:
         return 0.1;
-      case OrderStatus.confirmed:
-        return 0.25;
       case OrderStatus.processing:
-        return 0.4;
+        return 0.25;
       case OrderStatus.readyForPickup:
         return 0.55;
       case OrderStatus.courierAssigned:
@@ -213,11 +216,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final steps = isPickup
         ? [
             {
-              'status': OrderStatus.confirmed,
-              'label': context.l10n.translate('confirmed_timeline'),
-              'icon': Iconsax.tick_square
-            },
-            {
               'status': OrderStatus.processing,
               'label': context.l10n.translate('status_store_preparing'),
               'icon': Iconsax.box_tick
@@ -234,11 +232,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             },
           ]
         : [
-            {
-              'status': OrderStatus.confirmed,
-              'label': context.l10n.translate('confirmed_timeline'),
-              'icon': Iconsax.tick_square
-            },
             {
               'status': OrderStatus.processing,
               'label': context.l10n.translate('status_store_preparing'),
@@ -394,66 +387,93 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildProductItem(OrderItemModel item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: () {
+        if (item.productId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(
+                product: {
+                  'id': item.productId,
+                  'name': item.productName,
+                  'imageUrl': item.productImage,
+                  'price': item.price,
+                },
+              ),
             ),
-            child: item.productImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: item.productImage!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Icon(
-                        Iconsax.box,
-                        color: Colors.grey.shade400,
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: item.productImage != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: item.productImage!,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Icon(
+                          Iconsax.box,
+                          color: Colors.grey.shade400,
+                          size: 22,
+                        ),
                       ),
+                    )
+                  : Icon(
+                      Iconsax.box,
+                      color: Colors.grey.shade400,
+                      size: 22,
                     ),
-                  )
-                : Icon(
-                    Iconsax.box,
-                    color: Colors.grey.shade400,
-                  ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.productName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.quantity} x ${_formatPrice(item.price.toInt())} ${AppStrings.currency}',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
             ),
-          ),
-          Text(
-            '${_formatPrice(item.total.toInt())} ${AppStrings.currency}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.productName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${item.quantity} ta',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${_formatPrice(item.total.toInt())} ${AppStrings.currency}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -793,19 +813,38 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(
-                _getPaymentIcon(order.paymentMethod),
-                color: Colors.grey.shade600,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _getPaymentMethodLabel(context, order.paymentMethod),
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ],
+          // To'lov usuli
+          Text(
+            context.l10n.translate('payment_method'),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _getPaymentIcon(order.paymentMethod),
+                  color: Colors.grey.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _getPaymentMethodLabel(context, order.paymentMethod),
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -835,49 +874,67 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildBottomActions(OrderModel order) {
+    // Birinchi mahsulotning shopId sini olamiz
+    final shopId = order.items.isNotEmpty ? order.items.first.shopId : null;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        color: Colors.white.withOpacity(0.9),
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200, width: 0.5),
+        ),
       ),
       child: SafeArea(
         child: Row(
           children: [
             Expanded(
-              child: OutlinedButton(
-                onPressed: () => _showCancelDialog(order),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
+              child: SizedBox(
+                height: 38,
+                child: OutlinedButton(
+                  onPressed: () => _showCancelDialog(order),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error, width: 1),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(
+                    context.l10n.translate('cancel'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
                 ),
-                child: Text(context.l10n.translate('cancel')),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
-              child: ElevatedButton(
-                onPressed: () {
-                  // Qo'ng'iroq qilish
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.primary,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Iconsax.call, size: 20),
-                    const SizedBox(width: 8),
-                    Text(context.l10n.translate('call')),
-                  ],
+              child: SizedBox(
+                height: 38,
+                child: ElevatedButton(
+                  onPressed: shopId != null
+                      ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ShopDetailScreen(shopId: shopId),
+                            ),
+                          );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    backgroundColor: AppColors.primary,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(
+                    context.l10n.translate('seller_page'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
                 ),
               ),
             ),
@@ -935,12 +992,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           'color': AppColors.warning,
           'icon': Iconsax.clock,
         };
-      case OrderStatus.confirmed:
-        return {
-          'text': context.l10n.translate('status_order_confirmed'),
-          'color': const Color(0xFF4CAF50),
-          'icon': Iconsax.tick_square,
-        };
       case OrderStatus.processing:
         return {
           'text': context.l10n.translate('status_store_preparing'),
@@ -996,9 +1047,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     switch (method) {
       case 'card':
         return Iconsax.card;
-      case 'click':
-      case 'payme':
-        return Iconsax.mobile;
       default:
         return Iconsax.money;
     }
@@ -1008,10 +1056,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     switch (method) {
       case 'card':
         return context.l10n.translate('plastic_card');
-      case 'click':
-        return 'Click';
-      case 'payme':
-        return 'Payme';
       default:
         return context.l10n.translate('cash_payment');
     }

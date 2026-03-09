@@ -115,4 +115,9 @@ class LuckyWheelProvider extends ChangeNotifier {
       notifyListeners();
     } catch (_) {}
   }
+
+  /// Promo kodni tekshirish
+  Future<Map<String, dynamic>> verifyPromoCode(String code) async {
+    return await _repo.verifyPromoCode(code);
+  }
 }

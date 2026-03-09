@@ -6,29 +6,33 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getPlatformSettings, updatePlatformSettings } from './actions'
+import { getPlatformSettings, updatePlatformSettings, getAdminUsers, type AdminUser } from './actions'
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [settings, setSettings] = useState({
+  const [admins, setAdmins] = useState<AdminUser[]>([])
+  const [settings, setSettings] = useState<Record<string, any>>({
     // General
     siteName: 'TOPLA.UZ',
     siteDescription: 'O\'zbekistondagi eng yaxshi marketplace',
     supportEmail: 'support@topla.uz',
     supportPhone: '+998 71 123 45 67',
-
     // Commission
     defaultCommission: '10',
     minPayout: '100000',
-
+    commissionElektronika: '8',
+    commissionKiyim: '12',
+    commissionOziqOvqat: '15',
     // Delivery
     freeDeliveryMin: '500000',
     deliveryPrice: '25000',
-
+    deliveryPriceToshkent: '25000',
+    deliveryPriceViloyat: '35000',
     // Notifications
     orderNotification: true,
     vendorNotification: true,
@@ -38,10 +42,14 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await getPlatformSettings()
+        const [data, adminList] = await Promise.all([
+          getPlatformSettings(),
+          getAdminUsers(),
+        ])
         if (data && Object.keys(data).length > 0) {
           setSettings(prev => ({ ...prev, ...data }))
         }
+        setAdmins(adminList)
       } catch {
         // keep defaults
       } finally {
@@ -63,6 +71,10 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const toggleSetting = (key: string) => {
+    setSettings(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -74,14 +86,14 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sozlamalar</h1>
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Sozlamalar</h1>
         <p className="text-muted-foreground">
           Platforma sozlamalarini boshqaring
         </p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="general">Umumiy</TabsTrigger>
           <TabsTrigger value="commission">Komissiya</TabsTrigger>
           <TabsTrigger value="delivery">Yetkazib berish</TabsTrigger>
@@ -97,7 +109,7 @@ export default function AdminSettingsPage() {
               <CardDescription>Sayt haqida asosiy ma'lumotlar</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Sayt nomi</Label>
                   <Input
@@ -113,7 +125,7 @@ export default function AdminSettingsPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Support email</Label>
                   <Input
@@ -146,7 +158,7 @@ export default function AdminSettingsPage() {
               <CardDescription>Vendor komissiyasi va to'lov sozlamalari</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Standart komissiya (%)</Label>
                   <Input
@@ -174,27 +186,24 @@ export default function AdminSettingsPage() {
               <div className="border rounded-lg p-4 bg-muted/30">
                 <h4 className="font-medium mb-3">Kategoriya bo'yicha komissiya</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span>Elektronika</span>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="8" className="w-20 h-8" />
-                      <span>%</span>
+                  {[
+                    { key: 'commissionElektronika', label: 'Elektronika' },
+                    { key: 'commissionKiyim', label: 'Kiyim' },
+                    { key: 'commissionOziqOvqat', label: 'Oziq-ovqat' },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex justify-between items-center py-2 border-b">
+                      <span>{label}</span>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={settings[key] || ''}
+                          onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                          className="w-20 h-8"
+                        />
+                        <span>%</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span>Kiyim</span>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="12" className="w-20 h-8" />
-                      <span>%</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span>Oziq-ovqat</span>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="15" className="w-20 h-8" />
-                      <span>%</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -214,7 +223,7 @@ export default function AdminSettingsPage() {
               <CardDescription>Delivery narxlari va shartlari</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Bepul yetkazish uchun minimal summa (so'm)</Label>
                   <Input
@@ -236,20 +245,23 @@ export default function AdminSettingsPage() {
               <div className="border rounded-lg p-4 bg-muted/30">
                 <h4 className="font-medium mb-3">Shahar bo'yicha narxlar</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span>Toshkent</span>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="25000" className="w-28 h-8" />
-                      <span>so'm</span>
+                  {[
+                    { key: 'deliveryPriceToshkent', label: 'Toshkent' },
+                    { key: 'deliveryPriceViloyat', label: 'Viloyatlar' },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex justify-between items-center py-2 border-b">
+                      <span>{label}</span>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          value={settings[key] || ''}
+                          onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                          className="w-28 h-8"
+                        />
+                        <span>so'm</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span>Viloyatlar</span>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="35000" className="w-28 h-8" />
-                      <span>so'm</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -270,41 +282,24 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <div className="font-medium">Yangi buyurtma</div>
-                    <div className="text-sm text-muted-foreground">
-                      Yangi buyurtma kelganda admin va vendorga xabar berish
+                {[
+                  { key: 'orderNotification', title: 'Yangi buyurtma', desc: 'Yangi buyurtma kelganda admin va vendorga xabar berish' },
+                  { key: 'vendorNotification', title: 'Yangi vendor', desc: 'Yangi vendor ro\'yxatdan o\'tganda admin ga xabar' },
+                  { key: 'payoutNotification', title: 'Pul yechish so\'rovi', desc: 'Vendor pul yechmoqchi bo\'lganda admin ga xabar' },
+                ].map(({ key, title, desc }) => (
+                  <div key={key} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <div className="font-medium">{title}</div>
+                      <div className="text-sm text-muted-foreground">{desc}</div>
                     </div>
+                    <Button
+                      variant={settings[key] ? 'default' : 'outline'}
+                      onClick={() => toggleSetting(key)}
+                    >
+                      {settings[key] ? 'Yoqilgan' : 'O\'chirilgan'}
+                    </Button>
                   </div>
-                  <Button variant={settings.orderNotification ? 'default' : 'outline'}>
-                    {settings.orderNotification ? 'Yoqilgan' : 'O\'chirilgan'}
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <div className="font-medium">Yangi vendor</div>
-                    <div className="text-sm text-muted-foreground">
-                      Yangi vendor ro'yxatdan o'tganda admin ga xabar
-                    </div>
-                  </div>
-                  <Button variant={settings.vendorNotification ? 'default' : 'outline'}>
-                    {settings.vendorNotification ? 'Yoqilgan' : 'O\'chirilgan'}
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <div className="font-medium">Pul yechish so'rovi</div>
-                    <div className="text-sm text-muted-foreground">
-                      Vendor pul yechmoqchi bo'lganda admin ga xabar
-                    </div>
-                  </div>
-                  <Button variant={settings.payoutNotification ? 'default' : 'outline'}>
-                    {settings.payoutNotification ? 'Yoqilgan' : 'O\'chirilgan'}
-                  </Button>
-                </div>
+                ))}
               </div>
 
               <Button onClick={handleSave} disabled={saving}>
@@ -324,48 +319,31 @@ export default function AdminSettingsPage() {
                   <CardTitle>Admin foydalanuvchilar</CardTitle>
                   <CardDescription>Platforma adminlarini boshqaring</CardDescription>
                 </div>
-                <Button>+ Admin qo'shish</Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      👤
+              {admins.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Admin foydalanuvchilar topilmadi</p>
+              ) : (
+                <div className="space-y-4">
+                  {admins.map((admin) => (
+                    <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <Avatar>
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {(admin.fullName || admin.email || '?').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{admin.fullName || 'Noma\'lum'}</div>
+                          <div className="text-sm text-muted-foreground">{admin.email || admin.phone || '-'}</div>
+                        </div>
+                      </div>
+                      <Badge variant="default">Admin</Badge>
                     </div>
-                    <div>
-                      <div className="font-medium">Super Admin</div>
-                      <div className="text-sm text-muted-foreground">admin@topla.uz</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                      Super Admin
-                    </span>
-                    <Button variant="outline" size="sm">Tahrirlash</Button>
-                  </div>
+                  ))}
                 </div>
-
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      👤
-                    </div>
-                    <div>
-                      <div className="font-medium">Moderator</div>
-                      <div className="text-sm text-muted-foreground">moderator@topla.uz</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded">
-                      Moderator
-                    </span>
-                    <Button variant="outline" size="sm">Tahrirlash</Button>
-                    <Button variant="destructive" size="sm">O'chirish</Button>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

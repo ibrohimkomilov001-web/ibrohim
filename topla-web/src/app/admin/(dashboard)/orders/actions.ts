@@ -1,4 +1,5 @@
 import { fetchOrders, updateOrderStatus as apiUpdateOrderStatus } from "@/lib/api/admin";
+import { PaginationMeta } from "@/components/ui/data-table-pagination";
 
 export type Order = {
   id: string;
@@ -9,14 +10,25 @@ export type Order = {
   payment_method?: string;
   status: string;
   created_at: string;
-  [key: string]: any;
 };
 
-export async function getOrders(): Promise<Order[]> {
+export type OrdersParams = {
+  page?: number;
+  search?: string;
+  status?: string;
+};
+
+const defaultPagination: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false };
+
+export async function getOrders(params?: OrdersParams): Promise<{ orders: Order[]; pagination: PaginationMeta }> {
   try {
-    const data = await fetchOrders();
-    const orders = data.items || data.orders || [];
-    return orders.map((o: any) => ({
+    const data = await fetchOrders({
+      search: params?.search || undefined,
+      status: params?.status && params.status !== 'all' ? params.status : undefined,
+      page: params?.page || 1,
+    });
+    const items = data.items || data.orders || [];
+    const orders = items.map((o: any) => ({
       id: o.id,
       order_number: o.orderNumber,
       customer: o.user ? { full_name: o.user.fullName, phone: o.user.phone } : (o.customer ? { full_name: o.customer.fullName, phone: o.customer.phone } : undefined),
@@ -26,27 +38,12 @@ export async function getOrders(): Promise<Order[]> {
       status: o.status,
       created_at: o.createdAt,
     }));
-  } catch {
-    return [];
-  }
-}
-
-export async function getOrderStats(): Promise<{ total: number; pending: number; processing: number; shipped: number; delivered: number; cancelled: number; totalRevenue: number }> {
-  try {
-    const data = await fetchOrders();
-    const orders = data.items || data.orders || [];
     return {
-      total: data.pagination?.total || orders.length,
-      pending: orders.filter((o: any) => o.status === 'pending').length,
-      confirmed: orders.filter((o: any) => o.status === 'confirmed').length,
-      processing: orders.filter((o: any) => o.status === 'processing').length,
-      shipping: orders.filter((o: any) => ['ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping', 'at_pickup_point'].includes(o.status)).length,
-      delivered: orders.filter((o: any) => o.status === 'delivered').length,
-      cancelled: orders.filter((o: any) => o.status === 'cancelled').length,
-      totalRevenue: orders.reduce((sum: number, o: any) => sum + Number(o.totalAmount || 0), 0),
+      orders,
+      pagination: data.pagination || { ...defaultPagination, total: orders.length, totalPages: 1 },
     };
   } catch {
-    return { total: 0, pending: 0, confirmed: 0, processing: 0, shipping: 0, delivered: 0, cancelled: 0, totalRevenue: 0 };
+    return { orders: [], pagination: defaultPagination };
   }
 }
 

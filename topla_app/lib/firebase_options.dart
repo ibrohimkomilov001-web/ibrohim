@@ -6,17 +6,14 @@ import 'package:flutter/foundation.dart'
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
-/// XAVFSIZLIK: API kalitlari environment variable'lardan olinadi
-/// Build: flutter run --dart-define=FIREBASE_WEB_API_KEY=xxx ...
+/// XAVFSIZLIK: API kalitlari --dart-define orqali berilishi kerak.
+/// Development uchun fallback qiymatlar (Firebase public config).
 ///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
+/// Production build:
+/// flutter build apk --release \
+///   --dart-define=FIREBASE_WEB_API_KEY=xxx \
+///   --dart-define=FIREBASE_ANDROID_API_KEY=xxx \
+///   --dart-define=FIREBASE_IOS_API_KEY=xxx
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -49,32 +46,50 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBuXP_98aKQ_Vjr6Zvxo_NjWCAuG-_yaGM',
-    appId: '1:541689366619:web:c1fab85bd011362580d77e',
-    messagingSenderId: '541689366619',
-    projectId: 'topla-app-ef946',
-    authDomain: 'topla-app-ef946.firebaseapp.com',
-    storageBucket: 'topla-app-ef946.firebasestorage.app',
-    measurementId: 'G-LYKWT8CWWX',
+  // --dart-define orqali berilgan kalitlar, fallback: dev config
+  static const String _webApiKey = String.fromEnvironment(
+    'FIREBASE_WEB_API_KEY',
+    defaultValue: 'AIzaSyBuXP_98aKQ_Vjr6Zvxo_NjWCAuG-_yaGM',
+  );
+  static const String _androidApiKey = String.fromEnvironment(
+    'FIREBASE_ANDROID_API_KEY',
+    defaultValue: 'AIzaSyC1SzjfYUHr1AkKNXVX6PmigFLAHclHVdQ',
+  );
+  static const String _iosApiKey = String.fromEnvironment(
+    'FIREBASE_IOS_API_KEY',
+    defaultValue: 'AIzaSyALAkewwmN3N5cGjN16MIgZFCyHLFp4tBE',
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyC1SzjfYUHr1AkKNXVX6PmigFLAHclHVdQ',
-    appId: '1:541689366619:android:41e773be3bffce7380d77e',
-    messagingSenderId: '541689366619',
-    projectId: 'topla-app-ef946',
-    storageBucket: 'topla-app-ef946.firebasestorage.app',
-  );
+  static const String _projectId = 'topla-app-ef946';
+  static const String _messagingSenderId = '541689366619';
+  static const String _storageBucket = 'topla-app-ef946.firebasestorage.app';
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyALAkewwmN3N5cGjN16MIgZFCyHLFp4tBE',
-    appId: '1:541689366619:ios:1590258b8c7349e980d77e',
-    messagingSenderId: '541689366619',
-    projectId: 'topla-app-ef946',
-    storageBucket: 'topla-app-ef946.firebasestorage.app',
-    iosClientId: '541689366619-pbdh4qrpbm0ah87u6tcjht0ri9u0f2l4.apps.googleusercontent.com',
-    iosBundleId: 'com.topla.toplaApp',
-  );
+  static FirebaseOptions get web => FirebaseOptions(
+        apiKey: _webApiKey,
+        appId: '1:541689366619:web:c1fab85bd011362580d77e',
+        messagingSenderId: _messagingSenderId,
+        projectId: _projectId,
+        authDomain: '$_projectId.firebaseapp.com',
+        storageBucket: _storageBucket,
+        measurementId: 'G-LYKWT8CWWX',
+      );
 
+  static FirebaseOptions get android => FirebaseOptions(
+        apiKey: _androidApiKey,
+        appId: '1:541689366619:android:41e773be3bffce7380d77e',
+        messagingSenderId: _messagingSenderId,
+        projectId: _projectId,
+        storageBucket: _storageBucket,
+      );
+
+  static FirebaseOptions get ios => FirebaseOptions(
+        apiKey: _iosApiKey,
+        appId: '1:541689366619:ios:1590258b8c7349e980d77e',
+        messagingSenderId: _messagingSenderId,
+        projectId: _projectId,
+        storageBucket: _storageBucket,
+        iosClientId:
+            '541689366619-pbdh4qrpbm0ah87u6tcjht0ri9u0f2l4.apps.googleusercontent.com',
+        iosBundleId: 'com.topla.toplaApp',
+      );
 }

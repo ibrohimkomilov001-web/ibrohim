@@ -73,7 +73,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       origin: env.CORS_ORIGINS.split(','),
       methods: ['GET', 'POST'],
     },
-    path: '/ws',
+    // default path: /socket.io (matches nginx config)
     pingInterval: 25000,
     pingTimeout: 60000,
   });
@@ -106,6 +106,11 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Track user socket
     userSockets.set(user.userId, socket.id);
+
+    // Track admin socket
+    if (user.role === 'admin') {
+      adminSockets.set(user.userId, socket.id);
+    }
 
     // ============================================
     // KURYER events
@@ -204,6 +209,20 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       try {
       if (!roomId || typeof roomId !== 'string') return;
       if (!wsRateLimit(socket.id, 'chat:join', 20)) return;
+
+      // Admin har qanday roomga qo'shilishi mumkin
+      if (user.role === 'admin') {
+        const room = await prisma.chatRoom.findUnique({
+          where: { id: roomId },
+          select: { id: true },
+        });
+        if (!room) {
+          socket.emit('error', { message: 'Chat topilmadi' });
+          return;
+        }
+        socket.join(`chat:${roomId}`);
+        return;
+      }
 
       // Ownership check — faqat o'zining chat roomiga qo'shilish
       const room = await prisma.chatRoom.findFirst({
@@ -546,15 +565,4 @@ export function emitToAdminDashboard(event: string, data: any): void {
 export function emitToChatRoom(roomId: string, event: string, data: any): void {
   if (!io) return;
   io.to(`chat:${roomId}`).emit(event, data);
-}
-
-/**
- * Foydalanuvchiga shaxsiy event yuborish (notification kabi)
- */
-export function emitToUser(userId: string, event: string, data: any): void {
-  if (!io) return;
-  const socketId = userSockets.get(userId);
-  if (socketId) {
-    io.to(socketId).emit(event, data);
-  }
 }

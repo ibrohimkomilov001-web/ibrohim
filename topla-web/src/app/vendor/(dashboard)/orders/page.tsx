@@ -46,7 +46,6 @@ import {
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "Kutilmoqda", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400", icon: Clock },
-  confirmed: { label: "Tasdiqlangan", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: CheckCircle },
   processing: { label: "Tayyorlanmoqda", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400", icon: Package },
   ready_for_pickup: { label: "Tayyor - kuryerga berish", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400", icon: Package },
   courier_assigned: { label: "Kuryer tayinlandi", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400", icon: Truck },
@@ -57,14 +56,12 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 };
 
 const nextStatus: Record<string, string> = {
-  pending: "confirmed",
-  confirmed: "processing",
+  pending: "processing",
   processing: "ready_for_pickup",
 };
 
 const nextStatusLabel: Record<string, string> = {
-  pending: "Tasdiqlash",
-  confirmed: "Tayyorlashni boshlash",
+  pending: "Tayyorlashni boshlash",
   processing: "Kuryerga tayyor",
 };
 
@@ -136,7 +133,6 @@ export default function OrdersPage() {
               <SelectContent>
                 <SelectItem value="all">Barchasi</SelectItem>
                 <SelectItem value="pending">Kutilmoqda</SelectItem>
-                <SelectItem value="confirmed">Tasdiqlangan</SelectItem>
                 <SelectItem value="processing">Tayyorlanmoqda</SelectItem>
                 <SelectItem value="ready_for_pickup">Tayyor</SelectItem>
                 <SelectItem value="courier_assigned">Kuryer tayinlangan</SelectItem>

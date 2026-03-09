@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,55 +9,57 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Users } from 'lucide-react'
-import { getUsers, getUserStats, updateUserRole, toggleUserStatus, type User } from './actions'
-import { useToast } from '@/components/ui/use-toast'
+import { getUsers, updateUserRole, toggleUserStatus, type User } from './actions'
+import { toast } from 'sonner'
+import { useUrlState } from '@/hooks/use-url-state'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
 
 const roleLabels: Record<string, string> = {
   customer: 'Foydalanuvchi',
+  user: 'Foydalanuvchi',
   vendor: 'Vendor',
   admin: 'Admin',
 }
 
 export default function AdminUsersPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<User[]>([])
-  const [stats, setStats] = useState({ total: 0, customers: 0, vendors: 0, admins: 0, active: 0 })
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false })
   
-  const [searchQuery, setSearchQuery] = useState('')
+  const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'all', page: '1' })
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [blockDialogOpen, setBlockDialogOpen] = useState(false)
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
   const [newRole, setNewRole] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const [usersData, statsData] = await Promise.all([
-        getUsers(),
-        getUserStats()
-      ])
+      const { users: usersData, pagination: pag } = await getUsers({
+        search: debouncedSearch || undefined,
+        role: activeTab !== 'all' ? activeTab : undefined,
+        page: parseInt(page) || 1,
+      })
       setUsers(usersData)
-      setStats(statsData)
-    } catch (error) {
-      console.error(error)
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" })
+      setPagination(pag)
+    } catch {
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, activeTab, page])
 
+  useEffect(() => { loadData() }, [loadData])
+
+  // Reset page on search/tab change
   useEffect(() => {
-    loadData()
-  }, [])
-
-  const filteredUsers = users.filter(user => 
-    user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.phone?.includes(searchQuery)
-  )
+    if (page !== '1') setFilters({ page: '1' })
+  }, [debouncedSearch, activeTab])
 
   const getInitials = (name: string) => {
     if (!name) return '?'
@@ -66,16 +68,15 @@ export default function AdminUsersPage() {
 
   const handleToggleStatus = async () => {
     if (!selectedUser) return
-
     try {
       setActionLoading(true)
       await toggleUserStatus(selectedUser.id, !selectedUser.is_active)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: selectedUser.is_active ? "Foydalanuvchi bloklandi" : "Blokdan chiqarildi" })
+      toast.success(selectedUser.is_active ? "Foydalanuvchi bloklandi" : "Blokdan chiqarildi")
       setBlockDialogOpen(false)
       setSelectedUser(null)
-    } catch (error) {
-      toast({ title: "Xatolik", description: "Statusni o'zgartirishda xatolik", variant: "destructive" })
+    } catch {
+      toast.error("Statusni o'zgartirishda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -83,28 +84,19 @@ export default function AdminUsersPage() {
 
   const handleRoleChange = async () => {
     if (!selectedUser || !newRole) return
-
     try {
       setActionLoading(true)
       await updateUserRole(selectedUser.id, newRole)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Foydalanuvchi roli yangilandi" })
+      toast.success("Foydalanuvchi roli yangilandi")
       setRoleDialogOpen(false)
       setSelectedUser(null)
       setNewRole('')
-    } catch (error) {
-      toast({ title: "Xatolik", description: "Rolni o'zgartirishda xatolik", variant: "destructive" })
+    } catch {
+      toast.error("Rolni o'zgartirishda xatolik")
     } finally {
       setActionLoading(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
   }
 
   return (
@@ -112,75 +104,51 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Foydalanuvchilar</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Platformadagi barcha foydalanuvchilar
+          Platformadagi barcha foydalanuvchilar ({pagination.total} ta)
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Jami</CardTitle>
-            <span className="text-lg sm:text-2xl">👥</span>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Mijozlar</CardTitle>
-            <span className="text-lg sm:text-2xl">🛒</span>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.customers}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Vendorlar</CardTitle>
-            <span className="text-lg sm:text-2xl">🏪</span>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.vendors}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Adminlar</CardTitle>
-            <span className="text-lg sm:text-2xl">👑</span>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.admins}</div>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
         <CardHeader className="p-3 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-base sm:text-lg">Foydalanuvchilar ro'yxati</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Foydalanuvchilarni boshqaring</CardDescription>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base sm:text-lg">Foydalanuvchilar ro&apos;yxati</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Foydalanuvchilarni boshqaring</CardDescription>
+              </div>
+              <Input
+                placeholder="Ism, telefon, email bo'yicha qidirish..."
+                value={searchQuery}
+                onChange={(e) => setFilters({ search: e.target.value })}
+                className="w-full sm:w-72"
+              />
             </div>
-            <Input
-              placeholder="Qidirish..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-72"
-            />
+            <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })}>
+              <TabsList className="flex-wrap h-auto">
+                <TabsTrigger value="all">Barchasi</TabsTrigger>
+                <TabsTrigger value="user">Mijozlar</TabsTrigger>
+                <TabsTrigger value="vendor">Vendorlar</TabsTrigger>
+                <TabsTrigger value="admin">Adminlar</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6 sm:pt-0">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
           {/* Mobile Card View */}
           <div className="block sm:hidden space-y-2 p-3">
-            {filteredUsers.length === 0 ? (
+            {users.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                 <p className="text-muted-foreground">Foydalanuvchilar topilmadi</p>
               </div>
             ) : (
-              filteredUsers.map((user) => (
+              users.map((user) => (
                 <div key={user.id} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
@@ -226,12 +194,12 @@ export default function AdminUsersPage() {
                 <TableHead>Telefon</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Ro'yxatdan o'tgan</TableHead>
+                <TableHead>Ro&apos;yxatdan o&apos;tgan</TableHead>
                 <TableHead className="text-right">Amallar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.length === 0 ? (
+              {users.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-12">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
@@ -239,7 +207,7 @@ export default function AdminUsersPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers.map((user) => (
+                users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -296,6 +264,14 @@ export default function AdminUsersPage() {
             </TableBody>
           </Table>
           </div>
+          <div className="px-3 sm:px-0">
+            <DataTablePagination
+              pagination={pagination}
+              onPageChange={(p) => setFilters({ page: String(p) })}
+            />
+          </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

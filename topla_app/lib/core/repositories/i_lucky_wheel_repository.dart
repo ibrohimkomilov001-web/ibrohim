@@ -14,6 +14,9 @@ abstract class ILuckyWheelRepository {
 
   /// Foydalanuvchining promo kodlari
   Future<List<MyPromoCode>> getMyPromoCodes();
+
+  /// Promo kodni tekshirish (foydalanuvchi qo'lda kiritganda)
+  Future<Map<String, dynamic>> verifyPromoCode(String code);
 }
 
 /// Baraban segmenti modeli

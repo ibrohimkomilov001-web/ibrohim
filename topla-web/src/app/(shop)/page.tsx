@@ -63,7 +63,7 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
         >
           {banners[current].imageUrl ? (
             <Image
-              src={banners[current].imageUrl.startsWith('http') ? banners[current].imageUrl : `/api/v1${banners[current].imageUrl}`}
+              src={banners[current].imageUrl}
               alt={banners[current].titleUz || ''}
               fill
               className="object-cover"
@@ -127,7 +127,7 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
           <button
             key={f.key}
             onClick={() => onSelect(f.key)}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+            className={`whitespace-nowrap px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-medium transition-all ${
               isActive
                 ? 'bg-gray-700 text-white'
                 : 'bg-transparent border border-gray-300 text-gray-600 hover:border-gray-400'

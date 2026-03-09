@@ -71,13 +71,16 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isPickup =
+        widget.deliveryMethod == 'pickup' && widget.pickupToken != null;
+
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSizes.xl),
           child: Column(
             children: [
-              const Spacer(),
+              const SizedBox(height: 40),
 
               // Success animation
               AnimatedBuilder(
@@ -86,15 +89,15 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                   return Transform.scale(
                     scale: _scaleAnimation.value,
                     child: Container(
-                      width: 150,
-                      height: 150,
+                      width: 120,
+                      height: 120,
                       decoration: BoxDecoration(
                         color: AppColors.success.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Iconsax.tick_circle,
-                        size: 80,
+                        size: 64,
                         color: AppColors.success,
                       ),
                     ),
@@ -102,7 +105,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                 },
               ),
 
-              const SizedBox(height: AppSizes.xl),
+              const SizedBox(height: AppSizes.lg),
 
               // Title
               FadeTransition(
@@ -117,28 +120,13 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                 ),
               ),
 
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.sm),
 
               // Order ID
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: Text(
                   'Buyurtma raqami: ${widget.orderId}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
-              const SizedBox(height: AppSizes.lg),
-
-              // Description
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Text(
-                  'Tez orada operator siz bilan bog\'lanadi va buyurtmangizni tasdiqlaydi.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade600,
@@ -147,7 +135,33 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                 ),
               ),
 
-              const SizedBox(height: AppSizes.xxl),
+              const SizedBox(height: AppSizes.md),
+
+              // Description
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Text(
+                  isPickup
+                      ? 'Buyurtmangiz tayyor bo\'lganda bildirishnoma olasiz. Topshirish punktiga borganda QR kodni ko\'rsating.'
+                      : 'Tez orada operator siz bilan bog\'lanadi va buyurtmangizni tasdiqlaydi.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              // ===== QR Kod bo'limi (faqat pickup uchun — Yandex Market uslubida) =====
+              if (isPickup) ...[
+                const SizedBox(height: AppSizes.xl),
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: _buildQrSection(),
+                ),
+              ],
+
+              const SizedBox(height: AppSizes.xl),
 
               // Order info card
               FadeTransition(
@@ -161,9 +175,11 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                   child: Column(
                     children: [
                       _buildInfoRow(
-                        icon: Iconsax.truck,
-                        label: 'Yetkazib berish',
-                        value: _getDeliveryTimeText(),
+                        icon: isPickup ? Iconsax.building : Iconsax.truck,
+                        label: isPickup ? 'Olish usuli' : 'Yetkazib berish',
+                        value: isPickup
+                            ? 'Topshirish punktidan olish'
+                            : _getDeliveryTimeText(),
                       ),
                       const Divider(height: 24),
                       _buildInfoRow(
@@ -178,20 +194,18 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: AppSizes.xxl),
 
               // Buttons
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Buyurtmani kuzatish - buyurtmalar sahifasiga o'tish
                     Navigator.pushNamedAndRemoveUntil(
                       context,
                       '/main',
                       (route) => false,
                     );
-                    // Buyurtmalar sahifasiga yo'naltirish
                     Navigator.pushNamed(context, '/orders');
                   },
                   style: ElevatedButton.styleFrom(
@@ -229,9 +243,109 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                   ),
                 ),
               ),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ===== QR + PIN kod bo'limi =====
+  Widget _buildQrSection() {
+    final qrData = jsonEncode({
+      'orderId': widget.orderId,
+      'token': widget.pickupToken,
+    });
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Iconsax.scan_barcode, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'QR kodni ko\'rsating',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Topshirish punktiga borganda shu QR kodni ko\'rsating',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // QR Code
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: QrImageView(
+              data: qrData,
+              version: QrVersions.auto,
+              size: 200.0,
+              backgroundColor: Colors.white,
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+            ),
+          ),
+
+          // PIN kod
+          if (widget.pickupCode != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              'yoki kodni ayting',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                widget.pickupCode!,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 6,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -256,10 +370,6 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
           return 'Karta •••• ${widget.cardLastDigits}';
         }
         return 'Plastik karta';
-      case 'click':
-        return 'Click';
-      case 'payme':
-        return 'Payme';
       default:
         return 'Naqd pul';
     }

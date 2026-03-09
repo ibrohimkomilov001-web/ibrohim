@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Loader2, Plus, Dices, Trash2, Pencil, Trophy, Gift, Percent, Truck, X, History } from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 import {
   getPrizes,
   createPrize,
@@ -53,7 +53,6 @@ const emptyForm = {
 }
 
 export default function AdminLuckyWheelPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [prizes, setPrizes] = useState<LuckyWheelPrize[]>([])
   const [stats, setStats] = useState<LuckyWheelStats>({ totalSpins: 0, todaySpins: 0, totalWinners: 0 })
@@ -76,7 +75,7 @@ export default function AdminLuckyWheelPage() {
       setPrizes(data.prizes)
       setStats(data.stats)
     } catch {
-      toast({ title: 'Xatolik', description: "Ma'lumotlarni yuklashda xatolik", variant: 'destructive' })
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
@@ -90,7 +89,7 @@ export default function AdminLuckyWheelPage() {
       setSpinsPagination(data.pagination)
       setSpinsPage(page)
     } catch {
-      toast({ title: 'Xatolik', description: 'Tarixni yuklashda xatolik', variant: 'destructive' })
+      toast.error('Tarixni yuklashda xatolik')
     } finally {
       setSpinsLoading(false)
     }
@@ -123,7 +122,7 @@ export default function AdminLuckyWheelPage() {
 
   const handleSubmit = async () => {
     if (!formData.nameUz || !formData.probability) {
-      toast({ title: 'Xatolik', description: 'Nom va ehtimollikni kiriting', variant: 'destructive' })
+      toast.error('Nom va ehtimollikni kiriting')
       return
     }
 
@@ -144,16 +143,16 @@ export default function AdminLuckyWheelPage() {
 
       if (editingPrize) {
         await updatePrize(editingPrize.id, payload)
-        toast({ title: 'Muvaffaqiyatli', description: "Sovg'a yangilandi" })
+        toast.success("Sovg'a yangilandi")
       } else {
         await createPrize(payload)
-        toast({ title: 'Muvaffaqiyatli', description: "Sovg'a qo'shildi" })
+        toast.success("Sovg'a qo'shildi")
       }
 
       setDialogOpen(false)
       await loadData()
     } catch (error: any) {
-      toast({ title: 'Xatolik', description: error.message || "Saqlashda xatolik", variant: 'destructive' })
+      toast.error(error.message || "Saqlashda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -164,10 +163,10 @@ export default function AdminLuckyWheelPage() {
 
     try {
       await deletePrize(id)
-      toast({ title: 'Muvaffaqiyatli', description: "Sovg'a o'chirildi" })
+      toast.success("Sovg'a o'chirildi")
       await loadData()
     } catch {
-      toast({ title: 'Xatolik', description: "O'chirishda xatolik", variant: 'destructive' })
+      toast.error("O'chirishda xatolik")
     }
   }
 

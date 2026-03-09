@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/constants.dart';
 import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
@@ -61,31 +62,96 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
       return;
     }
 
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Icon(Iconsax.card, color: AppColors.primary),
-              const SizedBox(width: 12),
-              Text(context.l10n.translate('add_new_card')),
-            ],
-          ),
-          content: const Text(
-            'Karta qo\'shish xizmati tez orada ishga tushiriladi. Hozircha naqd pul orqali to\'lashingiz mumkin.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n.translate('understood'),
-                  style: TextStyle(color: AppColors.primary)),
+    setState(() => _isAddingCard = true);
+
+    try {
+      // Backend orqali bank API ga binding so'rovi yuborish
+      final result = await PaymentService.initCardBinding(userId: userId);
+
+      if (!mounted) return;
+
+      if (result.success && result.redirectUrl != null) {
+        // Bank sahifasiga yo'naltirish (karta ma'lumotlarini kiritish)
+        final uri = Uri.parse(result.redirectUrl!);
+        final canLaunch = await canLaunchUrl(uri);
+
+        if (canLaunch) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+          // Foydalanuvchi qaytganda binding natijasini tekshirish
+          if (mounted) {
+            await _showBindingResultDialog();
+          }
+        } else {
+          _showError('Bank sahifasi ochilmadi. Qaytadan urinib ko\'ring.');
+        }
+      } else {
+        _showError(
+            result.errorMessage ?? 'Karta qo\'shishda xatolik yuz berdi');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('Tarmoq xatosi: Qaytadan urinib ko\'ring');
+      }
+    } finally {
+      if (mounted) setState(() => _isAddingCard = false);
+    }
+  }
+
+  /// Bank sahifasidan qaytganda natijani tekshirish dialogi
+  Future<void> _showBindingResultDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Iconsax.card_tick, color: AppColors.primary),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Karta qo\'shish', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
-      );
+        content: const Text(
+          'Karta ma\'lumotlarini kiritdingizmi? Bank sahifasida jarayonni yakunlagan bo\'lsangiz, "Tekshirish" tugmasini bosing.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child:
+                Text('Bekor qilish', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Tekshirish'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      // Kartalar ro'yxatini yangilash (callback orqali karta avtomatik qo'shiladi)
+      await _loadCards();
+
+      if (mounted && _cards.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Karta muvaffaqiyatli qo\'shildi!'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
     }
   }
 

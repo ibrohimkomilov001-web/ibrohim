@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { env } from './env.js';
+import { softDeleteExtension } from '../middleware/soft-delete.js';
 
 // Connection pool: production da 20, development da 5
 const connectionLimit = env.NODE_ENV === 'production' ? 20 : 5;
@@ -14,10 +15,13 @@ function getDatabaseUrl(): string {
   return `${baseUrl}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}`;
 }
 
-export const prisma = new PrismaClient({
+const basePrisma = new PrismaClient({
   log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   datasourceUrl: getDatabaseUrl(),
 });
+
+// Soft-delete extension — deletedAt bo'lgan yozuvlarni avtomatik filtrlab tashlaydi
+export const prisma = basePrisma.$extends(softDeleteExtension);
 
 export async function connectDatabase(): Promise<void> {
   try {

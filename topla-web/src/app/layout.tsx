@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "sonner";
+import { ServiceWorkerRegistration } from "@/components/pwa/sw-register";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -17,9 +18,47 @@ const spaceGrotesk = Space_Grotesk({
   weight: ["500", "600", "700"],
 });
 
+export const viewport: Viewport = {
+  themeColor: '#7c3aed',
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
-  title: "TOPLA.UZ - O'zbekistonning eng yirik marketplace",
-  description: "TOPLA.UZ - online savdo platformasi. Minglab do'konlar, millionlab mahsulotlar.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://topla.uz'),
+  title: {
+    default: "TOPLA.UZ - O'zbekistonning eng yirik marketplace",
+    template: '%s | TOPLA.UZ',
+  },
+  description: "TOPLA.UZ - online savdo platformasi. Minglab do'konlar, millionlab mahsulotlar. Eng arzon narxlarda xarid qiling!",
+  keywords: ['topla', 'marketplace', 'online savdo', "o'zbekiston", 'dokon', 'mahsulot', 'xarid'],
+  manifest: '/manifest.webmanifest',
+  openGraph: {
+    type: 'website',
+    locale: 'uz_UZ',
+    siteName: 'TOPLA.UZ',
+    title: "TOPLA.UZ - O'zbekistonning eng yirik marketplace",
+    description: "Minglab do'konlar, millionlab mahsulotlar. Eng arzon narxlarda xarid qiling!",
+    url: '/',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "TOPLA.UZ - O'zbekistonning eng yirik marketplace",
+    description: "Minglab do'konlar, millionlab mahsulotlar.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TOPLA',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -40,6 +79,7 @@ export default function RootLayout({
             >
               {children}
               <Toaster position="top-right" richColors />
+              <ServiceWorkerRegistration />
             </ThemeProvider>
           </AuthProvider>
         </QueryProvider>

@@ -1,22 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Package } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { getOrders, getOrderStats, updateOrderStatus, type Order } from './actions'
-import { useToast } from '@/components/ui/use-toast'
+import { getOrders, updateOrderStatus, type Order } from './actions'
+import { toast } from 'sonner'
+import { useUrlState } from '@/hooks/use-url-state'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
 
 const statusConfig: Record<string, { color: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   pending: { color: 'secondary', label: 'Kutilmoqda' },
-  confirmed: { color: 'default', label: 'Tasdiqlangan' },
   processing: { color: 'default', label: 'Tayyorlanmoqda' },
   ready_for_pickup: { color: 'outline', label: 'Tayyor - kuryerga berish' },
   courier_assigned: { color: 'outline', label: 'Kuryer tayinlandi' },
@@ -28,75 +30,55 @@ const statusConfig: Record<string, { color: "default" | "secondary" | "destructi
 }
 
 export default function AdminOrdersPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<Order[]>([])
-  const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, processing: 0, shipping: 0, delivered: 0, cancelled: 0, totalRevenue: 0 })
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false })
   
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
+  const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'all', page: '1' })
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [newStatus, setNewStatus] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const [ordersData, statsData] = await Promise.all([
-        getOrders(),
-        getOrderStats()
-      ])
+      const { orders: ordersData, pagination: pag } = await getOrders({
+        search: debouncedSearch || undefined,
+        status: activeTab !== 'all' ? activeTab : undefined,
+        page: parseInt(page) || 1,
+      })
       setOrders(ordersData)
-      setStats(statsData)
-    } catch (error) {
-      console.error(error)
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" })
+      setPagination(pag)
+    } catch {
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, activeTab, page])
+
+  useEffect(() => { loadData() }, [loadData])
 
   useEffect(() => {
-    loadData()
-  }, [])
-
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.order_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.shop?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    let matchesTab = activeTab === 'all' || order.status === activeTab
-    // "shipping" tabida barcha yetkazish bosqichlarini ko'rsatish
-    if (activeTab === 'shipping') {
-      matchesTab = ['ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping', 'at_pickup_point'].includes(order.status)
-    }
-    return matchesSearch && matchesTab
-  })
+    if (page !== '1') setFilters({ page: '1' })
+  }, [debouncedSearch, activeTab])
 
   const handleStatusChange = async () => {
     if (!selectedOrder || !newStatus) return
-
     try {
       setActionLoading(true)
       await updateOrderStatus(selectedOrder.id, newStatus)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Buyurtma statusi yangilandi" })
+      toast.success("Buyurtma statusi yangilandi")
       setStatusDialogOpen(false)
       setSelectedOrder(null)
       setNewStatus('')
-    } catch (error) {
-      toast({ title: "Xatolik", description: "Statusni yangilashda xatolik", variant: "destructive" })
+    } catch {
+      toast.error("Statusni yangilashda xatolik")
     } finally {
       setActionLoading(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
   }
 
   return (
@@ -104,116 +86,55 @@ export default function AdminOrdersPage() {
       <div>
         <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Buyurtmalar</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Barcha buyurtmalarni boshqaring
+          Barcha buyurtmalarni boshqaring ({pagination.total} ta)
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jami</CardTitle>
-            <span className="text-2xl">📦</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kutilmoqda</CardTitle>
-            <span className="text-2xl">⏳</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tasdiqlangan</CardTitle>
-            <span className="text-2xl">✔️</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.confirmed}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tayyorlanmoqda</CardTitle>
-            <span className="text-2xl">🔄</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{stats.processing}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Yo'lda</CardTitle>
-            <span className="text-2xl">🚚</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-indigo-600">{stats.shipping}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Yetkazildi</CardTitle>
-            <span className="text-2xl">✅</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.delivered}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Daromad</CardTitle>
-            <span className="text-2xl">💰</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-green-600">{formatPrice(stats.totalRevenue)}</div>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg">Buyurtmalar ro'yxati</CardTitle>
-              <CardDescription>Buyurtmalar statusini kuzating</CardDescription>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">Buyurtmalar ro&apos;yxati</CardTitle>
+                <CardDescription>Buyurtmalar statusini kuzating</CardDescription>
+              </div>
+              <Input
+                placeholder="Buyurtma raqami, mijoz, telefon bo'yicha qidirish..."
+                value={searchQuery}
+                onChange={(e) => setFilters({ search: e.target.value })}
+                className="w-full sm:w-80"
+              />
             </div>
-            <Input
-              placeholder="Qidirish..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-72"
-            />
+            <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })}>
+              <div className="overflow-x-auto pb-2">
+                <TabsList className="inline-flex w-max sm:w-auto">
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi</TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">Kutilmoqda</TabsTrigger>
+                  <TabsTrigger value="processing" className="text-xs sm:text-sm">Tayyorlanmoqda</TabsTrigger>
+                  <TabsTrigger value="shipping" className="text-xs sm:text-sm">Yo&apos;lda</TabsTrigger>
+                  <TabsTrigger value="delivered" className="text-xs sm:text-sm">Yetkazildi</TabsTrigger>
+                  <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Bekor</TabsTrigger>
+                </TabsList>
+              </div>
+            </Tabs>
           </div>
         </CardHeader>
         <CardContent className="px-2 sm:px-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="overflow-x-auto pb-2">
-              <TabsList className="inline-flex w-max sm:w-auto">
-                <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi</TabsTrigger>
-                <TabsTrigger value="pending" className="text-xs sm:text-sm">Kutilmoqda</TabsTrigger>
-                <TabsTrigger value="confirmed" className="text-xs sm:text-sm">Tasdiqlangan</TabsTrigger>
-                <TabsTrigger value="processing" className="text-xs sm:text-sm">Tayyorlanmoqda</TabsTrigger>
-                <TabsTrigger value="shipping" className="text-xs sm:text-sm">Yo'lda</TabsTrigger>
-                <TabsTrigger value="delivered" className="text-xs sm:text-sm">Yetkazildi</TabsTrigger>
-                <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Bekor</TabsTrigger>
-              </TabsList>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-
-            <TabsContent value={activeTab} className="mt-4">
+          ) : (
+            <>
               {/* Mobile Card View */}
               <div className="block sm:hidden space-y-3">
-                {filteredOrders.length === 0 ? (
+                {orders.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                     <p className="text-muted-foreground">Buyurtmalar topilmadi</p>
                   </div>
                 ) : (
-                  filteredOrders.map((order) => (
+                  orders.map((order) => (
                     <div key={order.id} className="border rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-medium">{order.order_number || order.id.slice(0, 8)}</span>
@@ -256,7 +177,7 @@ export default function AdminOrdersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.length === 0 ? (
+                  {orders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-12">
                         <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
@@ -264,7 +185,7 @@ export default function AdminOrdersPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredOrders.map((order) => (
+                    orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-mono font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
                         <TableCell>
@@ -303,8 +224,12 @@ export default function AdminOrdersPage() {
                 </TableBody>
               </Table>
               </div>
-            </TabsContent>
-          </Tabs>
+              <DataTablePagination
+                pagination={pagination}
+                onPageChange={(p) => setFilters({ page: String(p) })}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -326,7 +251,6 @@ export default function AdminOrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Kutilmoqda</SelectItem>
-                  <SelectItem value="confirmed">Tasdiqlangan</SelectItem>
                   <SelectItem value="processing">Tayyorlanmoqda</SelectItem>
                   <SelectItem value="ready_for_pickup">Tayyor - kuryerga berish</SelectItem>
                   <SelectItem value="courier_assigned">Kuryer tayinlandi</SelectItem>

@@ -33,8 +33,7 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
   Future<void> _loadPromoCodes() async {
     setState(() => _isLoading = true);
     try {
-      final provider =
-          Provider.of<LuckyWheelProvider>(context, listen: false);
+      final provider = Provider.of<LuckyWheelProvider>(context, listen: false);
       await provider.loadMyPromoCodes();
     } catch (_) {}
     if (mounted) {
@@ -55,14 +54,29 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
           icon: const Icon(Icons.arrow_back_ios, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE91E63).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.add, size: 20, color: Color(0xFFE91E63)),
+            ),
+            onPressed: _showAddPromoCodeDialog,
+          ),
+          const SizedBox(width: 4),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: const Color(0xFFE91E63),
           unselectedLabelColor: const Color(0xFF999999),
           indicatorColor: const Color(0xFFE91E63),
           indicatorWeight: 2.5,
-          labelStyle: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w600),
+          labelStyle:
+              const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontSize: 13),
           labelPadding: const EdgeInsets.symmetric(horizontal: 4),
           tabs: const [
@@ -160,76 +174,102 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
     final statusInfo = _getStatusInfo(promo);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Header — tur icon + nomi + status badge
+          // Bitta qator: chegirma + kod + nusxalash + status
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: typeInfo.bgColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    typeInfo.icon,
-                    size: 22,
-                    color: typeInfo.iconColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        promo.prizeName ?? promo.formattedDiscount,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF333333),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        typeInfo.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: typeInfo.iconColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Chegirma badge
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: typeInfo.bgColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    promo.formattedDiscount,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: typeInfo.iconColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Promo kod
+                Expanded(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F8F8),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE8E8E8)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            promo.code,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: promo.isActive
+                                  ? const Color(0xFF333333)
+                                  : const Color(0xFFBBBBBB),
+                              letterSpacing: 0.8,
+                              fontFamily: 'monospace',
+                              decoration: promo.isUsed
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (promo.isActive) ...[
+                          const SizedBox(width: 6),
+                          InkWell(
+                            onTap: () => _copyCode(promo.code),
+                            child: const Icon(
+                              Iconsax.copy_copy,
+                              size: 16,
+                              color: Color(0xFFE91E63),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Status badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusInfo.bgColor,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     statusInfo.label,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: statusInfo.textColor,
                     ),
@@ -239,125 +279,9 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
             ),
           ),
 
-          const SizedBox(height: 12),
-
-          // Chegirma qiymati banner
-          if (promo.formattedDiscount.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      typeInfo.bgColor,
-                      typeInfo.bgColor.withOpacity(0.3),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Icon(typeInfo.icon, size: 16, color: typeInfo.iconColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      promo.formattedDiscount,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: typeInfo.iconColor,
-                      ),
-                    ),
-                    if (promo.minOrderAmount != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        '(min ${_formatMoney(promo.minOrderAmount!)})',
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFF999999)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-
-          const SizedBox(height: 10),
-
-          // Promo kod + nusxalash tugma
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F8F8),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE8E8E8)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Iconsax.ticket_discount_copy,
-                    size: 16,
-                    color: Color(0xFFE91E63),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      promo.code,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: promo.isActive
-                            ? const Color(0xFF333333)
-                            : const Color(0xFFBBBBBB),
-                        letterSpacing: 1.2,
-                        fontFamily: 'monospace',
-                        decoration:
-                            promo.isUsed ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                  ),
-                  if (promo.isActive)
-                    InkWell(
-                      onTap: () => _copyCode(promo.code),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE91E63),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Iconsax.copy_copy,
-                                size: 13, color: Colors.white),
-                            SizedBox(width: 4),
-                            Text(
-                              'Nusxalash',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
           // Pastki qism — sana + muddat
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
             child: Row(
               children: [
                 Icon(Iconsax.calendar_1_copy,
@@ -411,7 +335,7 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
           // Muddat progress bar
           if (promo.isActive && promo.expiresAt != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
               child: _buildExpiryProgress(promo),
             ),
         ],
@@ -444,6 +368,110 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
     );
   }
 
+  void _showAddPromoCodeDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Promokod kiritish',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: InputDecoration(
+            hintText: 'Promokodni kiriting',
+            hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF999999)),
+            filled: true,
+            fillColor: const Color(0xFFF5F5F5),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor qilish',
+                style: TextStyle(color: Color(0xFF999999))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = controller.text.trim();
+              if (code.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                final provider =
+                    Provider.of<LuckyWheelProvider>(context, listen: false);
+                final result = await provider.verifyPromoCode(code);
+                if (mounted) {
+                  final discountType = result['discountType'] ?? '';
+                  final discountValue = result['discountValue'] ?? 0;
+                  String discountText = '';
+                  if (discountType == 'percentage') {
+                    discountText = '$discountValue% chegirma';
+                  } else {
+                    discountText = '${discountValue.toInt()} so\'m chegirma';
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          '✅ Promokod faol! $discountText. Buyurtma berishda ishlating.',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13)),
+                      backgroundColor: const Color(0xFF4CAF50),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                      duration: const Duration(seconds: 3),
+                      margin: const EdgeInsets.only(
+                          left: 40, right: 40, bottom: 80),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceAll('Exception: ', ''),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13)),
+                      backgroundColor: Colors.red.shade400,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                      duration: const Duration(seconds: 3),
+                      margin: const EdgeInsets.only(
+                          left: 40, right: 40, bottom: 80),
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE91E63),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child:
+                const Text('Qo\'shish', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -467,8 +495,18 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
 
   String _formatDate(DateTime date) {
     final months = [
-      'yan', 'fev', 'mar', 'apr', 'may', 'iyn',
-      'iyl', 'avg', 'sen', 'okt', 'noy', 'dek',
+      'yan',
+      'fev',
+      'mar',
+      'apr',
+      'may',
+      'iyn',
+      'iyl',
+      'avg',
+      'sen',
+      'okt',
+      'noy',
+      'dek',
     ];
     return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }
@@ -478,10 +516,6 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
     if (days == 0) return 'Bugun tugaydi';
     if (days == 1) return 'Ertaga tugaydi';
     return '$days kun qoldi';
-  }
-
-  String _formatMoney(double amount) {
-    return '${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]} ')} so\'m';
   }
 
   _PromoTypeInfo _getTypeInfo(MyPromoCode promo) {

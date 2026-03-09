@@ -33,16 +33,18 @@ const envSchema = z.object({
   ESKIZ_EMAIL: z.string().optional(),
   ESKIZ_PASSWORD: z.string().optional(),
 
-  // Telegram Gateway (https://gateway.telegram.org)
-  TELEGRAM_GATEWAY_TOKEN: z.string().optional(),
-
   // OTP
   OTP_LENGTH: z.coerce.number().default(6),
   OTP_TTL_SECONDS: z.coerce.number().default(120),
 
-  // Payment Webhooks
-  PAYME_WEBHOOK_SECRET: z.string().optional(),
-  CLICK_WEBHOOK_SECRET: z.string().optional(),
+  // Payment Webhooks (Aliance Bank / Octobank)
+  ALIANCE_WEBHOOK_SECRET: z.string().optional(),
+  OCTOBANK_WEBHOOK_SECRET: z.string().optional(),
+  ALIANCE_API_LOGIN: z.string().optional(),
+  ALIANCE_API_SECRET: z.string().optional(),
+  OCTOBANK_API_LOGIN: z.string().optional(),
+  OCTOBANK_API_SECRET: z.string().optional(),
+  PAYMENT_WEBHOOK_IPS: z.string().optional(), // Comma-separated allowed IPs for bank webhooks
 
   // Meilisearch
   MEILISEARCH_URL: z.string().default('http://localhost:7700'),

@@ -8,8 +8,9 @@ import { authMiddleware } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error.js';
 import { env } from '../../config/env.js';
 import { checkRateLimit, setWithExpiry, getValue, deleteKey } from '../../config/redis.js';
-import { sendOtp, verifyOtp, getOtpForTesting, isTelegramConfigured, type OtpChannel } from '../../services/otp.service.js';
+import { sendOtp, verifyOtp, getOtpForTesting, type OtpChannel } from '../../services/otp.service.js';
 import { getLocationFromIp } from '../../utils/geolocation.js';
+import { generateUniqueSlug } from '../../utils/slug.js';
 import { randomUUID } from 'crypto';
 
 // ============================================
@@ -99,7 +100,20 @@ const vendorRegisterSchema = z.object({
   category: z.string().optional(),
   city: z.string().optional(),
   businessType: z.string().optional(),
-  inn: z.string().optional(),
+  inn: z.string().optional().refine(
+    (val) => !val || /^\d{9,12}$/.test(val.replace(/\s/g, '')),
+    { message: 'INN 9 yoki 12 ta raqamdan iborat bo\'lishi kerak' }
+  ),
+  bankName: z.string().optional(),
+  bankAccount: z.string().optional().refine(
+    (val) => !val || /^\d{20}$/.test(val.replace(/\s/g, '')),
+    { message: 'Hisob raqam 20 ta raqamdan iborat bo\'lishi kerak' }
+  ),
+  mfo: z.string().optional().refine(
+    (val) => !val || /^\d{5}$/.test(val.replace(/\s/g, '')),
+    { message: 'MFO 5 ta raqamdan iborat bo\'lishi kerak' }
+  ),
+  oked: z.string().optional(),
 });
 
 const vendorLoginSchema = z.object({
@@ -128,7 +142,7 @@ const googleLoginSchema = z.object({
 // === OTP Schemas ===
 const sendOtpSchema = z.object({
   phone: z.string().min(9, 'Telefon raqam noto\'g\'ri'),
-  channel: z.enum(['sms', 'telegram']).default('sms'),
+  channel: z.enum(['sms']).default('sms'),
 });
 
 const verifyOtpSchema = z.object({
@@ -145,12 +159,12 @@ const verifyOtpSchema = z.object({
 export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   // ============================================
-  // DUAL CHANNEL OTP (Telegram + Eskiz SMS)
+  // OTP (Eskiz SMS)
   // ============================================
 
   /**
    * POST /auth/send-otp
-   * OTP yuborish — Telegram yoki SMS orqali
+   * OTP yuborish — SMS orqali
    */
   app.post('/auth/send-otp', async (request, reply) => {
     const body = sendOtpSchema.parse(request.body);
@@ -159,6 +173,23 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       : body.phone.startsWith('998')
         ? `+${body.phone}`
         : `+998${body.phone}`;
+
+    // Rate limiting: 3 OTP / 15 daqiqa (telefon raqam bo'yicha)
+    const otpRateKey = `otp:send:${phone}`;
+    const otpRate = await checkRateLimit(otpRateKey, 3, 900);
+    if (!otpRate.allowed) {
+      throw new AppError(
+        `Juda ko'p OTP so'rovi. ${Math.ceil((otpRate.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
+    // IP bo'yicha ham rate limiting: 10 OTP / 15 daqiqa
+    const ipRateKey = `otp:send:ip:${request.ip}`;
+    const ipRate = await checkRateLimit(ipRateKey, 10, 900);
+    if (!ipRate.allowed) {
+      throw new AppError('Juda ko\'p so\'rov. Keyinroq urinib ko\'ring.', 429);
+    }
 
     const channel: OtpChannel = body.channel || 'sms';
     const result = await sendOtp(phone, channel);
@@ -175,18 +206,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    const channelMessage = result.channel === 'telegram'
-      ? 'Telegram orqali kod yuborildi'
-      : 'SMS kod yuborildi';
-
     return reply.send({
       success: true,
       data: {
         phone,
-        channel: result.channel,
-        telegramAvailable: isTelegramConfigured(),
+        channel: 'sms',
       },
-      message: channelMessage,
+      message: 'SMS kod yuborildi',
     });
   });
 
@@ -201,6 +227,16 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       : body.phone.startsWith('998')
         ? `+${body.phone}`
         : `+998${body.phone}`;
+
+    // Brute-force himoyasi: 5 urinish / 15 daqiqa
+    const verifyRateKey = `otp:verify:${phone}`;
+    const verifyRate = await checkRateLimit(verifyRateKey, 5, 900);
+    if (!verifyRate.allowed) {
+      throw new AppError(
+        `Juda ko'p noto'g'ri urinish. ${Math.ceil((verifyRate.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
 
     // 1. OTP tekshirish
     const otpResult = await verifyOtp(phone, body.code);
@@ -293,6 +329,16 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/auth/login', async (request, reply) => {
     const body = loginSchema.parse(request.body);
+
+    // Login rate limiting: 10 urinish / 15 daqiqa (IP bo'yicha)
+    const loginRateKey = `auth:login:ip:${request.ip}`;
+    const loginRate = await checkRateLimit(loginRateKey, 10, 900);
+    if (!loginRate.allowed) {
+      throw new AppError(
+        `Juda ko'p kirish urinishlari. ${Math.ceil((loginRate.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
 
     // 1. Firebase token tekshirish
     let firebaseUser;
@@ -540,16 +586,24 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    * POST /auth/logout
    * Chiqish - FCM tokenni o'chirish
    */
-  const logoutSchema = z.object({ fcmToken: z.string().optional() });
+  const logoutSchema = z.object({
+    fcmToken: z.string().optional(),
+    refreshToken: z.string().optional(),
+  });
 
   app.post('/auth/logout', { preHandler: authMiddleware }, async (request, reply) => {
-    const { fcmToken } = logoutSchema.parse(request.body || {});
+    const { fcmToken, refreshToken } = logoutSchema.parse(request.body || {});
 
     // Access token ni blacklist ga qo'shish
     const authHeader = request.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       const accessToken = authHeader.substring(7);
       await blacklistToken(accessToken);
+    }
+
+    // Refresh token ni ham blacklist ga qo'shish
+    if (refreshToken) {
+      await blacklistToken(refreshToken);
     }
 
     const updates: Promise<any>[] = [
@@ -605,6 +659,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
       // Mavjud foydalanuvchi uchun do'kon yaratish (parolni yangilash bilan)
       const passwordHash = await bcrypt.hash(body.password, 12);
+      const slug = await generateUniqueSlug(body.shopName);
 
       result = await prisma.$transaction(async (tx) => {
         const profile = await tx.profile.update({
@@ -620,14 +675,20 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         const shop = await tx.shop.create({
           data: {
             name: body.shopName,
+            slug,
             description: body.shopDescription,
             address: body.shopAddress,
             phone: body.shopPhone || body.phone || existing.phone,
             ownerId: existing.id,
             status: 'pending',
+            category: body.category,
             city: body.city,
             businessType: body.businessType,
-            inn: body.inn,
+            inn: body.inn?.replace(/\s/g, ''),
+            bankName: body.bankName,
+            bankAccount: body.bankAccount?.replace(/\s/g, ''),
+            mfo: body.mfo?.replace(/\s/g, ''),
+            oked: body.oked,
           },
         });
 
@@ -649,6 +710,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     } else {
       // Yangi foydalanuvchi — profil + do'kon yaratish
       const passwordHash = await bcrypt.hash(body.password, 12);
+      const slug = await generateUniqueSlug(body.shopName);
 
       result = await prisma.$transaction(async (tx) => {
         const profile = await tx.profile.create({
@@ -664,14 +726,20 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         const shop = await tx.shop.create({
           data: {
             name: body.shopName,
+            slug,
             description: body.shopDescription,
             address: body.shopAddress,
             phone: body.shopPhone || body.phone,
             ownerId: profile.id,
             status: 'pending',
+            category: body.category,
             city: body.city,
             businessType: body.businessType,
-            inn: body.inn,
+            inn: body.inn?.replace(/\s/g, ''),
+            bankName: body.bankName,
+            bankAccount: body.bankAccount?.replace(/\s/g, ''),
+            mfo: body.mfo?.replace(/\s/g, ''),
+            oked: body.oked,
           },
         });
 
@@ -1104,7 +1172,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    * Qurilmani o'chirish (boshqa qurilmadan chiqarish)
    */
   app.delete('/auth/devices/:id', { preHandler: authMiddleware }, async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
 
     const device = await prisma.userDevice.findFirst({
       where: { id, userId: request.user!.userId },
@@ -1250,6 +1318,167 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({
       success: true,
       message: 'Hisobingiz muvaffaqiyatli o\'chirildi',
+    });
+  });
+
+  // ============================================
+  // SECURE-001: Session Management
+  // ============================================
+
+  /**
+   * GET /auth/sessions
+   * Faol qurilmalar/sessiyalar ro'yxati
+   */
+  app.get('/auth/sessions', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const devices = await prisma.userDevice.findMany({
+      where: { userId, isActive: true },
+      orderBy: { lastActiveAt: 'desc' },
+      select: {
+        id: true,
+        deviceName: true,
+        platform: true,
+        browser: true,
+        ipAddress: true,
+        lastActiveAt: true,
+        createdAt: true,
+      },
+    });
+
+    // Joriy qurilmani identified qilish (IP va user-agent bo'yicha)
+    const currentIp = (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || request.headers['x-real-ip'] as string
+      || request.ip
+      || '';
+    const currentUa = request.headers['user-agent'] || '';
+
+    const sessions = devices.map((d) => ({
+      ...d,
+      isCurrent: d.ipAddress === currentIp,
+    }));
+
+    return reply.send({
+      success: true,
+      data: { sessions },
+    });
+  });
+
+  /**
+   * POST /auth/sessions/revoke-all
+   * Boshqa barcha qurilmalardan chiqish
+   */
+  app.post('/auth/sessions/revoke-all', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const currentIp = (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || request.headers['x-real-ip'] as string
+      || request.ip
+      || '';
+
+    // Boshqa barcha qurilmalarni deaktivatsiya qilish
+    await prisma.userDevice.updateMany({
+      where: {
+        userId,
+        isActive: true,
+        NOT: { ipAddress: currentIp },
+      },
+      data: { isActive: false },
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Boshqa barcha qurilmalardan chiqdingiz',
+    });
+  });
+
+  /**
+   * DELETE /auth/sessions/:deviceId
+   * Bitta qurilmani o'chirish (remote logout)
+   */
+  app.delete('/auth/sessions/:deviceId', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { deviceId } = request.params as { deviceId: string };
+
+    await prisma.userDevice.updateMany({
+      where: { id: deviceId, userId },
+      data: { isActive: false },
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Qurilma o\'chirildi',
+    });
+  });
+
+  // ============================================
+  // SECURE-001: Password Strength Validator
+  // ============================================
+
+  /**
+   * POST /auth/validate-password
+   * Parol kuchliligini tekshirish
+   */
+  app.post('/auth/validate-password', async (request, reply) => {
+    const { password } = z.object({ password: z.string() }).parse(request.body);
+
+    const checks = {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[!@#$%^&*()_+\-=[\]{};':"|,.<>/?]/.test(password),
+    };
+
+    const score = Object.values(checks).filter(Boolean).length;
+    const strength = score <= 2 ? 'weak' : score <= 3 ? 'medium' : score <= 4 ? 'strong' : 'very_strong';
+
+    return reply.send({
+      success: true,
+      data: { checks, score, strength },
+    });
+  });
+
+  /**
+   * POST /auth/change-password
+   * Parolni o'zgartirish
+   */
+  app.post('/auth/change-password', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const body = z.object({
+      currentPassword: z.string(),
+      newPassword: z.string().min(8, 'Parol kamida 8 ta belgidan iborat bo\'lishi kerak'),
+    }).parse(request.body);
+
+    const profile = await prisma.profile.findUnique({ where: { id: userId } });
+    if (!profile || !profile.passwordHash) {
+      throw new AppError('Foydalanuvchi topilmadi', 404);
+    }
+
+    const isMatch = await bcrypt.compare(body.currentPassword, profile.passwordHash);
+    if (!isMatch) {
+      throw new AppError('Joriy parol noto\'g\'ri', 400);
+    }
+
+    // Password strength check
+    if (body.newPassword.length < 8) {
+      throw new AppError('Yangi parol kamida 8 ta belgidan iborat bo\'lishi kerak', 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(body.newPassword, 12);
+    await prisma.profile.update({
+      where: { id: userId },
+      data: { passwordHash: hashedPassword },
+    });
+
+    // Boshqa barcha sessiyalarni bekor qilish
+    await prisma.userDevice.updateMany({
+      where: { userId, isActive: true },
+      data: { isActive: false },
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Parol muvaffaqiyatli o\'zgartirildi. Barcha qurilmalardan chiqildi.',
     });
   });
 }

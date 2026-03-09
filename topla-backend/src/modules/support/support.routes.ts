@@ -62,10 +62,10 @@ const BOT_RULES: BotRule[] = [
   // ── To'lov ──
   {
     id: 'payment',
-    keywords: ['tolov', "to'lov", 'payment', 'оплата', 'pul', 'karta', 'click', 'payme', 'naqd', 'plastik', 'keshbek', 'cashback', 'qaytarilmadi'],
+    keywords: ['tolov', "to'lov", 'payment', 'оплата', 'pul', 'karta', 'naqd', 'plastik', 'keshbek', 'cashback', 'qaytarilmadi', 'aliance', 'octobank'],
     patterns: [/to.?lov.*(usul|qil|amalga|muammo|xato|qayt)/, /pul.*(qayt|tushmadi|yechildi)/],
     priority: 8,
-    answer: '💳 To\'lov usullari va ma\'lumotlar:\n\n🏦 Qabul qilinadigan usullar:\n• 💵 Naqd pul — yetkazib berilganda\n• 💳 Plastik karta — Uzcard, Humo\n• 📱 Click — onlayn to\'lov\n• 📱 Payme — onlayn to\'lov\n\n🔒 Barcha onlayn to\'lovlar xavfsiz shifrlangan kanal orqali amalga oshiriladi.\n\n💰 Cashback: Har bir buyurtmadan 1-5% cashback hisobingizga qaytariladi. Uni keyingi buyurtmalarda ishlatishingiz mumkin.',
+    answer: '💳 To\'lov usullari va ma\'lumotlar:\n\n🏦 Qabul qilinadigan usullar:\n• 💵 Naqd pul — yetkazib berilganda\n• 💳 Plastik karta — Uzcard, Humo\n\n🔒 Barcha onlayn to\'lovlar xavfsiz shifrlangan kanal orqali amalga oshiriladi.\n\n💰 Cashback: Har bir buyurtmadan 1-5% cashback hisobingizga qaytariladi. Uni keyingi buyurtmalarda ishlatishingiz mumkin.',
     followUp: 'To\'lov bilan bog\'liq muammo bo\'lsa, to\'lov usulini, sanasini va summani yozing — tekshirib beraman.',
   },
 

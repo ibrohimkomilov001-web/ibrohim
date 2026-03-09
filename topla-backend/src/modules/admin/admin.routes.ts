@@ -451,7 +451,7 @@ export async function adminRoutes(app: FastifyInstance) {
       where: {
         shopId: id,
         order: {
-          status: { in: ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping'] },
+          status: { in: ['pending', 'processing', 'ready_for_pickup', 'courier_assigned', 'courier_picked_up', 'shipping'] },
         },
       },
     });
@@ -924,7 +924,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const { status, note } = z.object({
       status: z.enum([
-        'pending', 'confirmed', 'processing', 'ready_for_pickup',
+        'pending', 'processing', 'ready_for_pickup',
         'courier_assigned', 'courier_picked_up', 'shipping',
         'at_pickup_point', 'delivered', 'cancelled',
       ]),
@@ -936,7 +936,6 @@ export async function adminRoutes(app: FastifyInstance) {
 
     // Admin har qanday statusga o'zgartira oladi (veto power)
     const timestampField: Record<string, string> = {
-      confirmed: 'confirmedAt',
       ready_for_pickup: 'readyAt',
       courier_picked_up: 'pickedUpAt',
       shipping: 'shippingAt',
@@ -1168,14 +1167,24 @@ export async function adminRoutes(app: FastifyInstance) {
   }, async (request) => {
     const query = request.query as any;
     const { page, limit, skip } = parsePagination(query);
+    const search = query.search as string | undefined;
+
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { code: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const [promoCodes, total] = await Promise.all([
       prisma.promoCode.findMany({
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.promoCode.count(),
+      prisma.promoCode.count({ where }),
     ]);
 
     return { success: true, data: { items: promoCodes, pagination: paginationMeta(page, limit, total) } };
@@ -1309,6 +1318,7 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(request.body);
 
     const banner = await prisma.banner.create({ data: data as any });
+    await cacheDelete('banners:active');
     return { success: true, data: banner };
   });
 
@@ -1329,6 +1339,7 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(request.body);
 
     const banner = await prisma.banner.update({ where: { id }, data });
+    await cacheDelete('banners:active');
     return { success: true, data: banner };
   });
 
@@ -1337,6 +1348,7 @@ export async function adminRoutes(app: FastifyInstance) {
   }, async (request) => {
     const { id } = request.params as { id: string };
     await prisma.banner.delete({ where: { id } });
+    await cacheDelete('banners:active');
     return { success: true, message: 'Banner o\'chirildi' };
   });
 
@@ -1698,6 +1710,108 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   // ==========================================
+  // CHAT (Admin monitoring)
+  // ==========================================
+
+  // GET /admin/chats — barcha chat roomlarni ko'rish
+  app.get('/admin/chats', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const query = request.query as any;
+    const { page, limit, skip } = parsePagination(query);
+    const search = query.search as string | undefined;
+
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { customer: { fullName: { contains: search, mode: 'insensitive' } } },
+        { customer: { phone: { contains: search } } },
+        { shop: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [rooms, total] = await Promise.all([
+      prisma.chatRoom.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { lastMessageAt: 'desc' },
+        include: {
+          customer: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
+          shop: { select: { id: true, name: true, logoUrl: true } },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { message: true, senderRole: true, createdAt: true, isRead: true },
+          },
+          _count: { select: { messages: { where: { isRead: false } } } },
+        },
+      }),
+      prisma.chatRoom.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        items: rooms.map(r => ({
+          id: r.id,
+          status: r.status,
+          lastMessageAt: r.lastMessageAt,
+          createdAt: r.createdAt,
+          customer: r.customer,
+          shop: r.shop,
+          lastMessage: r.messages[0] || null,
+          unreadCount: r._count.messages,
+        })),
+        pagination: paginationMeta(page, limit, total),
+      },
+    };
+  });
+
+  // GET /admin/chats/:id/messages — chat xabarlarini ko'rish
+  app.get('/admin/chats/:id/messages', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const query = request.query as any;
+    const { page, limit, skip } = parsePagination(query);
+
+    const room = await prisma.chatRoom.findUnique({
+      where: { id },
+      include: {
+        customer: { select: { id: true, fullName: true, avatarUrl: true } },
+        shop: { select: { id: true, name: true, logoUrl: true } },
+      },
+    });
+
+    if (!room) {
+      return { success: false, message: 'Chat topilmadi' };
+    }
+
+    const [messages, total] = await Promise.all([
+      prisma.chatMessage.findMany({
+        where: { roomId: id },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sender: { select: { id: true, fullName: true, avatarUrl: true } },
+        },
+      }),
+      prisma.chatMessage.count({ where: { roomId: id } }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        room,
+        items: messages.reverse(),
+        pagination: paginationMeta(page, limit, total),
+      },
+    };
+  });
+
+  // ==========================================
   // LOGS (Activity)
   // ==========================================
   app.get('/admin/logs', {
@@ -1707,10 +1821,18 @@ export async function adminRoutes(app: FastifyInstance) {
     const { page, limit, skip } = parsePagination(query);
     const action = query.action as string | undefined;
     const entityType = query.entityType as string | undefined;
+    const search = query.search as string | undefined;
 
     const where: any = {};
-    if (action) where.action = { contains: action };
-    if (entityType) where.entityType = entityType;
+    if (search) {
+      where.OR = [
+        { action: { contains: search, mode: 'insensitive' } },
+        { entityType: { contains: search, mode: 'insensitive' } },
+      ];
+    } else {
+      if (action) where.action = { contains: action };
+      if (entityType) where.entityType = entityType;
+    }
 
     const [logs, total] = await Promise.all([
       prisma.activityLog.findMany({
@@ -2725,5 +2847,973 @@ export async function adminRoutes(app: FastifyInstance) {
       success: true,
       message: 'Referral ball sozlamalari yangilandi',
     });
+  });
+
+  // ============================================
+  // COMPETE-003: CATEGORY COMMISSIONS
+  // Kategoriya bo'yicha dinamik komissiya
+  // ============================================
+
+  app.get('/admin/category-commissions', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const commissions = await prisma.categoryCommission.findMany({
+      include: { category: { select: { id: true, nameUz: true, nameRu: true } } },
+      orderBy: { category: { nameUz: 'asc' } },
+    });
+
+    // Also get all categories for the management UI
+    const categories = await prisma.category.findMany({
+      select: { id: true, nameUz: true, nameRu: true },
+      orderBy: { nameUz: 'asc' },
+    });
+
+    return reply.send({ success: true, data: { commissions, categories } });
+  });
+
+  app.put('/admin/category-commissions/:categoryId', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { categoryId } = request.params as { categoryId: string };
+    const { rate } = z.object({ rate: z.number().min(0).max(100) }).parse(request.body);
+
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) throw new NotFoundError('Kategoriya');
+
+    const commission = await prisma.categoryCommission.upsert({
+      where: { categoryId },
+      update: { rate },
+      create: { categoryId, rate },
+      include: { category: { select: { id: true, nameUz: true, nameRu: true } } },
+    });
+
+    return reply.send({ success: true, data: commission });
+  });
+
+  app.delete('/admin/category-commissions/:categoryId', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { categoryId } = request.params as { categoryId: string };
+
+    await prisma.categoryCommission.deleteMany({ where: { categoryId } });
+    return reply.send({ success: true, message: 'Kategoriya komissiyasi o\'chirildi' });
+  });
+
+  // ============================================
+  // COMPETE-004: PROMOTIONS / CAMPAIGNS
+  // Aksiya va chegirmalar boshqaruvi
+  // ============================================
+
+  const promotionSchema = z.object({
+    nameUz: z.string().min(2),
+    nameRu: z.string().min(2),
+    descriptionUz: z.string().optional(),
+    descriptionRu: z.string().optional(),
+    type: z.enum(['flash_sale', 'category_discount', 'shop_discount', 'free_delivery', 'bundle_deal']),
+    discountPercent: z.number().min(0).max(100).optional(),
+    discountFixed: z.number().min(0).optional(),
+    minOrderAmount: z.number().min(0).optional(),
+    maxDiscount: z.number().min(0).optional(),
+    bannerUrl: z.string().optional(),
+    startDate: z.string().datetime(),
+    endDate: z.string().datetime(),
+    categoryIds: z.array(z.string().uuid()).optional(),
+    shopIds: z.array(z.string().uuid()).optional(),
+    productIds: z.array(z.string().uuid()).optional(),
+    totalBudget: z.number().min(0).optional(),
+    maxUsage: z.number().int().min(1).optional(),
+  });
+
+  app.get('/admin/promotions', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { status, type } = request.query as { status?: string; type?: string };
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (type) where.type = type;
+
+    const [promotions, total] = await Promise.all([
+      prisma.promotion.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.promotion.count({ where }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: { promotions, meta: paginationMeta(page, limit, total) },
+    });
+  });
+
+  app.get('/admin/promotions/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const promotion = await prisma.promotion.findUnique({ where: { id } });
+    if (!promotion) throw new NotFoundError('Aksiya');
+    return reply.send({ success: true, data: promotion });
+  });
+
+  app.post('/admin/promotions', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = promotionSchema.parse(request.body);
+
+    const promotion = await prisma.promotion.create({
+      data: {
+        ...body,
+        startDate: new Date(body.startDate),
+        endDate: new Date(body.endDate),
+        categoryIds: body.categoryIds || [],
+        shopIds: body.shopIds || [],
+        productIds: body.productIds || [],
+        status: new Date(body.startDate) <= new Date() ? 'active' : 'scheduled',
+      },
+    });
+
+    return reply.status(201).send({ success: true, data: promotion });
+  });
+
+  app.put('/admin/promotions/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = promotionSchema.partial().parse(request.body);
+
+    const existing = await prisma.promotion.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Aksiya');
+
+    const promotion = await prisma.promotion.update({
+      where: { id },
+      data: {
+        ...body,
+        startDate: body.startDate ? new Date(body.startDate) : undefined,
+        endDate: body.endDate ? new Date(body.endDate) : undefined,
+      },
+    });
+
+    return reply.send({ success: true, data: promotion });
+  });
+
+  app.patch('/admin/promotions/:id/status', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { status } = z.object({
+      status: z.enum(['draft', 'active', 'scheduled', 'ended', 'cancelled']),
+    }).parse(request.body);
+
+    const promotion = await prisma.promotion.update({
+      where: { id },
+      data: { status },
+    });
+
+    return reply.send({ success: true, data: promotion });
+  });
+
+  app.delete('/admin/promotions/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await prisma.promotion.delete({ where: { id } });
+    return reply.send({ success: true, message: 'Aksiya o\'chirildi' });
+  });
+
+  // ============================================
+  // COMPETE-009: PENALTIES (Admin jarima boshqaruvi)
+  // ============================================
+
+  app.get('/admin/penalties', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { status, shopId, type } = request.query as { status?: string; shopId?: string; type?: string };
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (shopId) where.shopId = shopId;
+    if (type) where.type = type;
+
+    const [penalties, total, totalApplied] = await Promise.all([
+      prisma.penalty.findMany({
+        where,
+        include: {
+          shop: { select: { id: true, name: true, logoUrl: true } },
+          order: { select: { id: true, orderNumber: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.penalty.count({ where }),
+      prisma.penalty.aggregate({
+        where: { status: 'applied' },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        penalties,
+        totalApplied: Number(totalApplied._sum.amount || 0),
+        meta: paginationMeta(page, limit, total),
+      },
+    });
+  });
+
+  app.post('/admin/penalties', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = z.object({
+      shopId: z.string().uuid(),
+      orderId: z.string().uuid().optional(),
+      type: z.enum(['late_shipment', 'order_cancellation', 'quality_issue', 'policy_violation', 'fake_product', 'other']),
+      amount: z.number().min(0),
+      reason: z.string().min(5),
+      description: z.string().optional(),
+    }).parse(request.body);
+
+    const penalty = await prisma.penalty.create({
+      data: {
+        shopId: body.shopId,
+        orderId: body.orderId,
+        type: body.type,
+        amount: body.amount,
+        reason: body.reason,
+        description: body.description,
+        status: 'pending',
+      },
+      include: {
+        shop: { select: { id: true, name: true } },
+        order: { select: { id: true, orderNumber: true } },
+      },
+    });
+
+    return reply.status(201).send({ success: true, data: penalty });
+  });
+
+  app.patch('/admin/penalties/:id/status', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { status } = z.object({
+      status: z.enum(['applied', 'cancelled']),
+    }).parse(request.body);
+
+    const penalty = await prisma.penalty.findUnique({ where: { id } });
+    if (!penalty) throw new NotFoundError('Jarima');
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const p = await tx.penalty.update({
+        where: { id },
+        data: {
+          status,
+          resolvedBy: request.user!.userId,
+          resolvedAt: new Date(),
+        },
+      });
+
+      // Jarimani qo'llash — balansdan yechish
+      if (status === 'applied') {
+        await tx.shop.update({
+          where: { id: penalty.shopId },
+          data: { balance: { decrement: Number(penalty.amount) } },
+        });
+      }
+
+      return p;
+    });
+
+    return reply.send({ success: true, data: updated });
+  });
+
+  // ============================================
+  // COMPETE-010: MODERATION QUEUE
+  // Mahsulot moderatsiya navbati
+  // ============================================
+
+  app.get('/admin/moderation-queue', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { status, search } = request.query as { status?: string; search?: string };
+
+    const where: any = {};
+    // Default: on_review
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = 'on_review';
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { shop: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [products, total, pendingCount, allCounts] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          shop: { select: { id: true, name: true, logoUrl: true } },
+          category: { select: { id: true, nameUz: true, nameRu: true } },
+          subcategory: { select: { id: true, nameUz: true, nameRu: true } },
+          moderationLogs: {
+            take: 3,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { createdAt: 'asc' }, // FIFO — oldest first
+        skip,
+        take: limit,
+      }),
+      prisma.product.count({ where }),
+      prisma.product.count({ where: { status: 'on_review' } }),
+      prisma.product.groupBy({
+        by: ['status'],
+        _count: true,
+      }),
+    ]);
+
+    const statusCounts: Record<string, number> = {};
+    allCounts.forEach(c => { statusCounts[c.status] = c._count; });
+
+    return reply.send({
+      success: true,
+      data: {
+        products,
+        pendingCount,
+        statusCounts,
+        meta: paginationMeta(page, limit, total),
+      },
+    });
+  });
+
+  // ============================================
+  // COMPETE-002: ADMIN PRODUCT BOOST MANAGEMENT
+  // ============================================
+
+  app.get('/admin/boosts', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { status } = request.query as { status?: string };
+
+    const where: any = {};
+    if (status) where.status = status;
+
+    const [boosts, total] = await Promise.all([
+      prisma.productBoost.findMany({
+        where,
+        include: {
+          product: { select: { id: true, name: true, images: true } },
+          shop: { select: { id: true, name: true, logoUrl: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.productBoost.count({ where }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: { boosts, meta: paginationMeta(page, limit, total) },
+    });
+  });
+
+  app.patch('/admin/boosts/:id/approve', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const boost = await prisma.productBoost.findUnique({ where: { id } });
+    if (!boost) throw new NotFoundError('Reklama');
+
+    const updated = await prisma.productBoost.update({
+      where: { id },
+      data: { status: 'active' },
+    });
+
+    return reply.send({ success: true, data: updated });
+  });
+
+  app.patch('/admin/boosts/:id/reject', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const boost = await prisma.productBoost.findUnique({ where: { id } });
+    if (!boost) throw new NotFoundError('Reklama');
+
+    // Refund
+    const remaining = Number(boost.totalBudget) - Number(boost.spentAmount);
+    await prisma.$transaction(async (tx) => {
+      if (remaining > 0) {
+        await tx.shop.update({
+          where: { id: boost.shopId },
+          data: { balance: { increment: remaining } },
+        });
+      }
+      await tx.productBoost.update({
+        where: { id },
+        data: { status: 'cancelled' },
+      });
+    });
+
+    return reply.send({ success: true, message: 'Reklama rad etildi, mablag\' qaytarildi' });
+  });
+
+  // ============================================
+  // SECURE-002: ADMIN RBAC
+  // Admin rollari va ruxsatlar boshqaruvi
+  // ============================================
+
+  app.get('/admin/roles', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const roles = await prisma.adminRole.findMany({
+      include: {
+        user: { select: { id: true, fullName: true, email: true, avatarUrl: true, phone: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return reply.send({ success: true, data: roles });
+  });
+
+  app.put('/admin/roles/:userId', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { userId } = request.params as { userId: string };
+    const body = z.object({
+      level: z.enum(['super_admin', 'manager', 'moderator', 'support', 'viewer']),
+      permissions: z.array(z.string()).optional(),
+    }).parse(request.body);
+
+    // Can't change own super_admin role
+    const currentRole = await prisma.adminRole.findUnique({
+      where: { userId: request.user!.userId },
+    });
+    if (userId === request.user!.userId && currentRole?.level === 'super_admin' && body.level !== 'super_admin') {
+      throw new AppError('O\'z super_admin rolingizni o\'zgartira olmaysiz', 400);
+    }
+
+    const role = await prisma.adminRole.upsert({
+      where: { userId },
+      update: { level: body.level, permissions: body.permissions || [] },
+      create: { userId, level: body.level, permissions: body.permissions || [] },
+      include: {
+        user: { select: { id: true, fullName: true, email: true, avatarUrl: true } },
+      },
+    });
+
+    return reply.send({ success: true, data: role });
+  });
+
+  app.delete('/admin/roles/:userId', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { userId } = request.params as { userId: string };
+
+    if (userId === request.user!.userId) {
+      throw new AppError('O\'z rolingizni o\'chira olmaysiz', 400);
+    }
+
+    await prisma.adminRole.deleteMany({ where: { userId } });
+    return reply.send({ success: true, message: 'Admin roli o\'chirildi' });
+  });
+
+  // ============================================
+  // ADVANCED-003: KENGAYTIRILGAN ANALITIKA
+  // Heatmap, Funnel, Cohort, A/B Testing
+  // ============================================
+
+  /**
+   * GET /admin/analytics/heatmap
+   * Qaysi mahsulotlar ko'p ko'riladi (heatmap data)
+   */
+  app.get('/admin/analytics/heatmap', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { period } = z.object({ period: z.enum(['week', 'month', 'quarter']).default('month') }).parse(request.query);
+
+    const now = new Date();
+    const startDate = new Date(now);
+    if (period === 'week') startDate.setDate(now.getDate() - 7);
+    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
+    else startDate.setMonth(now.getMonth() - 3);
+
+    // Top viewed products with category info
+    const topViewed = await prisma.productView.groupBy({
+      by: ['productId'],
+      where: { createdAt: { gte: startDate } },
+      _count: { productId: true },
+      orderBy: { _count: { productId: 'desc' } },
+      take: 50,
+    });
+
+    const productIds = topViewed.map(v => v.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true, name: true, price: true, viewCount: true, salesCount: true,
+        subcategory: { select: { nameUz: true, category: { select: { nameUz: true } } } },
+      },
+    });
+
+    const productMap = new Map(products.map(p => [p.id, p]));
+    const heatmapData = topViewed.map(v => {
+      const p = productMap.get(v.productId);
+      return {
+        productId: v.productId,
+        name: p?.name ?? 'Unknown',
+        category: p?.subcategory?.category?.nameUz ?? '',
+        subcategory: p?.subcategory?.nameUz ?? '',
+        views: v._count.productId,
+        totalViews: p?.viewCount ?? 0,
+        soldCount: p?.salesCount ?? 0,
+        conversionRate: p?.viewCount ? Math.round(((p.salesCount ?? 0) / p.viewCount) * 10000) / 100 : 0,
+      };
+    });
+
+    // Category aggregation
+    const categoryMap = new Map<string, { views: number; sales: number }>();
+    for (const item of heatmapData) {
+      const cat = item.category || 'Boshqa';
+      const entry = categoryMap.get(cat) || { views: 0, sales: 0 };
+      entry.views += item.views;
+      entry.sales += item.soldCount;
+      categoryMap.set(cat, entry);
+    }
+
+    return reply.send({
+      success: true,
+      data: {
+        products: heatmapData,
+        categories: Array.from(categoryMap.entries()).map(([name, data]) => ({ name, ...data }))
+          .sort((a, b) => b.views - a.views),
+      },
+    });
+  });
+
+  /**
+   * GET /admin/analytics/funnel
+   * Ko'rish → Sevimli/Savat → Buyurtma → To'lov funnel
+   */
+  app.get('/admin/analytics/funnel', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { period } = z.object({ period: z.enum(['week', 'month', 'quarter']).default('month') }).parse(request.query);
+
+    const now = new Date();
+    const startDate = new Date(now);
+    if (period === 'week') startDate.setDate(now.getDate() - 7);
+    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
+    else startDate.setMonth(now.getMonth() - 3);
+
+    const [views, carts, orders, delivered] = await Promise.all([
+      prisma.productView.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.cartItem.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.order.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.order.count({ where: { createdAt: { gte: startDate }, status: 'delivered' } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        stages: [
+          { name: 'Ko\'rish', count: views, percentage: 100 },
+          { name: 'Savatga qo\'shish', count: carts, percentage: views > 0 ? Math.round((carts / views) * 10000) / 100 : 0 },
+          { name: 'Buyurtma', count: orders, percentage: views > 0 ? Math.round((orders / views) * 10000) / 100 : 0 },
+          { name: 'Yetkazilgan', count: delivered, percentage: views > 0 ? Math.round((delivered / views) * 10000) / 100 : 0 },
+        ],
+      },
+    });
+  });
+
+  /**
+   * GET /admin/analytics/cohort
+   * Qayta xaridorlar cohort tahlili
+   */
+  app.get('/admin/analytics/cohort', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    // Last 6 months cohort
+    const months = 6;
+    const cohorts = [];
+
+    for (let i = months - 1; i >= 0; i--) {
+      const cohortStart = new Date();
+      cohortStart.setMonth(cohortStart.getMonth() - i, 1);
+      cohortStart.setHours(0, 0, 0, 0);
+      const cohortEnd = new Date(cohortStart);
+      cohortEnd.setMonth(cohortEnd.getMonth() + 1);
+
+      // Users who made first order in this month
+      const firstOrders = await prisma.order.findMany({
+        where: {
+          createdAt: { gte: cohortStart, lt: cohortEnd },
+        },
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+
+      const userIds = firstOrders.map(o => o.userId);
+      // Exclude users who ordered before this month
+      const previousBuyers = userIds.length > 0
+        ? await prisma.order.findMany({
+            where: { userId: { in: userIds }, createdAt: { lt: cohortStart } },
+            select: { userId: true },
+            distinct: ['userId'],
+          })
+        : [];
+      const previousSet = new Set(previousBuyers.map(p => p.userId));
+      const newUsers = userIds.filter(id => !previousSet.has(id));
+
+      // Check retention for subsequent months
+      const retention: number[] = [];
+      for (let j = 1; j <= months - i - 1 && j <= 5; j++) {
+        const retStart = new Date(cohortStart);
+        retStart.setMonth(retStart.getMonth() + j);
+        const retEnd = new Date(retStart);
+        retEnd.setMonth(retEnd.getMonth() + 1);
+
+        if (newUsers.length === 0) {
+          retention.push(0);
+          continue;
+        }
+
+        const returned = await prisma.order.findMany({
+          where: { userId: { in: newUsers }, createdAt: { gte: retStart, lt: retEnd } },
+          select: { userId: true },
+          distinct: ['userId'],
+        });
+        retention.push(Math.round((returned.length / newUsers.length) * 100));
+      }
+
+      cohorts.push({
+        month: cohortStart.toISOString().slice(0, 7),
+        newUsers: newUsers.length,
+        retention,
+      });
+    }
+
+    return reply.send({ success: true, data: cohorts });
+  });
+
+  /**
+   * CRUD /admin/ab-tests
+   * A/B test management
+   */
+  app.get('/admin/ab-tests', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const tests = await prisma.aBTest.findMany({ orderBy: { createdAt: 'desc' } });
+    return reply.send({ success: true, data: tests });
+  });
+
+  app.post('/admin/ab-tests', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = z.object({
+      name: z.string().min(2),
+      description: z.string().optional(),
+      testType: z.string(),
+      variants: z.any(),
+      targetPercent: z.number().min(1).max(100).default(50),
+      startDate: z.string().datetime().optional(),
+      endDate: z.string().datetime().optional(),
+    }).parse(request.body);
+
+    const test = await prisma.aBTest.create({
+      data: {
+        name: body.name,
+        description: body.description,
+        testType: body.testType,
+        variants: body.variants as any,
+        targetPercent: body.targetPercent,
+        startDate: body.startDate ? new Date(body.startDate) : null,
+        endDate: body.endDate ? new Date(body.endDate) : null,
+      },
+    });
+
+    return reply.send({ success: true, data: test });
+  });
+
+  app.patch('/admin/ab-tests/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      status: z.enum(['draft', 'running', 'paused', 'completed']).optional(),
+      results: z.any().optional(),
+    }).parse(request.body);
+
+    const test = await prisma.aBTest.update({
+      where: { id },
+      data: body as any,
+    });
+
+    return reply.send({ success: true, data: test });
+  });
+
+  // ============================================
+  // ADVANCED-004: MUKOFOT TIZIMI (LOYALTY)
+  // Ball to'plash, darajalar, kuponlar
+  // ============================================
+
+  /**
+   * GET /admin/loyalty/accounts
+   * Barcha foydalanuvchilarning loyalty hisobri
+   */
+  app.get('/admin/loyalty/accounts', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { page, limit, skip } = parsePagination(request.query as any);
+    const { tier, search } = request.query as { tier?: string; search?: string };
+
+    const where: any = {};
+    if (tier) where.tier = tier;
+    if (search) {
+      where.user = { OR: [{ fullName: { contains: search, mode: 'insensitive' } }, { phone: { contains: search } }] };
+    }
+
+    const [accounts, total] = await Promise.all([
+      prisma.loyaltyAccount.findMany({
+        where,
+        include: { user: { select: { id: true, fullName: true, phone: true, avatarUrl: true } } },
+        orderBy: { lifetimePoints: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.loyaltyAccount.count({ where }),
+    ]);
+
+    return reply.send({ success: true, data: accounts, meta: paginationMeta(total, page, limit) });
+  });
+
+  /**
+   * POST /admin/loyalty/adjust
+   * Admin tomonidan ball qo'shish/ayirish
+   */
+  app.post('/admin/loyalty/adjust', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = z.object({
+      userId: z.string().uuid(),
+      points: z.number().int(),
+      description: z.string().min(1),
+    }).parse(request.body);
+
+    let account = await prisma.loyaltyAccount.findUnique({ where: { userId: body.userId } });
+    if (!account) {
+      account = await prisma.loyaltyAccount.create({ data: { userId: body.userId } });
+    }
+
+    const newAvailable = Math.max(0, account.availablePoints + body.points);
+    const newTotal = account.totalPoints + (body.points > 0 ? body.points : 0);
+    const newLifetime = account.lifetimePoints + (body.points > 0 ? body.points : 0);
+
+    // Calculate tier
+    const tier = newLifetime >= 50000 ? 'platinum' : newLifetime >= 20000 ? 'gold' : newLifetime >= 5000 ? 'silver' : 'bronze';
+
+    const [updated] = await prisma.$transaction([
+      prisma.loyaltyAccount.update({
+        where: { id: account.id },
+        data: { availablePoints: newAvailable, totalPoints: newTotal, lifetimePoints: newLifetime, tier: tier as any },
+      }),
+      prisma.loyaltyPointLog.create({
+        data: { accountId: account.id, action: 'admin_adjust', points: body.points, description: body.description },
+      }),
+    ]);
+
+    return reply.send({ success: true, data: updated });
+  });
+
+  /**
+   * GET /admin/loyalty/stats
+   * Loyalty statistika
+   */
+  app.get('/admin/loyalty/stats', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const [total, byTier, totalPoints] = await Promise.all([
+      prisma.loyaltyAccount.count(),
+      prisma.loyaltyAccount.groupBy({
+        by: ['tier'],
+        _count: true,
+      }),
+      prisma.loyaltyAccount.aggregate({
+        _sum: { availablePoints: true, lifetimePoints: true },
+      }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        totalAccounts: total,
+        byTier: Object.fromEntries(byTier.map(t => [t.tier, t._count])),
+        totalAvailablePoints: totalPoints._sum.availablePoints ?? 0,
+        totalLifetimePoints: totalPoints._sum.lifetimePoints ?? 0,
+      },
+    });
+  });
+
+  // ============================================
+  // ADVANCED-007: API MARKETPLACE
+  // API kalitlari va webhook boshqaruvi
+  // ============================================
+
+  /**
+   * CRUD /admin/api-keys
+   */
+  app.get('/admin/api-keys', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const keys = await prisma.apiKey.findMany({
+      include: {
+        user: { select: { id: true, fullName: true, email: true } },
+        webhooks: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Mask secrets
+    const masked = keys.map(k => ({
+      ...k,
+      secret: k.secret.slice(0, 8) + '...',
+      key: k.key.slice(0, 12) + '...',
+    }));
+
+    return reply.send({ success: true, data: masked });
+  });
+
+  app.post('/admin/api-keys', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = z.object({
+      userId: z.string().uuid(),
+      name: z.string().min(2),
+      permissions: z.array(z.string()),
+      rateLimit: z.number().min(100).max(10000).default(1000),
+    }).parse(request.body);
+
+    const crypto = await import('crypto');
+    const key = 'tpk_' + crypto.randomBytes(24).toString('hex');
+    const secret = 'tps_' + crypto.randomBytes(32).toString('hex');
+
+    const apiKey = await prisma.apiKey.create({
+      data: {
+        userId: body.userId,
+        name: body.name,
+        key,
+        secret,
+        permissions: body.permissions,
+        rateLimit: body.rateLimit,
+      },
+    });
+
+    return reply.send({ success: true, data: { ...apiKey, key, secret } }); // Show full key only on creation
+  });
+
+  app.delete('/admin/api-keys/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await prisma.apiKey.delete({ where: { id } });
+    return reply.send({ success: true, message: 'API kalit o\'chirildi' });
+  });
+
+  /**
+   * CRUD /admin/webhooks
+   */
+  app.post('/admin/webhooks', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = z.object({
+      apiKeyId: z.string().uuid(),
+      url: z.string().url(),
+      events: z.array(z.string()),
+    }).parse(request.body);
+
+    const crypto = await import('crypto');
+    const webhook = await prisma.webhook.create({
+      data: {
+        apiKeyId: body.apiKeyId,
+        url: body.url,
+        events: body.events,
+        secret: 'whs_' + crypto.randomBytes(16).toString('hex'),
+      },
+    });
+
+    return reply.send({ success: true, data: webhook });
+  });
+
+  app.delete('/admin/webhooks/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await prisma.webhook.delete({ where: { id } });
+    return reply.send({ success: true, message: 'Webhook o\'chirildi' });
+  });
+
+  // ============================================
+  // ADVANCED-008: FAQ BOT MANAGEMENT
+  // ============================================
+
+  app.get('/admin/faq', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const entries = await prisma.faqEntry.findMany({ orderBy: { sortOrder: 'asc' } });
+    return reply.send({ success: true, data: entries });
+  });
+
+  app.post('/admin/faq', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const body = z.object({
+      question: z.string().min(5),
+      answer: z.string().min(5),
+      keywords: z.array(z.string()).default([]),
+      category: z.string().optional(),
+      sortOrder: z.number().int().default(0),
+    }).parse(request.body);
+
+    const entry = await prisma.faqEntry.create({ data: body });
+    return reply.send({ success: true, data: entry });
+  });
+
+  app.patch('/admin/faq/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      question: z.string().min(5).optional(),
+      answer: z.string().min(5).optional(),
+      keywords: z.array(z.string()).optional(),
+      category: z.string().optional(),
+      sortOrder: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    }).parse(request.body);
+
+    const entry = await prisma.faqEntry.update({ where: { id }, data: body });
+    return reply.send({ success: true, data: entry });
+  });
+
+  app.delete('/admin/faq/:id', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await prisma.faqEntry.delete({ where: { id } });
+    return reply.send({ success: true, message: 'FAQ o\'chirildi' });
   });
 }

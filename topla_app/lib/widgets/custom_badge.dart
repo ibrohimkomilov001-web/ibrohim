@@ -42,8 +42,9 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color:
-            outlined ? Colors.transparent : _backgroundColor.withValues(alpha: 0.1),
+        color: outlined
+            ? Colors.transparent
+            : _backgroundColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
         border: outlined ? Border.all(color: _backgroundColor, width: 1) : null,
       ),
@@ -82,9 +83,6 @@ class OrderStatusBadge extends StatelessWidget {
       case 'pending':
       case 'kutilmoqda':
         return BadgeType.warning;
-      case 'confirmed':
-      case 'tasdiqlandi':
-        return BadgeType.info;
       case 'processing':
       case 'jarayonda':
         return BadgeType.primary;
@@ -106,8 +104,6 @@ class OrderStatusBadge extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'pending':
         return 'Kutilmoqda';
-      case 'confirmed':
-        return 'Tasdiqlandi';
       case 'processing':
         return 'Jarayonda';
       case 'shipped':
@@ -126,9 +122,6 @@ class OrderStatusBadge extends StatelessWidget {
       case 'pending':
       case 'kutilmoqda':
         return Icons.schedule;
-      case 'confirmed':
-      case 'tasdiqlandi':
-        return Icons.check_circle_outline;
       case 'processing':
       case 'jarayonda':
         return Icons.autorenew;

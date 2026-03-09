@@ -1,7 +1,4 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import * as XLSX from 'xlsx'
-import { saveAs } from 'file-saver'
+// Dynamic imports — jsPDF (~280KB) and xlsx (~500KB) are loaded only when user clicks Export
 import {
   formatCurrency, formatNumber, regionLabels, statusLabels, paymentLabels,
   type RevenueData, type OrdersData, type UsersData, type CategorySales, type RegionData,
@@ -15,6 +12,11 @@ export async function exportAnalyticsPDF(
   categories: CategorySales[],
   regions: RegionData[],
 ) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+
   const doc = new jsPDF()
   const now = new Date().toLocaleDateString('uz-UZ')
   let y = 15
@@ -49,7 +51,7 @@ export async function exportAnalyticsPDF(
     headStyles: { fillColor: [59, 130, 246] },
   })
 
-  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 12 || y + 50
+  y = (doc as any).lastAutoTable?.finalY + 12 || y + 50
 
   // Categories
   if (categories.length > 0) {
@@ -65,7 +67,7 @@ export async function exportAnalyticsPDF(
       headStyles: { fillColor: [16, 185, 129] },
     })
 
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 12 || y + 50
+    y = (doc as any).lastAutoTable?.finalY + 12 || y + 50
   }
 
   // Status breakdown
@@ -83,7 +85,7 @@ export async function exportAnalyticsPDF(
       headStyles: { fillColor: [245, 158, 11] },
     })
 
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 12 || y + 50
+    y = (doc as any).lastAutoTable?.finalY + 12 || y + 50
   }
 
   // Payment methods
@@ -101,7 +103,7 @@ export async function exportAnalyticsPDF(
       headStyles: { fillColor: [139, 92, 246] },
     })
 
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY + 12 || y + 50
+    y = (doc as any).lastAutoTable?.finalY + 12 || y + 50
   }
 
   // Regions
@@ -136,6 +138,11 @@ export async function exportAnalyticsExcel(
   categories: CategorySales[],
   regions: RegionData[],
 ) {
+  const [XLSX, { saveAs }] = await Promise.all([
+    import('xlsx'),
+    import('file-saver'),
+  ]);
+
   const wb = XLSX.utils.book_new()
   const now = new Date().toLocaleDateString('uz-UZ')
 

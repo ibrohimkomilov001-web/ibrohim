@@ -40,11 +40,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   late double _promoDiscount;
 
   // To'lov usuli
-  String _paymentMethod = 'cash'; // cash, card
+  String _paymentMethod = 'cash'; // cash, card, installment
 
   // Saqlangan kartalar
   List<SavedCardModel> _savedCards = [];
   SavedCardModel? _selectedCard;
+
+  // Bo'lib to'lash
+  List<InstallmentPlan> _installmentPlans = [];
+  InstallmentPlan? _selectedInstallment;
+  // ignore: unused_field
+  bool _loadingInstallments = false;
 
   // Yetkazib berish vaqti
   String _deliveryTime = 'tomorrow'; // tomorrow, day_after, scheduled
@@ -1084,9 +1090,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       paymentIcon = Iconsax.card;
       iconColor = AppColors.primary;
       if (_selectedCard != null) {
-        paymentText = _selectedCard!.displayName; // Karta nomi (4 ta raqam)
+        paymentText = _selectedCard!.displayName;
       } else {
         paymentText = context.l10n.translate('plastic_card');
+      }
+    } else if (_paymentMethod == 'installment') {
+      paymentIcon = Iconsax.calendar;
+      iconColor = Colors.deepPurple;
+      if (_selectedInstallment != null && _selectedCard != null) {
+        paymentText =
+            '${_selectedInstallment!.months} oy × ${_formatPrice(_selectedInstallment!.monthlyAmount.toInt())} — ${_selectedCard!.displayName}';
+      } else {
+        paymentText = context.l10n.translate('installment_payment');
       }
     }
 
@@ -1235,6 +1250,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const Divider(height: 1),
               ],
 
+              // Bo'lib to'lash
+              const Divider(height: 1),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Icon(Iconsax.calendar,
+                      color: Colors.deepPurple, size: 28),
+                ),
+                title: Text(context.l10n.translate('installment_payment'),
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: Text(context.l10n.translate('installment_subtitle'),
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                trailing: _paymentMethod == 'installment'
+                    ? const Icon(Icons.check_circle, color: AppColors.primary)
+                    : const Icon(Icons.circle_outlined, color: Colors.grey),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showInstallmentSelector();
+                },
+              ),
+              const Divider(height: 1),
+
               // Karta qo'shish
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -1255,6 +1294,238 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       ),
     );
+  }
+
+  void _showInstallmentSelector() async {
+    final cartProvider = context.read<CartProvider>();
+    final totalAmount =
+        cartProvider.subtotal + cartProvider.deliveryFee - _promoDiscount;
+
+    if (totalAmount < 500) {
+      // Min 50,000 so'm (500 * 100 tiyin)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(context.l10n.translate('installment_min_amount'))),
+      );
+      return;
+    }
+
+    if (_savedCards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.translate('add_card_first'))),
+      );
+      return;
+    }
+
+    setState(() => _loadingInstallments = true);
+
+    try {
+      final amountInTiyin = (totalAmount * 100).round();
+      final plans = await PaymentService.getInstallmentPlans(
+          amountInTiyin: amountInTiyin);
+      setState(() {
+        _installmentPlans = plans;
+        _loadingInstallments = false;
+      });
+
+      if (!mounted) return;
+
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(20),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  context.l10n.translate('installment_payment'),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${context.l10n.translate('total_amount')}: ${totalAmount.toStringAsFixed(0)} ${context.l10n.translate('currency')}',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+
+                // Karta tanlash
+                Text(context.l10n.translate('select_card'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 44,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _savedCards.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final card = _savedCards[i];
+                      final isSelected = _selectedCard?.id == card.id;
+                      return ChoiceChip(
+                        label: Text(card.displayName),
+                        selected: isSelected,
+                        onSelected: (_) => setState(() => _selectedCard = card),
+                        selectedColor:
+                            AppColors.primary.withValues(alpha: 0.15),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Bo'lib to'lash muddatlari
+                Text(context.l10n.translate('select_period'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _installmentPlans.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final plan = _installmentPlans[i];
+                      final isSelected =
+                          _selectedInstallment?.months == plan.months;
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedInstallment = plan;
+                            _paymentMethod = 'installment';
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : Colors.grey.shade300,
+                              width: isSelected ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: isSelected
+                                ? AppColors.primary.withValues(alpha: 0.05)
+                                : null,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color:
+                                      Colors.deepPurple.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${plan.months}',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.deepPurple,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${plan.months} ${context.l10n.translate('months')}',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15),
+                                    ),
+                                    Text(
+                                      '${plan.monthlyAmount.toStringAsFixed(0)} ${context.l10n.translate('currency')} / ${context.l10n.translate('per_month')}',
+                                      style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (plan.interestRate > 0)
+                                    Text(
+                                      '+${plan.interestRate}%',
+                                      style: const TextStyle(
+                                          color: Colors.orange,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600),
+                                    )
+                                  else
+                                    Text(
+                                      '0%',
+                                      style: TextStyle(
+                                          color: Colors.green.shade700,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  Text(
+                                    '${plan.totalAmount.toStringAsFixed(0)} ${context.l10n.translate('currency')}',
+                                    style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.check_circle,
+                                    color: AppColors.primary, size: 22),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() => _loadingInstallments = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('${context.l10n.translate('error_occurred')}: $e')),
+        );
+      }
+    }
   }
 
   // ========== Ixcham izoh ==========
@@ -2176,6 +2447,84 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         // Karta orqali to'lovni amalga oshiramiz
         await _processCardPayment(order.id, amountInTiyin, cartProvider);
+      } else if (_paymentMethod == 'installment') {
+        // Bo'lib to'lash
+        if (_selectedCard == null || _selectedInstallment == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(context.l10n.translate('select_installment_plan'))),
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        final order =
+            await _createPendingOrder(cartProvider, orderItems, amountInTiyin);
+        if (order == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        try {
+          final result = await PaymentService.payWithInstallment(
+            orderId: order.id,
+            cardId: _selectedCard!.id,
+            amountInTiyin: amountInTiyin,
+            months: _selectedInstallment!.months,
+            description:
+                'TOPLA Buyurtma #${order.id} (${_selectedInstallment!.months} oy)',
+          );
+
+          if (result.success) {
+            if (result.redirectUrl != null) {
+              final confirmed = await _handle3DSecure(result.redirectUrl!);
+              if (!confirmed) {
+                await _cancelOrder(order.id);
+                return;
+              }
+            }
+
+            if (mounted) {
+              cartProvider.clearCart();
+              await context
+                  .read<OrdersProvider>()
+                  .updatePaymentStatus(order.id, 'paid');
+              if (!mounted) return;
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => OrderSuccessScreen(
+                    orderId: order.id,
+                    paymentMethod: 'installment',
+                    cardLastDigits: _selectedCard!.maskedPan.substring(
+                      _selectedCard!.maskedPan.length - 4,
+                    ),
+                    deliveryTime: _deliveryTime,
+                    deliveryDate: _scheduledDate,
+                    scheduledTimeSlot: _scheduledTimeSlot,
+                    deliveryMethod: _deliveryMethod,
+                  ),
+                ),
+              );
+            }
+          } else {
+            await _cancelOrder(order.id);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(result.errorMessage ??
+                      context.l10n.translate('payment_failed')),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          await _cancelOrder(order.id);
+          rethrow;
+        }
       } else {
         // Naqd pul - oddiy buyurtma
         final order = await context.read<OrdersProvider>().createOrder(

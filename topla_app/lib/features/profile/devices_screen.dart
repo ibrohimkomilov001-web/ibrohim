@@ -381,12 +381,17 @@ class _DevicesScreenState extends State<DevicesScreen> {
                                   color: Colors.red.shade400, size: 20),
                               const SizedBox(width: 12),
                               const Expanded(
-                                child: Text(
-                                  'Boshqa barcha seanslarni yakunlash',
-                                  style: TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Boshqa barcha seanslarni yakunlash',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ),

@@ -1,4 +1,5 @@
 import { fetchProducts, approveProduct as apiApproveProduct, rejectProduct as apiRejectProduct, deleteProduct as apiDeleteProduct } from "@/lib/api/admin";
+import type { PaginationMeta } from "@/components/ui/data-table-pagination";
 
 export type Product = {
   id: string;
@@ -9,14 +10,37 @@ export type Product = {
   price: number;
   status: "pending" | "approved" | "rejected" | "draft";
   created_at?: string;
-  [key: string]: any;
+  quality_score?: number;
+  validation_errors?: any;
 };
 
-export async function getProducts(): Promise<Product[]> {
+export type ProductsParams = {
+  page?: number;
+  search?: string;
+  status?: string;
+};
+
+// Map frontend tab values to backend status values
+const statusToBackend: Record<string, string> = {
+  pending: 'on_review',
+  approved: 'active',
+  rejected: 'has_errors',
+};
+
+export async function getProducts(params?: ProductsParams): Promise<{
+  products: Product[];
+  stats: { total: number; pending: number; approved: number; rejected: number };
+  pagination: PaginationMeta;
+}> {
   try {
-    const data = await fetchProducts();
+    const backendStatus = params?.status ? statusToBackend[params.status] || params.status : undefined;
+    const data = await fetchProducts({
+      search: params?.search,
+      status: backendStatus,
+      page: params?.page,
+    });
     const items = data.items || data.products || [];
-    return items.map((p: any) => ({
+    const products = items.map((p: any) => ({
       id: p.id,
       name_uz: p.nameUz || p.name_uz || p.name || 'Nomsiz',
       shop: p.shop ? { name: p.shop.name } : undefined,
@@ -28,23 +52,24 @@ export async function getProducts(): Promise<Product[]> {
       quality_score: p.qualityScore || p.quality_score,
       validation_errors: p.validationErrors || p.validation_errors,
     }));
-  } catch {
-    return [];
-  }
-}
-
-export async function getProductStats(): Promise<{ total: number; pending: number; approved: number; rejected: number }> {
-  try {
-    const data = await fetchProducts();
     const s = data.stats || {};
+    const pagination = data.pagination || { page: 1, limit: 20, total: products.length, totalPages: 1, hasMore: false };
     return {
-      total: s.total || (data.items || data.products || []).length || 0,
-      pending: s.onReview || s.on_review || 0,
-      approved: s.active || 0,
-      rejected: (s.hasErrors || s.has_errors || 0) + (s.blocked || 0),
+      products,
+      stats: {
+        total: s.total || pagination.total || 0,
+        pending: s.onReview || s.on_review || 0,
+        approved: s.active || 0,
+        rejected: (s.hasErrors || s.has_errors || 0) + (s.blocked || 0),
+      },
+      pagination,
     };
   } catch {
-    return { total: 0, pending: 0, approved: 0, rejected: 0 };
+    return {
+      products: [],
+      stats: { total: 0, pending: 0, approved: 0, rejected: 0 },
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false },
+    };
   }
 }
 

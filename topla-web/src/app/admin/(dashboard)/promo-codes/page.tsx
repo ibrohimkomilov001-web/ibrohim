@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,15 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2, Plus, Ticket, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { getPromoCodes, getPromoCodeStats, createPromoCode, togglePromoCodeStatus, deletePromoCode, type PromoCode } from './actions'
-import { useToast } from '@/components/ui/use-toast'
+import { getPromoCodes, createPromoCode, togglePromoCodeStatus, deletePromoCode, type PromoCode } from './actions'
+import { toast } from 'sonner'
+import { useUrlState } from '@/hooks/use-url-state'
+import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
 
 export default function AdminPromoCodesPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [codes, setCodes] = useState<PromoCode[]>([])
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, totalUsage: 0 })
-  const [searchQuery, setSearchQuery] = useState('')
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false })
+  const [{ search: searchQuery, page }, setFilters] = useUrlState({ search: '', page: '1' })
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
@@ -35,35 +38,35 @@ export default function AdminPromoCodesPage() {
     end_date: ''
   })
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const [codesData, statsData] = await Promise.all([
-        getPromoCodes(),
-        getPromoCodeStats()
-      ])
+      const { codes: codesData, pagination: pag } = await getPromoCodes({
+        page: parseInt(page) || 1,
+        search: debouncedSearch || undefined,
+      })
       setCodes(codesData)
-      setStats(statsData)
+      setPagination(pag)
     } catch (error) {
       console.error(error)
-      toast({ title: "Xatolik", description: "Ma'lumotlarni yuklashda xatolik", variant: "destructive" })
+      toast.error("Ma'lumotlarni yuklashda xatolik")
     } finally {
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, page])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
-  const filteredCodes = codes.filter(code =>
-    code.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    code.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  useEffect(() => {
+    const p = parseInt(page)
+    if (p > 1) setFilters({ page: '1' })
+  }, [debouncedSearch])
 
   const handleCreate = async () => {
     if (!formData.code || !formData.discount_value) {
-      toast({ title: "Xatolik", description: "Kod va chegirma qiymatini kiriting", variant: "destructive" })
+      toast.error("Kod va chegirma qiymatini kiriting")
       return
     }
 
@@ -81,14 +84,14 @@ export default function AdminPromoCodesPage() {
         end_date: formData.end_date || undefined
       })
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Promo kod yaratildi" })
+      toast.success("Promo kod yaratildi")
       setCreateDialogOpen(false)
       setFormData({
         code: '', description: '', discount_type: 'percentage', discount_value: '',
         min_order_amount: '', max_discount_amount: '', usage_limit: '', start_date: '', end_date: ''
       })
     } catch (error) {
-      toast({ title: "Xatolik", description: "Promo kod yaratishda xatolik", variant: "destructive" })
+      toast.error("Promo kod yaratishda xatolik")
     } finally {
       setActionLoading(false)
     }
@@ -98,9 +101,9 @@ export default function AdminPromoCodesPage() {
     try {
       await togglePromoCodeStatus(id, !isActive)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: isActive ? "Promo kod o'chirildi" : "Promo kod yoqildi" })
+      toast.success(isActive ? "Promo kod o'chirildi" : "Promo kod yoqildi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "Statusni o'zgartirishda xatolik", variant: "destructive" })
+      toast.error("Statusni o'zgartirishda xatolik")
     }
   }
 
@@ -109,18 +112,10 @@ export default function AdminPromoCodesPage() {
     try {
       await deletePromoCode(id)
       await loadData()
-      toast({ title: "Muvaffaqiyatli", description: "Promo kod o'chirildi" })
+      toast.success("Promo kod o'chirildi")
     } catch (error) {
-      toast({ title: "Xatolik", description: "O'chirishda xatolik", variant: "destructive" })
+      toast.error("O'chirishda xatolik")
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
   }
 
   return (
@@ -128,48 +123,12 @@ export default function AdminPromoCodesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Promo Kodlar</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Chegirma kodlarini boshqaring</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Chegirma kodlarini boshqaring ({pagination.total} ta)</p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Yangi kod
         </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Jami</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Faol</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Nofaol</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-gray-500">{stats.inactive}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Ishlatilgan</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.totalUsage}</div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Search */}
@@ -180,20 +139,22 @@ export default function AdminPromoCodesPage() {
             <Input
               placeholder="Qidirish..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setFilters({ search: e.target.value })}
               className="w-full sm:w-64"
             />
           </div>
         </CardHeader>
         <CardContent className="p-2 sm:p-6 pt-0">
-          {filteredCodes.length === 0 ? (
+          <div className="relative">
+          {loading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 rounded-lg"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+          {codes.length === 0 && !loading ? (
             <div className="text-center py-12">
               <Ticket className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
               <p className="text-muted-foreground">Promo kodlar topilmadi</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredCodes.map((code) => (
+              {codes.map((code) => (
                 <div key={code.id} className="border rounded-lg p-3 sm:p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -229,6 +190,8 @@ export default function AdminPromoCodesPage() {
               ))}
             </div>
           )}
+          <DataTablePagination pagination={pagination} onPageChange={(p) => setFilters({ page: String(p) })} />
+          </div>
         </CardContent>
       </Card>
 
