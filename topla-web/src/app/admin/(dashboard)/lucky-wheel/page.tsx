@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,8 +10,10 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
-import { Loader2, Plus, Dices, Trash2, Pencil, Trophy, Gift, Percent, Truck, X, History } from 'lucide-react'
+import { Loader2, Plus, Dices, Trash2, Pencil, Trophy, Gift, Percent, Truck, X, History, Calendar } from 'lucide-react'
+import { StatCard } from '@/components/charts'
 import { toast } from 'sonner'
+import { useTranslation } from '@/store/locale-store';
 import {
   getPrizes,
   createPrize,
@@ -18,17 +21,15 @@ import {
   deletePrize,
   getSpins,
   type LuckyWheelPrize,
-  type LuckyWheelStats,
-  type SpinRecord,
   type PrizeType,
 } from './actions'
 
 const PRIZE_TYPE_LABELS: Record<PrizeType, string> = {
-  discount_percent: 'Foiz chegirma',
-  discount_fixed: 'Qat\'iy chegirma',
-  free_delivery: 'Bepul yetkazish',
-  physical_gift: 'Fizik sovg\'a',
-  nothing: 'Omadsiz',
+  discount_percent: 'discountPercentType',
+  discount_fixed: 'discountFixedType',
+  free_delivery: 'freeDelivery',
+  physical_gift: 'physicalGift',
+  nothing: 'nothingPrize',
 }
 
 const PRIZE_TYPE_ICONS: Record<PrizeType, typeof Percent> = {
@@ -53,49 +54,65 @@ const emptyForm = {
 }
 
 export default function AdminLuckyWheelPage() {
-  const [loading, setLoading] = useState(true)
-  const [prizes, setPrizes] = useState<LuckyWheelPrize[]>([])
-  const [stats, setStats] = useState<LuckyWheelStats>({ totalSpins: 0, todaySpins: 0, totalWinners: 0 })
+  const { t } = useTranslation();
+  const queryClient = useQueryClient()
+
+  // UI state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPrize, setEditingPrize] = useState<LuckyWheelPrize | null>(null)
-  const [actionLoading, setActionLoading] = useState(false)
   const [formData, setFormData] = useState(emptyForm)
-
-  // Spin history
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [spins, setSpins] = useState<SpinRecord[]>([])
-  const [spinsLoading, setSpinsLoading] = useState(false)
   const [spinsPage, setSpinsPage] = useState(1)
-  const [spinsPagination, setSpinsPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      const data = await getPrizes()
-      setPrizes(data.prizes)
-      setStats(data.stats)
-    } catch {
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Data queries
+  const { data: prizesData, isLoading: loading } = useQuery({
+    queryKey: ['lucky-wheel', 'prizes'],
+    queryFn: () => getPrizes(),
+  })
 
-  const loadSpins = async (page = 1) => {
-    try {
-      setSpinsLoading(true)
-      const data = await getSpins({ page, limit: 20 })
-      setSpins(data.spins)
-      setSpinsPagination(data.pagination)
-      setSpinsPage(page)
-    } catch {
-      toast.error('Tarixni yuklashda xatolik')
-    } finally {
-      setSpinsLoading(false)
-    }
-  }
+  const prizes = prizesData?.prizes ?? []
+  const stats = prizesData?.stats ?? { totalSpins: 0, todaySpins: 0, totalWinners: 0 }
 
-  useEffect(() => { loadData() }, [])
+  const { data: spinsData, isLoading: spinsLoading } = useQuery({
+    queryKey: ['lucky-wheel', 'spins', spinsPage],
+    queryFn: () => getSpins({ page: spinsPage, limit: 20 }),
+    enabled: historyOpen,
+  })
+
+  const spins = spinsData?.spins ?? []
+  const spinsPagination = spinsData?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0 }
+
+  // Mutations
+  const saveMutation = useMutation({
+    mutationFn: async (params: { id?: string; payload: Partial<LuckyWheelPrize> }) => {
+      if (params.id) {
+        await updatePrize(params.id, params.payload)
+      } else {
+        await createPrize(params.payload)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lucky-wheel', 'prizes'] })
+      toast.success(editingPrize ? t('prizeUpdated') : t('prizeAdded'))
+      setDialogOpen(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('saveError'))
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deletePrize(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lucky-wheel', 'prizes'] })
+      toast.success(t('prizeDeleted'))
+    },
+    onError: () => {
+      toast.error(t('deleteError'))
+    },
+  })
+
+  const actionLoading = saveMutation.isPending
 
   const openCreate = () => {
     setEditingPrize(null)
@@ -120,54 +137,31 @@ export default function AdminLuckyWheelPage() {
     setDialogOpen(true)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!formData.nameUz || !formData.probability) {
-      toast.error('Nom va ehtimollikni kiriting')
+      toast.error(t('nameAndProbabilityRequired'))
       return
     }
 
-    try {
-      setActionLoading(true)
-      const payload = {
-        nameUz: formData.nameUz,
-        nameRu: formData.nameRu,
-        type: formData.type,
-        value: formData.value || null,
-        probability: parseFloat(formData.probability),
-        color: formData.color,
-        promoCodePrefix: formData.promoCodePrefix || null,
-        stock: formData.stock ? parseInt(formData.stock) : null,
-        sortOrder: formData.sortOrder ? parseInt(formData.sortOrder) : 0,
-        isActive: formData.isActive,
-      }
-
-      if (editingPrize) {
-        await updatePrize(editingPrize.id, payload)
-        toast.success("Sovg'a yangilandi")
-      } else {
-        await createPrize(payload)
-        toast.success("Sovg'a qo'shildi")
-      }
-
-      setDialogOpen(false)
-      await loadData()
-    } catch (error: any) {
-      toast.error(error.message || "Saqlashda xatolik")
-    } finally {
-      setActionLoading(false)
+    const payload = {
+      nameUz: formData.nameUz,
+      nameRu: formData.nameRu,
+      type: formData.type,
+      value: formData.value || null,
+      probability: parseFloat(formData.probability),
+      color: formData.color,
+      promoCodePrefix: formData.promoCodePrefix || null,
+      stock: formData.stock ? parseInt(formData.stock) : null,
+      sortOrder: formData.sortOrder ? parseInt(formData.sortOrder) : 0,
+      isActive: formData.isActive,
     }
+
+    saveMutation.mutate({ id: editingPrize?.id, payload })
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Sovg'ani o'chirmoqchimisiz?")) return
-
-    try {
-      await deletePrize(id)
-      toast.success("Sovg'a o'chirildi")
-      await loadData()
-    } catch {
-      toast.error("O'chirishda xatolik")
-    }
+  const handleDelete = (id: string) => {
+    if (!confirm(t('confirmDeletePrize'))) return
+    deleteMutation.mutate(id)
   }
 
   const totalProbability = prizes.reduce((sum, p) => sum + p.probability, 0)
@@ -185,71 +179,34 @@ export default function AdminLuckyWheelPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Omad G&apos;ildiragi</h1>
-          <p className="text-muted-foreground">Baraban sovg&apos;alarini boshqarish</p>
+          <h1 className="text-2xl font-bold">{t('luckyWheelTitle')}</h1>
+          <p className="text-muted-foreground">{t('luckyWheelDesc')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { setHistoryOpen(true); loadSpins(1) }}>
+          <Button variant="outline" onClick={() => { setHistoryOpen(true); setSpinsPage(1) }}>
             <History className="h-4 w-4 mr-2" />
-            Tarix
+            {t('history')}
           </Button>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" />
-            Sovg&apos;a qo&apos;shish
+            {t('addPrize')}
           </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jami aylantirishlar</CardTitle>
-            <Dices className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSpins}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bugun</CardTitle>
-            <Dices className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.todaySpins}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">G&apos;oliblar</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalWinners}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ehtimollik jami</CardTitle>
-            <Percent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${Math.abs(totalProbability - 1) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
-              {(totalProbability * 100).toFixed(1)}%
-            </div>
-            {Math.abs(totalProbability - 1) >= 0.01 && (
-              <p className="text-xs text-red-500 mt-1">100% bo&apos;lishi kerak!</p>
-            )}
-          </CardContent>
-        </Card>
+        <StatCard icon={Dices} label={t('totalSpins')} value={stats.totalSpins} color="primary" />
+        <StatCard icon={Calendar} label={t('today')} value={stats.todaySpins} color="info" />
+        <StatCard icon={Trophy} label={t('winners')} value={stats.totalWinners} color="success" />
+        <StatCard icon={Percent} label={t('totalProbability')} value={`${(totalProbability * 100).toFixed(1)}%`} color="warning" />
       </div>
 
       {/* Prizes List */}
       <Card>
         <CardHeader>
-          <CardTitle>Sovg&apos;alar ({prizes.length})</CardTitle>
-          <CardDescription>Baraban segmentlari va ehtimolliklari</CardDescription>
+          <CardTitle>{t('prizesCount')} ({prizes.length})</CardTitle>
+          <CardDescription>{t('segmentsDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -267,14 +224,14 @@ export default function AdminLuckyWheelPage() {
                     <div>
                       <div className="font-medium flex items-center gap-2">
                         {prize.nameUz}
-                        {!prize.isActive && <Badge variant="secondary">O&apos;chirilgan</Badge>}
+                        {!prize.isActive && <Badge variant="secondary">{t('disabled')}</Badge>}
                       </div>
                       <div className="text-sm text-muted-foreground flex items-center gap-3">
-                        <span>{PRIZE_TYPE_LABELS[prize.type]}</span>
-                        {prize.value && <span>• Qiymat: {prize.value}</span>}
-                        <span>• Ehtimollik: {(prize.probability * 100).toFixed(1)}%</span>
-                        {prize.stock !== null && <span>• Qoldiq: {prize.stock}</span>}
-                        <span>• Yutilgan: {prize.totalWon}</span>
+                        <span>{t(PRIZE_TYPE_LABELS[prize.type])}</span>
+                        {prize.value && <span>• {t('value')}: {prize.value}</span>}
+                        <span>• {t('probabilityLabel')}: {(prize.probability * 100).toFixed(1)}%</span>
+                        {prize.stock !== null && <span>• {t('remaining')}: {prize.stock}</span>}
+                        <span>• {t('totalWon')}: {prize.totalWon}</span>
                       </div>
                     </div>
                   </div>
@@ -291,7 +248,7 @@ export default function AdminLuckyWheelPage() {
             })}
             {prizes.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                Sovg&apos;alar yo&apos;q. Yangi sovg&apos;a qo&apos;shing.
+                {t('noPrizesYet')}
               </div>
             )}
           </div>
@@ -302,14 +259,14 @@ export default function AdminLuckyWheelPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingPrize ? "Sovg'ani tahrirlash" : "Yangi sovg'a"}</DialogTitle>
-            <DialogDescription>Baraban segmenti ma&apos;lumotlari</DialogDescription>
+            <DialogTitle>{editingPrize ? t('editPrize') : t('newPrize')}</DialogTitle>
+            <DialogDescription>{t('segmentDetails')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Nomi (UZ) *</Label>
+                <Label>{t('nameUz')} *</Label>
                 <Input
                   value={formData.nameUz}
                   onChange={(e) => setFormData(f => ({ ...f, nameUz: e.target.value }))}
@@ -317,7 +274,7 @@ export default function AdminLuckyWheelPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Nomi (RU)</Label>
+                <Label>{t('nameRu')}</Label>
                 <Input
                   value={formData.nameRu}
                   onChange={(e) => setFormData(f => ({ ...f, nameRu: e.target.value }))}
@@ -328,7 +285,7 @@ export default function AdminLuckyWheelPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Turi *</Label>
+                <Label>{t('typeLabel')} *</Label>
                 <Select
                   value={formData.type}
                   onValueChange={(v) => setFormData(f => ({ ...f, type: v as PrizeType }))}
@@ -336,17 +293,17 @@ export default function AdminLuckyWheelPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(PRIZE_TYPE_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                      <SelectItem key={key} value={key}>{t(label)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Qiymat {formData.type === 'discount_percent' ? '(%)' : formData.type === 'discount_fixed' ? "(so'm)" : ''}</Label>
+                <Label>{t('value')} {formData.type === 'discount_percent' ? '(%)' : formData.type === 'discount_fixed' ? `(${t('valueSom')})` : ''}</Label>
                 <Input
                   value={formData.value}
                   onChange={(e) => setFormData(f => ({ ...f, value: e.target.value }))}
-                  placeholder={formData.type === 'nothing' ? 'Kerak emas' : '10'}
+                  placeholder={formData.type === 'nothing' ? t('notNeeded') : '10'}
                   disabled={formData.type === 'nothing' || formData.type === 'free_delivery'}
                 />
               </div>
@@ -354,7 +311,7 @@ export default function AdminLuckyWheelPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Ehtimollik * (0-1)</Label>
+                <Label>{t('probabilityRange')}</Label>
                 <Input
                   value={formData.probability}
                   onChange={(e) => setFormData(f => ({ ...f, probability: e.target.value }))}
@@ -366,7 +323,7 @@ export default function AdminLuckyWheelPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Rang</Label>
+                <Label>{t('color')}</Label>
                 <div className="flex gap-2">
                   <Input
                     type="color"
@@ -382,7 +339,7 @@ export default function AdminLuckyWheelPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Tartib</Label>
+                <Label>{t('sortOrder')}</Label>
                 <Input
                   value={formData.sortOrder}
                   onChange={(e) => setFormData(f => ({ ...f, sortOrder: e.target.value }))}
@@ -393,7 +350,7 @@ export default function AdminLuckyWheelPage() {
 
             {(formData.type === 'discount_percent' || formData.type === 'discount_fixed' || formData.type === 'free_delivery') && (
               <div className="space-y-2">
-                <Label>Promo kod prefiksi</Label>
+                <Label>{t('promoCodePrefix')}</Label>
                 <Input
                   value={formData.promoCodePrefix}
                   onChange={(e) => setFormData(f => ({ ...f, promoCodePrefix: e.target.value }))}
@@ -404,7 +361,7 @@ export default function AdminLuckyWheelPage() {
 
             {formData.type === 'physical_gift' && (
               <div className="space-y-2">
-                <Label>Qoldiq (stock)</Label>
+                <Label>{t('stock')}</Label>
                 <Input
                   value={formData.stock}
                   onChange={(e) => setFormData(f => ({ ...f, stock: e.target.value }))}
@@ -419,15 +376,15 @@ export default function AdminLuckyWheelPage() {
                 checked={formData.isActive}
                 onCheckedChange={(v) => setFormData(f => ({ ...f, isActive: v }))}
               />
-              <Label>Aktiv</Label>
+              <Label>{t('activeSwitch')}</Label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Bekor qilish</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('cancel')}</Button>
             <Button onClick={handleSubmit} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingPrize ? 'Saqlash' : "Qo'shish"}
+              {editingPrize ? t('save') : t('add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -437,8 +394,8 @@ export default function AdminLuckyWheelPage() {
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Aylantirish tarixi</DialogTitle>
-            <DialogDescription>Oxirgi aylantirishlar</DialogDescription>
+            <DialogTitle>{t('spinHistory')}</DialogTitle>
+            <DialogDescription>{t('recentSpins')}</DialogDescription>
           </DialogHeader>
 
           {spinsLoading ? (
@@ -470,7 +427,7 @@ export default function AdminLuckyWheelPage() {
                 </div>
               ))}
               {spins.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">Tarix bo&apos;sh</div>
+                <div className="text-center py-8 text-muted-foreground">{t('historyEmpty')}</div>
               )}
 
               {/* Pagination */}
@@ -480,9 +437,9 @@ export default function AdminLuckyWheelPage() {
                     variant="outline"
                     size="sm"
                     disabled={spinsPage <= 1}
-                    onClick={() => loadSpins(spinsPage - 1)}
+                    onClick={() => setSpinsPage(p => p - 1)}
                   >
-                    Oldingi
+                    {t('previous')}
                   </Button>
                   <span className="flex items-center text-sm text-muted-foreground">
                     {spinsPage} / {spinsPagination.totalPages}
@@ -491,9 +448,9 @@ export default function AdminLuckyWheelPage() {
                     variant="outline"
                     size="sm"
                     disabled={spinsPage >= spinsPagination.totalPages}
-                    onClick={() => loadSpins(spinsPage + 1)}
+                    onClick={() => setSpinsPage(p => p + 1)}
                   >
-                    Keyingi
+                    {t('next')}
                   </Button>
                 </div>
               )}

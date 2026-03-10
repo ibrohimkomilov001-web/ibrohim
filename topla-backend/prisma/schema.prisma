@@ -600,6 +600,7 @@ model Favorite {
 
 enum OrderStatus {
   pending // Mijoz buyurtma berdi
+  confirmed // Do'kon qabul qildi
   processing // Do'kon tayyorlayapti
   ready_for_pickup // Tayyor - kuryerga berish mumkin
   courier_assigned // Kuryer tayinlandi

@@ -26,12 +26,13 @@ import { formatDate } from "@/lib/utils";
 import {
   Shield, MoreHorizontal, Pencil, Trash2, Loader2, Search, UserPlus,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 const PERMISSION_LEVELS: Record<string, { label: string; color: string }> = {
-  super_admin: { label: "Super Admin", color: "destructive" },
-  admin: { label: "Admin", color: "default" },
-  moderator: { label: "Moderator", color: "secondary" },
-  support: { label: "Support", color: "outline" },
+  super_admin: { label: "superAdmin", color: "destructive" },
+  admin: { label: "admin", color: "default" },
+  moderator: { label: "moderator", color: "secondary" },
+  support: { label: "support", color: "outline" },
 };
 
 const ALL_PERMISSIONS = [
@@ -42,6 +43,7 @@ const ALL_PERMISSIONS = [
 ];
 
 export default function AdminRolesPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [editOpen, setEditOpen] = useState(false);
@@ -67,7 +69,7 @@ export default function AdminRolesPage() {
   const updateMut = useMutation({
     mutationFn: ({ userId, body }: { userId: string; body: any }) => updateAdminRole(userId, body),
     onSuccess: () => {
-      toast.success("Rol yangilandi");
+      toast.success(t('roleUpdated'));
       queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
       setEditOpen(false);
     },
@@ -77,7 +79,7 @@ export default function AdminRolesPage() {
   const deleteMut = useMutation({
     mutationFn: deleteAdminRole,
     onSuccess: () => {
-      toast.success("Rol o'chirildi");
+      toast.success(t('roleDeleted'));
       queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -131,12 +133,12 @@ export default function AdminRolesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Shield className="h-6 w-6" /> Admin rollar
+            <Shield className="h-6 w-6" /> {t('rolesTitle')}
           </h1>
-          <p className="text-muted-foreground">Administrator huquqlarini boshqarish</p>
+          <p className="text-muted-foreground">{t('rolesDesc')}</p>
         </div>
         <Button onClick={openAdd}>
-          <UserPlus className="mr-2 h-4 w-4" /> Rol qo&apos;shish
+          <UserPlus className="mr-2 h-4 w-4" /> {t('addRole')}
         </Button>
       </div>
 
@@ -144,7 +146,7 @@ export default function AdminRolesPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           className="pl-9"
-          placeholder="Qidirish..."
+          placeholder={t('search') + '...'}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -159,10 +161,10 @@ export default function AdminRolesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Foydalanuvchi</TableHead>
-                <TableHead>Daraja</TableHead>
-                <TableHead>Ruxsatlar</TableHead>
-                <TableHead>Yaratilgan</TableHead>
+                <TableHead>{t('user')}</TableHead>
+                <TableHead>{t('level')}</TableHead>
+                <TableHead>{t('permissions')}</TableHead>
+                <TableHead>{t('createdAt')}</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -170,7 +172,7 @@ export default function AdminRolesPage() {
               {filteredRoles.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Rollar topilmadi
+                    {t('rolesNotFound')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -185,7 +187,7 @@ export default function AdminRolesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={cfg.color as any}>{cfg.label}</Badge>
+                        <Badge variant={cfg.color as any}>{t(cfg.label)}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 max-w-xs">
@@ -209,13 +211,13 @@ export default function AdminRolesPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEdit(role)}>
-                              <Pencil className="h-4 w-4 mr-2" /> Tahrirlash
+                              <Pencil className="h-4 w-4 mr-2" /> {t('edit')}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => deleteMut.mutate(role.userId)}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" /> O&apos;chirish
+                              <Trash2 className="h-4 w-4 mr-2" /> {t('delete')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -233,7 +235,7 @@ export default function AdminRolesPage() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Rolni tahrirlash</DialogTitle>
+            <DialogTitle>{t('editRole')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -265,10 +267,10 @@ export default function AdminRolesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Bekor</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{t('cancel')}</Button>
             <Button onClick={handleSave} disabled={updateMut.isPending}>
               {updateMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -278,13 +280,13 @@ export default function AdminRolesPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Yangi rol qo&apos;shish</DialogTitle>
+            <DialogTitle>{t('addNewRole')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Foydalanuvchi</Label>
+              <Label>{t('user')}</Label>
               <Select value={form.userId} onValueChange={(v) => setForm({ ...form, userId: v })}>
-                <SelectTrigger><SelectValue placeholder="Foydalanuvchi tanlang" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('selectUser')} /></SelectTrigger>
                 <SelectContent>
                   {users.map((u: any) => (
                     <SelectItem key={u.id} value={u.id}>
@@ -295,18 +297,18 @@ export default function AdminRolesPage() {
               </Select>
             </div>
             <div>
-              <Label>Daraja</Label>
+              <Label>{t('level')}</Label>
               <Select value={form.level} onValueChange={(v) => setForm({ ...form, level: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(PERMISSION_LEVELS).map(([key, val]) => (
-                    <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                    <SelectItem key={key} value={key}>{t(val.label)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="mb-2 block">Ruxsatlar</Label>
+              <Label className="mb-2 block">{t('permissions')}</Label>
               <div className="grid grid-cols-2 gap-2">
                 {ALL_PERMISSIONS.map((perm) => (
                   <label key={perm} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -323,10 +325,10 @@ export default function AdminRolesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Bekor</Button>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>{t('cancel')}</Button>
             <Button onClick={handleSave} disabled={updateMut.isPending || !form.userId}>
               {updateMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +13,7 @@ import { Loader2, Upload, X, Image as ImageIcon, Pencil, GripVertical } from 'lu
 import { toast } from 'sonner'
 import { getBanners, createBanner, updateBanner, deleteBanner, type Banner } from './actions'
 import { adminUploadImage } from '@/lib/api/admin'
+import { useTranslation } from '@/store/locale-store'
 
 type BannerFormData = {
   titleUz: string
@@ -34,9 +36,12 @@ const emptyForm: BannerFormData = {
 }
 
 export default function AdminBannersPage() {
-  const [banners, setBanners] = useState<Banner[]>([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  const queryClient = useQueryClient()
+  const { data: banners = [], isLoading } = useQuery({
+    queryKey: ['admin', 'banners'],
+    queryFn: () => getBanners(),
+  })
+
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [editBanner, setEditBanner] = useState<Banner | null>(null)
   const [formData, setFormData] = useState<BannerFormData>({ ...emptyForm })
@@ -44,31 +49,18 @@ export default function AdminBannersPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploadLoading, setUploadLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const loadBanners = useCallback(async () => {
-    try {
-      setLoading(true)
-      const data = await getBanners()
-      setBanners(data)
-    } catch {
-      toast.error('Bannerlarni yuklashda xatolik')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { loadBanners() }, [loadBanners])
+  const { t } = useTranslation()
 
   // ---- File handling ----
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
-      toast.error('Faqat rasm fayllari ruxsat etilgan (JPG, PNG, WebP, GIF)')
+      toast.error(t('onlyImagesAllowed'))
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Rasm hajmi 5MB dan oshmasligi kerak')
+      toast.error(t('imageSizeLimit'))
       return
     }
     setSelectedFile(file)
@@ -98,7 +90,7 @@ export default function AdminBannersPage() {
     setUploadLoading(true)
     try {
       const url = await adminUploadImage(selectedFile, 'banner')
-      if (!url) { toast.error('Rasm URL olinmadi'); return null }
+      if (!url) { toast.error(t('imageUrlNotReceived')); return null }
       return url
     } catch (err: any) {
       toast.error(`Rasm yuklashda xatolik: ${err.message || "Noma'lum xato"}`)
@@ -109,16 +101,11 @@ export default function AdminBannersPage() {
   }
 
   // ---- Create ----
-  const handleAdd = async () => {
-    if (!formData.titleUz.trim()) { toast.error('Sarlavha (uz) kiritilishi kerak'); return }
-    if (!selectedFile) { toast.error('Rasm tanlash shart'); return }
-
-    try {
-      setActionLoading(true)
+  const createMutation = useMutation({
+    mutationFn: async () => {
       const imageUrl = await uploadImage()
-      if (!imageUrl) return
-
-      await createBanner({
+      if (!imageUrl) throw new Error('UPLOAD_FAILED')
+      return createBanner({
         titleUz: formData.titleUz.trim(),
         titleRu: formData.titleRu.trim() || undefined,
         subtitleUz: formData.subtitleUz.trim() || undefined,
@@ -128,16 +115,25 @@ export default function AdminBannersPage() {
         actionValue: formData.actionValue.trim() || undefined,
         sortOrder: formData.sortOrder,
       })
-      toast.success('Banner yaratildi')
+    },
+    onSuccess: () => {
+      toast.success(t('bannerCreated'))
       setAddDialogOpen(false)
       setFormData({ ...emptyForm })
       handleRemoveImage()
-      loadBanners()
-    } catch {
-      toast.error('Banner yaratishda xatolik')
-    } finally {
-      setActionLoading(false)
-    }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'banners'] })
+    },
+    onError: (error) => {
+      if (error.message !== 'UPLOAD_FAILED') {
+        toast.error(t('bannerCreateError'))
+      }
+    },
+  })
+
+  const handleAdd = () => {
+    if (!formData.titleUz.trim()) { toast.error(t('titleUzRequired')); return }
+    if (!selectedFile) { toast.error(t('imageRequired')); return }
+    createMutation.mutate()
   }
 
   // ---- Edit ----
@@ -156,20 +152,16 @@ export default function AdminBannersPage() {
     setSelectedFile(null)
   }
 
-  const handleEdit = async () => {
-    if (!editBanner) return
-    if (!formData.titleUz.trim()) { toast.error('Sarlavha (uz) kiritilishi kerak'); return }
-
-    try {
-      setActionLoading(true)
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editBanner) throw new Error('NO_BANNER')
       let imageUrl: string | undefined
       if (selectedFile) {
         const url = await uploadImage()
-        if (!url) return
+        if (!url) throw new Error('UPLOAD_FAILED')
         imageUrl = url
       }
-
-      await updateBanner(editBanner.id, {
+      return updateBanner(editBanner.id, {
         titleUz: formData.titleUz.trim(),
         titleRu: formData.titleRu.trim(),
         subtitleUz: formData.subtitleUz.trim(),
@@ -179,37 +171,56 @@ export default function AdminBannersPage() {
         actionValue: formData.actionValue.trim(),
         sortOrder: formData.sortOrder,
       })
-      toast.success('Banner yangilandi')
+    },
+    onSuccess: () => {
+      toast.success(t('bannerUpdated'))
       setEditBanner(null)
       setFormData({ ...emptyForm })
       handleRemoveImage()
-      loadBanners()
-    } catch {
-      toast.error('Banner yangilashda xatolik')
-    } finally {
-      setActionLoading(false)
-    }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'banners'] })
+    },
+    onError: (error) => {
+      if (error.message !== 'UPLOAD_FAILED') {
+        toast.error(t('bannerUpdateError'))
+      }
+    },
+  })
+
+  const handleEdit = () => {
+    if (!editBanner) return
+    if (!formData.titleUz.trim()) { toast.error('Sarlavha (uz) kiritilishi kerak'); return }
+    editMutation.mutate()
   }
 
-  const handleToggle = async (banner: Banner) => {
-    try {
-      await updateBanner(banner.id, { isActive: !banner.isActive })
-      toast.success(banner.isActive ? "Banner o'chirildi" : 'Banner yoqildi')
-      loadBanners()
-    } catch {
-      toast.error('Xatolik yuz berdi')
-    }
+  const toggleMutation = useMutation({
+    mutationFn: (banner: Banner) => updateBanner(banner.id, { isActive: !banner.isActive }),
+    onSuccess: (_data, banner) => {
+      toast.success(banner.isActive ? t('bannerDeactivated') : t('bannerActivated'))
+      queryClient.invalidateQueries({ queryKey: ['admin', 'banners'] })
+    },
+    onError: () => {
+      toast.error(t('errorOccurred'))
+    },
+  })
+
+  const handleToggle = (banner: Banner) => {
+    toggleMutation.mutate(banner)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bannerni o'chirishni xohlaysizmi?")) return
-    try {
-      await deleteBanner(id)
-      toast.success("Banner o'chirildi")
-      loadBanners()
-    } catch {
-      toast.error("O'chirishda xatolik")
-    }
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteBanner(id),
+    onSuccess: () => {
+      toast.success(t('bannerDeleted'))
+      queryClient.invalidateQueries({ queryKey: ['admin', 'banners'] })
+    },
+    onError: () => {
+      toast.error(t('deleteError'))
+    },
+  })
+
+  const handleDelete = (id: string) => {
+    if (!confirm(t('confirmDeleteBanner'))) return
+    deleteMutation.mutate(id)
   }
 
   // ---- Shared form UI ----
@@ -217,44 +228,44 @@ export default function AdminBannersPage() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Sarlavha (uz) *</Label>
+          <Label>{t('titleUz')} *</Label>
           <Input
             value={formData.titleUz}
             onChange={(e) => setFormData({ ...formData, titleUz: e.target.value })}
-            placeholder="Banner sarlavhasi (o'zbekcha)"
+            placeholder={t('bannerTitleUzPlaceholder')}
           />
         </div>
         <div className="space-y-2">
-          <Label>Sarlavha (ru)</Label>
+          <Label>{t('titleRu')}</Label>
           <Input
             value={formData.titleRu}
             onChange={(e) => setFormData({ ...formData, titleRu: e.target.value })}
-            placeholder="Заголовок баннера (русский)"
+            placeholder={t('bannerTitleRuPlaceholder')}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Qo&apos;shimcha matn (uz)</Label>
+          <Label>{t('subtitleUz')}</Label>
           <Input
             value={formData.subtitleUz}
             onChange={(e) => setFormData({ ...formData, subtitleUz: e.target.value })}
-            placeholder="Qisqa tavsif (ixtiyoriy)"
+            placeholder={t('shortDescOptional')}
           />
         </div>
         <div className="space-y-2">
-          <Label>Qo&apos;shimcha matn (ru)</Label>
+          <Label>{t('subtitleRu')}</Label>
           <Input
             value={formData.subtitleRu}
             onChange={(e) => setFormData({ ...formData, subtitleRu: e.target.value })}
-            placeholder="Краткое описание (необязательно)"
+            placeholder={t('shortDescOptionalRu')}
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label>{isEdit ? 'Rasmni almashtirish' : 'Rasm *'}</Label>
+        <Label>{isEdit ? t('replaceImage') : `${t('image')} *`}</Label>
         <input
           ref={fileInputRef}
           type="file"
@@ -289,7 +300,7 @@ export default function AdminBannersPage() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Pencil className="h-3 w-3 mr-1" />
-                Almashtirish
+                {t('replaceImage')}
               </Button>
             )}
           </div>
@@ -302,28 +313,28 @@ export default function AdminBannersPage() {
           >
             <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground mb-2">
-              Rasmni bu yerga tashlang yoki
+              {t('dragImageHere')}
             </p>
             <Button type="button" variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}>
               <ImageIcon className="h-4 w-4 mr-2" />
-              Fayl tanlash
+              {t('selectFile')}
             </Button>
             <p className="text-xs text-muted-foreground mt-2">
-              JPG, PNG, WebP — max 5MB, tavsiya: 1200×400 px
+              {t('imageRequirements')}
             </p>
           </div>
         )}
         {uploadLoading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Rasm yuklanmoqda...
+            {t('imageUploading')}
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Harakat turi</Label>
+          <Label>{t('actionType')}</Label>
           <Select
             value={formData.actionType}
             onValueChange={(value) => setFormData({ ...formData, actionType: value, actionValue: value === 'none' ? '' : formData.actionValue })}
@@ -332,16 +343,16 @@ export default function AdminBannersPage() {
               <SelectValue placeholder="Harakat turini tanlang" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Harakatsiz</SelectItem>
-              <SelectItem value="link">Tashqi havola (URL)</SelectItem>
-              <SelectItem value="product">Mahsulot</SelectItem>
-              <SelectItem value="category">Kategoriya</SelectItem>
+              <SelectItem value="none">{t('noAction')}</SelectItem>
+              <SelectItem value="link">{t('externalLink')}</SelectItem>
+              <SelectItem value="product">{t('product')}</SelectItem>
+              <SelectItem value="category">{t('category')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label>Tartib raqami</Label>
+          <Label>{t('sortOrder')}</Label>
           <Input
             type="number"
             min={0}
@@ -355,7 +366,7 @@ export default function AdminBannersPage() {
       {formData.actionType !== 'none' && (
         <div className="space-y-2">
           <Label>
-            {formData.actionType === 'link' ? 'Havola (URL)' : formData.actionType === 'product' ? 'Mahsulot ID' : 'Kategoriya ID'}
+            {formData.actionType === 'link' ? t('linkUrl') : formData.actionType === 'product' ? t('productId') : t('categoryId')}
           </Label>
           <Input
             value={formData.actionValue}
@@ -367,7 +378,7 @@ export default function AdminBannersPage() {
     </div>
   )
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -379,32 +390,32 @@ export default function AdminBannersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bannerlar</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('banners')}</h1>
           <p className="text-muted-foreground">
-            Reklama bannerlarini boshqaring
+            {t('manageBanners')}
           </p>
         </div>
 
         {/* Add Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setFormData({ ...emptyForm }); handleRemoveImage() } }}>
           <DialogTrigger asChild>
-            <Button>+ Banner qo&apos;shish</Button>
+            <Button>+ {t('addBanner')}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Yangi banner</DialogTitle>
+              <DialogTitle>{t('newBanner')}</DialogTitle>
               <DialogDescription>
-                Yangi reklama banneri qo&apos;shing
+                {t('addNewBannerDesc')}
               </DialogDescription>
             </DialogHeader>
             {renderBannerForm(false)}
             <DialogFooter className="gap-3 pt-4">
               <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                Bekor qilish
+                {t('cancel')}
               </Button>
-              <Button onClick={handleAdd} disabled={actionLoading}>
-                {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Qo&apos;shish
+              <Button onClick={handleAdd} disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {t('add')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -415,19 +426,19 @@ export default function AdminBannersPage() {
       <Dialog open={!!editBanner} onOpenChange={(open) => { if (!open) { setEditBanner(null); setFormData({ ...emptyForm }); handleRemoveImage() } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Bannerni tahrirlash</DialogTitle>
-            <DialogDescription>
-              Banner ma&apos;lumotlarini o&apos;zgartiring
+              <DialogTitle>{t('editBanner')}</DialogTitle>
+              <DialogDescription>
+                {t('editBannerDesc')}
             </DialogDescription>
           </DialogHeader>
           {renderBannerForm(true)}
           <DialogFooter className="gap-3 pt-4">
             <Button variant="outline" onClick={() => { setEditBanner(null); setFormData({ ...emptyForm }); handleRemoveImage() }}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button onClick={handleEdit} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Saqlash
+            <Button onClick={handleEdit} disabled={editMutation.isPending}>
+              {editMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -437,7 +448,7 @@ export default function AdminBannersPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jami bannerlar</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('totalBanners')}</CardTitle>
             <ImageIcon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -446,8 +457,8 @@ export default function AdminBannersPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Faol</CardTitle>
-            <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">Faol</Badge>
+            <CardTitle className="text-sm font-medium">{t('active')}</CardTitle>
+            <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100">{t('active')}</Badge>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -457,11 +468,11 @@ export default function AdminBannersPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nofaol</CardTitle>
-            <Badge variant="secondary">Nofaol</Badge>
+            <CardTitle className="text-sm font-medium">{t('inactive')}</CardTitle>
+            <Badge variant="secondary">{t('inactive')}</Badge>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-600">
+            <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">
               {banners.filter(b => !b.isActive).length}
             </div>
           </CardContent>
@@ -473,8 +484,8 @@ export default function AdminBannersPage() {
         <Card>
           <CardContent className="py-16 text-center">
             <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="font-medium">Hali bannerlar yo&apos;q</p>
-            <p className="text-sm text-muted-foreground mt-1">Yangi banner qo&apos;shishni boshlang</p>
+            <p className="font-medium">{t('noBannersYet')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('startAddingBanners')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -495,8 +506,8 @@ export default function AdminBannersPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base truncate mr-2">{banner.titleUz}</CardTitle>
-                  <Badge className={banner.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                    {banner.isActive ? 'Faol' : 'Nofaol'}
+                  <Badge className={banner.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}>
+                    {banner.isActive ? t('active') : t('inactive')}
                   </Badge>
                 </div>
                 {banner.titleRu && (
@@ -524,14 +535,14 @@ export default function AdminBannersPage() {
                     onClick={() => openEditDialog(banner)}
                   >
                     <Pencil className="h-3 w-3 mr-1" />
-                    Tahrirlash
+                    {t('edit')}
                   </Button>
                   <Button
                     variant={banner.isActive ? 'destructive' : 'default'}
                     size="sm"
                     onClick={() => handleToggle(banner)}
                   >
-                    {banner.isActive ? "O'chirish" : 'Yoqish'}
+                    {banner.isActive ? t('deactivate') : t('activate')}
                   </Button>
                   <Button
                     variant="ghost"

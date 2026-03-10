@@ -35,9 +35,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslation } from "@/store/locale-store";
 
 export default function NewProductPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -162,11 +164,11 @@ export default function NewProductPage() {
   const createMutation = useMutation({
     mutationFn: vendorApi.createProduct,
     onSuccess: () => {
-      toast.success("Mahsulot yaratildi!");
+      toast.success(t('productCreated'));
       router.push("/vendor/products");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -181,9 +183,9 @@ export default function NewProductPage() {
       const urls = result.urls || result.files?.map((f: any) => f.url) || [];
       if (urls.length === 0) throw new Error('Rasmlar yuklanmadi');
       setImages((prev) => [...prev, ...urls]);
-      toast.success(`${urls.length} ta rasm yuklandi`);
+      toast.success(`${urls.length} ${t('imageUploaded')}`);
     } catch (error: any) {
-      toast.error(error.message || "Rasm yuklashda xatolik");
+      toast.error(error.message || t('imageUploadError'));
     } finally {
       setIsUploading(false);
       e.target.value = "";
@@ -197,9 +199,9 @@ export default function NewProductPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) { toast.error("Mahsulot nomini kiriting"); return; }
-    if (!price || Number(price) <= 0) { toast.error("Narxni kiriting"); return; }
-    if (!categoryId) { toast.error("Kategoriyani tanlang"); return; }
+    if (!name.trim()) { toast.error(t('nameRequired')); return; }
+    if (!price || Number(price) <= 0) { toast.error(t('priceRequired')); return; }
+    if (!categoryId) { toast.error(t('selectCategory')); return; }
 
     // Build variants array
     let variantsPayload: any[] | undefined;
@@ -260,8 +262,8 @@ export default function NewProductPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Yangi mahsulot</h1>
-          <p className="text-muted-foreground">Mahsulot ma&apos;lumotlarini kiriting</p>
+          <h1 className="text-2xl font-bold">{t('newProduct')}</h1>
+          <p className="text-muted-foreground">{t('productDescription')}</p>
         </div>
       </div>
 
@@ -275,7 +277,7 @@ export default function NewProductPage() {
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Package className="h-5 w-5 text-primary" />
-                    Asosiy ma&apos;lumotlar
+                    {t('basicInfo')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -286,21 +288,21 @@ export default function NewProductPage() {
                       className={`px-3 py-1 text-sm rounded-md transition-colors ${langTab === 'uz' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                       onClick={() => setLangTab('uz')}
                     >
-                      🇺🇿 O&apos;zbekcha
+                      🇺🇿 {t('uzbek')}
                     </button>
                     <button
                       type="button"
                       className={`px-3 py-1 text-sm rounded-md transition-colors ${langTab === 'ru' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                       onClick={() => setLangTab('ru')}
                     >
-                      🇷🇺 Русский
+                      🇷🇺 {t('russian')}
                     </button>
                   </div>
 
                   {langTab === 'uz' ? (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="nameUz">Mahsulot nomi (UZ) *</Label>
+                        <Label htmlFor="nameUz">{t('nameUz')} *</Label>
                         <Input
                           id="nameUz"
                           placeholder="Masalan: Samsung Galaxy S24"
@@ -310,7 +312,7 @@ export default function NewProductPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="descriptionUz">Tavsif (UZ)</Label>
+                        <Label htmlFor="descriptionUz">{t('descriptionUz')}</Label>
                         <Textarea
                           id="descriptionUz"
                           placeholder="Mahsulot haqida batafsil (kamida 20 belgi)..."
@@ -326,7 +328,7 @@ export default function NewProductPage() {
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="nameRu">Название товара (RU)</Label>
+                        <Label htmlFor="nameRu">{t('nameRu')}</Label>
                         <Input
                           id="nameRu"
                           placeholder="Например: Samsung Galaxy S24"
@@ -335,7 +337,7 @@ export default function NewProductPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="descriptionRu">Описание (RU)</Label>
+                        <Label htmlFor="descriptionRu">{t('descriptionRu')}</Label>
                         <Textarea
                           id="descriptionRu"
                           placeholder="Подробное описание товара..."
@@ -348,10 +350,10 @@ export default function NewProductPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label>Kategoriya *</Label>
+                    <Label>{t('category')} *</Label>
                     <Select value={categoryId} onValueChange={(val) => { setCategoryId(val); setSubcategoryId(""); }}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Kategoriya tanlang" />
+                        <SelectValue placeholder={t('selectCategory')} />
                       </SelectTrigger>
                       <SelectContent>
                         {categories?.map((cat: any) => (
@@ -365,10 +367,10 @@ export default function NewProductPage() {
 
                   {subcategories.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Subkategoriya</Label>
+                      <Label>{t('subcategory')}</Label>
                       <Select value={subcategoryId} onValueChange={setSubcategoryId}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Subkategoriya tanlang" />
+                          <SelectValue placeholder={t('selectSubcategory')} />
                         </SelectTrigger>
                         <SelectContent>
                           {subcategories.map((sub: any) => (
@@ -378,17 +380,17 @@ export default function NewProductPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-muted-foreground">Mahsulotni aniqroq joylashtirish uchun</p>
+                      <p className="text-xs text-muted-foreground">{t('subcategoryHelp')}</p>
                     </div>
                   )}
 
                   {/* Rang tanlash (faqat variant yo'q bo'lganda) */}
                   {!hasVariants && Array.isArray(colors) && colors.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Rang</Label>
+                      <Label>{t('color')}</Label>
                       <Select value={colorId} onValueChange={setColorId}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Rang tanlang" />
+                          <SelectValue placeholder={t('selectColor')} />
                         </SelectTrigger>
                         <SelectContent>
                           {colors.map((color: any) => (
@@ -405,7 +407,7 @@ export default function NewProductPage() {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Bir xil mahsulotni turli ranglarda qo&apos;shsangiz, ilovada rang tanlash imkoniyati chiqadi
+                        {t('colorHelpText')}
                       </p>
                     </div>
                   )}
@@ -413,10 +415,10 @@ export default function NewProductPage() {
                   {/* Brend tanlash */}
                   {Array.isArray(brands) && brands.length > 0 && (
                     <div className="space-y-2">
-                      <Label>Brend</Label>
+                      <Label>{t('brand')}</Label>
                       <Select value={brandId} onValueChange={setBrandId}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Brend tanlang" />
+                          <SelectValue placeholder={t('selectBrand')} />
                         </SelectTrigger>
                         <SelectContent>
                           {brands.map((brand: any) => (
@@ -437,10 +439,10 @@ export default function NewProductPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <ImageIcon className="h-5 w-5 text-primary" />
-                  Rasmlar
+                  {t('images')}
                 </CardTitle>
                 <CardDescription>
-                  Mahsulot rasmlarini yuklang (max 10 ta)
+                  {t('uploadImages')} ({t('maxImages')})
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -457,7 +459,7 @@ export default function NewProductPage() {
                       </button>
                       {index === 0 && (
                         <div className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full">
-                          Asosiy
+                          {t('mainImage')}
                         </div>
                       )}
                     </div>
@@ -470,7 +472,7 @@ export default function NewProductPage() {
                       ) : (
                         <>
                           <Upload className="h-6 w-6 text-muted-foreground mb-1" />
-                          <span className="text-xs text-muted-foreground">Yuklash</span>
+                          <span className="text-xs text-muted-foreground">{t('upload')}</span>
                         </>
                       )}
                       <input
@@ -492,18 +494,18 @@ export default function NewProductPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Palette className="h-5 w-5 text-primary" />
-                  Variantlar (Rang × O&apos;lcham)
+                  {t('variantsTitle')}
                 </CardTitle>
                 <CardDescription>
-                  Bir mahsulotning turli rang va o&apos;lchamlari uchun alohida narx/ombor
+                  {t('variantsDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Variantli mahsulot</Label>
+                    <Label>{t('variantProduct')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Rang yoki o&apos;lcham bo&apos;yicha farq qiladimi?
+                      {t('variantQuestion')}
                     </p>
                   </div>
                   <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
@@ -514,7 +516,7 @@ export default function NewProductPage() {
                     {/* Color Selection */}
                     {Array.isArray(colors) && colors.length > 0 && (
                       <div className="space-y-2">
-                        <Label>Ranglarni tanlang</Label>
+                        <Label>{t('selectColors')}</Label>
                         <div className="flex flex-wrap gap-2">
                           {colors.map((color: any) => (
                             <button
@@ -541,7 +543,7 @@ export default function NewProductPage() {
                     {/* Size Selection */}
                     {Array.isArray(sizes) && sizes.length > 0 && (
                       <div className="space-y-2">
-                        <Label>O&apos;lchamlarni tanlang</Label>
+                        <Label>{t('selectSizes')}</Label>
                         <div className="flex flex-wrap gap-2">
                           {sizes.map((size: any) => (
                             <button
@@ -564,17 +566,17 @@ export default function NewProductPage() {
                     {/* Variant Matrix Table */}
                     {variantKeys.length > 0 && (
                       <div className="space-y-2">
-                        <Label>Variant jadvali ({variantKeys.length} ta variant)</Label>
+                        <Label>{t('variantTable')} ({variantKeys.length} {t('variantCount')})</Label>
                         <div className="border rounded-lg overflow-x-auto">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b bg-muted/50">
-                                {selectedColorIds.length > 0 && <th className="text-left px-3 py-2 font-medium">Rang</th>}
-                                {selectedSizeIds.length > 0 && <th className="text-left px-3 py-2 font-medium">O&apos;lcham</th>}
-                                <th className="text-left px-3 py-2 font-medium">Narx *</th>
-                                <th className="text-left px-3 py-2 font-medium">Eski narx</th>
-                                <th className="text-left px-3 py-2 font-medium">Miqdor</th>
-                                <th className="text-left px-3 py-2 font-medium">SKU</th>
+                                {selectedColorIds.length > 0 && <th className="text-left px-3 py-2 font-medium">{t('color')}</th>}
+                                {selectedSizeIds.length > 0 && <th className="text-left px-3 py-2 font-medium">{t('size')}</th>}
+                                <th className="text-left px-3 py-2 font-medium">{t('price')} *</th>
+                                <th className="text-left px-3 py-2 font-medium">{t('originalPrice')}</th>
+                                <th className="text-left px-3 py-2 font-medium">{t('quantity')}</th>
+                                <th className="text-left px-3 py-2 font-medium">{t('sku')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -645,14 +647,14 @@ export default function NewProductPage() {
                           </table>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Bo&apos;sh qoldirilgan narx → asosiy narx ishlatiladi
+                          {t('emptyPriceHint')}
                         </p>
                       </div>
                     )}
 
                     {variantKeys.length === 0 && (
                       <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                        Yuqoridan rang yoki o&apos;lcham tanlang
+                        {t('selectFromAbove')}
                       </div>
                     )}
                   </>
@@ -668,12 +670,12 @@ export default function NewProductPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-primary" />
-                  Narx
+                  {t('pricing')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Narx (so&apos;m) *</Label>
+                  <Label htmlFor="price">{t('priceLabel')} *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -685,7 +687,7 @@ export default function NewProductPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="originalPrice">Eski narx (so&apos;m)</Label>
+                  <Label htmlFor="originalPrice">{t('originalPrice')} (so'm)</Label>
                   <Input
                     id="originalPrice"
                     type="number"
@@ -695,7 +697,7 @@ export default function NewProductPage() {
                     min={0}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Chegirma ko&apos;rsatish uchun eski narxni kiriting
+                    {t('discountHint')}
                   </p>
                 </div>
               </CardContent>
@@ -704,11 +706,11 @@ export default function NewProductPage() {
             {/* Stock */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Ombor</CardTitle>
+                <CardTitle className="text-lg">{t('stockAndWarehouse')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="stock">Miqdor</Label>
+                  <Label htmlFor="stock">{t('quantity')}</Label>
                   <Input
                     id="stock"
                     type="number"
@@ -719,16 +721,16 @@ export default function NewProductPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sku">SKU (artikul)</Label>
+                  <Label htmlFor="sku">{t('sku')}</Label>
                   <Input
                     id="sku"
-                    placeholder="Ixtiyoriy"
+                    placeholder={t('optional')}
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="weight">Og&apos;irlik (gram)</Label>
+                  <Label htmlFor="weight">{t('weight')}</Label>
                   <Input
                     id="weight"
                     type="number"
@@ -739,7 +741,7 @@ export default function NewProductPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="warranty">Kafolat muddati</Label>
+                  <Label htmlFor="warranty">{t('warranty')}</Label>
                   <Select value={warranty} onValueChange={setWarranty}>
                     <SelectTrigger>
                       <SelectValue placeholder="Tanlang (ixtiyoriy)" />
@@ -760,14 +762,14 @@ export default function NewProductPage() {
             {/* Settings */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Sozlamalar</CardTitle>
+                <CardTitle className="text-lg">{t('settingsLabel')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Faol holat</Label>
+                    <Label>{t('activeStatus')}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Mahsulot sotuvda ko&apos;rinadi
+                      {t('productVisibleInStore')}
                     </p>
                   </div>
                   <Switch checked={isActive} onCheckedChange={setIsActive} />
@@ -781,10 +783,10 @@ export default function NewProductPage() {
                 <div className="flex items-start gap-3">
                   <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Avtomatik moderatsiya</p>
+                    <p className="text-sm font-medium">{t('autoModeration')}</p>
                     <p className="text-xs text-muted-foreground">
-                      Mahsulot avtomatik tekshiriladi. Sifat balli 0-100 gacha hisoblanadi.
-                      Yuqori ball = qidiruvda yuqoriroq o&apos;rin.
+                      {t('autoModerationDesc')}
+                      {' '}{t('highScoreDesc')}
                     </p>
                     <ul className="text-xs text-muted-foreground space-y-0.5 mt-2">
                       <li>✅ Nom UZ va RU (3+ belgi)</li>
@@ -806,7 +808,7 @@ export default function NewProductPage() {
                 className="flex-1 rounded-full"
                 onClick={() => router.back()}
               >
-                Bekor qilish
+                {t('cancel')}
               </Button>
               <Button
                 type="submit"
@@ -816,10 +818,10 @@ export default function NewProductPage() {
                 {createMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saqlanmoqda...
+                    {t('saving')}
                   </>
                 ) : (
-                  "Saqlash"
+                  t('save')
                 )}
               </Button>
             </div>

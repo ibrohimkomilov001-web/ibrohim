@@ -10,7 +10,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
-import { authMiddleware, requireRole } from '../../middleware/auth.js';
+import { authMiddleware, requireRole, requirePermission } from '../../middleware/auth.js';
 import { generateToken, generateRefreshToken } from '../../utils/jwt.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
@@ -90,6 +90,11 @@ export async function adminRoutes(app: FastifyInstance) {
       throw new AppError('Email yoki parol noto\'g\'ri', 401);
     }
 
+    // Fetch admin role/permissions
+    const adminRole = await prisma.adminRole.findUnique({
+      where: { userId: user.id },
+    });
+
     const tokenPayload = {
       userId: user.id,
       role: user.role,
@@ -121,6 +126,47 @@ export async function adminRoutes(app: FastifyInstance) {
           fullName: user.fullName,
           role: user.role,
           avatarUrl: user.avatarUrl,
+        },
+        adminRole: adminRole ? {
+          level: adminRole.level,
+          permissions: adminRole.permissions,
+        } : {
+          level: 'super_admin',
+          permissions: [],
+        },
+      },
+    });
+  });
+
+  // ==========================================
+  // ADMIN ME - Get current admin profile + permissions
+  // ==========================================
+  app.get('/admin/me', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const user = await prisma.profile.findUnique({
+      where: { id: request.user!.userId },
+      select: { id: true, email: true, fullName: true, role: true, avatarUrl: true, phone: true },
+    });
+
+    if (!user) {
+      throw new AppError('Foydalanuvchi topilmadi', 404);
+    }
+
+    const adminRole = await prisma.adminRole.findUnique({
+      where: { userId: user.id },
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        user,
+        adminRole: adminRole ? {
+          level: adminRole.level,
+          permissions: adminRole.permissions,
+        } : {
+          level: 'super_admin',
+          permissions: [],
         },
       },
     });
@@ -250,7 +296,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   // PUT /admin/users/:id/role — foydalanuvchi rolini o'zgartirish
   app.put('/admin/users/:id/role', {
-    preHandler: [authMiddleware, requireRole('admin')],
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('users.manage')],
   }, async (request) => {
     const { id } = request.params as { id: string };
     const { role } = z.object({ role: z.enum(['user', 'vendor', 'courier', 'admin']) }).parse(request.body);
@@ -1666,10 +1712,11 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const [
       orderStats,
-      revenueByShop,
+      revenueByShopRaw,
       topProducts,
       newUsers,
       newShops,
+      totalUsers,
     ] = await Promise.all([
       prisma.order.groupBy({
         by: ['status'],
@@ -1679,6 +1726,7 @@ export async function adminRoutes(app: FastifyInstance) {
       prisma.vendorTransaction.groupBy({
         by: ['shopId'],
         _sum: { amount: true, commission: true, netAmount: true },
+        _count: true,
         where: { createdAt: { gte: startDate } },
         orderBy: { _sum: { amount: 'desc' } },
         take: 10,
@@ -1694,7 +1742,27 @@ export async function adminRoutes(app: FastifyInstance) {
       }),
       prisma.profile.count({ where: { role: 'user', createdAt: { gte: startDate } } }),
       prisma.shop.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.profile.count({ where: { role: 'user' } }),
     ]);
+
+    // Enrich revenueByShop with shop names
+    const shopIds = revenueByShopRaw.map((r: any) => r.shopId).filter(Boolean);
+    const shops = shopIds.length > 0
+      ? await prisma.shop.findMany({
+          where: { id: { in: shopIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const shopNameMap = new Map(shops.map((s: any) => [s.id, s.name]));
+
+    const revenueByShop = revenueByShopRaw.map((r: any) => ({
+      shopId: r.shopId,
+      shopName: shopNameMap.get(r.shopId) || '-',
+      amount: r._sum?.amount || 0,
+      commission: r._sum?.commission || 0,
+      netAmount: r._sum?.netAmount || 0,
+      orderCount: r._count || 0,
+    }));
 
     return {
       success: true,
@@ -1702,9 +1770,17 @@ export async function adminRoutes(app: FastifyInstance) {
         period,
         orderStats,
         revenueByShop,
-        topProducts,
+        topProducts: topProducts.map((p: any) => ({
+          id: p.id,
+          nameUz: p.nameUz,
+          price: p.price,
+          salesCount: p.salesCount,
+          shopName: p.shop?.name || '-',
+          revenue: Number(p.price || 0) * Number(p.salesCount || 0),
+        })),
         newUsers,
         newShops,
+        totalUsers,
       },
     };
   });
@@ -1893,7 +1969,7 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   app.put('/admin/settings', {
-    preHandler: [authMiddleware, requireRole('admin')],
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('settings.manage')],
   }, async (request) => {
     // Validate that body is an object
     if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
@@ -3278,9 +3354,8 @@ export async function adminRoutes(app: FastifyInstance) {
   // ============================================
 
   app.get('/admin/roles', {
-    preHandler: [authMiddleware, requireRole('admin')],
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('roles.manage')],
   }, async (request, reply) => {
-    const roles = await prisma.adminRole.findMany({
       include: {
         user: { select: { id: true, fullName: true, email: true, avatarUrl: true, phone: true } },
       },
@@ -3291,7 +3366,7 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   app.put('/admin/roles/:userId', {
-    preHandler: [authMiddleware, requireRole('admin')],
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('roles.manage')],
   }, async (request, reply) => {
     const { userId } = request.params as { userId: string };
     const body = z.object({
@@ -3320,7 +3395,7 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   app.delete('/admin/roles/:userId', {
-    preHandler: [authMiddleware, requireRole('admin')],
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('roles.manage')],
   }, async (request, reply) => {
     const { userId } = request.params as { userId: string };
 
@@ -3815,5 +3890,165 @@ export async function adminRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     await prisma.faqEntry.delete({ where: { id } });
     return reply.send({ success: true, message: 'FAQ o\'chirildi' });
+  });
+
+  // ============================================
+  // COMPETE-007: ADMIN REVIEW MODERATION
+  // Product & Shop reviews management
+  // ============================================
+
+  /**
+   * GET /admin/reviews/products — List all product reviews with filters
+   */
+  app.get('/admin/reviews/products', {
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('moderation.manage')],
+  }, async (request, reply) => {
+    const query = z.object({
+      page: z.coerce.number().min(1).default(1),
+      limit: z.coerce.number().min(1).max(100).default(20),
+      rating: z.coerce.number().min(1).max(5).optional(),
+      search: z.string().optional(),
+    }).parse(request.query);
+
+    const { skip, take } = parsePagination(query.page, query.limit);
+
+    const where: any = {};
+    if (query.rating) where.rating = query.rating;
+    if (query.search) {
+      where.OR = [
+        { comment: { contains: query.search, mode: 'insensitive' } },
+        { product: { nameUz: { contains: query.search, mode: 'insensitive' } } },
+        { user: { fullName: { contains: query.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [reviews, total] = await Promise.all([
+      prisma.productReview.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          product: { select: { id: true, nameUz: true, nameRu: true, images: true } },
+          user: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
+        },
+      }),
+      prisma.productReview.count({ where }),
+    ]);
+
+    // Stats
+    const [totalReviews, avgRating] = await Promise.all([
+      prisma.productReview.count(),
+      prisma.productReview.aggregate({ _avg: { rating: true } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: reviews,
+      meta: { ...paginationMeta(total, query.page, query.limit), totalReviews, avgRating: avgRating._avg.rating || 0 },
+    });
+  });
+
+  /**
+   * GET /admin/reviews/shops — List all shop reviews with filters
+   */
+  app.get('/admin/reviews/shops', {
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('moderation.manage')],
+  }, async (request, reply) => {
+    const query = z.object({
+      page: z.coerce.number().min(1).default(1),
+      limit: z.coerce.number().min(1).max(100).default(20),
+      rating: z.coerce.number().min(1).max(5).optional(),
+      search: z.string().optional(),
+    }).parse(request.query);
+
+    const { skip, take } = parsePagination(query.page, query.limit);
+
+    const where: any = {};
+    if (query.rating) where.rating = query.rating;
+    if (query.search) {
+      where.OR = [
+        { comment: { contains: query.search, mode: 'insensitive' } },
+        { shop: { name: { contains: query.search, mode: 'insensitive' } } },
+        { user: { fullName: { contains: query.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [reviews, total] = await Promise.all([
+      prisma.shopReview.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          shop: { select: { id: true, name: true, logoUrl: true } },
+          user: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
+        },
+      }),
+      prisma.shopReview.count({ where }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: reviews,
+      meta: paginationMeta(total, query.page, query.limit),
+    });
+  });
+
+  /**
+   * DELETE /admin/reviews/products/:id — Delete a product review
+   */
+  app.delete('/admin/reviews/products/:id', {
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('moderation.manage')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const review = await prisma.productReview.findUnique({
+      where: { id },
+      include: { product: { select: { id: true } } },
+    });
+    if (!review) throw new NotFoundError('Sharh topilmadi');
+
+    await prisma.productReview.delete({ where: { id } });
+
+    // Recalculate product rating
+    const stats = await prisma.productReview.aggregate({
+      where: { productId: review.productId },
+      _avg: { rating: true },
+      _count: true,
+    });
+    await prisma.product.update({
+      where: { id: review.productId },
+      data: { rating: stats._avg.rating || 0 },
+    });
+
+    return reply.send({ success: true, message: 'Sharh o\'chirildi' });
+  });
+
+  /**
+   * DELETE /admin/reviews/shops/:id — Delete a shop review
+   */
+  app.delete('/admin/reviews/shops/:id', {
+    preHandler: [authMiddleware, requireRole('admin'), requirePermission('moderation.manage')],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const review = await prisma.shopReview.findUnique({ where: { id } });
+    if (!review) throw new NotFoundError('Sharh topilmadi');
+
+    await prisma.shopReview.delete({ where: { id } });
+
+    // Recalculate shop rating
+    const stats = await prisma.shopReview.aggregate({
+      where: { shopId: review.shopId },
+      _avg: { rating: true },
+      _count: true,
+    });
+    await prisma.shop.update({
+      where: { id: review.shopId },
+      data: { rating: stats._avg.rating || 0, reviewCount: stats._count },
+    });
+
+    return reply.send({ success: true, message: 'Sharh o\'chirildi' });
   });
 }

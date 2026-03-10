@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileCheck, FileX, Clock, Eye, Check, X, ExternalLink, Search } from "lucide-react"
+import { FileCheck, FileX, Clock, Eye, Check, X, ExternalLink, Search, FileText, CheckCircle, XCircle } from "lucide-react"
+import { StatCard } from "@/components/charts"
 import { getDocuments, getDocumentStats, approveDocument, rejectDocument, type Document } from './actions'
+import { useTranslation } from '@/store/locale-store'
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
@@ -32,9 +35,8 @@ const typeLabels: Record<string, string> = {
 }
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 })
-  const [loading, setLoading] = useState(true)
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('pending')
   const [searchQuery, setSearchQuery] = useState('')
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
@@ -42,41 +44,48 @@ export default function DocumentsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [docs, s] = await Promise.all([
-        getDocuments(activeTab === 'all' ? undefined : activeTab),
-        getDocumentStats()
-      ])
-      setDocuments(docs)
-      setStats(s)
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [activeTab])
+  const { data: documents = [], isLoading: docsLoading } = useQuery({
+    queryKey: ['admin-documents', activeTab],
+    queryFn: () => getDocuments(activeTab === 'all' ? undefined : activeTab),
+  })
 
-  useEffect(() => { loadData() }, [loadData])
+  const { data: stats = { total: 0, pending: 0, approved: 0, rejected: 0 } } = useQuery({
+    queryKey: ['admin-document-stats'],
+    queryFn: () => getDocumentStats(),
+  })
 
-  const handleApprove = async (doc: Document) => {
-    try {
-      await approveDocument(doc.id)
-      loadData()
-    } catch (err: any) {
+  const approveMutation = useMutation({
+    mutationFn: (docId: string) => approveDocument(docId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-documents'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-document-stats'] })
+    },
+    onError: (err: any) => {
       alert(err.message || 'Xatolik yuz berdi')
-    }
-  }
+    },
+  })
 
-  const handleReject = async () => {
-    if (!selectedDoc || !rejectReason) return
-    try {
-      await rejectDocument(selectedDoc.id, rejectReason)
+  const rejectMutation = useMutation({
+    mutationFn: ({ docId, reason }: { docId: string; reason: string }) => rejectDocument(docId, reason),
+    onSuccess: () => {
       setRejectDialogOpen(false)
       setRejectReason('')
       setSelectedDoc(null)
-      loadData()
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ['admin-documents'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-document-stats'] })
+    },
+    onError: (err: any) => {
       alert(err.message || 'Xatolik yuz berdi')
-    }
+    },
+  })
+
+  const handleApprove = (doc: Document) => {
+    approveMutation.mutate(doc.id)
+  }
+
+  const handleReject = () => {
+    if (!selectedDoc || !rejectReason) return
+    rejectMutation.mutate({ docId: selectedDoc.id, reason: rejectReason })
   }
 
   const filteredDocs = documents.filter(d =>
@@ -87,36 +96,16 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold">Vendor Hujjatlar</h1>
-        <p className="text-muted-foreground text-sm">Vendorlar yuklagan hujjatlarni ko'rib chiqish va tasdiqlash</p>
+        <h1 className="text-xl sm:text-2xl font-bold">{t('vendorDocuments')}</h1>
+        <p className="text-muted-foreground text-sm">{t('reviewAndApproveDocuments')}</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Jami</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Kutilmoqda</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
-            <p className="text-xs text-muted-foreground">Tasdiqlangan</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-            <p className="text-xs text-muted-foreground">Rad etilgan</p>
-          </CardContent>
-        </Card>
+        <StatCard icon={FileText} label={t('total')} value={stats.total} color="primary" />
+        <StatCard icon={Clock} label={t('pending')} value={stats.pending} color="warning" />
+        <StatCard icon={CheckCircle} label={t('approved')} value={stats.approved} color="success" />
+        <StatCard icon={XCircle} label={t('rejected')} value={stats.rejected} color="destructive" />
       </div>
 
       {/* Tabs & Search */}
@@ -124,17 +113,17 @@ export default function DocumentsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
           <TabsList>
             <TabsTrigger value="pending" className="text-xs sm:text-sm">
-              Kutilmoqda {stats.pending > 0 && <Badge variant="secondary" className="ml-1">{stats.pending}</Badge>}
+              {t('pending')} {stats.pending > 0 && <Badge variant="secondary" className="ml-1">{stats.pending}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="approved" className="text-xs sm:text-sm">Tasdiqlangan</TabsTrigger>
-            <TabsTrigger value="rejected" className="text-xs sm:text-sm">Rad etilgan</TabsTrigger>
-            <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi</TabsTrigger>
+            <TabsTrigger value="approved" className="text-xs sm:text-sm">{t('approved')}</TabsTrigger>
+            <TabsTrigger value="rejected" className="text-xs sm:text-sm">{t('rejected')}</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs sm:text-sm">{t('all')}</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Qidirish..."
+            placeholder={t('searchPlaceholderGeneric')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -143,14 +132,14 @@ export default function DocumentsPage() {
       </div>
 
       {/* Documents List */}
-      {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Yuklanmoqda...</div>
+      {docsLoading ? (
+        <div className="text-center py-12 text-muted-foreground">{t('loading')}</div>
       ) : filteredDocs.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <FileCheck className="h-12 w-12 mb-3 opacity-50" />
-            <p className="font-medium">Hujjatlar topilmadi</p>
-            <p className="text-sm">Bu bo'limda hech qanday hujjat yo'q</p>
+            <p className="font-medium">{t('documentsNotFound')}</p>
+            <p className="text-sm">{t('noDocumentsInSection')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -194,14 +183,14 @@ export default function DocumentsPage() {
                       onClick={() => setPreviewUrl(doc.fileUrl)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      Ko'rish
+                      {t('view')}
                     </Button>
                   )}
                   {doc.status === 'pending' && (
                     <>
                       <Button size="sm" variant="default" onClick={() => handleApprove(doc)}>
                         <Check className="h-4 w-4 mr-1" />
-                        Tasdiqlash
+                        {t('approve')}
                       </Button>
                       <Button
                         size="sm"
@@ -209,7 +198,7 @@ export default function DocumentsPage() {
                         onClick={() => { setSelectedDoc(doc); setRejectDialogOpen(true) }}
                       >
                         <X className="h-4 w-4 mr-1" />
-                        Rad etish
+                        {t('reject')}
                       </Button>
                     </>
                   )}
@@ -224,8 +213,8 @@ export default function DocumentsPage() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hujjatni rad etish</DialogTitle>
-            <DialogDescription>Rad etish sababini tanlang yoki yozing</DialogDescription>
+            <DialogTitle>{t('rejectDocument')}</DialogTitle>
+            <DialogDescription>{t('selectRejectReason')}</DialogDescription>
           </DialogHeader>
           <Select value={rejectReason} onValueChange={setRejectReason}>
             <SelectTrigger>
@@ -244,8 +233,8 @@ export default function DocumentsPage() {
             onChange={e => setRejectReason(e.target.value)}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Bekor qilish</Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!rejectReason}>Rad etish</Button>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>{t('cancel')}</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={!rejectReason}>{t('reject')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -254,7 +243,7 @@ export default function DocumentsPage() {
       <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Hujjat ko'rish</DialogTitle>
+            <DialogTitle>{t('viewDocument')}</DialogTitle>
           </DialogHeader>
           {previewUrl && (
             <div className="space-y-3">
@@ -266,7 +255,7 @@ export default function DocumentsPage() {
               <div className="flex justify-end">
                 <Button variant="outline" asChild>
                   <a href={previewUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4 mr-1" /> Yangi oynada ochish
+                    <ExternalLink className="h-4 w-4 mr-1" /> {t('openInNewWindow')}
                   </a>
                 </Button>
               </div>

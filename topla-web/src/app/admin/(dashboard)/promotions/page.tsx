@@ -30,13 +30,14 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTranslation } from '@/store/locale-store';
 
 const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
-  flash_sale: { label: "Flash Sale", icon: Zap, color: "bg-red-500" },
-  category_discount: { label: "Kategoriya chegirma", icon: Tag, color: "bg-blue-500" },
-  shop_discount: { label: "Do'kon chegirma", icon: Package, color: "bg-purple-500" },
-  free_delivery: { label: "Bepul yetkazish", icon: Truck, color: "bg-green-500" },
-  bundle_deal: { label: "To'plam aksiya", icon: Gift, color: "bg-orange-500" },
+  flash_sale: { label: "flashSale", icon: Zap, color: "bg-red-500" },
+  category_discount: { label: "categoryDiscount", icon: Tag, color: "bg-blue-500" },
+  shop_discount: { label: "shopDiscount", icon: Package, color: "bg-purple-500" },
+  free_delivery: { label: "freeDelivery", icon: Truck, color: "bg-green-500" },
+  bundle_deal: { label: "bundleDeal", icon: Gift, color: "bg-orange-500" },
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -48,6 +49,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function PromotionsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -71,7 +73,7 @@ export default function PromotionsPage() {
   const createMut = useMutation({
     mutationFn: createPromotion,
     onSuccess: () => {
-      toast.success("Aksiya yaratildi");
+      toast.success(t('promotionCreated'));
       queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
       setCreateOpen(false);
     },
@@ -82,7 +84,7 @@ export default function PromotionsPage() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updatePromotionStatus(id, status),
     onSuccess: () => {
-      toast.success("Holat yangilandi");
+      toast.success(t('statusUpdated'));
       queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -91,7 +93,7 @@ export default function PromotionsPage() {
   const deleteMut = useMutation({
     mutationFn: deletePromotion,
     onSuccess: () => {
-      toast.success("Aksiya o'chirildi");
+      toast.success(t('promotionDeleted'));
       queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -102,7 +104,7 @@ export default function PromotionsPage() {
 
   const handleCreate = () => {
     if (!form.nameUz || !form.startDate || !form.endDate) {
-      toast.error("Barcha maydonlarni to'ldiring");
+      toast.error(t('fillAllFields'));
       return;
     }
     createMut.mutate(form);
@@ -112,11 +114,11 @@ export default function PromotionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Aksiyalar va chegirmalar</h1>
-          <p className="text-muted-foreground">Flash sale, kampaniyalar va chegirmalar</p>
+          <h1 className="text-2xl font-bold">{t('promotionsTitle')}</h1>
+          <p className="text-muted-foreground">{t('promotionsDesc')}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Yangi aksiya
+          <Plus className="mr-2 h-4 w-4" /> {t('newPromotion')}
         </Button>
       </div>
 
@@ -127,12 +129,12 @@ export default function PromotionsPage() {
             <SelectValue placeholder="Holat" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Barchasi</SelectItem>
-            <SelectItem value="draft">Qoralama</SelectItem>
-            <SelectItem value="active">Faol</SelectItem>
-            <SelectItem value="scheduled">Rejalashtirilgan</SelectItem>
-            <SelectItem value="ended">Tugagan</SelectItem>
-            <SelectItem value="cancelled">Bekor</SelectItem>
+            <SelectItem value="all">{t('all')}</SelectItem>
+            <SelectItem value="draft">{t('draft')}</SelectItem>
+            <SelectItem value="active">{t('active')}</SelectItem>
+            <SelectItem value="scheduled">{t('scheduled')}</SelectItem>
+            <SelectItem value="ended">{t('ended')}</SelectItem>
+            <SelectItem value="cancelled">{t('cancelled')}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -141,9 +143,9 @@ export default function PromotionsPage() {
             <SelectValue placeholder="Turi" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Barcha turlar</SelectItem>
+            <SelectItem value="all">{t('allTypes')}</SelectItem>
             {Object.entries(TYPE_LABELS).map(([key, val]) => (
-              <SelectItem key={key} value={key}>{val.label}</SelectItem>
+              <SelectItem key={key} value={key}>{t(val.label)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -160,13 +162,13 @@ export default function PromotionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nomi</TableHead>
-                  <TableHead>Turi</TableHead>
-                  <TableHead>Chegirma</TableHead>
-                  <TableHead>Davr</TableHead>
-                  <TableHead>Holat</TableHead>
-                  <TableHead>Ishlatildi</TableHead>
-                  <TableHead className="text-right">Amallar</TableHead>
+                  <TableHead>{t('name')}</TableHead>
+                  <TableHead>{t('type')}</TableHead>
+                  <TableHead>{t('discount')}</TableHead>
+                  <TableHead>{t('period')}</TableHead>
+                  <TableHead>{t('status')}</TableHead>
+                  <TableHead>{t('usedCount')}</TableHead>
+                  <TableHead className="text-right">{t('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,7 +186,7 @@ export default function PromotionsPage() {
                       <TableCell>
                         <Badge variant="outline" className="gap-1">
                           <TypeIcon className="h-3 w-3" />
-                          {typeInfo.label}
+                          {t(typeInfo.label)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -212,24 +214,24 @@ export default function PromotionsPage() {
                           <DropdownMenuContent align="end">
                             {promo.status === "draft" && (
                               <DropdownMenuItem onClick={() => statusMut.mutate({ id: promo.id, status: "active" })}>
-                                <Play className="mr-2 h-4 w-4" /> Faollashtirish
+                                <Play className="mr-2 h-4 w-4" /> {t('activate')}
                               </DropdownMenuItem>
                             )}
                             {promo.status === "active" && (
                               <DropdownMenuItem onClick={() => statusMut.mutate({ id: promo.id, status: "ended" })}>
-                                <StopCircle className="mr-2 h-4 w-4" /> Tugatish
+                                <StopCircle className="mr-2 h-4 w-4" /> {t('finish')}
                               </DropdownMenuItem>
                             )}
                             {promo.status !== "cancelled" && (
                               <DropdownMenuItem onClick={() => statusMut.mutate({ id: promo.id, status: "cancelled" })}>
-                                <Pause className="mr-2 h-4 w-4" /> Bekor qilish
+                                <Pause className="mr-2 h-4 w-4" /> {t('cancel')}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => deleteMut.mutate(promo.id)}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> O&apos;chirish
+                              <Trash2 className="mr-2 h-4 w-4" /> {t('delete')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -242,8 +244,8 @@ export default function PromotionsPage() {
           ) : (
             <div className="text-center py-16 text-muted-foreground">
               <Zap className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="text-lg font-semibold">Aksiyalar yo&apos;q</p>
-              <p className="text-sm">Yangi aksiya yaratish uchun tugmani bosing</p>
+              <p className="text-lg font-semibold">{t('noPromotionsYet')}</p>
+              <p className="text-sm">{t('createPromotionHint')}</p>
             </div>
           )}
         </CardContent>
@@ -253,11 +255,11 @@ export default function PromotionsPage() {
       {meta && meta.totalPages > 1 && (
         <div className="flex justify-center gap-2">
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            Oldingi
+            {t('previous')}
           </Button>
           <span className="text-sm py-2 px-4">{page} / {meta.totalPages}</span>
           <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>
-            Keyingi
+            {t('next')}
           </Button>
         </div>
       )}
@@ -266,33 +268,33 @@ export default function PromotionsPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Yangi aksiya</DialogTitle>
+            <DialogTitle>{t('newPromotion')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Nomi (UZ)</Label>
+                <Label>{t('nameUz')}</Label>
                 <Input value={form.nameUz} onChange={(e) => setForm({ ...form, nameUz: e.target.value })} />
               </div>
               <div>
-                <Label>Nomi (RU)</Label>
+                <Label>{t('nameRu')}</Label>
                 <Input value={form.nameRu} onChange={(e) => setForm({ ...form, nameRu: e.target.value })} />
               </div>
             </div>
             <div>
-              <Label>Turi</Label>
+              <Label>{t('type')}</Label>
               <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(TYPE_LABELS).map(([key, val]) => (
-                    <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                    <SelectItem key={key} value={key}>{t(val.label)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Chegirma %</Label>
+                <Label>{t('discountPercent')}</Label>
                 <Input
                   type="number"
                   value={form.discountPercent}
@@ -301,18 +303,18 @@ export default function PromotionsPage() {
                 />
               </div>
               <div>
-                <Label>Max foydalanish</Label>
+                <Label>{t('maxUsage')}</Label>
                 <Input
                   type="number"
                   value={form.maxUsage || ""}
                   onChange={(e) => setForm({ ...form, maxUsage: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="Cheksiz"
+                  placeholder={t('unlimited')}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Boshlanishi</Label>
+                <Label>{t('startDateTime')}</Label>
                 <Input
                   type="datetime-local"
                   value={form.startDate}
@@ -320,7 +322,7 @@ export default function PromotionsPage() {
                 />
               </div>
               <div>
-                <Label>Tugashi</Label>
+                <Label>{t('endDateTime')}</Label>
                 <Input
                   type="datetime-local"
                   value={form.endDate}
@@ -329,7 +331,7 @@ export default function PromotionsPage() {
               </div>
             </div>
             <div>
-              <Label>Tavsif (UZ)</Label>
+              <Label>{t('descriptionUz')}</Label>
               <Textarea
                 value={form.descriptionUz}
                 onChange={(e) => setForm({ ...form, descriptionUz: e.target.value })}
@@ -338,10 +340,10 @@ export default function PromotionsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Bekor</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('cancel')}</Button>
             <Button onClick={handleCreate} disabled={createMut.isPending}>
               {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Yaratish
+              {t('create')}
             </Button>
           </DialogFooter>
         </DialogContent>

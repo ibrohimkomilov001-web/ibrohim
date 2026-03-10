@@ -19,24 +19,26 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import {
   AlertTriangle, FileWarning, Send, Loader2,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 const PENALTY_TYPE_LABELS: Record<string, string> = {
-  late_shipment: "Kech jo'natish",
-  order_cancellation: "Buyurtma bekor",
-  quality_issue: "Sifat muammosi",
-  policy_violation: "Qoidabuzarlik",
-  fake_product: "Soxta mahsulot",
-  other: "Boshqa",
+  late_shipment: "lateShipment",
+  order_cancellation: "orderCancellation",
+  quality_issue: "qualityIssue",
+  policy_violation: "policyViolation",
+  fake_product: "fakeProduct",
+  other: "otherPenalty",
 };
 
 const STATUS_CONFIG: Record<string, { label: string; variant: string }> = {
-  pending: { label: "Kutilmoqda", variant: "outline" },
-  applied: { label: "Qo'llanildi", variant: "destructive" },
-  appealed: { label: "Shikoyat yuborildi", variant: "secondary" },
-  cancelled: { label: "Bekor qilindi", variant: "secondary" },
+  pending: { label: "penaltyPending", variant: "outline" },
+  applied: { label: "penaltyApplied", variant: "destructive" },
+  appealed: { label: "penaltyAppealed", variant: "secondary" },
+  cancelled: { label: "penaltyCancelled", variant: "secondary" },
 };
 
 export default function VendorPenaltiesPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -54,7 +56,7 @@ export default function VendorPenaltiesPage() {
   const appealMut = useMutation({
     mutationFn: ({ id, note }: { id: string; note: string }) => vendorApi.appealPenalty(id, note),
     onSuccess: () => {
-      toast.success("Shikoyat yuborildi");
+      toast.success(t('appealSent'));
       queryClient.invalidateQueries({ queryKey: ["vendor-penalties"] });
       setAppealOpen(false);
     },
@@ -75,16 +77,16 @@ export default function VendorPenaltiesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <AlertTriangle className="h-6 w-6" /> Jarimalar
+          <AlertTriangle className="h-6 w-6" /> {t('vendorPenaltiesTitle')}
         </h1>
-        <p className="text-muted-foreground">Do&apos;koningizga tegishli jarimalar</p>
+        <p className="text-muted-foreground">{t('vendorPenaltiesDesc')}</p>
       </div>
 
       {/* Summary */}
       {totalPenalties > 0 && (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="p-5">
-            <div className="text-sm text-muted-foreground">Jami qo&apos;llanilgan jarimalar</div>
+            <div className="text-sm text-muted-foreground">{t('totalAppliedPenalties')}</div>
             <div className="text-3xl font-bold text-destructive">
               {formatPrice(totalPenalties)} so&apos;m
             </div>
@@ -95,12 +97,12 @@ export default function VendorPenaltiesPage() {
       {/* Filter */}
       <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Holat" />
+          <SelectValue placeholder={t('statusLabel')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Barchasi</SelectItem>
+          <SelectItem value="all">{t('allFilter')}</SelectItem>
           {Object.entries(STATUS_CONFIG).map(([key, val]) => (
-            <SelectItem key={key} value={key}>{val.label}</SelectItem>
+            <SelectItem key={key} value={key}>{t(val.label)}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -120,7 +122,7 @@ export default function VendorPenaltiesPage() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <Badge variant="outline" className="mb-1">
-                        {PENALTY_TYPE_LABELS[p.type] || p.type}
+                        {PENALTY_TYPE_LABELS[p.type] ? t(PENALTY_TYPE_LABELS[p.type]) : p.type}
                       </Badge>
                       <h3 className="font-semibold">{p.reason}</h3>
                       {p.description && (
@@ -128,7 +130,7 @@ export default function VendorPenaltiesPage() {
                       )}
                     </div>
                     <div className="text-right">
-                      <Badge variant={cfg.variant as any}>{cfg.label}</Badge>
+                      <Badge variant={cfg.variant as any}>{t(cfg.label)}</Badge>
                       <p className="text-xl font-bold text-destructive mt-1">
                         -{formatPrice(Number(p.amount))} so&apos;m
                       </p>
@@ -138,7 +140,7 @@ export default function VendorPenaltiesPage() {
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-xs text-muted-foreground">
                       {formatDate(p.createdAt)}
-                      {p.order && ` • Buyurtma #${p.order.orderNumber}`}
+                      {p.order && ` • ${t('orderRef')} #${p.order.orderNumber}`}
                     </span>
 
                     {(p.status === "pending" || p.status === "applied") && (
@@ -147,14 +149,14 @@ export default function VendorPenaltiesPage() {
                         variant="outline"
                         onClick={() => openAppeal(p.id)}
                       >
-                        <FileWarning className="h-3 w-3 mr-1" /> Shikoyat
+                        <FileWarning className="h-3 w-3 mr-1" /> {t('appealBtn')}
                       </Button>
                     )}
                   </div>
 
                   {p.appealNote && (
                     <div className="mt-3 bg-muted/50 p-3 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Sizning shikoyatingiz:</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t('yourAppeal')}</p>
                       <p className="text-sm">{p.appealNote}</p>
                     </div>
                   )}
@@ -167,9 +169,9 @@ export default function VendorPenaltiesPage() {
         <Card>
           <CardContent className="py-16 text-center">
             <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
-            <h3 className="text-lg font-semibold">Jarimalar yo&apos;q</h3>
+            <h3 className="text-lg font-semibold">{t('noPenaltiesYet')}</h3>
             <p className="text-muted-foreground">
-              Siz hali hech qanday jarima olmadingiz
+              {t('noPenaltiesReceived')}
             </p>
           </CardContent>
         </Card>
@@ -178,9 +180,9 @@ export default function VendorPenaltiesPage() {
       {/* Pagination */}
       {meta && meta.totalPages > 1 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Oldingi</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t('previousPage')}</Button>
           <span className="text-sm py-2 px-4">{page} / {meta.totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>Keyingi</Button>
+          <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>{t('nextPage')}</Button>
         </div>
       )}
 
@@ -188,22 +190,22 @@ export default function VendorPenaltiesPage() {
       <Dialog open={appealOpen} onOpenChange={setAppealOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Jarimaga shikoyat</DialogTitle>
+            <DialogTitle>{t('appealTitle')}</DialogTitle>
           </DialogHeader>
           <Textarea
             value={appealNote}
             onChange={(e) => setAppealNote(e.target.value)}
-            placeholder="Nima uchun jarima noto'g'ri deb hisoblaysiz..."
+            placeholder={t('appealPlaceholder')}
             rows={4}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAppealOpen(false)}>Bekor</Button>
+            <Button variant="outline" onClick={() => setAppealOpen(false)}>{t('cancelBtn')}</Button>
             <Button
               onClick={() => appealMut.mutate({ id: appealId, note: appealNote })}
               disabled={appealMut.isPending || appealNote.length < 10}
             >
               {appealMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Send className="mr-2 h-4 w-4" /> Yuborish
+              <Send className="mr-2 h-4 w-4" /> {t('sendBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>

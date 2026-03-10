@@ -110,6 +110,16 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     setMobileOpen(false);
   }, [pathname]);
 
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
@@ -239,7 +249,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
             </Button>
             <div className="hidden sm:block">
               <h1 className="text-lg font-semibold">{shopName}</h1>
-              <p className="text-xs text-muted-foreground">Sotuvchi kabineti</p>
+              <p className="text-xs text-muted-foreground">{t('vendorCabinet')}</p>
             </div>
           </div>
 

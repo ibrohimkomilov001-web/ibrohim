@@ -1,25 +1,26 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, Plus, MapPin, Trash2, ToggleLeft, ToggleRight, Edit } from 'lucide-react'
+import { Loader2, Plus, MapPin, Trash2, ToggleLeft, ToggleRight, Edit, CheckCircle, XCircle } from 'lucide-react'
+import { StatCard } from '@/components/charts'
 import { formatPrice } from '@/lib/utils'
 import { getDeliveryZonesWithStats, createDeliveryZone, toggleDeliveryZoneStatus, deleteDeliveryZone, type DeliveryZone } from './actions'
 import { toast } from 'sonner'
 import { useUrlState } from '@/hooks/use-url-state'
+import { useTranslation } from '@/store/locale-store'
 
 export default function AdminDeliveryZonesPage() {
-  const [loading, setLoading] = useState(true)
-  const [zones, setZones] = useState<DeliveryZone[]>([])
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 })
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const [{ search: searchQuery }, setFilters] = useUrlState({ search: '' })
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [actionLoading, setActionLoading] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,78 +31,80 @@ export default function AdminDeliveryZonesPage() {
     estimated_time: ''
   })
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      const { zones: zonesData, stats: statsData } = await getDeliveryZonesWithStats()
-      setZones(zonesData)
-      setStats(statsData)
-    } catch (error) {
-      console.error(error)
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data, isLoading } = useQuery({
+    queryKey: ['delivery-zones'],
+    queryFn: getDeliveryZonesWithStats,
+  })
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const zones = data?.zones ?? []
+  const stats = data?.stats ?? { total: 0, active: 0, inactive: 0 }
 
   const filteredZones = zones.filter(zone =>
     zone.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     zone.region?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleCreate = async () => {
-    if (!formData.name) {
-      toast.error("Zona nomini kiriting")
-      return
-    }
-
-    try {
-      setActionLoading(true)
-      await createDeliveryZone({
-        name: formData.name,
-        region: formData.region || undefined,
-        districts: formData.districts ? formData.districts.split(',').map(d => d.trim()) : [],
-        delivery_fee: formData.delivery_fee ? parseFloat(formData.delivery_fee) : 0,
-        min_order_amount: formData.min_order_amount ? parseFloat(formData.min_order_amount) : 0,
-        estimated_time: formData.estimated_time || undefined
-      })
-      await loadData()
-      toast.success("Zona yaratildi")
+  const createMutation = useMutation({
+    mutationFn: createDeliveryZone,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-zones'] })
+      toast.success(t('zoneCreated'))
       setCreateDialogOpen(false)
       setFormData({ name: '', region: '', districts: '', delivery_fee: '', min_order_amount: '', estimated_time: '' })
-    } catch (error) {
-      toast.error("Zona yaratishda xatolik")
-    } finally {
-      setActionLoading(false)
+    },
+    onError: () => {
+      toast.error(t('zoneCreateError'))
+    },
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      toggleDeliveryZoneStatus(id, !isActive),
+    onSuccess: (_data, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-zones'] })
+      toast.success(isActive ? t('zoneDeactivated') : t('zoneActivated'))
+    },
+    onError: () => {
+      toast.error(t('statusChangeError'))
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteDeliveryZone,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-zones'] })
+      toast.success(t('zoneDeleted'))
+    },
+    onError: () => {
+      toast.error(t('deleteError'))
+    },
+  })
+
+  const handleCreate = () => {
+    if (!formData.name) {
+      toast.error(t('zoneNameRequired'))
+      return
     }
+    createMutation.mutate({
+      name: formData.name,
+      region: formData.region || undefined,
+      districts: formData.districts ? formData.districts.split(',').map(d => d.trim()) : [],
+      delivery_fee: formData.delivery_fee ? parseFloat(formData.delivery_fee) : 0,
+      min_order_amount: formData.min_order_amount ? parseFloat(formData.min_order_amount) : 0,
+      estimated_time: formData.estimated_time || undefined
+    })
   }
 
-  const handleToggle = async (id: string, isActive: boolean) => {
-    try {
-      await toggleDeliveryZoneStatus(id, !isActive)
-      await loadData()
-      toast.success(isActive ? "Zona o'chirildi" : "Zona yoqildi")
-    } catch (error) {
-      toast.error("Statusni o'zgartirishda xatolik")
-    }
+  const handleToggle = (id: string, isActive: boolean) => {
+    toggleMutation.mutate({ id, isActive })
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Zonani o'chirishni xohlaysizmi?")) return
-    try {
-      await deleteDeliveryZone(id)
-      await loadData()
-      toast.success("Zona o'chirildi")
-    } catch (error) {
-      toast.error("O'chirishda xatolik")
-    }
+  const handleDelete = (id: string) => {
+    if (!confirm(t('confirmDeleteZone'))) return
+    deleteMutation.mutate(id)
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -113,50 +116,29 @@ export default function AdminDeliveryZonesPage() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Yetkazib berish zonalari</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Yetkazib berish hududlarini boshqaring</p>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('deliveryZonesTitle')}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{t('manageDeliveryZones')}</p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Yangi zona
+          {t('newZone')}
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Jami</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Faol</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Nofaol</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold text-gray-500">{stats.inactive}</div>
-          </CardContent>
-        </Card>
+        <StatCard icon={MapPin} label={t('total')} value={stats.total} color="primary" />
+        <StatCard icon={CheckCircle} label={t('active')} value={stats.active} color="success" />
+        <StatCard icon={XCircle} label={t('inactive')} value={stats.inactive} color="warning" />
       </div>
 
       {/* Zones List */}
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base sm:text-lg">Zonalar ro'yxati</CardTitle>
+            <CardTitle className="text-base sm:text-lg">{t('zonesList')}</CardTitle>
             <Input
-              placeholder="Qidirish..."
+              placeholder={t('searchPlaceholderGeneric')}
               value={searchQuery}
               onChange={(e) => setFilters({ search: e.target.value })}
               className="w-full sm:w-64"
@@ -167,7 +149,7 @@ export default function AdminDeliveryZonesPage() {
           {filteredZones.length === 0 ? (
             <div className="text-center py-12">
               <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">Zonalar topilmadi</p>
+              <p className="text-muted-foreground">{t('zonesNotFound')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -178,7 +160,7 @@ export default function AdminDeliveryZonesPage() {
                       <MapPin className="h-5 w-5 text-primary" />
                       <span className="font-medium">{zone.name}</span>
                       <Badge variant={zone.is_active ? 'default' : 'secondary'}>
-                        {zone.is_active ? 'Faol' : 'Nofaol'}
+                        {zone.is_active ? t('active') : t('inactive')}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1">
@@ -193,7 +175,7 @@ export default function AdminDeliveryZonesPage() {
                   {zone.region && <p className="text-sm text-muted-foreground">{zone.region}</p>}
                   <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
                     <span className="bg-muted px-2 py-1 rounded">
-                      Yetkazib berish: {zone.delivery_fee > 0 ? formatPrice(zone.delivery_fee) : 'Bepul'}
+                      {t('delivery')}: {zone.delivery_fee > 0 ? formatPrice(zone.delivery_fee) : t('free')}
                     </span>
                     {zone.min_order_amount > 0 && (
                       <span className="bg-muted px-2 py-1 rounded">Min: {formatPrice(zone.min_order_amount)}</span>
@@ -220,12 +202,12 @@ export default function AdminDeliveryZonesPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Yangi zona</DialogTitle>
-            <DialogDescription>Yangi yetkazib berish zonasini yarating</DialogDescription>
+            <DialogTitle>{t('newZone')}</DialogTitle>
+            <DialogDescription>{t('createNewZoneDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Zona nomi *</Label>
+              <Label>{t('zoneName')} *</Label>
               <Input
                 placeholder="Toshkent shahri"
                 value={formData.name}
@@ -233,7 +215,7 @@ export default function AdminDeliveryZonesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Viloyat</Label>
+              <Label>{t('region')}</Label>
               <Input
                 placeholder="Toshkent"
                 value={formData.region}
@@ -241,7 +223,7 @@ export default function AdminDeliveryZonesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Tumanlar (vergul bilan)</Label>
+              <Label>{t('districtsComma')}</Label>
               <Input
                 placeholder="Yunusobod, Mirzo Ulug'bek, Shayxontohur"
                 value={formData.districts}
@@ -250,7 +232,7 @@ export default function AdminDeliveryZonesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Yetkazib berish narxi</Label>
+                <Label>{t('deliveryPrice')}</Label>
                 <Input
                   type="number"
                   placeholder="15000"
@@ -259,7 +241,7 @@ export default function AdminDeliveryZonesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Taxminiy vaqt</Label>
+                <Label>{t('estimatedTime')}</Label>
                 <Input
                   placeholder="30-60 min"
                   value={formData.estimated_time}
@@ -269,10 +251,10 @@ export default function AdminDeliveryZonesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Bekor qilish</Button>
-            <Button onClick={handleCreate} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Yaratish
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>{t('cancel')}</Button>
+            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('create')}
             </Button>
           </DialogFooter>
         </DialogContent>

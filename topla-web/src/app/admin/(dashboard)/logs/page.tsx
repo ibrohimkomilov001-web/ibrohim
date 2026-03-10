@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,74 +12,62 @@ import { toast } from 'sonner'
 import { useUrlState } from '@/hooks/use-url-state'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
+import { useTranslation } from '@/store/locale-store';
 
 export default function AdminLogsPage() {
-  const [loading, setLoading] = useState(true)
-  const [logs, setLogs] = useState<ActivityLog[]>([])
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false })
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [{ search: searchQuery, page }, setFilters] = useUrlState({ search: '', page: '1' })
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const { logs: logsData, pagination: pag } = await getLogs({
-        page: parseInt(page) || 1,
-        search: debouncedSearch || undefined,
-      })
-      setLogs(logsData)
-      setPagination(pag)
-    } catch (error) {
-      console.error(error)
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, page])
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['admin-logs', debouncedSearch, page],
+    queryFn: () => getLogs({
+      page: parseInt(page) || 1,
+      search: debouncedSearch || undefined,
+    }),
+    staleTime: 10_000,
+  });
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  const logs = data?.logs ?? [];
+  const pagination = data?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false };
 
-  useEffect(() => {
-    const p = parseInt(page)
-    if (p > 1) setFilters({ page: '1' })
-  }, [debouncedSearch])
+  const loadData = () => queryClient.invalidateQueries({ queryKey: ['admin-logs'] });
 
   const handleClearOld = async () => {
-    if (!confirm("30 kundan eski loglarni o'chirishni xohlaysizmi?")) return
+    if (!confirm(t('confirmClearOldLogs'))) return
     try {
       await clearOldLogs(30)
       await loadData()
-      toast.success("Eski loglar o'chirildi")
+      toast.success(t('oldLogsCleared'))
     } catch (error) {
-      toast.error("O'chirishda xatolik")
+      toast.error(t('deleteError'))
     }
   }
 
   const getActionColor = (action: string) => {
-    if (action.includes('create') || action.includes('add')) return 'bg-green-100 text-green-800'
-    if (action.includes('update') || action.includes('edit')) return 'bg-blue-100 text-blue-800'
-    if (action.includes('delete') || action.includes('remove')) return 'bg-red-100 text-red-800'
-    if (action.includes('login') || action.includes('auth')) return 'bg-purple-100 text-purple-800'
-    return 'bg-gray-100 text-gray-800'
+    if (action.includes('create') || action.includes('add')) return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+    if (action.includes('update') || action.includes('edit')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+    if (action.includes('delete') || action.includes('remove')) return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+    if (action.includes('login') || action.includes('auth')) return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+    return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Faoliyat jurnali</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Tizim faoliyatini kuzatish ({pagination.total} ta yozuv)</p>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('activityLog')}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{t('trackActivity')} ({pagination.total} {t('records')})</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadData} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Yangilash
+            {t('refresh')}
           </Button>
           <Button variant="destructive" onClick={handleClearOld}>
             <Trash2 className="mr-2 h-4 w-4" />
-            Eski loglarni tozalash
+            {t('clearOldLogs')}
           </Button>
         </div>
       </div>
@@ -87,9 +76,9 @@ export default function AdminLogsPage() {
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base sm:text-lg">Loglar ro'yxati</CardTitle>
+            <CardTitle className="text-base sm:text-lg">{t('logsList')}</CardTitle>
             <Input
-              placeholder="Qidirish..."
+              placeholder={t('searchPlaceholderGeneric')}
               value={searchQuery}
               onChange={(e) => setFilters({ search: e.target.value })}
               className="w-full sm:w-64"
@@ -102,8 +91,8 @@ export default function AdminLogsPage() {
           {logs.length === 0 && !loading ? (
             <div className="text-center py-12">
               <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">Loglar topilmadi</p>
-              <p className="text-sm text-muted-foreground mt-1">Tizimda hech qanday faoliyat yozilmagan</p>
+              <p className="text-muted-foreground">{t('logsNotFound')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('noActivityRecorded')}</p>
             </div>
           ) : (
             <div className="space-y-2">

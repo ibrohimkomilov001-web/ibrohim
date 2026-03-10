@@ -21,35 +21,37 @@ import {
   Shield,
   File,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 const documentTypes = [
   {
     type: "passport",
-    title: "Pasport nusxasi",
-    description: "Shaxsni tasdiqlash uchun pasportning birinchi sahifasi",
+    titleKey: "passportCopy",
+    descKey: "passportDesc",
     icon: FileText,
   },
   {
     type: "inn",
-    title: "INN guvohnomasi",
-    description: "Soliq to'lovchi identifikatsiya raqami",
+    titleKey: "innCertificate",
+    descKey: "innDesc",
     icon: File,
   },
   {
     type: "license",
-    title: "Litsenziya / Guvohnoma",
-    description: "Tadbirkorlik faoliyati uchun guvohnoma",
+    titleKey: "licenseCertificate",
+    descKey: "licenseDesc",
     icon: Shield,
   },
   {
     type: "certificate",
-    title: "Sertifikat",
-    description: "Mahsulot sifat sertifikati (ixtiyoriy)",
+    titleKey: "certificateTitle",
+    descKey: "certificateDesc",
     icon: CheckCircle,
   },
 ];
 
 export default function DocumentsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [uploadingType, setUploadingType] = useState<string | null>(null);
 
@@ -71,12 +73,12 @@ export default function DocumentsPage() {
       return vendorApi.uploadDocument(formData);
     },
     onSuccess: () => {
-      toast.success("Hujjat yuklandi");
+      toast.success(t('documentUploaded'));
       queryClient.invalidateQueries({ queryKey: ["vendor-documents"] });
       setUploadingType(null);
     },
     onError: (error: any) => {
-      toast.error(error.message || "Yuklashda xatolik");
+      toast.error(error.message || t('uploadError'));
       setUploadingType(null);
     },
   });
@@ -84,11 +86,11 @@ export default function DocumentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => vendorApi.deleteDocument(id),
     onSuccess: () => {
-      toast.success("Hujjat o'chirildi");
+      toast.success(t('documentDeleted'));
       queryClient.invalidateQueries({ queryKey: ["vendor-documents"] });
     },
     onError: (error: any) => {
-      toast.error(error.message || "O'chirishda xatolik");
+      toast.error(error.message || t('deleteError'));
     },
   });
 
@@ -109,9 +111,9 @@ export default function DocumentsPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Hujjatlar</h1>
+        <h1 className="text-2xl font-bold">{t('vendorDocumentsTitle')}</h1>
         <p className="text-muted-foreground">
-          Verifikatsiya uchun kerakli hujjatlarni yuklang
+          {t('uploadForVerification')}
         </p>
       </div>
 
@@ -122,9 +124,9 @@ export default function DocumentsPage() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold">Verifikatsiya holati</h3>
+            <h3 className="font-semibold">{t('verificationStatus')}</h3>
             <p className="text-sm text-muted-foreground">
-              Barcha kerakli hujjatlarni yuklang. Tekshiruv 1-2 ish kunini oladi.
+              {t('verificationInfo')}
             </p>
           </div>
         </CardContent>
@@ -182,29 +184,29 @@ export default function DocumentsPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="font-semibold">{docType.title}</h3>
+                          <h3 className="font-semibold">{t(docType.titleKey)}</h3>
                           {doc?.status && (
                             <Badge variant={
                               doc.status === "approved" ? "default" :
                               doc.status === "pending" ? "secondary" :
                               "destructive"
                             }>
-                              {doc.status === "approved" ? "Tasdiqlangan" :
-                               doc.status === "pending" ? "Tekshirilmoqda" :
-                               "Rad etildi"
+                              {doc.status === "approved" ? t('approved') :
+                               doc.status === "pending" ? t('underReview') :
+                               t('rejected')
                               }
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{docType.description}</p>
+                        <p className="text-sm text-muted-foreground">{t(docType.descKey)}</p>
                         {doc?.createdAt && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            Yuklangan: {formatDateLong(doc.createdAt)}
+                            {t('uploadedDate')}: {formatDateLong(doc.createdAt)}
                           </p>
                         )}
                         {doc?.status === "rejected" && (doc?.note || (doc as any)?.rejectedReason) && (
                           <p className="text-xs text-red-600 mt-1">
-                            Sabab: {(doc as any).rejectedReason || doc.note}
+                            {t('reason')}: {(doc as any).rejectedReason || doc.note}
                           </p>
                         )}
                       </div>
@@ -219,7 +221,7 @@ export default function DocumentsPage() {
                               deleteMutation.mutate(doc.id);
                             }}
                           >
-                            O'chirish
+                            {t('deleteDoc')}
                           </Button>
                         )}
                         <label>
@@ -233,17 +235,17 @@ export default function DocumentsPage() {
                               {isUploading ? (
                                 <>
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Yuklanmoqda
+                                  {t('uploading')}
                                 </>
                               ) : doc ? (
                                 <>
                                   <Upload className="mr-2 h-4 w-4" />
-                                  Qayta yuklash
+                                  {t('reupload')}
                                 </>
                               ) : (
                                 <>
                                   <Upload className="mr-2 h-4 w-4" />
-                                  Yuklash
+                                  {t('uploadBtn')}
                                 </>
                               )}
                             </span>
@@ -272,9 +274,9 @@ export default function DocumentsPage() {
           <div className="flex gap-3">
             <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm text-muted-foreground space-y-1">
-              <p>Qabul qilinadigan formatlar: JPG, PNG, PDF</p>
-              <p>Maksimal hajm: 10 MB</p>
-              <p>Hujjatlar xavfsiz saqlanadi va faqat tekshiruv uchun ishlatiladi</p>
+              <p>{t('acceptedFormats')}</p>
+              <p>{t('maxSize')}</p>
+              <p>{t('secureStorage')}</p>
             </div>
           </div>
         </CardContent>

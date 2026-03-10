@@ -826,13 +826,13 @@ export default function BecomeSellerPage() {
       {/* ━━━ NAVBAR ━━━ */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
-          ? 'bg-white/60 backdrop-blur-2xl border-b border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.08)]'
-          : 'bg-white/80 backdrop-blur-md shadow-sm border-b border-white/20'
+          ? 'bg-white/60 dark:bg-gray-950/60 backdrop-blur-2xl border-b border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.08)]'
+          : 'bg-white/80 dark:bg-gray-950/80 backdrop-blur-md shadow-sm border-b border-white/20 dark:border-gray-800/20'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <Link href="/" className="flex items-center">
-              <span className="text-base font-extrabold tracking-tight text-gray-900">
+              <span className="text-base font-extrabold tracking-tight text-gray-900 dark:text-white">
                 TOPLA<span className="text-[#2563EB]">.UZ</span>
               </span>
             </Link>
@@ -842,22 +842,22 @@ export default function BecomeSellerPage() {
                 className="flex flex-col justify-center items-center w-9 h-9 rounded-lg hover:bg-black/5 transition-colors"
                 aria-label="Menu"
               >
-                <span className={`block w-5 h-0.5 bg-gray-800 rounded transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-[3px]' : ''}`} />
-                <span className={`block w-5 h-0.5 bg-gray-800 rounded mt-1 transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
-                <span className={`block w-5 h-0.5 bg-gray-800 rounded mt-1 transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-gray-800 dark:bg-gray-200 rounded transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-[3px]' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-gray-800 dark:bg-gray-200 rounded mt-1 transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
+                <span className={`block w-5 h-0.5 bg-gray-800 dark:bg-gray-200 rounded mt-1 transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 top-12 w-48 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                   <Link
                     href="/vendor/login"
-                    className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] transition-colors"
+                    className="block px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-[#2563EB] transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
                     Kirish
                   </Link>
                   <Link
                     href="/vendor/register"
-                    className="block px-4 py-2.5 text-sm font-medium text-[#2563EB] hover:bg-blue-50 transition-colors"
+                    className="block px-4 py-2.5 text-sm font-medium text-[#2563EB] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
                     Sotuvchi bo&apos;lish

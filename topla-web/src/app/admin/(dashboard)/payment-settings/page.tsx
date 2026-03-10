@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   Clock, CheckCircle2, XCircle, Loader2, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from '@/store/locale-store';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
@@ -40,7 +42,7 @@ const bankProviders = [
     logo: "🐙",
     description: "Octobank orqali karta yechish (Humo/Uzcard/Visa/Mastercard)",
     cards: ["Humo", "Uzcard", "Visa", "Mastercard"],
-    color: "bg-blue-50 border-blue-200",
+    color: "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800",
     minAmount: 10_000,
     maxAmount: 200_000_000,
     commission: 0.8,
@@ -53,10 +55,10 @@ const bankProviders = [
 type WithdrawalStatus = "pending" | "processing" | "completed" | "failed";
 
 const statusConfig: Record<WithdrawalStatus, { label: string; color: string; icon: React.ElementType }> = {
-  pending: { label: "Kutilmoqda", color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  processing: { label: "Jarayonda", color: "bg-blue-100 text-blue-800", icon: ArrowDownToLine },
-  completed: { label: "Bajarildi", color: "bg-green-100 text-green-800", icon: CheckCircle2 },
-  failed: { label: "Xatolik", color: "bg-red-100 text-red-800", icon: XCircle },
+  pending: { label: "pending", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: Clock },
+  processing: { label: "inProcess", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: ArrowDownToLine },
+  completed: { label: "done", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: CheckCircle2 },
+  failed: { label: "errorOccurred", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", icon: XCircle },
 };
 
 interface ProviderStatus {
@@ -88,13 +90,12 @@ async function fetchWithAuth(url: string, options?: RequestInit) {
 }
 
 export default function PaymentSettingsPage() {
+  const { t } = useTranslation();
   const [activeProvider, setActiveProvider] = useState("aliance");
   const [cashOnDelivery, setCashOnDelivery] = useState(true);
   const [autoWithdraw, setAutoWithdraw] = useState(false);
   const [autoWithdrawThreshold, setAutoWithdrawThreshold] = useState("500000");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [settingsData, setSettingsData] = useState<PaymentSettingsData | null>(null);
+  const queryClient = useQueryClient();
 
   // Bank config formlar
   const [alianceLogin, setAlianceLogin] = useState("");
@@ -115,38 +116,32 @@ export default function PaymentSettingsPage() {
     status: WithdrawalStatus; date: string;
   }>>([]);
 
-  const loadSettings = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data: settingsData, isLoading, refetch } = useQuery({
+    queryKey: ["payment-settings"],
+    queryFn: async () => {
       const res = await fetchWithAuth(`${API_BASE}/payments/settings`);
-      const data = res.data as PaymentSettingsData;
-      setSettingsData(data);
+      return res.data as PaymentSettingsData;
+    },
+  });
 
-      // Sozlamalarni formga yuklash
-      const getVal = (key: string) => data.settings.find(s => s.key === key)?.value || "";
-      setAlianceLogin(getVal("aliance_api_login"));
-      setAlianceSecret(getVal("aliance_api_secret"));
-      setAlianceMerchantId(getVal("aliance_merchant_id"));
-      setOctobankLogin(getVal("octobank_api_login"));
-      setOctobankSecret(getVal("octobank_api_secret"));
-      setOctobankMerchantId(getVal("octobank_merchant_id"));
-      setWebhookIPs(getVal("webhook_ips"));
-      setDailyLimit(getVal("daily_limit") || "50000000");
-      setDailyCountLimit(getVal("daily_count_limit") || "10");
-      setCashOnDelivery(getVal("cash_on_delivery") !== "false");
-      setAutoWithdraw(getVal("auto_withdraw") === "true");
-      setAutoWithdrawThreshold(getVal("auto_withdraw_threshold") || "500000");
-      setActiveProvider(getVal("active_provider") || "aliance");
-    } catch (err) {
-      console.error('Payment settings yuklashda xatolik:', err);
-      // API ulanmasa, bo'sh holat qo'yish (demo data yo'q)
-      setWithdrawals([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadSettings(); }, [loadSettings]);
+  // Sync form state when settings data loads
+  useEffect(() => {
+    if (!settingsData) return;
+    const getVal = (key: string) => settingsData.settings.find(s => s.key === key)?.value || "";
+    setAlianceLogin(getVal("aliance_api_login"));
+    setAlianceSecret(getVal("aliance_api_secret"));
+    setAlianceMerchantId(getVal("aliance_merchant_id"));
+    setOctobankLogin(getVal("octobank_api_login"));
+    setOctobankSecret(getVal("octobank_api_secret"));
+    setOctobankMerchantId(getVal("octobank_merchant_id"));
+    setWebhookIPs(getVal("webhook_ips"));
+    setDailyLimit(getVal("daily_limit") || "50000000");
+    setDailyCountLimit(getVal("daily_count_limit") || "10");
+    setCashOnDelivery(getVal("cash_on_delivery") !== "false");
+    setAutoWithdraw(getVal("auto_withdraw") === "true");
+    setAutoWithdrawThreshold(getVal("auto_withdraw_threshold") || "500000");
+    setActiveProvider(getVal("active_provider") || "aliance");
+  }, [settingsData]);
 
   const saveSetting = async (key: string, value: string, isSecret = false) => {
     try {
@@ -156,14 +151,13 @@ export default function PaymentSettingsPage() {
       });
       return true;
     } catch (e) {
-      toast.error(`Saqlashda xatolik: ${(e as Error).message}`);
+      toast.error(`${t('saveError')}: ${(e as Error).message}`);
       return false;
     }
   };
 
-  const saveProviderConfig = async () => {
-    setIsSaving(true);
-    try {
+  const saveProviderMutation = useMutation({
+    mutationFn: async () => {
       const isAliance = activeProvider === "aliance";
       const settings = isAliance
         ? [
@@ -179,47 +173,51 @@ export default function PaymentSettingsPage() {
 
       await Promise.all(settings.map(s => saveSetting(s.key, s.value, s.secret)));
       await saveSetting("active_provider", activeProvider);
+      return isAliance;
+    },
+    onSuccess: (isAliance) => {
+      queryClient.invalidateQueries({ queryKey: ["payment-settings"] });
+      toast.success(`${isAliance ? "Aliance Bank" : "Octobank"} ${t('providerSettingsSaved')}`);
+    },
+    onError: (e: Error) => {
+      toast.error(`${t('errorOccurred')}: ${e.message}`);
+    },
+  });
 
-      toast.success(`${isAliance ? "Aliance Bank" : "Octobank"} sozlamalari saqlandi`);
-    } catch (e) {
-      toast.error(`Xatolik: ${(e as Error).message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const saveGeneralSettings = async () => {
-    setIsSaving(true);
-    try {
+  const saveGeneralMutation = useMutation({
+    mutationFn: async () => {
       await Promise.all([
         saveSetting("cash_on_delivery", String(cashOnDelivery)),
         saveSetting("auto_withdraw", String(autoWithdraw)),
         saveSetting("auto_withdraw_threshold", autoWithdrawThreshold),
         saveSetting("active_provider", activeProvider),
       ]);
-      toast.success("Sozlamalar saqlandi");
-    } catch (e) {
-      toast.error(`Xatolik: ${(e as Error).message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment-settings"] });
+      toast.success(t('settingsSaved'));
+    },
+    onError: (e: Error) => {
+      toast.error(`${t('errorOccurred')}: ${e.message}`);
+    },
+  });
 
-  const saveSecuritySettings = async () => {
-    setIsSaving(true);
-    try {
+  const saveSecurityMutation = useMutation({
+    mutationFn: async () => {
       await Promise.all([
         saveSetting("webhook_ips", webhookIPs),
         saveSetting("daily_limit", dailyLimit),
         saveSetting("daily_count_limit", dailyCountLimit),
       ]);
-      toast.success("Xavfsizlik sozlamalari saqlandi");
-    } catch (e) {
-      toast.error(`Xatolik: ${(e as Error).message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment-settings"] });
+      toast.success(t('securitySettingsSaved'));
+    },
+    onError: (e: Error) => {
+      toast.error(`${t('errorOccurred')}: ${e.message}`);
+    },
+  });
 
   if (isLoading) {
     return (
@@ -235,14 +233,14 @@ export default function PaymentSettingsPage() {
         <div>
           <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2">
             <Wallet className="w-7 h-7 text-primary" />
-            To&apos;lov Tizimi
+            {t('paymentSettingsTitle')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Karta orqali yechish — Aliance Bank / Octobank
+            {t('paymentSettingsDesc')}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadSettings}>
-          <RefreshCw className="w-4 h-4 mr-2" /> Yangilash
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="w-4 h-4 mr-2" /> {t('refresh')}
         </Button>
       </div>
 
@@ -256,7 +254,7 @@ export default function PaymentSettingsPage() {
               className={provider.configured ? "bg-green-500" : ""}
             >
               {provider.configured ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-              {provider.name}: {provider.configured ? "Sozlangan" : "Sozlanmagan"}
+              {provider.name}: {provider.configured ? t('configured') : t('notConfigured')}
             </Badge>
           ))}
         </div>
@@ -264,10 +262,10 @@ export default function PaymentSettingsPage() {
 
       <Tabs defaultValue="banks">
         <TabsList className="overflow-x-auto">
-          <TabsTrigger value="banks">Bank Provayderlari</TabsTrigger>
-          <TabsTrigger value="withdrawals">Yechishlar Tarixi</TabsTrigger>
-          <TabsTrigger value="settings">Sozlamalar</TabsTrigger>
-          <TabsTrigger value="security">Xavfsizlik</TabsTrigger>
+          <TabsTrigger value="banks">{t('bankProviders')}</TabsTrigger>
+          <TabsTrigger value="withdrawals">{t('withdrawalsHistory')}</TabsTrigger>
+          <TabsTrigger value="settings">{t('settingsTab')}</TabsTrigger>
+          <TabsTrigger value="security">{t('securityTab')}</TabsTrigger>
         </TabsList>
 
         {/* Bank Providers */}
@@ -276,10 +274,10 @@ export default function PaymentSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="w-5 h-5" />
-                Bank integratsiyalari
+                {t('bankIntegrations')}
               </CardTitle>
               <CardDescription>
-                Sotuvchilar balansi karta orqali yechiladi. API kalitlarini .env faylda yoki quyida kiriting.
+                {t('bankIntegrationsDesc')}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -296,11 +294,11 @@ export default function PaymentSettingsPage() {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-bold text-lg">{bank.name}</h3>
                         {providerStatus?.configured ? (
-                          <Badge variant="default" className="bg-green-500"><Check className="w-3 h-3 mr-1" /> Sozlangan</Badge>
+                          <Badge variant="default" className="bg-green-500"><Check className="w-3 h-3 mr-1" /> {t('configured')}</Badge>
                         ) : activeProvider === bank.id ? (
-                          <Badge variant="default"><Check className="w-3 h-3 mr-1" /> Tanlangan</Badge>
+                          <Badge variant="default"><Check className="w-3 h-3 mr-1" /> {t('selected')}</Badge>
                         ) : (
-                          <Badge variant="secondary">Nofaol</Badge>
+                          <Badge variant="secondary">{t('inactive')}</Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">{bank.description}</p>
@@ -311,19 +309,19 @@ export default function PaymentSettingsPage() {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-xs">
                         <div>
-                          <span className="text-muted-foreground">Komissiya:</span>
+                          <span className="text-muted-foreground">{t('commission')}:</span>
                           <p className="font-semibold">{bank.commission}%</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Min summa:</span>
+                          <span className="text-muted-foreground">{t('minAmount')}:</span>
                           <p className="font-semibold">{bank.minAmount.toLocaleString()} so&apos;m</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Max summa:</span>
+                          <span className="text-muted-foreground">{t('maxAmount')}:</span>
                           <p className="font-semibold">{bank.maxAmount.toLocaleString()} so&apos;m</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Ishlash vaqti:</span>
+                          <span className="text-muted-foreground">{t('processingTime')}:</span>
                           <p className="font-semibold">{bank.processingTime}</p>
                         </div>
                       </div>
@@ -335,7 +333,7 @@ export default function PaymentSettingsPage() {
                     onClick={() => setActiveProvider(bank.id)}
                     className="shrink-0"
                   >
-                    {activeProvider === bank.id ? "Tanlangan" : "Tanlash"}
+                    {activeProvider === bank.id ? t('selected') : t('selectBank')}
                   </Button>
                 </div>
 
@@ -362,9 +360,9 @@ export default function PaymentSettingsPage() {
                       <p className="text-xs text-muted-foreground mt-1">env: {bank.envSecret}</p>
                     </div>
                     <div>
-                      <Label>Merchant ID</Label>
+                      <Label>{t('merchantId')}</Label>
                       <Input
-                        placeholder="Merchant identifikatori"
+                        placeholder={t('merchantId')}
                         value={bank.id === "aliance" ? alianceMerchantId : octobankMerchantId}
                         onChange={e => bank.id === "aliance" ? setAlianceMerchantId(e.target.value) : setOctobankMerchantId(e.target.value)}
                       />
@@ -374,9 +372,9 @@ export default function PaymentSettingsPage() {
                       <Input value={`https://api.topla.uz/api/v1/payments/callback`} readOnly className="bg-muted" />
                     </div>
                     <div className="sm:col-span-2 flex justify-end">
-                      <Button onClick={saveProviderConfig} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
-                        Saqlash
+                      <Button onClick={() => saveProviderMutation.mutate()} disabled={saveProviderMutation.isPending}>
+                        {saveProviderMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                        {t('save')}
                       </Button>
                     </div>
                   </div>
@@ -390,15 +388,15 @@ export default function PaymentSettingsPage() {
           {settingsData?.installmentRates && (
             <Card>
               <CardHeader>
-                <CardTitle>Bo&apos;lib to&apos;lash stavkalari</CardTitle>
-                <CardDescription>Mijozlar uchun bo&apos;lib to&apos;lash foiz stavkalari</CardDescription>
+                <CardTitle>{t('installmentRates')}</CardTitle>
+                <CardDescription>{t('installmentRatesDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   {Object.entries(settingsData.installmentRates).map(([months, rate]) => (
                     <div key={months} className="p-3 rounded-lg border text-center">
                       <p className="text-2xl font-bold text-primary">{months}</p>
-                      <p className="text-xs text-muted-foreground">oy</p>
+                      <p className="text-xs text-muted-foreground">{t('month')}</p>
                       <p className="text-sm font-semibold mt-1">{rate}%</p>
                     </div>
                   ))}
@@ -414,17 +412,17 @@ export default function PaymentSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ArrowDownToLine className="w-5 h-5" />
-                So&apos;nggi yechishlar
+                {t('recentWithdrawals')}
               </CardTitle>
               <CardDescription>
-                Sotuvchilarning karta orqali yechish so&apos;rovlari
+                {t('recentWithdrawalsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {withdrawals.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <ArrowDownToLine className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Hali yechish so&apos;rovlari yo&apos;q</p>
+                  <p>{t('noWithdrawalsYet')}</p>
                 </div>
               ) : (
                 <>
@@ -437,7 +435,7 @@ export default function PaymentSettingsPage() {
                         <div key={w.id} className="border rounded-lg p-4 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-mono text-muted-foreground">{w.id}</span>
-                            <Badge className={st.color}><StatusIcon className="w-3 h-3 mr-1" />{st.label}</Badge>
+                            <Badge className={st.color}><StatusIcon className="w-3 h-3 mr-1" />{t(st.label)}</Badge>
                           </div>
                           <p className="font-bold text-lg">{w.amount.toLocaleString()} so&apos;m</p>
                           <div className="text-sm text-muted-foreground">
@@ -454,11 +452,11 @@ export default function PaymentSettingsPage() {
                       <thead>
                         <tr className="border-b text-left text-muted-foreground">
                           <th className="pb-2 pr-4">ID</th>
-                          <th className="pb-2 pr-4">Summa</th>
-                          <th className="pb-2 pr-4">Bank</th>
-                          <th className="pb-2 pr-4">Karta</th>
-                          <th className="pb-2 pr-4">Status</th>
-                          <th className="pb-2">Sana</th>
+                          <th className="pb-2 pr-4">{t('amount')}</th>
+                          <th className="pb-2 pr-4">{t('bank')}</th>
+                          <th className="pb-2 pr-4">{t('card')}</th>
+                          <th className="pb-2 pr-4">{t('status')}</th>
+                          <th className="pb-2">{t('date')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -472,7 +470,7 @@ export default function PaymentSettingsPage() {
                               <td className="py-3 pr-4">{w.bank}</td>
                               <td className="py-3 pr-4 font-mono text-xs">{w.card}</td>
                               <td className="py-3 pr-4">
-                                <Badge className={st.color}><StatusIcon className="w-3 h-3 mr-1" />{st.label}</Badge>
+                                <Badge className={st.color}><StatusIcon className="w-3 h-3 mr-1" />{t(st.label)}</Badge>
                               </td>
                               <td className="py-3 text-muted-foreground">{w.date}</td>
                             </tr>
@@ -491,16 +489,16 @@ export default function PaymentSettingsPage() {
         <TabsContent value="settings" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>To&apos;lov usullari</CardTitle>
-              <CardDescription>Mijozlar qanday to&apos;lashi mumkinligini sozlash</CardDescription>
+              <CardTitle>{t('paymentMethods')}</CardTitle>
+              <CardDescription>{t('paymentMethodsDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div className="flex items-center gap-3">
                   <CreditCard className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="font-medium">Karta orqali to&apos;lov</p>
-                    <p className="text-sm text-muted-foreground">Humo, Uzcard karta orqali avtomatik yechish</p>
+                    <p className="font-medium">{t('cardPayment')}</p>
+                    <p className="text-sm text-muted-foreground">{t('cardPaymentDesc')}</p>
                   </div>
                 </div>
                 <Switch checked={true} disabled />
@@ -510,8 +508,8 @@ export default function PaymentSettingsPage() {
                 <div className="flex items-center gap-3">
                   <Smartphone className="w-5 h-5 text-blue-500" />
                   <div>
-                    <p className="font-medium">Naqd to&apos;lov</p>
-                    <p className="text-sm text-muted-foreground">Yetkazib berishda naqd to&apos;lov</p>
+                    <p className="font-medium">{t('cashPayment')}</p>
+                    <p className="text-sm text-muted-foreground">{t('cashPaymentDesc')}</p>
                   </div>
                 </div>
                 <Switch checked={cashOnDelivery} onCheckedChange={setCashOnDelivery} />
@@ -521,31 +519,31 @@ export default function PaymentSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Avtomatik yechish</CardTitle>
-              <CardDescription>Sotuvchi balansi ma&apos;lum summaga yetganda avtomatik karta orqali yechish</CardDescription>
+              <CardTitle>{t('autoWithdraw')}</CardTitle>
+              <CardDescription>{t('autoWithdrawDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
-                  <p className="font-medium">Avtomatik yechish</p>
-                  <p className="text-sm text-muted-foreground">Balans chegaraga yetganda avtomatik o&apos;tkazma</p>
+                  <p className="font-medium">{t('autoWithdraw')}</p>
+                  <p className="text-sm text-muted-foreground">{t('autoWithdrawThreshold')}</p>
                 </div>
                 <Switch checked={autoWithdraw} onCheckedChange={setAutoWithdraw} />
               </div>
               {autoWithdraw && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label>Chegara summasi (so&apos;m)</Label>
+                    <Label>{t('thresholdAmount')}</Label>
                     <Input
                       type="number"
                       value={autoWithdrawThreshold}
                       onChange={e => setAutoWithdrawThreshold(e.target.value)}
                       min="50000"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Balans shu summaga yetganda avtomatik yechiladi</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('thresholdHint')}</p>
                   </div>
                   <div>
-                    <Label>Asosiy bank</Label>
+                    <Label>{t('primaryBank')}</Label>
                     <Select value={activeProvider} onValueChange={setActiveProvider}>
                       <SelectTrigger>
                         <SelectValue />
@@ -559,9 +557,9 @@ export default function PaymentSettingsPage() {
                 </div>
               )}
               <div className="flex justify-end">
-                <Button onClick={saveGeneralSettings} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
-                  Saqlash
+                <Button onClick={() => saveGeneralMutation.mutate()} disabled={saveGeneralMutation.isPending}>
+                  {saveGeneralMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                  {t('save')}
                 </Button>
               </div>
             </CardContent>
@@ -574,46 +572,46 @@ export default function PaymentSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-green-500" />
-                Xavfsizlik sozlamalari
+                {t('securitySettings')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
-                  <p className="font-medium">Callback IP Whitelist</p>
-                  <p className="text-sm text-muted-foreground">Faqat bank IP manzillardan callback qabul qilish</p>
+                  <p className="font-medium">{t('callbackIpWhitelist')}</p>
+                  <p className="text-sm text-muted-foreground">{t('callbackIpWhitelistDesc')}</p>
                 </div>
                 <Switch defaultChecked />
               </div>
               <div>
-                <Label>Ruxsat etilgan IP manzillar</Label>
+                <Label>{t('allowedIps')}</Label>
                 <Input
-                  placeholder="Bank IP manzillarini kiriting"
+                  placeholder={t('allowedIpsPlaceholder')}
                   className="mt-1"
                   value={webhookIPs}
                   onChange={e => setWebhookIPs(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Vergul bilan ajrating. env: PAYMENT_WEBHOOK_IPS</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('allowedIpsHint')}</p>
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
-                  <p className="font-medium">HMAC imzo tekshiruvi</p>
-                  <p className="text-sm text-muted-foreground">Callback imzosini HMAC-SHA256 bilan tasdiqlash (doim yoqiq)</p>
+                  <p className="font-medium">{t('hmacVerification')}</p>
+                  <p className="text-sm text-muted-foreground">{t('hmacVerificationDesc')}</p>
                 </div>
                 <Switch checked={true} disabled />
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
-                  <p className="font-medium">Kunlik yechish limiti</p>
-                  <p className="text-sm text-muted-foreground">Bir kunda maksimal yechish miqdorini cheklash</p>
+                  <p className="font-medium">{t('dailyWithdrawLimit')}</p>
+                  <p className="text-sm text-muted-foreground">{t('dailyWithdrawLimitDesc')}</p>
                 </div>
                 <Switch defaultChecked />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Kunlik limit (so&apos;m)</Label>
+                  <Label>{t('dailyLimitSom')}</Label>
                   <Input
                     type="number"
                     value={dailyLimit}
@@ -621,7 +619,7 @@ export default function PaymentSettingsPage() {
                   />
                 </div>
                 <div>
-                  <Label>Kunlik yechish soni limiti</Label>
+                  <Label>{t('dailyCountLimit')}</Label>
                   <Input
                     type="number"
                     value={dailyCountLimit}
@@ -632,16 +630,16 @@ export default function PaymentSettingsPage() {
 
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
-                  <p className="font-medium">Fraud Prevention</p>
-                  <p className="text-sm text-muted-foreground">Shubhali tranzaksiyalarni avtomatik bloklash</p>
+                  <p className="font-medium">{t('fraudPrevention')}</p>
+                  <p className="text-sm text-muted-foreground">{t('fraudPreventionDesc')}</p>
                 </div>
                 <Switch defaultChecked />
               </div>
 
               <div className="flex justify-end">
-                <Button onClick={saveSecuritySettings} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
-                  Xavfsizlik sozlamalarini saqlash
+                <Button onClick={() => saveSecurityMutation.mutate()} disabled={saveSecurityMutation.isPending}>
+                  {saveSecurityMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+                  {t('saveSecuritySettings')}
                 </Button>
               </div>
             </CardContent>

@@ -4,7 +4,6 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import Redis from 'ioredis';
 
 import { env } from './config/env.js';
 import { connectDatabase, disconnectDatabase, prisma } from './config/database.js';
@@ -118,7 +117,6 @@ if (env.NODE_ENV !== 'production') {
 await app.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute',
-  redis: process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : undefined,
   keyGenerator: (req) => req.ip,
 });
 

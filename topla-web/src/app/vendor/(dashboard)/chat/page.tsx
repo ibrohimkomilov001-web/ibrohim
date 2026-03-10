@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { formatDateTime, formatTime } from '@/lib/utils';
 import api from '@/lib/api/client';
 import { useChatSocket, type ChatMessage as SocketMessage } from '@/hooks/use-chat-socket';
+import { useTranslation } from '@/store/locale-store';
 
 function getVendorToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -51,6 +52,7 @@ function RoomList({
   isLoading: boolean;
   typingRoomCheck: (roomId: string) => boolean;
 }) {
+  const { t } = useTranslation();
   if (isLoading) {
     return (
       <div className="p-4 space-y-3">
@@ -71,8 +73,8 @@ function RoomList({
     return (
       <div className="text-center py-20 px-4">
         <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-        <p className="font-medium">Hozircha chat yo&apos;q</p>
-        <p className="text-sm text-muted-foreground">Mijozlar sizga yozganda bu yerda ko&apos;rinadi</p>
+        <p className="font-medium">{t('noChatYet')}</p>
+        <p className="text-sm text-muted-foreground">{t('chatsAppearHere')}</p>
       </div>
     );
   }
@@ -99,7 +101,7 @@ function RoomList({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <p className="font-medium text-sm">
-                {room.customer?.fullName || 'Mijoz'}
+                {room.customer?.fullName || t('customer')}
               </p>
               {room.lastMessageAt && (
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -110,7 +112,7 @@ function RoomList({
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
               {typingRoomCheck(room.id) ? (
-                <span className="text-primary italic">Yozmoqda...</span>
+                <span className="text-primary italic">{t('typing')}</span>
               ) : (
                 room.messages?.[0]?.message || ''
               )}
@@ -144,13 +146,14 @@ function ChatPanel({
   messagesEndRef: React.RefObject<HTMLDivElement>;
   isTyping: boolean;
 }) {
+  const { t } = useTranslation();
   if (!room) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center">
           <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-20" />
-          <p className="font-medium">Chatni tanlang</p>
-          <p className="text-sm mt-1">Chap paneldan suhbatni tanlang</p>
+          <p className="font-medium">{t('selectChat')}</p>
+          <p className="text-sm mt-1">{t('selectChatDesc')}</p>
         </div>
       </div>
     );
@@ -168,13 +171,13 @@ function ChatPanel({
         </div>
         <div>
           <p className="font-semibold text-sm">
-            {room.customer?.fullName || 'Mijoz'}
+            {room.customer?.fullName || t('customer')}
           </p>
           {isTyping ? (
-            <p className="text-xs text-primary animate-pulse">Yozmoqda...</p>
+            <p className="text-xs text-primary animate-pulse">{t('typing')}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {room.status === 'active' ? 'Faol' : 'Yopilgan'}
+              {room.status === 'active' ? t('activeChatStatus') : t('closedChatStatus')}
             </p>
           )}
         </div>
@@ -211,7 +214,7 @@ function ChatPanel({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-            placeholder="Xabar yozing..."
+            placeholder={t('writeMessage')}
             className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
           />
           <button
@@ -229,6 +232,7 @@ function ChatPanel({
 
 /* ── Main Page ── */
 export default function VendorChatPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [token] = useState(() => getVendorToken());
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
@@ -357,10 +361,10 @@ export default function VendorChatPage() {
       )}>
         <div className="px-5 py-4 border-b flex-shrink-0">
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" /> Chat
+            <MessageCircle className="w-5 h-5" /> {t('vendorChatTitle')}
           </h1>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Mijozlar bilan muloqot</span>
+            <span>{t('chatWithCustomers')}</span>
             {connected ? (
               <Wifi className="w-3 h-3 text-green-500" />
             ) : (

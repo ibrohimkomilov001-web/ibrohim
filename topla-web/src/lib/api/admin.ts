@@ -27,6 +27,7 @@ export function setAdminToken(token: string): void {
 export function removeAdminToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('admin_token');
+  clearAdminPermissions();
 }
 
 export function isAdminAuthenticated(): boolean {
@@ -97,11 +98,68 @@ export async function adminLogin(email: string, password: string) {
     if (res.data?.token) {
       setAdminToken(res.data.token);
     }
+    // Store RBAC permissions from login response
+    if (res.data?.adminRole) {
+      setAdminPermissions(res.data.adminRole);
+    }
     return res.data;
   } catch (err: any) {
     // Backend ishlamayotgan bo'lsa — xato qaytarish
     throw new Error(err.message || 'Serverga ulanib bo\'lmadi. Qayta urinib ko\'ring.');
   }
+}
+
+// ============================================
+// Admin Me — get current admin profile + RBAC permissions
+// ============================================
+export interface AdminPermissions {
+  level: string;
+  permissions: string[];
+}
+
+export async function fetchAdminMe(): Promise<{ user: any; adminRole: AdminPermissions }> {
+  const res = await adminRequest<{ success: boolean; data: { user: any; adminRole: AdminPermissions } }>('/admin/me');
+  return res.data;
+}
+
+// Store admin permissions in memory + localStorage
+const ADMIN_PERMISSIONS_KEY = 'admin_permissions';
+const ADMIN_LEVEL_KEY = 'admin_level';
+
+export function setAdminPermissions(adminRole: AdminPermissions): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ADMIN_LEVEL_KEY, adminRole.level);
+  localStorage.setItem(ADMIN_PERMISSIONS_KEY, JSON.stringify(adminRole.permissions));
+}
+
+export function getAdminLevel(): string {
+  if (typeof window === 'undefined') return 'viewer';
+  return localStorage.getItem(ADMIN_LEVEL_KEY) || 'super_admin';
+}
+
+export function getAdminPermissions(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(ADMIN_PERMISSIONS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function clearAdminPermissions(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(ADMIN_LEVEL_KEY);
+  localStorage.removeItem(ADMIN_PERMISSIONS_KEY);
+}
+
+/**
+ * Check if current admin has a specific permission.
+ * super_admin always returns true.
+ */
+export function hasPermission(permission: string): boolean {
+  const level = getAdminLevel();
+  if (level === 'super_admin') return true;
+  return getAdminPermissions().includes(permission);
 }
 
 // ============================================
@@ -1006,4 +1064,35 @@ export async function updateFaqEntry(id: string, data: any) {
 
 export async function deleteFaqEntry(id: string) {
   return adminRequest(`/admin/faq/${id}`, { method: 'DELETE' });
+}
+
+// ============================================
+// Reviews Moderation
+// ============================================
+export async function fetchProductReviews(params?: { page?: number; rating?: number; search?: string }) {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.rating) query.set('rating', String(params.rating));
+  if (params?.search) query.set('search', params.search);
+  const qs = query.toString();
+  const res = await adminRequest<{ success: boolean; data: any[]; meta: any }>(`/admin/reviews/products${qs ? `?${qs}` : ''}`);
+  return res;
+}
+
+export async function fetchShopReviews(params?: { page?: number; rating?: number; search?: string }) {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.rating) query.set('rating', String(params.rating));
+  if (params?.search) query.set('search', params.search);
+  const qs = query.toString();
+  const res = await adminRequest<{ success: boolean; data: any[]; meta: any }>(`/admin/reviews/shops${qs ? `?${qs}` : ''}`);
+  return res;
+}
+
+export async function deleteProductReview(id: string) {
+  return adminRequest(`/admin/reviews/products/${id}`, { method: 'DELETE' });
+}
+
+export async function deleteShopReview(id: string) {
+  return adminRequest(`/admin/reviews/shops/${id}`, { method: 'DELETE' });
 }

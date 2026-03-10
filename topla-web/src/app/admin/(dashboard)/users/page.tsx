@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { toast } from 'sonner'
 import { useUrlState } from '@/hooks/use-url-state'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
+import { useTranslation } from '@/store/locale-store'
 
 const roleLabels: Record<string, string> = {
   customer: 'Foydalanuvchi',
@@ -25,9 +27,8 @@ const roleLabels: Record<string, string> = {
 }
 
 export default function AdminUsersPage() {
-  const [loading, setLoading] = useState(true)
-  const [users, setUsers] = useState<User[]>([])
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false })
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   
   const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'all', page: '1' })
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
@@ -37,29 +38,20 @@ export default function AdminUsersPage() {
   const [newRole, setNewRole] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const { users: usersData, pagination: pag } = await getUsers({
-        search: debouncedSearch || undefined,
-        role: activeTab !== 'all' ? activeTab : undefined,
-        page: parseInt(page) || 1,
-      })
-      setUsers(usersData)
-      setPagination(pag)
-    } catch {
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, activeTab, page])
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['admin-users', debouncedSearch, activeTab, page],
+    queryFn: () => getUsers({
+      search: debouncedSearch || undefined,
+      role: activeTab !== 'all' ? activeTab : undefined,
+      page: parseInt(page) || 1,
+    }),
+    staleTime: 15_000,
+  });
 
-  useEffect(() => { loadData() }, [loadData])
+  const users = data?.users ?? [];
+  const pagination = data?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false };
 
-  // Reset page on search/tab change
-  useEffect(() => {
-    if (page !== '1') setFilters({ page: '1' })
-  }, [debouncedSearch, activeTab])
+  const loadData = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] });
 
   const getInitials = (name: string) => {
     if (!name) return '?'
@@ -72,11 +64,11 @@ export default function AdminUsersPage() {
       setActionLoading(true)
       await toggleUserStatus(selectedUser.id, !selectedUser.is_active)
       await loadData()
-      toast.success(selectedUser.is_active ? "Foydalanuvchi bloklandi" : "Blokdan chiqarildi")
+      toast.success(selectedUser.is_active ? t('blocked') : t('active'))
       setBlockDialogOpen(false)
       setSelectedUser(null)
     } catch {
-      toast.error("Statusni o'zgartirishda xatolik")
+      toast.error(t('errorOccurred'))
     } finally {
       setActionLoading(false)
     }
@@ -88,12 +80,12 @@ export default function AdminUsersPage() {
       setActionLoading(true)
       await updateUserRole(selectedUser.id, newRole)
       await loadData()
-      toast.success("Foydalanuvchi roli yangilandi")
+      toast.success(t('updated'))
       setRoleDialogOpen(false)
       setSelectedUser(null)
       setNewRole('')
     } catch {
-      toast.error("Rolni o'zgartirishda xatolik")
+      toast.error(t('errorOccurred'))
     } finally {
       setActionLoading(false)
     }
@@ -102,9 +94,9 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Foydalanuvchilar</h1>
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('users')}</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Platformadagi barcha foydalanuvchilar ({pagination.total} ta)
+          {t('totalUsers')} ({pagination.total})
         </p>
       </div>
 
@@ -113,11 +105,11 @@ export default function AdminUsersPage() {
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-base sm:text-lg">Foydalanuvchilar ro&apos;yxati</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Foydalanuvchilarni boshqaring</CardDescription>
+                <CardTitle className="text-base sm:text-lg">{t('users')}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">{t('users')}</CardDescription>
               </div>
               <Input
-                placeholder="Ism, telefon, email bo'yicha qidirish..."
+                placeholder={t('searchPlaceholderGeneric')}
                 value={searchQuery}
                 onChange={(e) => setFilters({ search: e.target.value })}
                 className="w-full sm:w-72"
@@ -125,10 +117,10 @@ export default function AdminUsersPage() {
             </div>
             <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })}>
               <TabsList className="flex-wrap h-auto">
-                <TabsTrigger value="all">Barchasi</TabsTrigger>
-                <TabsTrigger value="user">Mijozlar</TabsTrigger>
+                <TabsTrigger value="all">{t('all')}</TabsTrigger>
+                <TabsTrigger value="user">{t('users')}</TabsTrigger>
                 <TabsTrigger value="vendor">Vendorlar</TabsTrigger>
-                <TabsTrigger value="admin">Adminlar</TabsTrigger>
+                <TabsTrigger value="admin">{t('roles')}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -145,7 +137,7 @@ export default function AdminUsersPage() {
             {users.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">Foydalanuvchilar topilmadi</p>
+                <p className="text-muted-foreground">{t('noItems')}</p>
               </div>
             ) : (
               users.map((user) => (
@@ -156,7 +148,7 @@ export default function AdminUsersPage() {
                       <AvatarFallback className="text-xs">{getInitials(user.full_name || '')}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{user.full_name || "Noma'lum"}</div>
+                      <div className="font-medium text-sm truncate">{user.full_name || t('noData')}</div>
                       <div className="text-xs text-muted-foreground truncate">{user.email}</div>
                     </div>
                   </div>
@@ -166,7 +158,7 @@ export default function AdminUsersPage() {
                         {roleLabels[user.role as string] || 'Foydalanuvchi'}
                       </Badge>
                       <Badge variant={user.is_active !== false ? 'default' : 'destructive'} className="text-xs">
-                        {user.is_active !== false ? 'Faol' : 'Bloklangan'}
+                        {user.is_active !== false ? t('active') : t('blocked')}
                       </Badge>
                     </div>
                   </div>
@@ -175,11 +167,11 @@ export default function AdminUsersPage() {
                       setSelectedUser(user)
                       setNewRole(user.role || 'customer')
                       setRoleDialogOpen(true)
-                    }}>Rol</Button>
+                    }}>{t('role')}</Button>
                     <Button variant={user.is_active !== false ? 'destructive' : 'default'} size="sm" className="flex-1 h-8 text-xs" onClick={() => {
                       setSelectedUser(user)
                       setBlockDialogOpen(true)
-                    }}>{user.is_active !== false ? 'Bloklash' : 'Aktivlashtirish'}</Button>
+                    }}>{user.is_active !== false ? t('blocked') : t('active')}</Button>
                   </div>
                 </div>
               ))
@@ -190,12 +182,12 @@ export default function AdminUsersPage() {
             <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Foydalanuvchi</TableHead>
-                <TableHead>Telefon</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ro&apos;yxatdan o&apos;tgan</TableHead>
-                <TableHead className="text-right">Amallar</TableHead>
+                <TableHead>{t('name')}</TableHead>
+                <TableHead>{t('phone')}</TableHead>
+                <TableHead>{t('role')}</TableHead>
+                <TableHead>{t('status')}</TableHead>
+                <TableHead>{t('createdAt')}</TableHead>
+                <TableHead className="text-right">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -203,7 +195,7 @@ export default function AdminUsersPage() {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-12">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">Foydalanuvchilar topilmadi</p>
+                    <p className="text-muted-foreground">{t('noItems')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -216,7 +208,7 @@ export default function AdminUsersPage() {
                           <AvatarFallback>{getInitials(user.full_name || '')}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{user.full_name || "Noma'lum"}</div>
+                          <div className="font-medium">{user.full_name || t('noData')}</div>
                           <div className="text-sm text-muted-foreground">{user.email}</div>
                         </div>
                       </div>
@@ -229,7 +221,7 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active !== false ? 'default' : 'destructive'}>
-                        {user.is_active !== false ? 'Faol' : 'Bloklangan'}
+                        {user.is_active !== false ? t('active') : t('blocked')}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">{user.created_at ? new Date(user.created_at).toLocaleDateString('uz-UZ') : '-'}</TableCell>
@@ -244,7 +236,7 @@ export default function AdminUsersPage() {
                             setRoleDialogOpen(true)
                           }}
                         >
-                          Rol
+                          {t('role')}
                         </Button>
                         <Button
                           variant={user.is_active !== false ? 'destructive' : 'default'}
@@ -254,7 +246,7 @@ export default function AdminUsersPage() {
                             setBlockDialogOpen(true)
                           }}
                         >
-                          {user.is_active !== false ? 'Bloklash' : 'Aktivlashtirish'}
+                          {user.is_active !== false ? t('blocked') : t('active')}
                         </Button>
                       </div>
                     </TableCell>
@@ -280,17 +272,17 @@ export default function AdminUsersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedUser?.is_active !== false ? 'Foydalanuvchini bloklash' : 'Aktivlashtirish'}
+              {selectedUser?.is_active !== false ? t('blocked') : t('active')}
             </DialogTitle>
             <DialogDescription>
               {selectedUser?.is_active !== false
-                ? `"${selectedUser?.full_name}" foydalanuvchisini bloklashni xohlaysizmi?`
-                : `"${selectedUser?.full_name}" foydalanuvchisini aktivlashtirishni xohlaysizmi?`}
+                ? t('confirmDelete')
+                : t('confirmDelete')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBlockDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button
               variant={selectedUser?.is_active !== false ? 'destructive' : 'default'}
@@ -298,7 +290,7 @@ export default function AdminUsersPage() {
               disabled={actionLoading}
             >
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {selectedUser?.is_active !== false ? 'Bloklash' : 'Aktivlashtirish'}
+              {selectedUser?.is_active !== false ? t('blocked') : t('active')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -308,7 +300,7 @@ export default function AdminUsersPage() {
       <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Foydalanuvchi rolini o'zgartirish</DialogTitle>
+            <DialogTitle>{t('role')}</DialogTitle>
             <DialogDescription>
               {selectedUser?.full_name} uchun yangi rol tanlang
             </DialogDescription>
@@ -327,11 +319,11 @@ export default function AdminUsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRoleDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button onClick={handleRoleChange} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

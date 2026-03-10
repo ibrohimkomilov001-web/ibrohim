@@ -36,6 +36,7 @@ import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
+import { useUrlState } from '@/hooks/use-url-state';
 import {
   Plus,
   Search,
@@ -49,14 +50,15 @@ import {
   ArrowUpDown,
   ImageIcon,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 export default function ProductsPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [{ search, status, page: pageStr }, setFilters] = useUrlState({ search: '', status: 'all', page: '1' });
   const debouncedSearch = useDebounce(search);
-  const [status, setStatus] = useState("all");
-  const [page, setPage] = useState(1);
+  const page = parseInt(pageStr) || 1;
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { t } = useTranslation();
   const limit = 20;
 
   const { data, isLoading } = useQuery({
@@ -73,12 +75,12 @@ export default function ProductsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => vendorApi.deleteProduct(id),
     onSuccess: () => {
-      toast.success("Mahsulot o'chirildi");
+      toast.success(t('deleted'));
       queryClient.invalidateQueries({ queryKey: ["vendor-products"] });
       setDeleteId(null);
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -86,11 +88,11 @@ export default function ProductsPage() {
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
       vendorApi.toggleProductActive(id, active),
     onSuccess: () => {
-      toast.success("Mahsulot yangilandi");
+      toast.success(t('updated'));
       queryClient.invalidateQueries({ queryKey: ["vendor-products"] });
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -104,7 +106,7 @@ export default function ProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Mahsulotlar</h1>
+          <h1 className="text-2xl font-bold">{t('vendorProducts')}</h1>
           <p className="text-muted-foreground">
             Jami {totalCount} ta mahsulot
           </p>
@@ -112,7 +114,7 @@ export default function ProductsPage() {
         <Button asChild className="rounded-full">
           <Link href="/vendor/products/new">
             <Plus className="mr-2 h-4 w-4" />
-            Mahsulot qo&apos;shish
+            {t('addProduct')}
           </Link>
         </Button>
       </div>
@@ -124,21 +126,21 @@ export default function ProductsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Mahsulot qidirish..."
+                placeholder={t('searchPlaceholderGeneric')}
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                onChange={(e) => setFilters({ search: e.target.value, page: '1' })}
                 className="pl-9"
               />
             </div>
-            <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+            <Select value={status} onValueChange={(v) => setFilters({ status: v, page: '1' })}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Holati" />
+                <SelectValue placeholder={t('status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Barchasi</SelectItem>
-                <SelectItem value="active">Faol</SelectItem>
-                <SelectItem value="inactive">Nofaol</SelectItem>
+                <SelectItem value="all">{t('all')}</SelectItem>
+                <SelectItem value="active">{t('active')}</SelectItem>
+                <SelectItem value="inactive">{t('inactive')}</SelectItem>
                 <SelectItem value="out_of_stock">Tugagan</SelectItem>
               </SelectContent>
             </Select>
@@ -192,7 +194,7 @@ export default function ProductsPage() {
                           <DropdownMenuItem asChild>
                             <Link href={`/vendor/products/${product.id}/edit`}>
                               <Edit className="mr-2 h-4 w-4" />
-                              Tahrirlash
+                              {t('edit')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -220,7 +222,7 @@ export default function ProductsPage() {
                             onClick={() => setDeleteId(product.id)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            O&apos;chirish
+                            {t('delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -228,12 +230,12 @@ export default function ProductsPage() {
                     {/* Status badge */}
                     {!product.isActive && (
                       <div className="absolute top-2 left-2">
-                        <Badge variant="secondary">Nofaol</Badge>
+                        <Badge variant="secondary">{t('inactive')}</Badge>
                       </div>
                     )}
                     {(product as any).status === 'has_errors' && (
                       <div className="absolute top-2 left-2">
-                        <Badge variant="destructive">Xatolik</Badge>
+                        <Badge variant="destructive">{t('error')}</Badge>
                       </div>
                     )}
                     {(product as any).status === 'blocked' && (
@@ -264,7 +266,7 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Ombor: {product.stock ?? 0} ta</span>
+                      <span>{t('stock')}: {product.stock ?? 0}</span>
                       <span>{product.soldCount ?? 0} sotildi</span>
                     </div>
                     {/* Quality Score */}
@@ -295,7 +297,7 @@ export default function ProductsPage() {
           <CardContent className="py-16 text-center">
             <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">
-              {search ? "Mahsulot topilmadi" : "Hali mahsulot qo'shilmagan"}
+              {search ? t('noItems') : t('noData')}
             </h3>
             <p className="text-muted-foreground mb-6">
               {search
@@ -307,7 +309,7 @@ export default function ProductsPage() {
               <Button asChild className="rounded-full">
                 <Link href="/vendor/products/new">
                   <Plus className="mr-2 h-4 w-4" />
-                  Mahsulot qo&apos;shish
+                  {t('addProduct')}
                 </Link>
               </Button>
             )}
@@ -322,10 +324,10 @@ export default function ProductsPage() {
             variant="outline"
             size="sm"
             disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
+            onClick={() => setFilters({ page: String(page - 1) })}
             className="rounded-full"
           >
-            Oldingi
+            {t('previous')}
           </Button>
           <span className="text-sm text-muted-foreground px-4">
             {page} / {totalPages}
@@ -334,10 +336,10 @@ export default function ProductsPage() {
             variant="outline"
             size="sm"
             disabled={page >= totalPages}
-            onClick={() => setPage(page + 1)}
+            onClick={() => setFilters({ page: String(page + 1) })}
             className="rounded-full"
           >
-            Keyingi
+            {t('next')}
           </Button>
         </div>
       )}
@@ -346,18 +348,18 @@ export default function ProductsPage() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mahsulotni o&apos;chirish</AlertDialogTitle>
+            <AlertDialogTitle>{t('confirmDelete')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu amalni qaytarib bo&apos;lmaydi. Mahsulot butunlay o&apos;chiriladi.
+              {t('confirmDeleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">Bekor qilish</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="rounded-full bg-red-600 hover:bg-red-700"
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
             >
-              O&apos;chirish
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

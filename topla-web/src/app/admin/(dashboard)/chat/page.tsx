@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ import { useChatSocket, type ChatMessage as SocketMessage } from '@/hooks/use-ch
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/store/locale-store'
 
 function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null
@@ -49,101 +51,97 @@ function formatDateDivider(dateStr: string): string {
 
 export default function AdminChatPage() {
   const [token] = useState(() => getAdminToken())
+  const { t } = useTranslation()
+
+  const queryClient = useQueryClient()
 
   // Room list state
-  const [rooms, setRooms] = useState<ChatRoom[]>([])
-  const [roomsPagination, setRoomsPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false })
-  const [roomsLoading, setRoomsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
   const [roomsPage, setRoomsPage] = useState(1)
 
+  // Rooms query (HTTP)
+  const roomsQuery = useQuery({
+    queryKey: ['admin-chat-rooms', debouncedSearch, roomsPage],
+    queryFn: () => getChatRooms({ search: debouncedSearch || undefined, page: roomsPage }),
+  })
+  const rooms = roomsQuery.data?.rooms ?? []
+  const roomsPagination = roomsQuery.data?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false }
+  const roomsLoading = roomsQuery.isLoading
+
   // Active chat state
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const [activeRoom, setActiveRoom] = useState<ChatRoomDetail | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [messagesLoading, setMessagesLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Messages query (HTTP)
+  const messagesQuery = useQuery({
+    queryKey: ['admin-chat-messages', activeRoomId],
+    queryFn: () => getChatMessages(activeRoomId!),
+    enabled: !!activeRoomId,
+  })
+  const messages = messagesQuery.data?.messages ?? []
+  const activeRoom = messagesQuery.data?.room ?? null
+  const messagesLoading = messagesQuery.isLoading && !!activeRoomId
 
   // Socket connection for real-time
   const handleNewMessage = useCallback((msg: SocketMessage) => {
-    setMessages(prev => {
-      // Avoid duplicates
-      if (prev.some(m => m.id === msg.id)) return prev
-      return [...prev, {
-        id: msg.id,
-        roomId: msg.roomId,
-        senderId: msg.senderId,
-        senderRole: msg.senderRole as 'user' | 'vendor',
-        message: msg.message,
-        isRead: false,
-        createdAt: msg.createdAt,
-      }]
-    })
-
-    // Update room list: move active room to top + update last message
-    setRooms(prev => prev.map(r => {
-      if (r.id === msg.roomId) {
+    // Update messages cache for the specific room
+    queryClient.setQueryData(
+      ['admin-chat-messages', msg.roomId],
+      (old: { messages: ChatMessage[]; room: ChatRoomDetail | null } | undefined) => {
+        if (!old) return old
+        if (old.messages.some(m => m.id === msg.id)) return old
         return {
-          ...r,
-          lastMessage: {
+          ...old,
+          messages: [...old.messages, {
+            id: msg.id,
+            roomId: msg.roomId,
+            senderId: msg.senderId,
+            senderRole: msg.senderRole as 'user' | 'vendor',
             message: msg.message,
-            senderRole: msg.senderRole,
-            createdAt: msg.createdAt,
             isRead: false,
-          },
-          lastMessageAt: msg.createdAt,
-          unreadCount: r.id === activeRoomId ? r.unreadCount : r.unreadCount + 1,
+            createdAt: msg.createdAt,
+          }],
         }
       }
-      return r
-    }))
-  }, [activeRoomId])
+    )
+
+    // Update room list caches (all page/search variants)
+    queryClient.setQueriesData<{ rooms: ChatRoom[]; pagination: PaginationMeta }>({
+      queryKey: ['admin-chat-rooms'],
+    }, (old) => {
+      if (!old) return old
+      return {
+        ...old,
+        rooms: old.rooms.map(r => {
+          if (r.id === msg.roomId) {
+            return {
+              ...r,
+              lastMessage: {
+                message: msg.message,
+                senderRole: msg.senderRole,
+                createdAt: msg.createdAt,
+                isRead: false,
+              },
+              lastMessageAt: msg.createdAt,
+              unreadCount: r.id === activeRoomId ? r.unreadCount : r.unreadCount + 1,
+            }
+          }
+          return r
+        }),
+      }
+    })
+  }, [activeRoomId, queryClient])
 
   const { connected, joinRoom, leaveRoom, isRoomTyping } = useChatSocket({
     token,
     onNewMessage: handleNewMessage,
   })
 
-  // Load rooms
-  const loadRooms = useCallback(async () => {
-    try {
-      setRoomsLoading(true)
-      const { rooms: data, pagination } = await getChatRooms({
-        search: debouncedSearch || undefined,
-        page: roomsPage,
-      })
-      setRooms(data)
-      setRoomsPagination(pagination)
-    } catch {
-      toast.error("Chat ro'yxatini yuklashda xatolik")
-    } finally {
-      setRoomsLoading(false)
-    }
-  }, [debouncedSearch, roomsPage])
-
-  useEffect(() => {
-    loadRooms()
-  }, [loadRooms])
-
   // Reset page on search
   useEffect(() => {
     if (roomsPage > 1) setRoomsPage(1)
   }, [debouncedSearch])
-
-  // Load messages when room is selected
-  const loadMessages = useCallback(async (roomId: string) => {
-    try {
-      setMessagesLoading(true)
-      const { messages: data, room } = await getChatMessages(roomId)
-      setMessages(data)
-      setActiveRoom(room)
-    } catch {
-      toast.error("Xabarlarni yuklashda xatolik")
-    } finally {
-      setMessagesLoading(false)
-    }
-  }, [])
 
   // Select a room
   const selectRoom = useCallback((roomId: string) => {
@@ -151,11 +149,10 @@ export default function AdminChatPage() {
     if (activeRoomId) leaveRoom(activeRoomId)
 
     setActiveRoomId(roomId)
-    loadMessages(roomId)
 
     // Join room for real-time updates
     if (connected) joinRoom(roomId)
-  }, [activeRoomId, connected, joinRoom, leaveRoom, loadMessages])
+  }, [activeRoomId, connected, joinRoom, leaveRoom])
 
   // Join room when connection established
   useEffect(() => {
@@ -173,8 +170,6 @@ export default function AdminChatPage() {
   const goBack = useCallback(() => {
     if (activeRoomId) leaveRoom(activeRoomId)
     setActiveRoomId(null)
-    setActiveRoom(null)
-    setMessages([])
   }, [activeRoomId, leaveRoom])
 
   // Group messages by date
@@ -200,14 +195,14 @@ export default function AdminChatPage() {
             </Button>
           )}
           <div>
-            <h1 className="text-lg sm:text-xl font-bold">Chat Monitoring</h1>
+            <h1 className="text-lg sm:text-xl font-bold">{t('chatMonitoring')}</h1>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {connected ? (
                 <><Wifi className="h-3 w-3 text-green-500" /> <span className="text-green-600">Online</span></>
               ) : (
                 <><WifiOff className="h-3 w-3 text-red-500" /> <span className="text-red-600">Offline</span></>
               )}
-              <span>| {roomsPagination.total} ta suhbat</span>
+              <span>| {roomsPagination.total} {t('conversationsCount')}</span>
             </div>
           </div>
         </div>
@@ -224,7 +219,7 @@ export default function AdminChatPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Foydalanuvchi yoki do'kon qidirish..."
+                placeholder={t('searchUserOrShop')}
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -243,7 +238,7 @@ export default function AdminChatPage() {
               {rooms.length === 0 && !roomsLoading ? (
                 <div className="text-center py-12">
                   <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">Chatlar topilmadi</p>
+                  <p className="text-muted-foreground">{t('chatsNotFound')}</p>
                 </div>
               ) : (
                 rooms.map((room) => (
@@ -278,16 +273,16 @@ export default function AdminChatPage() {
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-xs text-muted-foreground truncate max-w-[180px]">
                             {isRoomTyping(room.id) ? (
-                              <span className="text-primary italic">Yozmoqda...</span>
+                              <span className="text-primary italic">{t('typing')}</span>
                             ) : room.lastMessage ? (
                               <>
                                 <span className="font-medium">
-                                  {room.lastMessage.senderRole === 'user' ? 'Mijoz' : 'Sotuvchi'}:
+                                  {room.lastMessage.senderRole === 'user' ? t('customer') : t('seller')}:
                                 </span>
                                 {' '}{room.lastMessage.message}
                               </>
                             ) : (
-                              'Xabar yo\'q'
+                              t('noMessages')
                             )}
                           </p>
                           {room.unreadCount > 0 && (
@@ -322,9 +317,9 @@ export default function AdminChatPage() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <MessageCircle className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Chatni tanlang</h3>
+                <h3 className="text-lg font-medium">{t('selectChat')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Chap paneldan suhbatni tanlang
+                  {t('selectChatFromLeft')}
                 </p>
               </div>
             </div>
@@ -356,7 +351,7 @@ export default function AdminChatPage() {
                           {activeRoom.shop.name}
                         </div>
                         {isRoomTyping(activeRoomId) && (
-                          <p className="text-xs text-primary animate-pulse">Yozmoqda...</p>
+                          <p className="text-xs text-primary animate-pulse">{t('typing')}</p>
                         )}
                       </div>
                     </div>
@@ -375,7 +370,7 @@ export default function AdminChatPage() {
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="text-center py-12">
-                    <p className="text-muted-foreground">Xabarlar yo'q</p>
+                    <p className="text-muted-foreground">{t('noMessages')}</p>
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -406,9 +401,9 @@ export default function AdminChatPage() {
                                   msg.senderRole === 'vendor' ? "text-primary-foreground/70" : "text-muted-foreground"
                                 )}>
                                   {msg.senderRole === 'user' ? (
-                                    <>{msg.sender?.fullName || 'Mijoz'}</>
+                                    <>{msg.sender?.fullName || t('customer')}</>
                                   ) : (
-                                    <>{msg.sender?.fullName || 'Sotuvchi'}</>
+                                    <>{msg.sender?.fullName || t('seller')}</>
                                   )}
                                 </span>
                               </div>
@@ -440,7 +435,7 @@ export default function AdminChatPage() {
               {/* Admin notice (read-only) */}
               <div className="px-4 py-3 border-t bg-muted/50 text-center">
                 <p className="text-xs text-muted-foreground">
-                  Admin monitoring rejimida faqat kuzatish mumkin
+                  {t('adminMonitoringNotice')}
                 </p>
               </div>
             </>

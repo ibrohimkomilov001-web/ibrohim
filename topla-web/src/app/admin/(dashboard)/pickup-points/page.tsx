@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,10 @@ import {
   Copy,
   Eye,
   EyeOff,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
+import { StatCard } from "@/components/charts";
 import {
   getPickupPoints,
   getPickupPointStats,
@@ -39,17 +43,29 @@ import {
   removePickupPoint,
   type PickupPoint,
 } from "./actions";
+import { useTranslation } from '@/store/locale-store';
 
 export default function AdminPickupPointsPage() {
-  const [loading, setLoading] = useState(true);
-  const [points, setPoints] = useState<PickupPoint[]>([]);
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const { data: points = [], isLoading: pointsLoading } = useQuery({
+    queryKey: ["pickupPoints"],
+    queryFn: getPickupPoints,
+  });
+
+  const { data: stats = { total: 0, active: 0, inactive: 0 }, isLoading: statsLoading } = useQuery({
+    queryKey: ["pickupPointStats"],
+    queryFn: getPickupPointStats,
+  });
+
+  const loading = pointsLoading || statsLoading;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<PickupPoint | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const [showPinCode, setShowPinCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -66,26 +82,30 @@ export default function AdminPickupPointsPage() {
     workingHoursWeekend: "10:00 - 16:00",
   });
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [pointsData, statsData] = await Promise.all([
-        getPickupPoints(),
-        getPickupPointStats(),
-      ]);
-      setPoints(pointsData);
-      setStats(statsData);
-    } catch (err) {
-      console.error(err);
-      setError("Ma'lumotlarni yuklashda xatolik");
-    } finally {
-      setLoading(false);
-    }
+  const invalidatePickupData = () => {
+    queryClient.invalidateQueries({ queryKey: ["pickupPoints"] });
+    queryClient.invalidateQueries({ queryKey: ["pickupPointStats"] });
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const createMutation = useMutation({
+    mutationFn: createPickupPoint,
+    onSuccess: () => invalidatePickupData(),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => editPickupPoint(id, data),
+    onSuccess: () => invalidatePickupData(),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => togglePickupPointStatus(id, isActive),
+    onSuccess: () => invalidatePickupData(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => removePickupPoint(id),
+    onSuccess: () => invalidatePickupData(),
+  });
 
   useEffect(() => {
     if (success) {
@@ -118,12 +138,11 @@ export default function AdminPickupPointsPage() {
 
   const handleCreate = async () => {
     if (!formData.name || !formData.address || !formData.loginCode || !formData.pinCode) {
-      setError("Nom, manzil, login kod va PIN kod majburiy");
+      setError(t('requiredFieldsPickup'));
       return;
     }
 
     try {
-      setActionLoading(true);
       setError(null);
 
       const workingHours: Record<string, string> = {};
@@ -138,7 +157,7 @@ export default function AdminPickupPointsPage() {
         );
       }
 
-      await createPickupPoint({
+      await createMutation.mutateAsync({
         name: formData.name,
         address: formData.address,
         latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
@@ -148,25 +167,21 @@ export default function AdminPickupPointsPage() {
         loginCode: formData.loginCode,
         pinCode: formData.pinCode,
       });
-      await loadData();
-      setSuccess("Topshirish punkti yaratildi");
+      setSuccess(t('pickupPointCreated'));
       setCreateDialogOpen(false);
       resetForm();
     } catch (err: any) {
-      setError(err.message || "Yaratishda xatolik");
-    } finally {
-      setActionLoading(false);
+      setError(err.message || t('createError'));
     }
   };
 
   const handleEdit = async () => {
     if (!selectedPoint || !formData.name || !formData.address) {
-      setError("Nom va manzil majburiy");
+      setError(t('nameAndAddressRequired'));
       return;
     }
 
     try {
-      setActionLoading(true);
       setError(null);
 
       const workingHours: Record<string, string> = {};
@@ -192,43 +207,35 @@ export default function AdminPickupPointsPage() {
       if (formData.longitude) updateData.longitude = parseFloat(formData.longitude);
       if (formData.pinCode) updateData.pinCode = formData.pinCode;
 
-      await editPickupPoint(selectedPoint.id, updateData);
-      await loadData();
-      setSuccess("Topshirish punkti yangilandi");
+      await editMutation.mutateAsync({ id: selectedPoint.id, data: updateData });
+      setSuccess(t('pickupPointUpdated'));
       setEditDialogOpen(false);
       resetForm();
       setSelectedPoint(null);
     } catch (err: any) {
-      setError(err.message || "Yangilashda xatolik");
-    } finally {
-      setActionLoading(false);
+      setError(err.message || t('updateError'));
     }
   };
 
   const handleToggleStatus = async (point: PickupPoint) => {
     try {
-      await togglePickupPointStatus(point.id, !point.isActive);
-      await loadData();
-      setSuccess(`Punkt ${!point.isActive ? "faollashtirildi" : "o'chirildi"}`);
+      await toggleMutation.mutateAsync({ id: point.id, isActive: !point.isActive });
+      setSuccess(t('pickupPointStatusChanged'));
     } catch (err: any) {
-      setError(err.message || "Statusni o'zgartirishda xatolik");
+      setError(err.message || t('statusChangeError'));
     }
   };
 
   const handleDelete = async () => {
     if (!selectedPoint) return;
     try {
-      setActionLoading(true);
       setError(null);
-      await removePickupPoint(selectedPoint.id);
-      await loadData();
-      setSuccess("Topshirish punkti o'chirildi");
+      await deleteMutation.mutateAsync(selectedPoint.id);
+      setSuccess(t('pickupPointDeleted'));
       setDeleteDialogOpen(false);
       setSelectedPoint(null);
     } catch (err: any) {
-      setError(err.message || "O'chirishda xatolik");
-    } finally {
-      setActionLoading(false);
+      setError(err.message || t('deleteError'));
     }
   };
 
@@ -251,7 +258,7 @@ export default function AdminPickupPointsPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    setSuccess("Nusxalandi!");
+    setSuccess(t('copied'));
   };
 
   if (loading) {
@@ -267,57 +274,42 @@ export default function AdminPickupPointsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Topshirish punktlari</h1>
+          <h1 className="text-2xl font-bold">{t('pickupPointsTitle')}</h1>
           <p className="text-muted-foreground">
-            Mijozlar buyurtmalarini olib ketadigan punktlar
+            {t('pickupPointsDesc')}
           </p>
         </div>
         <Button onClick={() => { resetForm(); setCreateDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
-          Yangi punkt
+          {t('newPickupPoint')}
         </Button>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
+        <div className="bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-800 dark:text-red-400 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
           {error}
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">&times;</button>
         </div>
       )}
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-green-50 border border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-800 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
           {success}
         </div>
       )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-sm text-muted-foreground">Jami punktlar</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            <div className="text-sm text-muted-foreground">Faol</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
-            <div className="text-sm text-muted-foreground">Nofaol</div>
-          </CardContent>
-        </Card>
+        <StatCard icon={MapPin} label={t('totalPoints')} value={stats.total} color="primary" />
+        <StatCard icon={CheckCircle} label={t('active')} value={stats.active} color="success" />
+        <StatCard icon={XCircle} label={t('inactive')} value={stats.inactive} color="warning" />
       </div>
 
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Nom, manzil yoki login kod bo'yicha qidirish..."
+          placeholder={t('searchByNameAddressCode')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
@@ -330,7 +322,7 @@ export default function AdminPickupPointsPage() {
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Topshirish punktlari topilmadi</p>
+              <p>{t('pickupPointsNotFound')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -342,12 +334,12 @@ export default function AdminPickupPointsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-lg">{point.name}</span>
                       <Badge variant={point.isActive ? "default" : "secondary"}>
-                        {point.isActive ? "Faol" : "Nofaol"}
+                        {point.isActive ? t('active') : t('inactive')}
                       </Badge>
                       {point._count?.orders !== undefined && (
                         <Badge variant="outline" className="gap-1">
                           <Package className="h-3 w-3" />
-                          {point._count.orders} buyurtma
+                          {point._count.orders} {t('ordersCount')}
                         </Badge>
                       )}
                     </div>
@@ -365,7 +357,7 @@ export default function AdminPickupPointsPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        Login kod:
+                        {t('loginCode')}:
                         <code className="font-mono bg-muted px-1.5 py-0.5 rounded">{point.loginCode}</code>
                         <button onClick={() => copyToClipboard(point.loginCode)} className="hover:text-primary">
                           <Copy className="h-3 w-3" />
@@ -384,7 +376,7 @@ export default function AdminPickupPointsPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleToggleStatus(point)}
-                      title={point.isActive ? "O'chirish" : "Yoqish"}
+                      title={point.isActive ? t('disable') : t('enable')}
                     >
                       {point.isActive ? (
                         <ToggleRight className="h-5 w-5 text-green-600" />
@@ -415,25 +407,25 @@ export default function AdminPickupPointsPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Yangi topshirish punkti</DialogTitle>
+            <DialogTitle>{t('newPickupPointFull')}</DialogTitle>
             <DialogDescription>
-              Buyurtmalarni topshirish uchun yangi punkt yarating
+              {t('createPickupPointDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
-                <Label>Nomi *</Label>
+                <Label>{t('nameRequired')}</Label>
                 <Input
-                  placeholder="Chilonzor punkt"
+                  placeholder={t('pickupPointNameExample')}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label>Manzil *</Label>
+                <Label>{t('addressRequired')}</Label>
                 <Input
-                  placeholder="Chilonzor tumani, Bunyodkor ko'chasi, 12"
+                  placeholder={t('addressExample')}
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
@@ -447,7 +439,7 @@ export default function AdminPickupPointsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Login kodi *</Label>
+                <Label>{t('loginCodeRequired')}</Label>
                 <Input
                   placeholder="PKT-001"
                   value={formData.loginCode}
@@ -455,7 +447,7 @@ export default function AdminPickupPointsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>PIN kod *</Label>
+                <Label>{t('pinCodeRequired')}</Label>
                 <div className="relative">
                   <Input
                     type={showPinCode ? "text" : "password"}
@@ -494,7 +486,7 @@ export default function AdminPickupPointsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Ish vaqti (hafta kunlari)</Label>
+                <Label>{t('workingHoursWeekdays')}</Label>
                 <Input
                   placeholder="09:00 - 18:00"
                   value={formData.workingHoursWeekday}
@@ -502,7 +494,7 @@ export default function AdminPickupPointsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Ish vaqti (dam olish)</Label>
+                <Label>{t('workingHoursWeekend')}</Label>
                 <Input
                   placeholder="10:00 - 16:00"
                   value={formData.workingHoursWeekend}
@@ -513,11 +505,11 @@ export default function AdminPickupPointsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button onClick={handleCreate} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Yaratish
+            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -527,7 +519,7 @@ export default function AdminPickupPointsPage() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Punktni tahrirlash</DialogTitle>
+            <DialogTitle>{t('editPickupPoint')}</DialogTitle>
             <DialogDescription>
               {selectedPoint?.name} punktini tahrirlang
             </DialogDescription>
@@ -535,32 +527,32 @@ export default function AdminPickupPointsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
-                <Label>Nomi *</Label>
+                <Label>{t('nameRequired')}</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label>Manzil *</Label>
+                <Label>{t('addressRequired')}</Label>
                 <Input
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Telefon</Label>
+                <Label>{t('phone')}</Label>
                 <Input
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Yangi PIN kod (ixtiyoriy)</Label>
+                <Label>{t('newPinCodeOptional')}</Label>
                 <div className="relative">
                   <Input
                     type={showPinCode ? "text" : "password"}
-                    placeholder="O'zgartirilmaydi"
+                    placeholder={t('unchanged')}
                     value={formData.pinCode}
                     onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
                     maxLength={6}
@@ -575,14 +567,14 @@ export default function AdminPickupPointsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Ish vaqti (hafta kunlari)</Label>
+                <Label>{t('workingHoursWeekdays')}</Label>
                 <Input
                   value={formData.workingHoursWeekday}
                   onChange={(e) => setFormData({ ...formData, workingHoursWeekday: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Ish vaqti (dam olish)</Label>
+                <Label>{t('workingHoursWeekend')}</Label>
                 <Input
                   value={formData.workingHoursWeekend}
                   onChange={(e) => setFormData({ ...formData, workingHoursWeekend: e.target.value })}
@@ -592,11 +584,11 @@ export default function AdminPickupPointsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditDialogOpen(false); setSelectedPoint(null); }}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button onClick={handleEdit} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Saqlash
+            <Button onClick={handleEdit} disabled={editMutation.isPending}>
+              {editMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -606,23 +598,23 @@ export default function AdminPickupPointsPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Punktni o&apos;chirish</DialogTitle>
+            <DialogTitle>{t('deletePickupPoint')}</DialogTitle>
             <DialogDescription>
-              &quot;{selectedPoint?.name}&quot; punktini o&apos;chirishni xohlaysizmi?
+              &quot;{selectedPoint?.name}&quot; {t('confirmDeletePickupPoint')}
               {(selectedPoint?._count?.orders || 0) > 0 && (
                 <span className="block mt-2 text-red-500">
-                  Diqqat: Bu punktda {selectedPoint?._count?.orders} ta buyurtma mavjud!
+                  {t('warningOrdersExist')} ({selectedPoint?._count?.orders})
                 </span>
               )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setSelectedPoint(null); }}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              O&apos;chirish
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

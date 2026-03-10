@@ -22,12 +22,13 @@ import {
   HelpCircle,
   Send,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 const faqCategories = [
   {
     id: "general",
     icon: HelpCircle,
-    label: "Umumiy",
+    label: "generalCategory",
     questions: [
       {
         q: "TOPLA nima va u qanday ishlaydi?",
@@ -46,7 +47,7 @@ const faqCategories = [
   {
     id: "products",
     icon: Package,
-    label: "Mahsulotlar",
+    label: "productsCategory",
     questions: [
       {
         q: "Mahsulot qanday qo'shiladi?",
@@ -65,7 +66,7 @@ const faqCategories = [
   {
     id: "orders",
     icon: Truck,
-    label: "Buyurtmalar",
+    label: "ordersCategory",
     questions: [
       {
         q: "Buyurtma holati qanday yangilanadi?",
@@ -84,7 +85,7 @@ const faqCategories = [
   {
     id: "payments",
     icon: CreditCard,
-    label: "To'lovlar",
+    label: "paymentsCategory",
     questions: [
       {
         q: "Pul qachon hisobimga tushadi?",
@@ -103,7 +104,7 @@ const faqCategories = [
   {
     id: "verification",
     icon: ShieldCheck,
-    label: "Tekshiruv",
+    label: "verificationCategory",
     questions: [
       {
         q: "Qanday hujjatlarni yuklash kerak?",
@@ -118,7 +119,7 @@ const faqCategories = [
   {
     id: "settings",
     icon: Settings,
-    label: "Sozlamalar",
+    label: "settingsCategory",
     questions: [
       {
         q: "Do'kon logotipini qanday o'zgartiraman?",
@@ -135,31 +136,32 @@ const faqCategories = [
 const contactChannels = [
   {
     icon: Send,
-    label: "Telegram",
+    label: "telegramLabel",
     value: "@topla_support",
     href: "https://t.me/topla_support",
-    description: "Tezkor javob — kunlik 9:00 dan 22:00 gacha",
+    descKey: "telegramDesc",
     color: "bg-blue-500/10 text-blue-600",
   },
   {
     icon: Phone,
-    label: "Telefon",
+    label: "phoneLabel",
     value: "+998 90 123 45 67",
     href: "tel:+998901234567",
-    description: "Dushanba — Shanba, 9:00 — 18:00",
+    descKey: "phoneDesc",
     color: "bg-green-500/10 text-green-600",
   },
   {
     icon: Mail,
-    label: "Email",
+    label: "emailLabel",
     value: "support@topla.uz",
     href: "mailto:support@topla.uz",
-    description: "Javob 24 soat ichida",
+    descKey: "emailDesc",
     color: "bg-orange-500/10 text-orange-600",
   },
 ];
 
 export default function HelpPage() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [openCategory, setOpenCategory] = useState<string | null>("general");
   const [openQuestion, setOpenQuestion] = useState<string | null>(null);
@@ -181,9 +183,9 @@ export default function HelpPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Yordam markazi</h1>
+        <h1 className="text-2xl font-bold">{t('helpCenter')}</h1>
         <p className="text-muted-foreground">
-          Savollar, qo&apos;llanmalar va bog&apos;lanish
+          {t('helpDesc')}
         </p>
       </div>
 
@@ -191,7 +193,7 @@ export default function HelpPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Savol qidirish..."
+          placeholder={t('searchQuestion')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10 rounded-full"
@@ -208,9 +210,9 @@ export default function HelpPage() {
                   <div className={`inline-flex rounded-xl p-2.5 mb-3 ${channel.color}`}>
                     <channel.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold">{channel.label}</h3>
+                  <h3 className="font-semibold">{t(channel.label)}</h3>
                   <p className="text-sm font-medium text-primary">{channel.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{channel.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t(channel.descKey)}</p>
                 </CardContent>
               </Card>
             </a>
@@ -220,7 +222,7 @@ export default function HelpPage() {
 
       {/* FAQ */}
       <div>
-        <h2 className="text-lg font-semibold mb-4">Ko&apos;p beriladigan savollar</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('faqTitle')}</h2>
 
         {filtered.length > 0 ? (
           <div className="space-y-4">
@@ -234,7 +236,7 @@ export default function HelpPage() {
                 >
                   <div className="flex items-center gap-3">
                     <cat.icon className="h-5 w-5 text-primary" />
-                    <span className="font-semibold">{cat.label}</span>
+                    <span className="font-semibold">{t(cat.label)}</span>
                     <Badge variant="secondary" className="rounded-full text-xs">
                       {cat.questions.length}
                     </Badge>
@@ -306,9 +308,9 @@ export default function HelpPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <HelpCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
-              <h3 className="font-semibold mb-1">Natija topilmadi</h3>
+              <h3 className="font-semibold mb-1">{t('noResults')}</h3>
               <p className="text-sm text-muted-foreground">
-                Boshqa kalit so&apos;zlar bilan qidirib ko&apos;ring yoki bizga to&apos;g&apos;ridan-to&apos;g&apos;ri murojaat qiling
+                {t('tryOtherKeywords')}
               </p>
             </CardContent>
           </Card>
@@ -319,14 +321,14 @@ export default function HelpPage() {
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="p-6 text-center">
           <MessageCircle className="h-10 w-10 mx-auto mb-3 text-primary" />
-          <h3 className="font-semibold mb-1">Javob topa olmadingizmi?</h3>
+          <h3 className="font-semibold mb-1">{t('cantFindAnswer')}</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Bizning qo&apos;llab-quvvatlash jamoamiz sizga yordam berishga tayyor
+            {t('supportTeamReady')}
           </p>
           <a href="https://t.me/topla_support" target="_blank" rel="noopener noreferrer">
             <Button className="rounded-full">
               <Send className="mr-2 h-4 w-4" />
-              Telegram orqali yozish
+              {t('writeViaTelegram')}
             </Button>
           </a>
         </CardContent>

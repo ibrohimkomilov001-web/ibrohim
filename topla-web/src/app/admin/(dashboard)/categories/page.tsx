@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +32,7 @@ import {
 import { Loader2, Plus, Edit, Trash2, ChevronDown, ChevronRight, Power, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { IconPicker, CategoryIcon } from '@/components/ui/icon-picker'
+import { useTranslation } from '@/store/locale-store'
 
 // ─── Types ───────────────────────────────────
 interface CategoryFormData {
@@ -63,9 +65,13 @@ const defaultSubForm: SubcategoryFormData = {
 
 // ─── Page ────────────────────────────────────
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+
+  const { data: categories = [], isLoading: loading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories,
+  })
 
   // Dialogs
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -85,22 +91,8 @@ export default function AdminCategoriesPage() {
   // Parent for new subcategory
   const [subParentId, setSubParentId] = useState('')
 
-  const loadCategories = async () => {
-    try {
-      setLoading(true)
-      const data = await getCategories()
-      setCategories(data)
-    } catch (error) {
-      console.error(error)
-      toast.error('Kategoriyalarni yuklashda xatolik')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadCategories()
-  }, [])
+  const invalidateCategories = () =>
+    queryClient.invalidateQueries({ queryKey: ['categories'] })
 
   const toggleExpand = (id: string) =>
     setExpandedCategories((prev) =>
@@ -109,70 +101,79 @@ export default function AdminCategoriesPage() {
 
   // ─── Category CRUD ─────────────────────────
 
-  const handleAdd = async () => {
-    if (!formData.nameUz.trim()) {
-      toast.error("Kategoriya nomi (O'zbek) kiritilishi shart")
-      return
-    }
-    try {
-      setActionLoading(true)
-      await createCategory({
-        nameUz: formData.nameUz.trim(),
-        nameRu: formData.nameRu.trim(),
-        icon: formData.icon || undefined,
-        sortOrder: formData.sortOrder || 0,
-      })
-      await loadCategories()
+  const addMutation = useMutation({
+    mutationFn: createCategory,
+    onSuccess: () => {
+      invalidateCategories()
       setAddDialogOpen(false)
       setFormData({ ...defaultCategoryForm })
-      toast.success("Kategoriya qo'shildi")
-    } catch {
-      toast.error("Kategoriya qo'shishda xatolik")
-    } finally {
-      setActionLoading(false)
+      toast.success(t('categoryAdded'))
+    },
+    onError: () => toast.error(t('categoryAddError')),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateCategory>[1] }) =>
+      updateCategory(id, data),
+    onSuccess: () => {
+      invalidateCategories()
+      setEditDialogOpen(false)
+      setSelectedCategory(null)
+      toast.success(t('categoryUpdated'))
+    },
+    onError: () => toast.error(t('categoryUpdateError')),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: () => {
+      invalidateCategories()
+      toast.success(t('categoryDeleted'))
+    },
+    onError: () => toast.error(t('categoryDeleteError')),
+  })
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      toggleCategoryStatus(id, isActive),
+    onSuccess: () => invalidateCategories(),
+    onError: () => toast.error(t('statusChangeError')),
+  })
+
+  const handleAdd = () => {
+    if (!formData.nameUz.trim()) {
+      toast.error(t('categoryNameRequired'))
+      return
     }
+    addMutation.mutate({
+      nameUz: formData.nameUz.trim(),
+      nameRu: formData.nameRu.trim(),
+      icon: formData.icon || undefined,
+      sortOrder: formData.sortOrder || 0,
+    })
   }
 
-  const handleEdit = async () => {
+  const handleEdit = () => {
     if (!selectedCategory) return
-    try {
-      setActionLoading(true)
-      await updateCategory(selectedCategory.id, {
+    editMutation.mutate({
+      id: selectedCategory.id,
+      data: {
         nameUz: formData.nameUz.trim(),
         nameRu: formData.nameRu.trim(),
         icon: formData.icon || undefined,
         sortOrder: formData.sortOrder,
         isActive: formData.isActive,
-      })
-      await loadCategories()
-      setEditDialogOpen(false)
-      setSelectedCategory(null)
-      toast.success('Kategoriya yangilandi')
-    } catch {
-      toast.error('Kategoriya yangilashda xatolik')
-    } finally {
-      setActionLoading(false)
-    }
+      },
+    })
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Haqiqatan ham o'chirmoqchimisiz? Barcha subcategoriyalar ham o'chiriladi!")) return
-    try {
-      await deleteCategory(id)
-      await loadCategories()
-      toast.success("Kategoriya o'chirildi")
-    } catch {
-      toast.error("Kategoriya o'chirishda xatolik")
-    }
+  const handleDelete = (id: string) => {
+    if (!confirm(t('confirmDeleteCategoryWithSubs'))) return
+    deleteMutation.mutate(id)
   }
 
-  const handleToggleStatus = async (cat: Category) => {
-    try {
-      await toggleCategoryStatus(cat.id, !cat.is_active)
-      await loadCategories()
-    } catch {
-      toast.error("Status o'zgartirishda xatolik")
-    }
+  const handleToggleStatus = (cat: Category) => {
+    toggleStatusMutation.mutate({ id: cat.id, isActive: !cat.is_active })
   }
 
   const openEditDialog = (cat: Category) => {
@@ -195,30 +196,30 @@ export default function AdminCategoriesPage() {
     setAddSubDialogOpen(true)
   }
 
-  const handleAddSub = async () => {
-    if (!subFormData.nameUz.trim()) {
-      toast.error("Subcategoriya nomi kiritilishi shart")
-      return
-    }
-    try {
-      setActionLoading(true)
-      await createSubcategory({
-        categoryId: subParentId,
-        nameUz: subFormData.nameUz.trim(),
-        nameRu: subFormData.nameRu.trim(),
-        sortOrder: subFormData.sortOrder || 0,
-      })
-      await loadCategories()
+  const addSubMutation = useMutation({
+    mutationFn: createSubcategory,
+    onSuccess: () => {
+      invalidateCategories()
       setAddSubDialogOpen(false)
       if (!expandedCategories.includes(subParentId)) {
         setExpandedCategories((prev) => [...prev, subParentId])
       }
-      toast.success("Subcategoriya qo'shildi")
-    } catch {
-      toast.error("Subcategoriya qo'shishda xatolik")
-    } finally {
-      setActionLoading(false)
+      toast.success(t('subcategoryAdded'))
+    },
+    onError: () => toast.error(t('subcategoryAddError')),
+  })
+
+  const handleAddSub = () => {
+    if (!subFormData.nameUz.trim()) {
+      toast.error(t('subcategoryNameRequired'))
+      return
     }
+    addSubMutation.mutate({
+      categoryId: subParentId,
+      nameUz: subFormData.nameUz.trim(),
+      nameRu: subFormData.nameRu.trim(),
+      sortOrder: subFormData.sortOrder || 0,
+    })
   }
 
   const openEditSubDialog = (parentId: string, sub: Category) => {
@@ -231,35 +232,44 @@ export default function AdminCategoriesPage() {
     setEditSubDialogOpen(true)
   }
 
-  const handleEditSub = async () => {
+  const editSubMutation = useMutation({
+    mutationFn: ({ parentId, subId, data }: { parentId: string; subId: string; data: Parameters<typeof updateSubcategory>[2] }) =>
+      updateSubcategory(parentId, subId, data),
+    onSuccess: () => {
+      invalidateCategories()
+      setEditSubDialogOpen(false)
+      setSelectedSub(null)
+      toast.success(t('subcategoryUpdated'))
+    },
+    onError: () => toast.error(t('subcategoryUpdateError')),
+  })
+
+  const deleteSubMutation = useMutation({
+    mutationFn: ({ parentId, subId }: { parentId: string; subId: string }) =>
+      deleteSubcategoryAction(parentId, subId),
+    onSuccess: () => {
+      invalidateCategories()
+      toast.success(t('subcategoryDeleted'))
+    },
+    onError: () => toast.error(t('subcategoryDeleteError')),
+  })
+
+  const handleEditSub = () => {
     if (!selectedSub) return
-    try {
-      setActionLoading(true)
-      await updateSubcategory(selectedSub.parentId, selectedSub.sub.id, {
+    editSubMutation.mutate({
+      parentId: selectedSub.parentId,
+      subId: selectedSub.sub.id,
+      data: {
         nameUz: subFormData.nameUz.trim(),
         nameRu: subFormData.nameRu.trim(),
         sortOrder: subFormData.sortOrder,
-      })
-      await loadCategories()
-      setEditSubDialogOpen(false)
-      setSelectedSub(null)
-      toast.success('Subcategoriya yangilandi')
-    } catch {
-      toast.error('Subcategoriya yangilashda xatolik')
-    } finally {
-      setActionLoading(false)
-    }
+      },
+    })
   }
 
-  const handleDeleteSub = async (parentId: string, subId: string) => {
-    if (!confirm("Subcategoriyani o'chirmoqchimisiz?")) return
-    try {
-      await deleteSubcategoryAction(parentId, subId)
-      await loadCategories()
-      toast.success("Subcategoriya o'chirildi")
-    } catch {
-      toast.error("Subcategoriya o'chirishda xatolik")
-    }
+  const handleDeleteSub = (parentId: string, subId: string) => {
+    if (!confirm(t('confirmDeleteSubcategory'))) return
+    deleteSubMutation.mutate({ parentId, subId })
   }
 
   // ─── Render ────────────────────────────────
@@ -277,9 +287,9 @@ export default function AdminCategoriesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Kategoriyalar</h1>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('categories')}</h1>
           <p className="text-muted-foreground">
-            Mahsulot kategoriyalarini boshqaring — {categories.length} ta kategoriya
+            {t('manageCategories')} — {categories.length} {t('categoryCount')}
           </p>
         </div>
 
@@ -287,18 +297,18 @@ export default function AdminCategoriesPage() {
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> Kategoriya qo&apos;shish
+              <Plus className="mr-2 h-4 w-4" /> {t('addCategory')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Yangi kategoriya</DialogTitle>
-              <DialogDescription>Yangi asosiy kategoriya qo&apos;shing</DialogDescription>
+              <DialogTitle>{t('newCategory')}</DialogTitle>
+              <DialogDescription>{t('addNewCategoryDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Nomi (O&apos;zbek) *</Label>
+                  <Label>{t('nameUz')} *</Label>
                   <Input
                     value={formData.nameUz}
                     onChange={(e) => setFormData({ ...formData, nameUz: e.target.value })}
@@ -315,7 +325,7 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Tartib raqami</Label>
+                <Label>{t('sortOrder')}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -324,7 +334,7 @@ export default function AdminCategoriesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Icon (ilovadagi kabi)</Label>
+                <Label>{t('iconLabel')}</Label>
                 <IconPicker
                   value={formData.icon}
                   onChange={(v) => setFormData({ ...formData, icon: v })}
@@ -333,11 +343,11 @@ export default function AdminCategoriesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                Bekor qilish
+                {t('cancel')}
               </Button>
-              <Button onClick={handleAdd} disabled={actionLoading}>
-                {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Qo&apos;shish
+              <Button onClick={handleAdd} disabled={addMutation.isPending}>
+                {addMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('add')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -349,7 +359,7 @@ export default function AdminCategoriesPage() {
         {categories.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              Kategoriyalar mavjud emas
+              {t('noCategoriesExist')}
             </CardContent>
           </Card>
         ) : (
@@ -365,7 +375,7 @@ export default function AdminCategoriesPage() {
                     variant={category.is_active ? 'default' : 'secondary'}
                     className={category.is_active ? 'bg-green-500' : 'bg-gray-400'}
                   >
-                    {category.is_active ? 'Faol' : 'Nofaol'}
+                    {category.is_active ? t('active') : t('inactive')}
                   </Badge>
                 </div>
                 {category.name_ru && (
@@ -374,7 +384,7 @@ export default function AdminCategoriesPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="text-xs">
-                      {category.children?.length || 0} subcategoriya
+                      {category.children?.length || 0} {t('subcategoryWord')}
                     </Badge>
                     <span className="text-xs text-muted-foreground">#{category.sort_order}</span>
                   </div>
@@ -402,15 +412,15 @@ export default function AdminCategoriesPage() {
                           <span className="text-xs text-muted-foreground">↳</span>
                           <span className="text-sm">{sub.name_uz}</span>
                           <Badge variant="outline" className={`text-[10px] ${sub.is_active ? 'border-green-500 text-green-500' : 'border-gray-400 text-gray-400'}`}>
-                            {sub.is_active ? 'Faol' : 'Nofaol'}
+                            {sub.is_active ? t('active') : t('inactive')}
                           </Badge>
                         </div>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEditSubDialog(category.id, sub)}>
-                            <Edit className="h-3 w-3" />
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEditSubDialog(category.id, sub)}>
+                            <Edit className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => handleDeleteSub(category.id, sub.id)}>
-                            <Trash2 className="h-3 w-3" />
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500" onClick={() => handleDeleteSub(category.id, sub.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -426,10 +436,10 @@ export default function AdminCategoriesPage() {
       {/* Table (Desktop) */}
       <Card className="hidden sm:block">
         <CardHeader>
-          <CardTitle>Kategoriyalar ro&apos;yxati</CardTitle>
+          <CardTitle>{t('categoriesList')}</CardTitle>
           <CardDescription>
-            Jami {categories.length} ta asosiy kategoriya,{' '}
-            {categories.reduce((acc, c) => acc + (c.children?.length || 0), 0)} ta subcategoriya
+            {t('total')} {categories.length} {t('mainCategoriesCount')},{' '}
+            {categories.reduce((acc, c) => acc + (c.children?.length || 0), 0)} {t('subcategoryWord')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -437,19 +447,19 @@ export default function AdminCategoriesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12"></TableHead>
-                <TableHead>Nomi (UZ)</TableHead>
-                <TableHead>Nomi (RU)</TableHead>
-                <TableHead className="w-24">Sub</TableHead>
-                <TableHead className="w-20">Tartib</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="text-right w-44">Amallar</TableHead>
+                <TableHead>{t('nameUz')}</TableHead>
+                <TableHead>{t('nameRu')}</TableHead>
+                <TableHead className="w-24">{t('subcategory')}</TableHead>
+                <TableHead className="w-20">{t('sortOrder')}</TableHead>
+                <TableHead className="w-24">{t('status')}</TableHead>
+                <TableHead className="text-right w-44">{t('actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Kategoriyalar mavjud emas
+                    {t('noCategoriesExist')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -497,7 +507,7 @@ export default function AdminCategoriesPage() {
                               : 'bg-gray-400 hover:bg-gray-500'
                           }
                         >
-                          {category.is_active ? 'Faol' : 'Nofaol'}
+                          {category.is_active ? t('active') : t('inactive')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -547,7 +557,7 @@ export default function AdminCategoriesPage() {
                     {/* Subcategory rows */}
                     {expandedCategories.includes(category.id) &&
                       category.children?.map((sub) => (
-                        <TableRow key={sub.id} className="bg-white hover:bg-gray-50">
+                        <TableRow key={sub.id} className="bg-white dark:bg-gray-950 hover:bg-gray-50 dark:hover:bg-gray-900">
                           <TableCell></TableCell>
                           <TableCell className="pl-12 text-sm">↳ {sub.name_uz}</TableCell>
                           <TableCell className="text-sm">{sub.name_ru}</TableCell>
@@ -564,7 +574,7 @@ export default function AdminCategoriesPage() {
                                   : 'border-gray-400 text-gray-400'
                               }
                             >
-                              {sub.is_active ? 'Faol' : 'Nofaol'}
+                              {sub.is_active ? t('active') : t('inactive')}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
@@ -598,7 +608,7 @@ export default function AdminCategoriesPage() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Kategoriyani tahrirlash</DialogTitle>
+            <DialogTitle>{t('editCategory')}</DialogTitle>
             <DialogDescription>
               &quot;{selectedCategory?.name_uz}&quot; kategoriyasini tahrirlang
             </DialogDescription>
@@ -606,14 +616,14 @@ export default function AdminCategoriesPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Nomi (O&apos;zbek)</Label>
+                <Label>{t('nameUz')}</Label>
                 <Input
                   value={formData.nameUz}
                   onChange={(e) => setFormData({ ...formData, nameUz: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Nomi (Rus)</Label>
+                <Label>{t('nameRu')}</Label>
                 <Input
                   value={formData.nameRu}
                   onChange={(e) => setFormData({ ...formData, nameRu: e.target.value })}
@@ -622,7 +632,7 @@ export default function AdminCategoriesPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Tartib raqami</Label>
+                <Label>{t('sortOrder')}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -637,7 +647,7 @@ export default function AdminCategoriesPage() {
                   checked={formData.isActive}
                   onCheckedChange={(v) => setFormData({ ...formData, isActive: v })}
                 />
-                <Label>{formData.isActive ? 'Faol' : 'Nofaol'}</Label>
+                <Label>{formData.isActive ? t('active') : t('inactive')}</Label>
               </div>
             </div>
             <div className="space-y-2">
@@ -650,11 +660,11 @@ export default function AdminCategoriesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button onClick={handleEdit} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+            <Button onClick={handleEdit} disabled={editMutation.isPending}>
+              {editMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -664,7 +674,7 @@ export default function AdminCategoriesPage() {
       <Dialog open={addSubDialogOpen} onOpenChange={setAddSubDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Yangi subcategoriya</DialogTitle>
+            <DialogTitle>{t('newSubcategory')}</DialogTitle>
             <DialogDescription>
               &quot;{categories.find((c) => c.id === subParentId)?.name_uz}&quot; kategoriyasiga
               subcategoriya qo&apos;shing
@@ -673,7 +683,7 @@ export default function AdminCategoriesPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Nomi (O&apos;zbek) *</Label>
+                <Label>{t('nameUz')} *</Label>
                 <Input
                   value={subFormData.nameUz}
                   onChange={(e) => setSubFormData({ ...subFormData, nameUz: e.target.value })}
@@ -690,7 +700,7 @@ export default function AdminCategoriesPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Tartib raqami</Label>
+              <Label>{t('sortOrder')}</Label>
               <Input
                 type="number"
                 min={0}
@@ -703,11 +713,11 @@ export default function AdminCategoriesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddSubDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button onClick={handleAddSub} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Qo&apos;shish
+            <Button onClick={handleAddSub} disabled={addSubMutation.isPending}>
+              {addSubMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -717,7 +727,7 @@ export default function AdminCategoriesPage() {
       <Dialog open={editSubDialogOpen} onOpenChange={setEditSubDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Subcategoriyani tahrirlash</DialogTitle>
+            <DialogTitle>{t('editSubcategory')}</DialogTitle>
             <DialogDescription>
               &quot;{selectedSub?.sub.name_uz}&quot; subcategoriyasini tahrirlang
             </DialogDescription>
@@ -725,14 +735,14 @@ export default function AdminCategoriesPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Nomi (O&apos;zbek)</Label>
+                <Label>{t('nameUz')}</Label>
                 <Input
                   value={subFormData.nameUz}
                   onChange={(e) => setSubFormData({ ...subFormData, nameUz: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Nomi (Rus)</Label>
+                <Label>{t('nameRu')}</Label>
                 <Input
                   value={subFormData.nameRu}
                   onChange={(e) => setSubFormData({ ...subFormData, nameRu: e.target.value })}
@@ -740,7 +750,7 @@ export default function AdminCategoriesPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Tartib raqami</Label>
+              <Label>{t('sortOrder')}</Label>
               <Input
                 type="number"
                 min={0}
@@ -753,11 +763,11 @@ export default function AdminCategoriesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditSubDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button onClick={handleEditSub} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+            <Button onClick={handleEditSub} disabled={editSubMutation.isPending}>
+              {editSubMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

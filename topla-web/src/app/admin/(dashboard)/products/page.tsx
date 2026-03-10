@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { toast } from 'sonner'
 import { useUrlState } from '@/hooks/use-url-state'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
+import { useTranslation } from '@/store/locale-store'
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   pending: 'secondary',
@@ -32,10 +34,8 @@ const statusLabels: Record<string, string> = {
 }
 
 export default function AdminProductsPage() {
-  const [loading, setLoading] = useState(true)
-  const [products, setProducts] = useState<Product[]>([])
-  const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0 })
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false })
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   
   const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'pending', page: '1' })
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
@@ -44,42 +44,30 @@ export default function AdminProductsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const { products: productsData, stats: statsData, pagination: pag } = await getProducts({
-        page: parseInt(page) || 1,
-        search: debouncedSearch || undefined,
-        status: activeTab !== 'all' ? activeTab : undefined,
-      })
-      setProducts(productsData)
-      setStats(statsData)
-      setPagination(pag)
-    } catch (error) {
-      console.error(error)
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, activeTab, page])
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['admin-products', debouncedSearch, activeTab, page],
+    queryFn: () => getProducts({
+      page: parseInt(page) || 1,
+      search: debouncedSearch || undefined,
+      status: activeTab !== 'all' ? activeTab : undefined,
+    }),
+    staleTime: 15_000,
+  });
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  const products = data?.products ?? [];
+  const stats = data?.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0 };
+  const pagination = data?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false };
 
-  useEffect(() => {
-    const p = parseInt(page)
-    if (p > 1) setFilters({ page: '1' })
-  }, [debouncedSearch, activeTab])
+  const loadData = () => queryClient.invalidateQueries({ queryKey: ['admin-products'] });
 
   const handleApprove = async (productId: string) => {
     try {
       setActionLoading(true)
       await approveProduct(productId)
       await loadData()
-      toast.success("Mahsulot tasdiqlandi")
+      toast.success(t('approved'))
     } catch (error) {
-      toast.error("Mahsulotni tasdiqlashda xatolik")
+      toast.error(t('errorOccurred'))
     } finally {
       setActionLoading(false)
     }
@@ -92,26 +80,26 @@ export default function AdminProductsPage() {
       setActionLoading(true)
       await rejectProduct(selectedProduct.id, rejectReason)
       await loadData()
-      toast.success("Mahsulot rad etildi")
+      toast.success(t('rejected'))
       setRejectDialogOpen(false)
       setRejectReason('')
       setSelectedProduct(null)
     } catch (error) {
-      toast.error("Mahsulotni rad etishda xatolik")
+      toast.error(t('errorOccurred'))
     } finally {
       setActionLoading(false)
     }
   }
 
   const handleDelete = async (productId: string) => {
-    if (!confirm("Mahsulotni o'chirishni xohlaysizmi?")) return
+    if (!confirm(t('confirmDelete'))) return
 
     try {
       await deleteProduct(productId)
       await loadData()
-      toast.success("Mahsulot o'chirildi")
+      toast.success(t('deleted'))
     } catch (error) {
-      toast.error("Mahsulotni o'chirishda xatolik")
+      toast.error(t('errorOccurred'))
     }
   }
 
@@ -119,14 +107,14 @@ export default function AdminProductsPage() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Mahsulotlar Moderatsiyasi</h1>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('moderation')}</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
             Vendorlar tomonidan qo'shilgan mahsulotlarni tekshiring
           </p>
         </div>
         {stats.pending > 0 && (
           <Badge variant="destructive" className="text-sm sm:text-lg px-3 py-1 sm:px-4 sm:py-2 w-fit">
-            {stats.pending} ta kutilmoqda
+            {stats.pending} {t('pending')}
           </Badge>
         )}
       </div>
@@ -135,11 +123,11 @@ export default function AdminProductsPage() {
         <CardHeader className="p-3 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base sm:text-lg">Barcha Mahsulotlar</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Mahsulotlarni tasdiqlang yoki rad eting</CardDescription>
+              <CardTitle className="text-base sm:text-lg">{t('products')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{t('moderation')}</CardDescription>
             </div>
             <Input
-              placeholder="Qidirish..."
+              placeholder={t('searchPlaceholderGeneric')}
               value={searchQuery}
               onChange={(e) => setFilters({ search: e.target.value })}
               className="w-full sm:w-64"
@@ -151,14 +139,14 @@ export default function AdminProductsPage() {
             <div className="overflow-x-auto pb-2">
               <TabsList className="inline-flex w-max sm:w-auto">
                 <TabsTrigger value="pending" className="text-xs sm:text-sm">
-                  Kutilmoqda
+                  {t('pending')}
                   <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
                     {stats.pending}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="approved" className="text-xs sm:text-sm">Tasdiqlangan</TabsTrigger>
-                <TabsTrigger value="rejected" className="text-xs sm:text-sm">Rad etilgan</TabsTrigger>
-                <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi</TabsTrigger>
+                <TabsTrigger value="approved" className="text-xs sm:text-sm">{t('approved')}</TabsTrigger>
+                <TabsTrigger value="rejected" className="text-xs sm:text-sm">{t('rejected')}</TabsTrigger>
+                <TabsTrigger value="all" className="text-xs sm:text-sm">{t('all')}</TabsTrigger>
               </TabsList>
             </div>
 
@@ -170,13 +158,13 @@ export default function AdminProductsPage() {
                 {products.length === 0 && !loading ? (
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">Mahsulotlar topilmadi</p>
+                    <p className="text-muted-foreground">{t('noItems')}</p>
                   </div>
                 ) : (
                   products.map((product) => (
                     <div key={product.id} className="border rounded-lg p-3 space-y-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                           {product.thumbnail_url ? (
                             <img src={product.thumbnail_url} alt={product.name_uz} className="w-full h-full object-cover" />
                           ) : (
@@ -185,7 +173,7 @@ export default function AdminProductsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{product.name_uz}</div>
-                          <div className="text-xs text-muted-foreground">{product.shop?.name || "Noma'lum"}</div>
+                          <div className="text-xs text-muted-foreground">{product.shop?.name || t('noData')}</div>
                         </div>
                         <Badge variant={statusColors[product.status] || "secondary"} className="text-xs flex-shrink-0">
                           {statusLabels[product.status] || product.status}
@@ -198,10 +186,10 @@ export default function AdminProductsPage() {
                       {product.status === 'pending' && (
                         <div className="flex gap-2">
                           <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleApprove(product.id)} disabled={actionLoading}>
-                            <CheckCircle className="h-3 w-3 mr-1" />Tasdiqlash
+                            <CheckCircle className="h-3 w-3 mr-1" />{t('approve')}
                           </Button>
                           <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs" onClick={() => { setSelectedProduct(product); setRejectDialogOpen(true); }}>
-                            <XCircle className="h-3 w-3 mr-1" />Rad etish
+                            <XCircle className="h-3 w-3 mr-1" />{t('reject')}
                           </Button>
                         </div>
                       )}
@@ -214,13 +202,13 @@ export default function AdminProductsPage() {
                 <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Mahsulot</TableHead>
-                    <TableHead>Do'kon</TableHead>
-                    <TableHead>Kategoriya</TableHead>
-                    <TableHead>Narx</TableHead>
-                    <TableHead>Sana</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amallar</TableHead>
+                    <TableHead>{t('product')}</TableHead>
+                    <TableHead>{t('shop')}</TableHead>
+                    <TableHead>{t('category')}</TableHead>
+                    <TableHead>{t('price')}</TableHead>
+                    <TableHead>{t('date')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead className="text-right">{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -228,7 +216,7 @@ export default function AdminProductsPage() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-12">
                         <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">Mahsulotlar topilmadi</p>
+                        <p className="text-muted-foreground">{t('noItems')}</p>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -236,7 +224,7 @@ export default function AdminProductsPage() {
                       <TableRow key={product.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                            <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
                               {product.thumbnail_url ? (
                                 <img src={product.thumbnail_url} alt={product.name_uz} className="w-full h-full object-cover" />
                               ) : (
@@ -246,7 +234,7 @@ export default function AdminProductsPage() {
                             <span className="font-medium">{product.name_uz}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{product.shop?.name || "Noma'lum"}</TableCell>
+                        <TableCell>{product.shop?.name || t('noData')}</TableCell>
                         <TableCell>{product.category?.name_uz || "-"}</TableCell>
                         <TableCell className="font-medium">{formatPrice(product.price)}</TableCell>
                         <TableCell>{product.created_at ? new Date(product.created_at).toLocaleDateString("uz-UZ") : "-"}</TableCell>
@@ -266,7 +254,7 @@ export default function AdminProductsPage() {
                                   disabled={actionLoading}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" />
-                                  Tasdiqlash
+                                  {t('approve')}
                                 </Button>
                                 <Button
                                   variant="destructive"
@@ -277,7 +265,7 @@ export default function AdminProductsPage() {
                                   }}
                                 >
                                   <XCircle className="h-4 w-4 mr-1" />
-                                  Rad etish
+                                  {t('reject')}
                                 </Button>
                               </>
                             )}
@@ -308,7 +296,7 @@ export default function AdminProductsPage() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mahsulotni rad etish</DialogTitle>
+            <DialogTitle>{t('reject')}</DialogTitle>
             <DialogDescription>
               "{selectedProduct?.name_uz}" mahsulotini rad etish sababini kiriting
             </DialogDescription>
@@ -334,11 +322,11 @@ export default function AdminProductsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button variant="destructive" onClick={handleReject} disabled={!rejectReason || actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Rad etish
+              {t('reject')}
             </Button>
           </DialogFooter>
         </DialogContent>

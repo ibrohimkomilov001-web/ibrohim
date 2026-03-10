@@ -23,16 +23,18 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import {
   Rocket, Plus, Pause, Play, Trash2, Loader2, Eye, MousePointer, ShoppingCart,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: string; icon: any }> = {
-  pending: { label: "Kutilmoqda", variant: "outline", icon: Loader2 },
-  active: { label: "Faol", variant: "default", icon: Rocket },
-  paused: { label: "To'xtatilgan", variant: "secondary", icon: Pause },
-  completed: { label: "Tugagan", variant: "secondary", icon: null },
-  cancelled: { label: "Bekor", variant: "destructive", icon: null },
+  pending: { label: "pending", variant: "outline", icon: Loader2 },
+  active: { label: "active", variant: "default", icon: Rocket },
+  paused: { label: "paused", variant: "secondary", icon: Pause },
+  completed: { label: "completed", variant: "secondary", icon: null },
+  cancelled: { label: "cancelled", variant: "destructive", icon: null },
 };
 
 export default function BoostsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -57,7 +59,7 @@ export default function BoostsPage() {
   const createMut = useMutation({
     mutationFn: vendorApi.createBoost,
     onSuccess: () => {
-      toast.success("Reklama yaratildi");
+      toast.success(t('boostCreated'));
       queryClient.invalidateQueries({ queryKey: ["vendor-boosts"] });
       setCreateOpen(false);
     },
@@ -67,7 +69,7 @@ export default function BoostsPage() {
   const pauseMut = useMutation({
     mutationFn: vendorApi.pauseBoost,
     onSuccess: () => {
-      toast.success("Reklama to'xtatildi");
+      toast.success(t('boostPaused'));
       queryClient.invalidateQueries({ queryKey: ["vendor-boosts"] });
     },
   });
@@ -75,7 +77,7 @@ export default function BoostsPage() {
   const resumeMut = useMutation({
     mutationFn: vendorApi.resumeBoost,
     onSuccess: () => {
-      toast.success("Reklama davom ettirildi");
+      toast.success(t('boostResumed'));
       queryClient.invalidateQueries({ queryKey: ["vendor-boosts"] });
     },
   });
@@ -83,7 +85,7 @@ export default function BoostsPage() {
   const cancelMut = useMutation({
     mutationFn: vendorApi.cancelBoost,
     onSuccess: () => {
-      toast.success("Reklama bekor qilindi");
+      toast.success(t('boostCancelled'));
       queryClient.invalidateQueries({ queryKey: ["vendor-boosts"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -95,7 +97,7 @@ export default function BoostsPage() {
 
   const handleCreate = () => {
     if (!form.productId || !form.startDate || !form.endDate) {
-      toast.error("Barcha maydonlarni to'ldiring");
+      toast.error(t('fillAllFields'));
       return;
     }
     createMut.mutate({
@@ -110,26 +112,26 @@ export default function BoostsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Rocket className="h-6 w-6" /> Mahsulot reklama
+            <Rocket className="h-6 w-6" /> {t('productAd')}
           </h1>
           <p className="text-muted-foreground">
-            Mahsulotlaringizni TOP ga chiqaring
+            {t('pushToTop')}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Yangi reklama
+          <Plus className="mr-2 h-4 w-4" /> {t('newAd')}
         </Button>
       </div>
 
       {/* Filter */}
       <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Holat" />
+          <SelectValue placeholder={t('status')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Barchasi</SelectItem>
+          <SelectItem value="all">{t('all')}</SelectItem>
           {Object.entries(STATUS_CONFIG).map(([key, val]) => (
-            <SelectItem key={key} value={key}>{val.label}</SelectItem>
+            <SelectItem key={key} value={key}>{t(val.label)}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -165,21 +167,21 @@ export default function BoostsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <h3 className="font-semibold truncate">
-                          {boost.product?.name || "Mahsulot"}
+                          {boost.product?.name || t('productWord')}
                         </h3>
-                        <Badge variant={cfg.variant as any}>{cfg.label}</Badge>
+                        <Badge variant={cfg.variant as any}>{t(cfg.label)}</Badge>
                       </div>
 
                       {/* Stats */}
                       <div className="flex gap-4 text-sm text-muted-foreground mb-2">
                         <span className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" /> {boost.impressions || 0} ko&apos;rish
+                          <Eye className="h-3 w-3" /> {boost.impressions || 0} {t('viewCount')}
                         </span>
                         <span className="flex items-center gap-1">
-                          <MousePointer className="h-3 w-3" /> {boost.clicks || 0} bosish
+                          <MousePointer className="h-3 w-3" /> {boost.clicks || 0} {t('clickCount')}
                         </span>
                         <span className="flex items-center gap-1">
-                          <ShoppingCart className="h-3 w-3" /> {boost.orders || 0} buyurtma
+                          <ShoppingCart className="h-3 w-3" /> {boost.orders || 0} {t('orderCount')}
                         </span>
                       </div>
 
@@ -198,19 +200,19 @@ export default function BoostsPage() {
 
                       <div className="text-xs text-muted-foreground mt-1">
                         {formatDate(boost.startDate)} — {formatDate(boost.endDate)}
-                        {" • "}Kunlik: {formatPrice(Number(boost.dailyBudget))} so&apos;m
+                        {" • "}{t('dailyLabel')}: {formatPrice(Number(boost.dailyBudget))} so&apos;m
                       </div>
 
                       {/* Actions */}
                       <div className="flex gap-2 mt-3">
                         {boost.status === "active" && (
                           <Button size="sm" variant="outline" onClick={() => pauseMut.mutate(boost.id)}>
-                            <Pause className="h-3 w-3 mr-1" /> To&apos;xtatish
+                            <Pause className="h-3 w-3 mr-1" /> {t('pauseBoost')}
                           </Button>
                         )}
                         {boost.status === "paused" && (
                           <Button size="sm" variant="outline" onClick={() => resumeMut.mutate(boost.id)}>
-                            <Play className="h-3 w-3 mr-1" /> Davom
+                            <Play className="h-3 w-3 mr-1" /> {t('resumeBoost')}
                           </Button>
                         )}
                         {["pending", "paused"].includes(boost.status) && (
@@ -220,7 +222,7 @@ export default function BoostsPage() {
                             className="text-destructive"
                             onClick={() => cancelMut.mutate(boost.id)}
                           >
-                            <Trash2 className="h-3 w-3 mr-1" /> Bekor
+                            <Trash2 className="h-3 w-3 mr-1" /> {t('cancelBoost')}
                           </Button>
                         )}
                       </div>
@@ -235,12 +237,12 @@ export default function BoostsPage() {
         <Card>
           <CardContent className="py-16 text-center">
             <Rocket className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
-            <h3 className="text-lg font-semibold">Reklama yo&apos;q</h3>
+            <h3 className="text-lg font-semibold">{t('noAds')}</h3>
             <p className="text-muted-foreground mb-4">
-              Mahsulotlaringizni TOP ga chiqarish uchun reklama yarating
+              {t('createAdForTop')}
             </p>
             <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Yangi reklama
+              <Plus className="mr-2 h-4 w-4" /> {t('newAd')}
             </Button>
           </CardContent>
         </Card>
@@ -250,13 +252,13 @@ export default function BoostsPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Yangi reklama yaratish</DialogTitle>
+            <DialogTitle>{t('createNewAd')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Mahsulot</Label>
+              <Label>{t('productWord')}</Label>
               <Select value={form.productId} onValueChange={(v) => setForm({ ...form, productId: v })}>
-                <SelectTrigger><SelectValue placeholder="Mahsulot tanlang" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('selectProduct')} /></SelectTrigger>
                 <SelectContent>
                   {products.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -266,7 +268,7 @@ export default function BoostsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Kunlik byudjet (so&apos;m)</Label>
+                <Label>{t('dailyBudget')}</Label>
                 <Input
                   type="number"
                   value={form.dailyBudget}
@@ -275,7 +277,7 @@ export default function BoostsPage() {
                 />
               </div>
               <div>
-                <Label>Umumiy byudjet (so&apos;m)</Label>
+                <Label>{t('totalBudget')}</Label>
                 <Input
                   type="number"
                   value={form.totalBudget}
@@ -286,7 +288,7 @@ export default function BoostsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Boshlanishi</Label>
+                <Label>{t('startDate')}</Label>
                 <Input
                   type="datetime-local"
                   value={form.startDate}
@@ -294,7 +296,7 @@ export default function BoostsPage() {
                 />
               </div>
               <div>
-                <Label>Tugashi</Label>
+                <Label>{t('endDate')}</Label>
                 <Input
                   type="datetime-local"
                   value={form.endDate}
@@ -304,16 +306,16 @@ export default function BoostsPage() {
             </div>
             <Card className="bg-muted/50">
               <CardContent className="p-4 text-sm">
-                <p className="font-medium">Byudjet balansingizdan yechiladi</p>
-                <p className="text-muted-foreground">Bekor qilsangiz qolgan summa qaytariladi</p>
+                <p className="font-medium">{t('budgetFromBalance')}</p>
+                <p className="text-muted-foreground">{t('cancelRefund')}</p>
               </CardContent>
             </Card>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Bekor</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t('cancel')}</Button>
             <Button onClick={handleCreate} disabled={createMut.isPending || !form.productId}>
               {createMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Yaratish
+              {t('createBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>

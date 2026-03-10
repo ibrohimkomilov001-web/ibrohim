@@ -317,9 +317,9 @@ export default function VendorRegisterPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-6">
+              <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl mb-6">
                 <Clock className="h-5 w-5 text-amber-500 shrink-0" />
-                <p className="text-sm text-amber-700">
+                <p className="text-sm text-amber-700 dark:text-amber-400">
                   Tasdiqlash 1-2 ish kunini oladi
                 </p>
               </div>
@@ -356,7 +356,7 @@ export default function VendorRegisterPage() {
   const currentStep = stepInfo[step - 1];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       <div className="max-w-xl mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
         <div className="text-center mb-8">
@@ -418,7 +418,7 @@ export default function VendorRegisterPage() {
             <form onSubmit={handleSubmit}>
               {error && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Alert variant="destructive" className="mb-5 border-red-200 bg-red-50">
+                  <Alert variant="destructive" className="mb-5 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
@@ -615,17 +615,17 @@ export default function VendorRegisterPage() {
 
                     {/* Info cards */}
                     <div className="space-y-3 pt-2">
-                      <div className="flex items-start gap-3 p-3.5 bg-blue-50/80 border border-blue-100 rounded-xl">
+                      <div className="flex items-start gap-3 p-3.5 bg-blue-50/80 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-800 rounded-xl">
                         <Shield className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-medium text-blue-900">Ma&apos;lumotlaringiz xavfsiz</p>
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Ma&apos;lumotlaringiz xavfsiz</p>
                           <p className="text-xs text-blue-600 mt-0.5">Bank rekvizitlarini keyinroq ham kiritishingiz mumkin</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-3.5 bg-amber-50/80 border border-amber-100 rounded-xl">
+                      <div className="flex items-start gap-3 p-3.5 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-800 rounded-xl">
                         <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-medium text-amber-900">Tez tasdiqlash</p>
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Tez tasdiqlash</p>
                           <p className="text-xs text-amber-600 mt-0.5">Ariza 1-2 ish kunida ko&apos;rib chiqiladi</p>
                         </div>
                       </div>

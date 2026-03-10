@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { useTranslation } from '@/store/locale-store';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat("uz-UZ").format(value) + " so'm";
@@ -64,6 +65,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function PromoCodesPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +93,10 @@ export default function PromoCodesPage() {
       queryClient.invalidateQueries({ queryKey: ["vendor-promo-codes"] });
       setIsCreateOpen(false);
       resetForm();
-      toast.success("Promo kod yaratildi");
+      toast.success(t('promoCreated'));
     },
     onError: (err: any) => {
-      setError(err.message || "Xatolik yuz berdi");
+      setError(err.message || t('errorOccurred'));
     },
   });
 
@@ -115,10 +117,10 @@ export default function PromoCodesPage() {
     mutationFn: vendorApi.deletePromoCode,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendor-promo-codes"] });
-      toast.success("Promo kod o'chirildi");
+      toast.success(t('promoDeleted'));
     },
     onError: (err: any) => {
-      toast.error(err.message || "O'chirishda xatolik");
+      toast.error(err.message || t('promoDeleteError'));
     },
   });
 
@@ -136,17 +138,17 @@ export default function PromoCodesPage() {
     setError(null);
 
     if (!code.trim()) {
-      setError("Kodni kiriting");
+      setError(t('enterCode'));
       return;
     }
 
     if (!discountValue || Number(discountValue) <= 0) {
-      setError("Chegirma qiymatini kiriting");
+      setError(t('enterDiscountValue'));
       return;
     }
 
     if (discountType === "percentage" && Number(discountValue) > 100) {
-      setError("Foiz 100 dan oshmasligi kerak");
+      setError(t('percentMax100'));
       return;
     }
 
@@ -162,7 +164,7 @@ export default function PromoCodesPage() {
 
   const copyCode = (codeStr: string) => {
     navigator.clipboard.writeText(codeStr);
-    toast.success("Kod nusxalandi");
+    toast.success(t('codeCopied'));
   };
 
   const isExpired = (promo: PromoCode) => {
@@ -179,9 +181,9 @@ export default function PromoCodesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Promo kodlar</h1>
+          <h1 className="text-2xl font-bold">{t('vendorPromoCodesTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            Chegirma kodlarini yarating va boshqaring
+            {t('promoCreateManage')}
           </p>
         </div>
 
@@ -195,15 +197,14 @@ export default function PromoCodesPage() {
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              Yangi kod
+              {t('newCode')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Yangi promo kod yaratish</DialogTitle>
+              <DialogTitle>{t('createNewPromo')}</DialogTitle>
               <DialogDescription>
-                Mijozlar uchun chegirma kodi yarating. Maksimal 20 ta kod
-                yaratish mumkin.
+                {t('createPromoDesc')}
               </DialogDescription>
             </DialogHeader>
 
@@ -216,7 +217,7 @@ export default function PromoCodesPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="code">Promo kod</Label>
+                <Label htmlFor="code">{t('promoCodeLabel')}</Label>
                 <Input
                   id="code"
                   placeholder="TOPLA20"
@@ -225,13 +226,13 @@ export default function PromoCodesPage() {
                   maxLength={20}
                 />
                 <p className="text-xs text-muted-foreground">
-                  3-20 belgi, avtomatik katta harflarga o&apos;tkaziladi
+                  {t('promoCodeHint')}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Chegirma turi</Label>
+                  <Label>{t('discountType')}</Label>
                   <Select
                     value={discountType}
                     onValueChange={(v) =>
@@ -242,16 +243,16 @@ export default function PromoCodesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="percentage">Foiz (%)</SelectItem>
+                      <SelectItem value="percentage">{t('percentType')}</SelectItem>
                       <SelectItem value="fixed">
-                        Belgilangan (so&apos;m)
+                        {t('fixedType')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="discountValue">
-                    Qiymat{" "}
+                    {t('valueLabel')}{" "}
                     {discountType === "percentage" ? "(%)" : "(so'm)"}
                   </Label>
                   <Input
@@ -269,7 +270,7 @@ export default function PromoCodesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="minOrderAmount">
-                    Min. buyurtma summasi (ixtiyoriy)
+                    {t('minOrderAmountLabel')}
                   </Label>
                   <Input
                     id="minOrderAmount"
@@ -282,7 +283,7 @@ export default function PromoCodesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="maxUses">
-                    Maks. ishlatish soni (ixtiyoriy)
+                    {t('maxUsesLabel')}
                   </Label>
                   <Input
                     id="maxUses"
@@ -297,7 +298,7 @@ export default function PromoCodesPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="expiresAt">
-                  Amal qilish muddati (ixtiyoriy)
+                  {t('expiryLabel')}
                 </Label>
                 <Input
                   id="expiresAt"
@@ -323,10 +324,10 @@ export default function PromoCodesPage() {
                 {createMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Yaratilmoqda...
+                    {t('creating')}
                   </>
                 ) : (
-                  "Yaratish"
+                  t('createAction')
                 )}
               </Button>
             </DialogFooter>
@@ -338,7 +339,7 @@ export default function PromoCodesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Jami kodlar</CardDescription>
+            <CardDescription>{t('totalCodes')}</CardDescription>
             <CardTitle className="text-2xl">
               {promoCodes.length}
               <span className="text-sm font-normal text-muted-foreground">
@@ -349,7 +350,7 @@ export default function PromoCodesPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Faol kodlar</CardDescription>
+            <CardDescription>{t('activeCodes')}</CardDescription>
             <CardTitle className="text-2xl text-green-600">
               {
                 promoCodes.filter(
@@ -361,7 +362,7 @@ export default function PromoCodesPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Jami ishlatilgan</CardDescription>
+            <CardDescription>{t('totalUsed')}</CardDescription>
             <CardTitle className="text-2xl">
               {promoCodes.reduce((sum, p) => sum + (p.currentUses || 0), 0)}
             </CardTitle>
@@ -380,33 +381,33 @@ export default function PromoCodesPage() {
             <div className="text-center py-12">
               <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <h3 className="text-lg font-medium mb-1">
-                Promo kodlar mavjud emas
+                {t('noPromoCodes')}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Birinchi promo kodingizni yarating
+                {t('createFirstPromo')}
               </p>
               <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
-                Yangi kod yaratish
+                {t('createNewCode')}
               </Button>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Kod</TableHead>
-                  <TableHead>Chegirma</TableHead>
+                  <TableHead>{t('codeColumn')}</TableHead>
+                  <TableHead>{t('discountColumn')}</TableHead>
                   <TableHead className="hidden sm:table-cell">
-                    Min. summa
+                    {t('minAmountColumn')}
                   </TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Ishlatilgan
+                    {t('usedColumn')}
                   </TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Muddat
+                    {t('expiryColumn')}
                   </TableHead>
-                  <TableHead>Holat</TableHead>
-                  <TableHead className="text-right">Amallar</TableHead>
+                  <TableHead>{t('statusColumn')}</TableHead>
+                  <TableHead className="text-right">{t('actionsColumn')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -469,11 +470,11 @@ export default function PromoCodesPage() {
                             }
                           >
                             {formatDate(promo.expiresAt)}
-                            {expired && " (tugagan)"}
+                            {expired && ` ${t('expiredSuffix')}`}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">
-                            Cheksiz
+                            {t('unlimited')}
                           </span>
                         )}
                       </TableCell>
@@ -492,16 +493,16 @@ export default function PromoCodesPage() {
                           {active ? (
                             <Badge
                               variant="default"
-                              className="bg-green-100 text-green-700 hover:bg-green-100"
+                              className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/30"
                             >
-                              Faol
+                              {t('activeStatus')}
                             </Badge>
                           ) : expired ? (
-                            <Badge variant="secondary">Tugagan</Badge>
+                            <Badge variant="secondary">{t('expiredStatus')}</Badge>
                           ) : maxUsed ? (
-                            <Badge variant="secondary">Limit</Badge>
+                            <Badge variant="secondary">{t('limitStatus')}</Badge>
                           ) : (
-                            <Badge variant="outline">Nofaol</Badge>
+                            <Badge variant="outline">{t('inactiveStatus')}</Badge>
                           )}
                         </div>
                       </TableCell>
@@ -513,7 +514,7 @@ export default function PromoCodesPage() {
                           onClick={() => {
                             if (
                               confirm(
-                                `"${promo.code}" kodini o'chirmoqchimisiz?`
+                                `"${promo.code}" ${t('deletePromoConfirm')}`
                               )
                             ) {
                               deleteMutation.mutate(promo.id);

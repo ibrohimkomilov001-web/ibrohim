@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,14 +12,24 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  HelpCircle, Plus, Pencil, Trash2, Search, MessageCircle,
+  HelpCircle, Plus, Pencil, Trash2, Search, MessageCircle, FolderOpen, Tag,
 } from "lucide-react";
+import { StatCard } from "@/components/charts";
 import { toast } from "sonner";
 import { fetchFaqEntries, createFaqEntry, updateFaqEntry, deleteFaqEntry } from "@/lib/api/admin";
+import { useTranslation } from '@/store/locale-store';
 
 export default function FaqPage() {
-  const [entries, setEntries] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ["faq-entries"],
+    queryFn: async () => {
+      const data = await fetchFaqEntries();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editEntry, setEditEntry] = useState<any>(null);
@@ -29,62 +40,72 @@ export default function FaqPage() {
   const [keywords, setKeywords] = useState("");
   const [category, setCategory] = useState("");
 
-  useEffect(() => { loadEntries(); }, []);
-
-  async function loadEntries() {
-    try {
-      setLoading(true);
-      const data = await fetchFaqEntries();
-      setEntries(Array.isArray(data) ? data : []);
-    } catch { /* empty */ } finally { setLoading(false); }
-  }
-
   function resetForm() {
     setQuestion(""); setAnswer(""); setKeywords(""); setCategory("");
   }
 
-  async function handleCreate() {
-    if (!question || !answer) {
-      toast.error("Savol va javob majburiy");
-      return;
-    }
-    try {
-      await createFaqEntry({
-        question,
-        answer,
-        keywords: keywords ? keywords.split(",").map(k => k.trim()) : [],
-        category: category || undefined,
-      });
-      toast.success("FAQ yozuvi qo'shildi");
+  const createMutation = useMutation({
+    mutationFn: (payload: { question: string; answer: string; keywords: string[]; category?: string }) =>
+      createFaqEntry(payload),
+    onSuccess: () => {
+      toast.success(t('faqAdded'));
       setShowCreate(false);
       resetForm();
-      loadEntries();
-    } catch (e: any) { toast.error(e.message); }
+      queryClient.invalidateQueries({ queryKey: ["faq-entries"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
+
+  function handleCreate() {
+    if (!question || !answer) {
+      toast.error(t('questionAndAnswerRequired'));
+      return;
+    }
+    createMutation.mutate({
+      question,
+      answer,
+      keywords: keywords ? keywords.split(",").map(k => k.trim()) : [],
+      category: category || undefined,
+    });
   }
 
-  async function handleUpdate() {
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      updateFaqEntry(id, payload),
+    onSuccess: () => {
+      toast.success(t('faqUpdated'));
+      setEditEntry(null);
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["faq-entries"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
+
+  function handleUpdate() {
     if (!editEntry || !question || !answer) return;
-    try {
-      await updateFaqEntry(editEntry.id, {
+    updateMutation.mutate({
+      id: editEntry.id,
+      payload: {
         question,
         answer,
         keywords: keywords ? keywords.split(",").map(k => k.trim()) : [],
         category: category || undefined,
-      });
-      toast.success("FAQ yangilandi");
-      setEditEntry(null);
-      resetForm();
-      loadEntries();
-    } catch (e: any) { toast.error(e.message); }
+      },
+    });
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Bu FAQ yozuvini o'chirishni xohlaysizmi?")) return;
-    try {
-      await deleteFaqEntry(id);
-      toast.success("FAQ o'chirildi");
-      loadEntries();
-    } catch (e: any) { toast.error(e.message); }
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteFaqEntry(id),
+    onSuccess: () => {
+      toast.success(t('faqDeleted'));
+      queryClient.invalidateQueries({ queryKey: ["faq-entries"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
+
+  function handleDelete(id: string) {
+    if (!confirm(t('confirmDeleteFaq'))) return;
+    deleteMutation.mutate(id);
   }
 
   function openEdit(entry: any) {
@@ -105,7 +126,7 @@ export default function FaqPage() {
   // Group by category
   const grouped: Record<string, any[]> = {};
   filtered.forEach(e => {
-    const cat = e.category || "Umumiy";
+    const cat = e.category || t('general');
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(e);
   });
@@ -116,41 +137,39 @@ export default function FaqPage() {
         <div>
           <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2">
             <HelpCircle className="w-7 h-7 text-primary" />
-            FAQ Boshqaruvi
+            {t('faqManagement')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Chat bot uchun savol-javoblar bazasi
+            {t('chatBotQA')}
           </p>
         </div>
 
         <Dialog open={showCreate} onOpenChange={(v) => { setShowCreate(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> FAQ Qo&apos;shish</Button>
+            <Button><Plus className="w-4 h-4 mr-2" /> {t('addFaq')}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Yangi FAQ</DialogTitle>
+              <DialogTitle>{t('newFaq')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Savol</Label>
-                <Input value={question} onChange={e => setQuestion(e.target.value)} placeholder="Buyurtmani qanday bekor qilaman?" />
+                <Label>{t('questionLabel')}</Label>
               </div>
               <div>
-                <Label>Javob</Label>
-                <Textarea value={answer} onChange={e => setAnswer(e.target.value)} rows={4} placeholder="Buyurtmani bekor qilish uchun..." />
+                <Label>{t('answerLabel')}</Label>
+                <Textarea value={answer} onChange={e => setAnswer(e.target.value)} rows={4} />
               </div>
               <div>
-                <Label>Kalit so&apos;zlar (vergul bilan)</Label>
-                <Input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="bekor, cancel, buyurtma" />
+                <Label>{t('keywordsWithComma')}</Label>
               </div>
               <div>
-                <Label>Kategoriya</Label>
-                <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Buyurtma, Yetkazib berish, To'lov..." />
+                <Label>{t('categoryLabel')}</Label>
+                <Input value={category} onChange={e => setCategory(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> Saqlash</Button>
+              <Button onClick={handleCreate}><Plus className="w-4 h-4 mr-2" /> {t('save')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -160,28 +179,26 @@ export default function FaqPage() {
       <Dialog open={!!editEntry} onOpenChange={(v) => { if (!v) { setEditEntry(null); resetForm(); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>FAQ Tahrirlash</DialogTitle>
+            <DialogTitle>{t('editFaq')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Savol</Label>
+              <Label>{t('questionLabel')}</Label>
               <Input value={question} onChange={e => setQuestion(e.target.value)} />
             </div>
             <div>
-              <Label>Javob</Label>
+              <Label>{t('answerLabel')}</Label>
               <Textarea value={answer} onChange={e => setAnswer(e.target.value)} rows={4} />
             </div>
             <div>
-              <Label>Kalit so&apos;zlar (vergul bilan)</Label>
-              <Input value={keywords} onChange={e => setKeywords(e.target.value)} />
+              <Label>{t('keywordsWithComma')}</Label>
             </div>
             <div>
-              <Label>Kategoriya</Label>
-              <Input value={category} onChange={e => setCategory(e.target.value)} />
+              <Label>{t('categoryLabel')}</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleUpdate}><Pencil className="w-4 h-4 mr-2" /> Yangilash</Button>
+            <Button onClick={handleUpdate}><Pencil className="w-4 h-4 mr-2" /> {t('update')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -190,7 +207,7 @@ export default function FaqPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Savol, javob yoki kalit so'z bo'yicha qidirish..."
+          placeholder={t('searchFaqPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pl-10"
@@ -199,41 +216,21 @@ export default function FaqPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{entries.length}</p>
-            <p className="text-xs text-muted-foreground">Jami FAQ</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{Object.keys(grouped).length}</p>
-            <p className="text-xs text-muted-foreground">Kategoriyalar</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{entries.reduce((s, e) => s + (e.keywords?.length || 0), 0)}</p>
-            <p className="text-xs text-muted-foreground">Kalit so&apos;zlar</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{filtered.length}</p>
-            <p className="text-xs text-muted-foreground">Topildi</p>
-          </CardContent>
-        </Card>
+        <StatCard icon={HelpCircle} label={t('totalFaq')} value={entries.length} color="primary" />
+        <StatCard icon={FolderOpen} label={t('categories')} value={Object.keys(grouped).length} color="info" />
+        <StatCard icon={Tag} label={t('keywordsLabel')} value={entries.reduce((s, e) => s + (e.keywords?.length || 0), 0)} color="purple" />
+        <StatCard icon={Search} label={t('found')} value={filtered.length} color="success" />
       </div>
 
       {/* FAQ List */}
-      {loading ? (
-        <Card><CardContent className="p-8 text-center text-muted-foreground">Yuklanmoqda...</CardContent></Card>
+      {isLoading ? (
+        <Card><CardContent className="p-8 text-center text-muted-foreground">{t('loading')}</CardContent></Card>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">
-              {search ? "Hech narsa topilmadi" : "Hozircha FAQ yozuvlari yo'q"}
+              {search ? t('noItems') : t('noFaqEntries')}
             </p>
           </CardContent>
         </Card>

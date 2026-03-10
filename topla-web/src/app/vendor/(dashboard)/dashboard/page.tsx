@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice } from "@/lib/utils";
+import { useTranslation } from '@/store/locale-store';
 import Link from "next/link";
 import {
   Package,
@@ -76,18 +77,20 @@ function StatCard({
 }
 
 function OrderStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    pending: { label: "Kutilmoqda", variant: "secondary" },
-    preparing: { label: "Tayyorlanmoqda", variant: "default" },
-    shipping: { label: "Yetkazilmoqda", variant: "default" },
-    delivered: { label: "Yetkazildi", variant: "outline" },
-    cancelled: { label: "Bekor qilindi", variant: "destructive" },
+    pending: { label: t('pending'), variant: "secondary" },
+    preparing: { label: t('processing'), variant: "default" },
+    shipping: { label: t('shipped'), variant: "default" },
+    delivered: { label: t('delivered'), variant: "outline" },
+    cancelled: { label: t('cancelled'), variant: "destructive" },
   };
   const c = config[status] || { label: status, variant: "secondary" as const };
   return <Badge variant={c.variant}>{c.label}</Badge>;
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["vendor-stats"],
     queryFn: vendorApi.getStats,
@@ -102,32 +105,32 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard')}</h1>
         <p className="text-muted-foreground">Bugungi holat va statistika</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Bugungi savdo"
+          title={t('totalSales')}
           value={stats ? formatPrice(stats.revenue?.today || 0) : "0 so'm"}
           icon={Wallet}
           loading={statsLoading}
         />
         <StatCard
-          title="Buyurtmalar"
+          title={t('orders')}
           value={stats ? String(stats.orders?.total || 0) : "0"}
           icon={ClipboardList}
           loading={statsLoading}
         />
         <StatCard
-          title="Mahsulotlar"
+          title={t('products')}
           value={stats ? String(stats.products?.total || 0) : "0"}
           icon={Package}
           loading={statsLoading}
         />
         <StatCard
-          title="Sharhlar"
+          title={t('reviews')}
           value={stats ? String(stats.reviewCount || 0) : "0"}
           icon={Eye}
           loading={statsLoading}
@@ -139,10 +142,10 @@ export default function DashboardPage() {
         {/* Recent Orders */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">So&apos;nggi buyurtmalar</CardTitle>
+            <CardTitle className="text-lg">{t('recentOrders')}</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/vendor/orders">
-                Barchasi
+                {t('all')}
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -187,7 +190,7 @@ export default function DashboardPage() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Hozircha buyurtmalar yo&apos;q</p>
+                <p>{t('noData')}</p>
               </div>
             )}
           </CardContent>
@@ -203,7 +206,7 @@ export default function DashboardPage() {
               <Link href="/vendor/orders">
                 <ClipboardList className="mr-3 h-5 w-5 text-orange-500" />
                 <div className="text-left">
-                  <div className="text-sm font-medium">Buyurtmalar</div>
+                  <div className="text-sm font-medium">{t('orders')}</div>
                   <div className="text-xs text-muted-foreground">
                     {stats?.orders?.pending ? `${stats.orders.pending} ta kutilmoqda` : "Barcha buyurtmalar"}
                   </div>
@@ -214,7 +217,7 @@ export default function DashboardPage() {
               <Link href="/vendor/balance">
                 <Wallet className="mr-3 h-5 w-5 text-green-500" />
                 <div className="text-left">
-                  <div className="text-sm font-medium">Hisobim</div>
+                  <div className="text-sm font-medium">{t('balance')}</div>
                   <div className="text-xs text-muted-foreground">Balans va to&apos;lovlar</div>
                 </div>
               </Link>
@@ -223,7 +226,7 @@ export default function DashboardPage() {
               <Link href="/vendor/analytics">
                 <TrendingUp className="mr-3 h-5 w-5 text-blue-500" />
                 <div className="text-left">
-                  <div className="text-sm font-medium">Statistika</div>
+                  <div className="text-sm font-medium">{t('analytics')}</div>
                   <div className="text-xs text-muted-foreground">Batafsil analitika</div>
                 </div>
               </Link>
@@ -249,7 +252,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               <Button size="sm" variant="outline" className="rounded-full border-orange-300" asChild>
-                <Link href="/vendor/orders">Ko&apos;rish</Link>
+                <Link href="/vendor/orders">{t('view')}</Link>
               </Button>
             </CardContent>
           </Card>

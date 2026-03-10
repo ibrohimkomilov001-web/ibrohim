@@ -1,10 +1,13 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { verifyToken, isTokenBlacklisted, JwtPayload } from '../utils/jwt.js';
+import { prisma } from '../config/database.js';
 
-// Extend FastifyRequest to include user
+// Extend FastifyRequest to include user and admin permissions
 declare module 'fastify' {
   interface FastifyRequest {
     user?: JwtPayload;
+    adminPermissions?: string[];
+    adminLevel?: string;
   }
 }
 
@@ -59,6 +62,61 @@ export function requireRole(...roles: string[]) {
       return reply.status(403).send({
         error: 'Forbidden',
         message: 'Sizda bu amal uchun ruxsat yo\'q',
+      });
+    }
+  };
+}
+
+/**
+ * Permission-based authorization middleware (RBAC)
+ * Checks granular permissions from AdminRole model.
+ * super_admin level always passes. Other levels need explicit permission.
+ * Usage: requirePermission('products.manage') or requirePermission('orders.view', 'orders.manage')
+ */
+export function requirePermission(...requiredPermissions: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    if (request.user.role !== 'admin') {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: 'Faqat adminlar uchun',
+      });
+    }
+
+    // Fetch admin role if not already loaded
+    if (!request.adminLevel) {
+      const adminRole = await prisma.adminRole.findUnique({
+        where: { userId: request.user.userId },
+      });
+
+      if (adminRole) {
+        request.adminLevel = adminRole.level;
+        request.adminPermissions = adminRole.permissions;
+      } else {
+        // No explicit AdminRole — treat as super_admin for backward compatibility
+        // (existing admins without AdminRole entry should retain full access)
+        request.adminLevel = 'super_admin';
+        request.adminPermissions = [];
+      }
+    }
+
+    // super_admin has all permissions
+    if (request.adminLevel === 'super_admin') {
+      return;
+    }
+
+    // Check if user has ANY of the required permissions
+    const hasPermission = requiredPermissions.some(
+      (perm) => request.adminPermissions?.includes(perm)
+    );
+
+    if (!hasPermission) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: `Sizda "${requiredPermissions.join('" yoki "')}" ruxsati yo'q`,
       });
     }
   };

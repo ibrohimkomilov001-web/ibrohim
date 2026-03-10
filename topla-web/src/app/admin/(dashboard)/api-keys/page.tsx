@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchApiKeys, createApiKey, deleteApiKey, createWebhook, deleteWebhook } from "@/lib/api/admin";
+import { useTranslation } from '@/store/locale-store';
 
 const availablePermissions = [
   { id: "products:read", label: "Mahsulotlarni ko'rish" },
@@ -40,8 +42,15 @@ const webhookEvents = [
 ];
 
 export default function ApiKeysPage() {
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const { data: apiKeysData, isLoading: loading } = useQuery({
+    queryKey: ["apiKeys"],
+    queryFn: fetchApiKeys,
+  });
+  const apiKeys = Array.isArray(apiKeysData) ? apiKeysData : [];
+
   const [showCreate, setShowCreate] = useState(false);
   const [showWebhook, setShowWebhook] = useState(false);
 
@@ -56,69 +65,79 @@ export default function ApiKeysPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEvents_sel, setWebhookEvents_sel] = useState<string[]>([]);
 
-  useEffect(() => { loadKeys(); }, []);
-
-  async function loadKeys() {
-    try {
-      setLoading(true);
-      const data = await fetchApiKeys();
-      setApiKeys(Array.isArray(data) ? data : []);
-    } catch { /* empty */ } finally { setLoading(false); }
-  }
-
-  async function handleCreateKey() {
-    if (!newKeyName || !newKeyUserId) {
-      toast.error("Nom va foydalanuvchi ID majburiy");
-      return;
-    }
-    try {
-      await createApiKey({
-        userId: newKeyUserId,
-        name: newKeyName,
-        permissions: newKeyPermissions,
-        rateLimit: parseInt(newKeyRateLimit) || 1000,
-      });
-      toast.success("API kalit yaratildi");
+  const createKeyMutation = useMutation({
+    mutationFn: createApiKey,
+    onSuccess: () => {
+      toast.success(t('apiKeyCreated'));
       setShowCreate(false);
       setNewKeyName(""); setNewKeyUserId(""); setNewKeyPermissions([]); setNewKeyRateLimit("1000");
-      loadKeys();
-    } catch (e: any) { toast.error(e.message); }
-  }
+      queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
 
-  async function handleDeleteKey(id: string) {
-    if (!confirm("Bu API kalitni o'chirishni xohlaysizmi?")) return;
-    try {
-      await deleteApiKey(id);
-      toast.success("API kalit o'chirildi");
-      loadKeys();
-    } catch (e: any) { toast.error(e.message); }
-  }
+  const deleteKeyMutation = useMutation({
+    mutationFn: deleteApiKey,
+    onSuccess: () => {
+      toast.success(t('apiKeyDeleted'));
+      queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
 
-  async function handleCreateWebhook() {
-    if (!webhookApiKeyId || !webhookUrl || webhookEvents_sel.length === 0) {
-      toast.error("Barcha maydonlarni to'ldiring");
-      return;
-    }
-    try {
-      await createWebhook({ apiKeyId: webhookApiKeyId, url: webhookUrl, events: webhookEvents_sel });
-      toast.success("Webhook yaratildi");
+  const createWebhookMutation = useMutation({
+    mutationFn: (params: { apiKeyId: string; url: string; events: string[] }) => createWebhook(params),
+    onSuccess: () => {
+      toast.success(t('webhookCreated'));
       setShowWebhook(false);
       setWebhookApiKeyId(""); setWebhookUrl(""); setWebhookEvents_sel([]);
-      loadKeys();
-    } catch (e: any) { toast.error(e.message); }
+      queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
+
+  const deleteWebhookMutation = useMutation({
+    mutationFn: deleteWebhook,
+    onSuccess: () => {
+      toast.success(t('webhookDeleted'));
+      queryClient.invalidateQueries({ queryKey: ["apiKeys"] });
+    },
+    onError: (e: any) => { toast.error(e.message); },
+  });
+
+  function handleCreateKey() {
+    if (!newKeyName || !newKeyUserId) {
+      toast.error(t('nameAndUserRequired'));
+      return;
+    }
+    createKeyMutation.mutate({
+      userId: newKeyUserId,
+      name: newKeyName,
+      permissions: newKeyPermissions,
+      rateLimit: parseInt(newKeyRateLimit) || 1000,
+    });
   }
 
-  async function handleDeleteWebhook(id: string) {
-    try {
-      await deleteWebhook(id);
-      toast.success("Webhook o'chirildi");
-      loadKeys();
-    } catch (e: any) { toast.error(e.message); }
+  function handleDeleteKey(id: string) {
+    if (!confirm(t('confirmDeleteApiKey'))) return;
+    deleteKeyMutation.mutate(id);
+  }
+
+  function handleCreateWebhook() {
+    if (!webhookApiKeyId || !webhookUrl || webhookEvents_sel.length === 0) {
+      toast.error(t('fillAllFields'));
+      return;
+    }
+    createWebhookMutation.mutate({ apiKeyId: webhookApiKeyId, url: webhookUrl, events: webhookEvents_sel });
+  }
+
+  function handleDeleteWebhook(id: string) {
+    deleteWebhookMutation.mutate(id);
   }
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
-    toast.success("Nusxalandi!");
+    toast.success(t('copied'));
   }
 
   function togglePerm(perm: string) {
@@ -135,10 +154,10 @@ export default function ApiKeysPage() {
         <div>
           <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2">
             <Key className="w-7 h-7 text-primary" />
-            API Marketplace
+            {t('apiMarketplace')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            API kalitlari va webhook boshqaruvi
+            {t('apiKeysManagement')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -148,19 +167,19 @@ export default function ApiKeysPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Yangi Webhook</DialogTitle>
+                <DialogTitle>{t('newWebhook')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
                   <Label>API Key ID</Label>
-                  <Input value={webhookApiKeyId} onChange={e => setWebhookApiKeyId(e.target.value)} placeholder="API kalit ID" />
+                  <Input value={webhookApiKeyId} onChange={e => setWebhookApiKeyId(e.target.value)} placeholder={t('apiKeyId')} />
                 </div>
                 <div>
                   <Label>Webhook URL</Label>
                   <Input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://your-site.com/webhook" />
                 </div>
                 <div>
-                  <Label>Hodisalar</Label>
+                  <Label>{t('events')}</Label>
                   <div className="grid grid-cols-1 gap-2 mt-2">
                     {webhookEvents.map(ev => (
                       <label key={ev.id} className="flex items-center gap-2 text-sm">
@@ -175,34 +194,34 @@ export default function ApiKeysPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleCreateWebhook}><Plus className="w-4 h-4 mr-2" /> Yaratish</Button>
+                <Button onClick={handleCreateWebhook}><Plus className="w-4 h-4 mr-2" /> {t('create')}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <Dialog open={showCreate} onOpenChange={setShowCreate}>
             <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-2" /> API Kalit</Button>
+              <Button><Plus className="w-4 h-4 mr-2" /> {t('apiKey')}</Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Yangi API Kalit</DialogTitle>
+                <DialogTitle>{t('newApiKey')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Kalit nomi</Label>
+                  <Label>{t('apiKeyName')}</Label>
                   <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="Masalan: Mobile App" />
                 </div>
                 <div>
-                  <Label>Foydalanuvchi ID</Label>
+                  <Label>{t('userId')}</Label>
                   <Input value={newKeyUserId} onChange={e => setNewKeyUserId(e.target.value)} placeholder="UUID" />
                 </div>
                 <div>
-                  <Label>Rate Limit (soatiga)</Label>
+                  <Label>{t('rateLimitPerHour')}</Label>
                   <Input type="number" value={newKeyRateLimit} onChange={e => setNewKeyRateLimit(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Ruxsatlar</Label>
+                  <Label>{t('permissions')}</Label>
                   <div className="grid grid-cols-1 gap-2 mt-2">
                     {availablePermissions.map(perm => (
                       <label key={perm.id} className="flex items-center gap-2 text-sm">
@@ -217,7 +236,7 @@ export default function ApiKeysPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleCreateKey}><Plus className="w-4 h-4 mr-2" /> Yaratish</Button>
+                <Button onClick={handleCreateKey}><Plus className="w-4 h-4 mr-2" /> {t('create')}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -226,20 +245,20 @@ export default function ApiKeysPage() {
 
       <Tabs defaultValue="keys">
         <TabsList>
-          <TabsTrigger value="keys">API Kalitlar</TabsTrigger>
-          <TabsTrigger value="docs">Hujjatlar</TabsTrigger>
+          <TabsTrigger value="keys">{t('apiKeys')}</TabsTrigger>
+          <TabsTrigger value="docs">{t('documentation')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="keys" className="space-y-4 mt-4">
           {loading ? (
-            <Card><CardContent className="p-8 text-center text-muted-foreground">Yuklanmoqda...</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-muted-foreground">{t('loading')}</CardContent></Card>
           ) : apiKeys.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <Key className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">Hozircha API kalitlar yo&apos;q</p>
+                <p className="text-muted-foreground">{t('noApiKeys')}</p>
                 <Button className="mt-4" onClick={() => setShowCreate(true)}>
-                  <Plus className="w-4 h-4 mr-2" /> Birinchi kalitni yarating
+                  <Plus className="w-4 h-4 mr-2" /> {t('createFirstKey')}
                 </Button>
               </CardContent>
             </Card>
@@ -252,13 +271,13 @@ export default function ApiKeysPage() {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-bold">{key.name}</h3>
                         <Badge variant={key.isActive ? "default" : "secondary"}>
-                          {key.isActive ? "Faol" : "Nofaol"}
+                          {key.isActive ? t('active') : t('inactive')}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2 text-xs font-mono bg-muted px-3 py-1.5 rounded mt-2 max-w-full overflow-hidden">
                         <span className="truncate">{key.key || key.id}</span>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => copyToClipboard(key.key || key.id)}>
-                          <Copy className="w-3 h-3" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => copyToClipboard(key.key || key.id)}>
+                          <Copy className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mt-2">
@@ -268,10 +287,10 @@ export default function ApiKeysPage() {
                       </div>
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Shield className="w-3 h-3" /> Rate: {key.rateLimit || 1000}/soat
+                          <Shield className="w-3 h-3" /> Rate: {key.rateLimit || 1000}{t('perHour')}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : "Ishlatilmagan"}
+                          <Clock className="w-3 h-3" /> {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : t('notUsed')}
                         </span>
                         <span className="flex items-center gap-1">
                           <Globe className="w-3 h-3" /> Calls: {key.requestCount || 0}
@@ -294,8 +313,8 @@ export default function ApiKeysPage() {
                                   ))}
                                 </div>
                               </div>
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => handleDeleteWebhook(wh.id)}>
-                                <Trash2 className="w-3 h-3" />
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteWebhook(wh.id)}>
+                                <Trash2 className="w-3.5 h-3.5" />
                               </Button>
                             </div>
                           ))}

@@ -31,6 +31,7 @@ import {
   Banknote,
   DollarSign,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 function formatCardNumber(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 16);
@@ -43,6 +44,7 @@ function isValidUzCard(card: string) {
 }
 
 export default function BalancePage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -72,7 +74,7 @@ export default function BalancePage() {
         cardNumber: cardNumber.replace(/\s/g, ""),
       }),
     onSuccess: () => {
-      toast.success("To'lov so'rovi yuborildi");
+      toast.success(t('payoutRequestSent'));
       queryClient.invalidateQueries({ queryKey: ["vendor-stats"] });
       queryClient.invalidateQueries({ queryKey: ["vendor-payouts"] });
       setPayoutDialogOpen(false);
@@ -80,7 +82,7 @@ export default function BalancePage() {
       setCardNumber("");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -94,8 +96,8 @@ export default function BalancePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Hisobim</h1>
-          <p className="text-muted-foreground">Balans va to&apos;lov tarixi</p>
+          <h1 className="text-2xl font-bold">{t('myAccount')}</h1>
+          <p className="text-muted-foreground">{t('balanceAndHistory')}</p>
         </div>
         <Button
           className="rounded-full"
@@ -103,7 +105,7 @@ export default function BalancePage() {
           disabled={balance <= 0}
         >
           <Banknote className="mr-2 h-4 w-4" />
-          Pul yechish
+          {t('withdrawMoney')}
         </Button>
       </div>
 
@@ -113,7 +115,7 @@ export default function BalancePage() {
           <Card className="bg-primary text-primary-foreground">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-primary-foreground/80">Mavjud balans</span>
+                <span className="text-sm text-primary-foreground/80">{t('availableBalance')}</span>
                 <Wallet className="h-5 w-5 text-primary-foreground/60" />
               </div>
               {statsLoading ? (
@@ -129,7 +131,7 @@ export default function BalancePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Bugungi daromad</span>
+                <span className="text-sm text-muted-foreground">{t('todayRevenue')}</span>
                 <DollarSign className="h-5 w-5 text-yellow-500" />
               </div>
               {statsLoading ? (
@@ -137,7 +139,7 @@ export default function BalancePage() {
               ) : (
                 <div className="text-2xl font-bold">{formatPrice(todayRevenue)}</div>
               )}
-              <p className="text-xs text-muted-foreground mt-1">Bugungi savdo</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('todaySales')}</p>
             </CardContent>
           </Card>
         </div>
@@ -146,7 +148,7 @@ export default function BalancePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Jami daromad</span>
+                <span className="text-sm text-muted-foreground">{t('totalIncome')}</span>
                 <TrendingUp className="h-5 w-5 text-green-500" />
               </div>
               {statsLoading ? (
@@ -162,7 +164,7 @@ export default function BalancePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Komissiya</span>
+                <span className="text-sm text-muted-foreground">{t('commission')}</span>
                 <ArrowUpRight className="h-5 w-5 text-blue-500" />
               </div>
               {statsLoading ? (
@@ -179,8 +181,8 @@ export default function BalancePage() {
         {/* Transaction History */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tranzaksiyalar</CardTitle>
-            <CardDescription>So&apos;nggi pul harakatlari</CardDescription>
+            <CardTitle className="text-lg">{t('transactions')}</CardTitle>
+            <CardDescription>{t('recentTransactions')}</CardDescription>
           </CardHeader>
           <CardContent>
             {txLoading ? (
@@ -212,7 +214,7 @@ export default function BalancePage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{tx.description || (tx.type === "sale" ? "Savdo" : "To'lov")}</p>
+                      <p className="text-sm font-medium truncate">{tx.description || (tx.type === "sale" ? t('saleWord') : t('paymentWord'))}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(tx.createdAt)}</p>
                     </div>
                     <span className={`font-semibold text-sm ${
@@ -227,7 +229,7 @@ export default function BalancePage() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <DollarSign className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p>Hozircha tranzaksiyalar yo&apos;q</p>
+                <p>{t('noTransactions')}</p>
               </div>
             )}
           </CardContent>
@@ -236,8 +238,8 @@ export default function BalancePage() {
         {/* Payout History */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">To&apos;lov so&apos;rovlari</CardTitle>
-            <CardDescription>Pul yechish tarixi</CardDescription>
+            <CardTitle className="text-lg">{t('payoutRequests')}</CardTitle>
+            <CardDescription>{t('payoutHistory')}</CardDescription>
           </CardHeader>
           <CardContent>
             {payouts?.data && payouts.data.length > 0 ? (
@@ -261,9 +263,9 @@ export default function BalancePage() {
                       payout.status === "pending" ? "secondary" :
                       "destructive"
                     }>
-                      {payout.status === "completed" ? "Bajarildi" :
-                       payout.status === "pending" ? "Kutilmoqda" :
-                       "Rad etildi"
+                      {payout.status === "completed" ? t('completed') :
+                       payout.status === "pending" ? t('pending') :
+                       t('rejected')
                       }
                     </Badge>
                   </div>
@@ -272,7 +274,7 @@ export default function BalancePage() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Banknote className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p>Hali to&apos;lov so&apos;rovlari yo&apos;q</p>
+                <p>{t('noPayoutRequests')}</p>
               </div>
             )}
           </CardContent>
@@ -283,14 +285,14 @@ export default function BalancePage() {
       <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Pul yechish</DialogTitle>
+            <DialogTitle>{t('withdrawMoney')}</DialogTitle>
             <DialogDescription>
-              Mavjud balans: {formatPrice(balance)}
+              {t('availableBalance')}: {formatPrice(balance)}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="payoutAmount">Summa (so&apos;m)</Label>
+              <Label htmlFor="payoutAmount">{t('amountLabel')}</Label>
               <Input
                 id="payoutAmount"
                 type="number"
@@ -300,8 +302,8 @@ export default function BalancePage() {
                   const val = e.target.value;
                   setPayoutAmount(val);
                   const num = Number(val);
-                  if (val && num < 50000) setAmountError("Minimal summa: 50 000 so'm");
-                  else if (val && num > balance) setAmountError("Balansda yetarli mablag' yo'q");
+                  if (val && num < 50000) setAmountError(t('minAmountError'));
+                  else if (val && num > balance) setAmountError(t('insufficientBalance'));
                   else setAmountError("");
                 }}
                 max={balance}
@@ -310,11 +312,11 @@ export default function BalancePage() {
               {amountError ? (
                 <p className="text-xs text-destructive">{amountError}</p>
               ) : (
-                <p className="text-xs text-muted-foreground">Minimal: 50 000 so&apos;m</p>
+                <p className="text-xs text-muted-foreground">{t('minAmountNote')}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cardNumber">Karta raqami</Label>
+              <Label htmlFor="cardNumber">{t('cardNumberLabel')}</Label>
               <Input
                 id="cardNumber"
                 placeholder="8600 1234 5678 9012"
@@ -324,7 +326,7 @@ export default function BalancePage() {
                   setCardNumber(formatted);
                   const digits = formatted.replace(/\s/g, '');
                   if (digits.length === 16 && !isValidUzCard(formatted)) {
-                    setCardError("Karta 8600 yoki 9860 bilan boshlanishi kerak");
+                    setCardError(t('cardStartError'));
                   } else {
                     setCardError("");
                   }
@@ -334,7 +336,7 @@ export default function BalancePage() {
               {cardError ? (
                 <p className="text-xs text-destructive">{cardError}</p>
               ) : (
-                <p className="text-xs text-muted-foreground">Uzbekiston bank kartalari (8600, 9860)</p>
+                <p className="text-xs text-muted-foreground">{t('uzBankCards')}</p>
               )}
             </div>
           </div>
@@ -344,7 +346,7 @@ export default function BalancePage() {
               setCardError("");
               setAmountError("");
             }} className="rounded-full">
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button
               className="rounded-full"
@@ -360,10 +362,10 @@ export default function BalancePage() {
               {payoutMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Yuborilmoqda...
+                  {t('sendingText')}
                 </>
               ) : (
-                "So'rov yuborish"
+                t('sendRequest')
               )}
             </Button>
           </DialogFooter>

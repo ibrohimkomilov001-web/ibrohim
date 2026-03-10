@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8800"/>
+      <stop offset="100%" stop-color="#E85500"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#bg)"/>
+  <!-- Shopping bag handle -->
+  <path d="M 50,52 A 55,62 0 0 1 130,52" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
+  <!-- Shopping bag body -->
+  <rect x="20" y="52" width="140" height="110" rx="16" fill="white"/>
+  <!-- T horizontal -->
+  <rect x="43" y="72" width="94" height="20" rx="4" fill="#FF6E00"/>
+  <!-- T vertical -->
+  <rect x="72" y="72" width="26" height="74" rx="4" fill="#FF6E00"/>
+</svg>

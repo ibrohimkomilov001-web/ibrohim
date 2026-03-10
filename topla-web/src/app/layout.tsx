@@ -19,7 +19,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const viewport: Viewport = {
-  themeColor: '#7c3aed',
+  themeColor: '#FF8800',
   width: 'device-width',
   initialScale: 1,
 };
@@ -33,6 +33,10 @@ export const metadata: Metadata = {
   description: "TOPLA.UZ - online savdo platformasi. Minglab do'konlar, millionlab mahsulotlar. Eng arzon narxlarda xarid qiling!",
   keywords: ['topla', 'marketplace', 'online savdo', "o'zbekiston", 'dokon', 'mahsulot', 'xarid'],
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/apple-touch-icon.svg',
+  },
   openGraph: {
     type: 'website',
     locale: 'uz_UZ',
@@ -74,7 +78,7 @@ export default function RootLayout({
             <ThemeProvider
               attribute="class"
               defaultTheme="light"
-              forcedTheme="light"
+              enableSystem
               disableTransitionOnChange
             >
               {children}

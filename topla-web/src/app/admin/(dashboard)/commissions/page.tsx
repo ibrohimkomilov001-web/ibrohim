@@ -42,7 +42,7 @@ export default function CommissionsPage() {
     mutationFn: ({ categoryId, rate }: { categoryId: string; rate: number }) =>
       updateCategoryCommission(categoryId, rate),
     onSuccess: () => {
-      toast.success("Komissiya yangilandi");
+      toast.success(t('commissionUpdated'));
       queryClient.invalidateQueries({ queryKey: ["category-commissions"] });
       setEditingId(null);
     },
@@ -52,7 +52,7 @@ export default function CommissionsPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteCategoryCommission,
     onSuccess: () => {
-      toast.success("Komissiya o'chirildi");
+      toast.success(t('commissionRemoved'));
       queryClient.invalidateQueries({ queryKey: ["category-commissions"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -74,32 +74,32 @@ export default function CommissionsPage() {
   const saveRate = (categoryId: string) => {
     const rate = parseFloat(editRate);
     if (isNaN(rate) || rate < 0 || rate > 100) {
-      toast.error("Noto'g'ri foiz (0-100)");
+      toast.error(t('invalidPercent'));
       return;
     }
     updateMutation.mutate({ categoryId, rate });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Kategoriya komissiyalari</h1>
-        <p className="text-muted-foreground">
-          Har bir kategoriya uchun alohida komissiya foizini belgilang
+        <h1 className="text-xl sm:text-2xl font-bold">{t('categoryCommissions')}</h1>
+        <p className="text-sm text-muted-foreground">
+          {t('categoryCommissionsDesc')}
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Current Commissions */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Percent className="h-5 w-5" />
-                Belgilangan komissiyalar
+                {t('setCommissions')}
               </CardTitle>
               <CardDescription>
-                Belgilanmagan kategoriyalarda standart do&apos;kon komissiyasi qo&apos;llaniladi
+                {t('setCommissionsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -108,12 +108,89 @@ export default function CommissionsPage() {
                   {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
                 </div>
               ) : commissions.length > 0 ? (
-                <Table>
+                <>
+                  {/* Mobile Card View */}
+                  <div className="block sm:hidden space-y-3">
+                    {commissions.map((c: any) => (
+                      <div key={c.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{c.category?.nameUz || "—"}</span>
+                          {editingId === c.categoryId ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={editRate}
+                                onChange={(e) => setEditRate(e.target.value)}
+                                className="w-16 h-8 text-center text-sm"
+                                min={0}
+                                max={100}
+                                step={0.5}
+                              />
+                              <span className="text-sm">%</span>
+                            </div>
+                          ) : (
+                            <Badge variant="secondary" className="text-sm">
+                              {Number(c.rate)}%
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {editingId === c.categoryId ? (
+                            <>
+                              <Button
+                                size="sm"
+                                className="flex-1 h-8 text-xs"
+                                onClick={() => saveRate(c.categoryId)}
+                                disabled={updateMutation.isPending}
+                              >
+                                {updateMutation.isPending ? (
+                                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                  <Save className="h-3 w-3 mr-1" />
+                                )}
+                                {t('save')}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs"
+                                onClick={() => setEditingId(null)}
+                              >
+                                {t('cancel')}
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 h-8 text-xs"
+                                onClick={() => startEdit(c.categoryId, Number(c.rate))}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" /> {t('edit')}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-8 text-xs"
+                                onClick={() => deleteMutation.mutate(c.categoryId)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Desktop Table View */}
+                  <div className="hidden sm:block">
+                    <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Kategoriya</TableHead>
-                      <TableHead className="text-center">Komissiya %</TableHead>
-                      <TableHead className="text-right">Amallar</TableHead>
+                      <TableHead>{t('category')}</TableHead>
+                      <TableHead className="text-center">{t('commission')} %</TableHead>
+                      <TableHead className="text-right">{t('actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -161,7 +238,7 @@ export default function CommissionsPage() {
                                 variant="ghost"
                                 onClick={() => setEditingId(null)}
                               >
-                                Bekor
+                                {t('cancel')}
                               </Button>
                             </div>
                           ) : (
@@ -188,11 +265,13 @@ export default function CommissionsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Percent className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>Hali kategoriya komissiyalari belgilanmagan</p>
-                  <p className="text-sm">O&apos;ngdagi ro&apos;yxatdan tanlang</p>
+                  <p>{t('noCommissionsYet')}</p>
+                  <p className="text-sm">{t('selectFromList')}</p>
                 </div>
               )}
             </CardContent>
@@ -203,9 +282,9 @@ export default function CommissionsPage() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Kategoriyalar</CardTitle>
+              <CardTitle className="text-lg">{t('categories')}</CardTitle>
               <CardDescription>
-                Komissiya belgilash uchun tanlang
+                {t('selectToSetCommission')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -229,7 +308,7 @@ export default function CommissionsPage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Barcha kategoriyalarga komissiya belgilangan
+                  {t('allCommissionsSet')}
                 </p>
               )}
             </CardContent>

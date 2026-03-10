@@ -1,0 +1,29 @@
+{
+  "name": "TOPLA.UZ — Marketplace",
+  "short_name": "TOPLA",
+  "description": "O'zbekistonning eng yirik marketplace platformasi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#FF8800",
+  "orientation": "portrait-primary",
+  "lang": "uz",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["shopping", "business"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

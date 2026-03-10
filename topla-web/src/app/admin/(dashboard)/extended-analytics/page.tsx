@@ -13,34 +13,40 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { BarChart, DonutChart } from "@tremor/react";
+import {
+  StackedBarChart,
+  FunnelChart,
+  CohortHeatmap,
+} from "@/components/charts";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchHeatmap, fetchFunnel, fetchCohort, fetchABTests, createABTest, updateABTest } from "@/lib/api/admin";
 import {
   Flame, Filter, Users, FlaskConical, Plus, Play, Pause, CheckCircle,
-  Eye, ShoppingCart, Truck, ArrowDown, TrendingUp,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from '@/store/locale-store';
 
 export default function ExtendedAnalyticsPage() {
   const [period, setPeriod] = useState("month");
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold">Kengaytirilgan Analitika</h1>
-          <p className="text-muted-foreground">Heatmap, Funnel, Cohort tahlili va A/B testlar</p>
+          <h1 className="text-xl sm:text-3xl font-bold">{t('extendedAnalytics')}</h1>
+          <p className="text-muted-foreground">{t('extendedAnalyticsDesc')}</p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-[140px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="week">Hafta</SelectItem>
-            <SelectItem value="month">Oy</SelectItem>
-            <SelectItem value="quarter">Chorak</SelectItem>
+            <SelectItem value="week">{t('weekLabel')}</SelectItem>
+            <SelectItem value="month">{t('monthLabel')}</SelectItem>
+            <SelectItem value="quarter">{t('quarterLabel')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -79,6 +85,7 @@ export default function ExtendedAnalyticsPage() {
 
 // ─── HEATMAP TAB ──────────────────
 function HeatmapTab({ period }: { period: string }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-heatmap", period],
     queryFn: () => fetchHeatmap(period),
@@ -94,20 +101,22 @@ function HeatmapTab({ period }: { period: string }) {
       {/* Category heatmap */}
       <Card>
         <CardHeader>
-          <CardTitle>Kategoriya bo&apos;yicha ko&apos;rishlar</CardTitle>
-          <CardDescription>Qaysi kategoriyalar eng ko&apos;p ko&apos;rilmoqda</CardDescription>
+          <CardTitle>{t('categoryViews')}</CardTitle>
+          <CardDescription>{t('categoryViewsDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {categories.length > 0 ? (
-            <BarChart
-              data={categories.map((c: any) => ({ name: c.name, "Ko'rishlar": c.views, "Sotilgan": c.sales }))}
-              index="name"
-              categories={["Ko'rishlar", "Sotilgan"]}
-              colors={["violet", "emerald"]}
-              className="h-72"
+            <StackedBarChart
+              categories={categories.map((c: any) => c.name)}
+              series={[
+                { name: "Ko'rishlar", data: categories.map((c: any) => c.views) },
+                { name: "Sotilgan", data: categories.map((c: any) => c.sales) },
+              ]}
+              height={288}
+              grouped
             />
           ) : (
-            <p className="text-center text-muted-foreground py-8">Ma&apos;lumot yo&apos;q</p>
+            <p className="text-center text-muted-foreground py-8">{t('noData')}</p>
           )}
         </CardContent>
       </Card>
@@ -115,19 +124,19 @@ function HeatmapTab({ period }: { period: string }) {
       {/* Top Products Heatmap Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Mahsulotlar (Heatmap)</CardTitle>
-          <CardDescription>Eng ko&apos;p ko&apos;rilgan mahsulotlar va konversiya darajasi</CardDescription>
+          <CardTitle>{t('topProductsHeatmap')}</CardTitle>
+          <CardDescription>{t('topProductsHeatmapDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="pb-2 font-medium">Mahsulot</th>
-                  <th className="pb-2 font-medium text-right">Ko&apos;rishlar</th>
-                  <th className="pb-2 font-medium text-right">Sotilgan</th>
-                  <th className="pb-2 font-medium text-right">Konversiya</th>
-                  <th className="pb-2 font-medium">Intensivlik</th>
+                  <th className="pb-2 font-medium">{t('product')}</th>
+                  <th className="pb-2 font-medium text-right">{t('views')}</th>
+                  <th className="pb-2 font-medium text-right">{t('soldCount')}</th>
+                  <th className="pb-2 font-medium text-right">{t('conversion')}</th>
+                  <th className="pb-2 font-medium">{t('intensity')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -172,6 +181,7 @@ function HeatmapTab({ period }: { period: string }) {
 
 // ─── FUNNEL TAB ──────────────────
 function FunnelTab({ period }: { period: string }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-funnel", period],
     queryFn: () => fetchFunnel(period),
@@ -180,72 +190,47 @@ function FunnelTab({ period }: { period: string }) {
   if (isLoading) return <SkeletonCards />;
 
   const stages = data?.stages || [];
-  const icons = [Eye, ShoppingCart, ShoppingCart, Truck];
-  const colors = ["bg-violet-500", "bg-blue-500", "bg-amber-500", "bg-emerald-500"];
 
   return (
     <div className="space-y-6 mt-4">
       <Card>
         <CardHeader>
-          <CardTitle>Konversiya Funneli</CardTitle>
-          <CardDescription>Foydalanuvchi yo&apos;li: ko&apos;rish → savat → buyurtma → yetkazish</CardDescription>
+          <CardTitle>{t('conversionFunnel')}</CardTitle>
+          <CardDescription>{t('conversionFunnelDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {stages.map((stage: any, i: number) => {
-              const Icon = icons[i] || Eye;
-              const maxCount = stages[0]?.count || 1;
-              const width = Math.max(5, (stage.count / maxCount) * 100);
-              return (
-                <div key={i}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4" />
-                      <span className="font-medium">{stage.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold">{stage.count.toLocaleString()}</span>
-                      <Badge variant="outline">{stage.percentage}%</Badge>
-                    </div>
-                  </div>
-                  <div className="h-8 bg-muted rounded-lg overflow-hidden">
-                    <div
-                      className={`h-full ${colors[i]} rounded-lg transition-all flex items-center justify-end pr-2`}
-                      style={{ width: `${width}%` }}
-                    >
-                      {width > 15 && (
-                        <span className="text-white text-xs font-medium">{stage.percentage}%</span>
-                      )}
-                    </div>
-                  </div>
-                  {i < stages.length - 1 && (
-                    <div className="flex justify-center py-1">
-                      <ArrowDown className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          {stages.length > 0 ? (
+            <FunnelChart
+              data={stages.map((s: any) => ({
+                name: s.name,
+                value: s.count,
+                percentage: s.percentage,
+              }))}
+              height={320}
+              showDropOff
+            />
+          ) : (
+            <p className="text-center text-muted-foreground py-8">{t('noData')}</p>
+          )}
 
           {/* Conversion rates */}
           {stages.length >= 4 && (
-            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t">
+            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t dark:border-border">
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">Ko&apos;rish → Savat</p>
-                <p className="text-lg font-bold text-violet-600">
+                <p className="text-lg font-bold text-violet-600 dark:text-violet-400">
                   {stages[0].count > 0 ? ((stages[1].count / stages[0].count) * 100).toFixed(1) : 0}%
                 </p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">Savat → Buyurtma</p>
-                <p className="text-lg font-bold text-blue-600">
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                   {stages[1].count > 0 ? ((stages[2].count / stages[1].count) * 100).toFixed(1) : 0}%
                 </p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">Buyurtma → Yetkazish</p>
-                <p className="text-lg font-bold text-emerald-600">
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                   {stages[2].count > 0 ? ((stages[3].count / stages[2].count) * 100).toFixed(1) : 0}%
                 </p>
               </div>
@@ -259,6 +244,7 @@ function FunnelTab({ period }: { period: string }) {
 
 // ─── COHORT TAB ──────────────────
 function CohortTab() {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-cohort"],
     queryFn: fetchCohort,
@@ -272,48 +258,19 @@ function CohortTab() {
     <div className="space-y-6 mt-4">
       <Card>
         <CardHeader>
-          <CardTitle>Qayta Xaridorlar (Cohort Tahlili)</CardTitle>
-          <CardDescription>Oylik yangi xaridorlar va ularning qaytish foizi</CardDescription>
+          <CardTitle>{t('repeatBuyersCohort')}</CardTitle>
+          <CardDescription>{t('repeatBuyersCohortDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="pb-2 text-left font-medium">Oy</th>
-                  <th className="pb-2 text-right font-medium">Yangi</th>
-                  {[1, 2, 3, 4, 5].map(m => (
-                    <th key={m} className="pb-2 text-center font-medium">+{m} oy</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {cohorts.map((cohort: any) => (
-                  <tr key={cohort.month} className="border-b last:border-0">
-                    <td className="py-2 font-medium">{cohort.month}</td>
-                    <td className="py-2 text-right">{cohort.newUsers}</td>
-                    {[0, 1, 2, 3, 4].map(i => {
-                      const retention = cohort.retention?.[i];
-                      if (retention === undefined) return <td key={i} className="py-2 text-center text-muted-foreground">—</td>;
-                      const bg = retention >= 30 ? 'bg-emerald-100 text-emerald-800'
-                        : retention >= 15 ? 'bg-amber-100 text-amber-800'
-                        : retention > 0 ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-50 text-gray-400';
-                      return (
-                        <td key={i} className="py-2 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${bg}`}>
-                            {retention}%
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {cohorts.length === 0 && (
-            <p className="text-center py-8 text-muted-foreground">Cohort ma&apos;lumotlari yo&apos;q</p>
+          {cohorts.length > 0 ? (
+            <CohortHeatmap
+              cohorts={cohorts.map((c: any) => c.month)}
+              periods={["+1 oy", "+2 oy", "+3 oy", "+4 oy", "+5 oy"]}
+              data={cohorts.map((c: any) => (c.retention || []).slice(0, 5))}
+              suffix="%"
+            />
+          ) : (
+            <p className="text-center py-8 text-muted-foreground">{t('noCohortData')}</p>
           )}
         </CardContent>
       </Card>

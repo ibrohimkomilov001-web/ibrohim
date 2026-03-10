@@ -57,6 +57,7 @@ export async function getReportData(period: string): Promise<ReportData> {
     // User stats from analytics
     const userSummary = usersData?.summary || {};
     const newUsers = userSummary.totalNew || reportData?.newUsers || 0;
+    const totalUsers = reportData?.totalUsers || newUsers;
 
     // Revenue by day from analytics time series
     const revenueByDay = currentRevSeries.map((d: any) => ({
@@ -73,7 +74,7 @@ export async function getReportData(period: string): Promise<ReportData> {
         averageOrderValue: avgOrderValue,
       },
       userStats: {
-        totalUsers: newUsers,
+        totalUsers,
         newUsersThisMonth: newUsers,
       },
       ordersByStatus,
@@ -81,12 +82,12 @@ export async function getReportData(period: string): Promise<ReportData> {
         id: s.shopId || s.id || '',
         name: s.shopName || s.name || '-',
         revenue: Number(s.amount || s.revenue || 0),
-        orders_count: Number(s.orderCount || 0),
+        orders_count: Number(s.orderCount || s._count || 0),
       })),
       topProducts: (reportData?.topProducts || []).map((p: any) => ({
         id: p.id || p.productId || '',
         name: p.nameUz || p.productName || p.name || '-',
-        revenue: Number(p.price || 0) * Number(p.salesCount || 0),
+        revenue: Number(p.revenue || Number(p.price || 0) * Number(p.salesCount || 0)),
         orders_count: Number(p.salesCount || p.orderCount || 0),
       })),
       revenueByDay,

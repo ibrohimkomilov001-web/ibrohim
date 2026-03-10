@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ import { toast } from 'sonner';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination';
+import { useTranslation } from '@/store/locale-store';
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Faol", variant: "default" },
@@ -65,10 +67,8 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 };
 
 export default function AdminShopsPage() {
-  const [loading, setLoading] = useState(true);
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, blocked: 0 });
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false });
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   
   const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'all', page: '1' });
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
@@ -80,46 +80,41 @@ export default function AdminShopsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [{ shops: shopsData, pagination: pag }, statsData] = await Promise.all([
-        getShops({
-          page: parseInt(page) || 1,
-          search: debouncedSearch || undefined,
-          status: activeTab !== 'all' ? activeTab : undefined,
-        }),
-        getShopStats()
-      ]);
-      setShops(shopsData);
-      setStats(statsData);
-      setPagination(pag);
-    } catch (error) {
-      console.error(error);
-      toast.error("Ma'lumotlarni yuklashda xatolik");
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, activeTab, page]);
+  const { data: shopsResult, isLoading: shopsLoading } = useQuery({
+    queryKey: ['admin-shops', debouncedSearch, activeTab, page],
+    queryFn: () => getShops({
+      page: parseInt(page) || 1,
+      search: debouncedSearch || undefined,
+      status: activeTab !== 'all' ? activeTab : undefined,
+    }),
+    staleTime: 15_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: statsData } = useQuery({
+    queryKey: ['admin-shops-stats'],
+    queryFn: getShopStats,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    const p = parseInt(page);
-    if (p > 1) setFilters({ page: '1' });
-  }, [debouncedSearch, activeTab]);
+  const shops = shopsResult?.shops ?? [];
+  const pagination = shopsResult?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 1, hasMore: false };
+  const stats = statsData ?? { total: 0, pending: 0, active: 0, blocked: 0 };
+  const loading = shopsLoading;
+
+  const loadData = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-shops'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-shops-stats'] });
+  };
 
   const handleStatusChange = async (shop: Shop, newStatus: "active" | "inactive" | "blocked") => {
     try {
       setActionLoading(true);
       await updateShopStatus(shop.id, newStatus);
       await loadData();
-      toast.success(`Do'kon statusi "${statusConfig[newStatus].label}" ga o'zgartirildi`);
+      toast.success(t('updated'));
       setIsDetailOpen(false);
     } catch (error) {
-      toast.error("Statusni o'zgartirishda xatolik");
+      toast.error(t('errorOccurred'));
     } finally {
       setActionLoading(false);
     }
@@ -132,10 +127,10 @@ export default function AdminShopsPage() {
       setActionLoading(true);
       await updateShopCommission(selectedShop.id, parseFloat(newCommission));
       await loadData();
-      toast.success("Komissiya foizi yangilandi");
+      toast.success(t('updated'));
       setIsCommissionOpen(false);
     } catch (error) {
-      toast.error("Komissiyani yangilashda xatolik");
+      toast.error(t('errorOccurred'));
     } finally {
       setActionLoading(false);
     }
@@ -148,12 +143,12 @@ export default function AdminShopsPage() {
       setActionLoading(true);
       await deleteShop(selectedShop.id);
       await loadData();
-      toast.success(`"${selectedShop.name}" do'koni o'chirildi`);
+      toast.success(t('deleted'));
       setIsDeleteOpen(false);
       setDeleteConfirmName("");
       setSelectedShop(null);
     } catch (error: any) {
-      const msg = error?.message || "Do'konni o'chirishda xatolik";
+      const msg = error?.message || t('errorOccurred');
       toast.error(msg);
     } finally {
       setActionLoading(false);
@@ -164,9 +159,9 @@ export default function AdminShopsPage() {
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Do&apos;konlar</h2>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{t('shops')}</h2>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Barcha do&apos;konlarni boshqarish va moderatsiya qilish
+          {t('shops')}
         </p>
       </div>
 
@@ -175,10 +170,10 @@ export default function AdminShopsPage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="overflow-x-auto pb-1">
             <TabsList className="inline-flex w-max sm:w-auto">
-              <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi ({stats.total})</TabsTrigger>
-              <TabsTrigger value="pending" className="text-xs sm:text-sm">Kutilmoqda ({stats.pending})</TabsTrigger>
-              <TabsTrigger value="active" className="text-xs sm:text-sm">Faol ({stats.active})</TabsTrigger>
-              <TabsTrigger value="blocked" className="text-xs sm:text-sm">Bloklangan ({stats.blocked})</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs sm:text-sm">{t('all')} ({stats.total})</TabsTrigger>
+              <TabsTrigger value="pending" className="text-xs sm:text-sm">{t('pending')} ({stats.pending})</TabsTrigger>
+              <TabsTrigger value="active" className="text-xs sm:text-sm">{t('active')} ({stats.active})</TabsTrigger>
+              <TabsTrigger value="blocked" className="text-xs sm:text-sm">{t('blocked')} ({stats.blocked})</TabsTrigger>
             </TabsList>
           </div>
 
@@ -186,7 +181,7 @@ export default function AdminShopsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Qidirish..."
+                placeholder={t('searchPlaceholderGeneric')}
                 className="pl-9 w-full sm:w-[200px]"
                 value={searchQuery}
                 onChange={(e) => setFilters({ search: e.target.value })}
@@ -202,7 +197,7 @@ export default function AdminShopsPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Store className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Do&apos;konlar topilmadi</p>
+                <p className="text-muted-foreground">{t('noItems')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -219,7 +214,7 @@ export default function AdminShopsPage() {
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{shop.name}</div>
-                          <div className="text-xs text-muted-foreground">{shop.owner?.full_name || "Noma'lum"}</div>
+                          <div className="text-xs text-muted-foreground">{shop.owner?.full_name || t('noData')}</div>
                         </div>
                         <Badge variant={statusConfig[shop.status]?.variant || "secondary"} className="text-xs flex-shrink-0">
                           {statusConfig[shop.status]?.label || shop.status}
@@ -228,25 +223,25 @@ export default function AdminShopsPage() {
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="bg-muted/50 rounded-lg p-2">
                           <div className="font-semibold text-sm">{formatPrice(shop.balance)}</div>
-                          <div className="text-xs text-muted-foreground">Balans</div>
+                          <div className="text-xs text-muted-foreground">{t('balance')}</div>
                         </div>
                         <div className="bg-muted/50 rounded-lg p-2">
                           <div className="font-semibold text-sm">{shop.commission_rate}%</div>
-                          <div className="text-xs text-muted-foreground">Komissiya</div>
+                          <div className="text-xs text-muted-foreground">{t('commission')}</div>
                         </div>
                         <div className="bg-muted/50 rounded-lg p-2">
                           <div className="font-semibold text-sm">{shop.total_orders}</div>
-                          <div className="text-xs text-muted-foreground">Buyurtma</div>
+                          <div className="text-xs text-muted-foreground">{t('orders')}</div>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => { setSelectedShop(shop); setIsDetailOpen(true); }}>
-                          <Eye className="mr-1 h-3 w-3" /> Ko&apos;rish
+                          <Eye className="mr-1 h-3 w-3" /> {t('view')}
                         </Button>
                         {shop.status === "pending" && (
                           <>
                             <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => handleStatusChange(shop, "active")}>
-                              <CheckCircle className="mr-1 h-3 w-3" /> Tasdiqlash
+                              <CheckCircle className="mr-1 h-3 w-3" /> {t('approve')}
                             </Button>
                             <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => handleStatusChange(shop, "inactive")}>
                               <XCircle className="h-3 w-3" />
@@ -255,12 +250,12 @@ export default function AdminShopsPage() {
                         )}
                         {shop.status === "active" && (
                           <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleStatusChange(shop, "blocked")}>
-                            <Ban className="mr-1 h-3 w-3" /> Bloklash
+                            <Ban className="mr-1 h-3 w-3" /> {t('blocked')}
                           </Button>
                         )}
                         {shop.status === "blocked" && (
                           <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => handleStatusChange(shop, "active")}>
-                            <CheckCircle className="mr-1 h-3 w-3" /> Faollashtirish
+                            <CheckCircle className="mr-1 h-3 w-3" /> {t('active')}
                           </Button>
                         )}
                       </div>
@@ -275,12 +270,12 @@ export default function AdminShopsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Do&apos;kon</TableHead>
-                        <TableHead>Egasi</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Balans</TableHead>
-                        <TableHead>Komissiya</TableHead>
-                        <TableHead>Sana</TableHead>
+                        <TableHead>{t('shop')}</TableHead>
+                        <TableHead>{t('seller')}</TableHead>
+                        <TableHead>{t('status')}</TableHead>
+                        <TableHead>{t('balance')}</TableHead>
+                        <TableHead>{t('commission')}</TableHead>
+                        <TableHead>{t('date')}</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -295,13 +290,13 @@ export default function AdminShopsPage() {
                               </Avatar>
                               <div>
                                 <div className="font-medium">{shop.name}</div>
-                                <div className="text-xs text-muted-foreground">{shop.total_orders} buyurtma</div>
+                                <div className="text-xs text-muted-foreground">{shop.total_orders} {t('orders')}</div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{shop.owner?.full_name || "Noma'lum"}</div>
+                              <div className="font-medium">{shop.owner?.full_name || t('noData')}</div>
                               <div className="text-xs text-muted-foreground">{shop.owner?.phone || shop.phone}</div>
                             </div>
                           </TableCell>
@@ -323,45 +318,45 @@ export default function AdminShopsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Amallar</DropdownMenuLabel>
+                                <DropdownMenuLabel>{t('actions')}</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => { setSelectedShop(shop); setIsDetailOpen(true); }}>
                                   <Eye className="mr-2 h-4 w-4" />
-                                  Ko&apos;rish
+                                  {t('view')}
                                 </DropdownMenuItem>
                                 {shop.status === "pending" && (
                                   <>
                                     <DropdownMenuItem onClick={() => handleStatusChange(shop, "active")}>
                                       <CheckCircle className="mr-2 h-4 w-4" />
-                                      Tasdiqlash
+                                      {t('approve')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleStatusChange(shop, "inactive")} className="text-destructive">
                                       <XCircle className="mr-2 h-4 w-4" />
-                                      Rad etish
+                                      {t('reject')}
                                     </DropdownMenuItem>
                                   </>
                                 )}
                                 {shop.status === "active" && (
                                   <DropdownMenuItem onClick={() => handleStatusChange(shop, "blocked")} className="text-destructive">
                                     <Ban className="mr-2 h-4 w-4" />
-                                    Bloklash
+                                    {t('blocked')}
                                   </DropdownMenuItem>
                                 )}
                                 {shop.status === "blocked" && (
                                   <DropdownMenuItem onClick={() => handleStatusChange(shop, "active")}>
                                     <CheckCircle className="mr-2 h-4 w-4" />
-                                    Qayta faollashtirish
+                                    {t('active')}
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => { setSelectedShop(shop); setNewCommission(shop.commission_rate.toString()); setIsCommissionOpen(true); }}>
                                   <Settings className="mr-2 h-4 w-4" />
-                                  Komissiya o&apos;zgartirish
+                                  {t('commission')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => { setSelectedShop(shop); setDeleteConfirmName(""); setIsDeleteOpen(true); }} className="text-destructive">
                                   <Trash2 className="mr-2 h-4 w-4" />
-                                  O&apos;chirish
+                                  {t('delete')}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -383,7 +378,7 @@ export default function AdminShopsPage() {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Do'kon ma'lumotlari</DialogTitle>
+            <DialogTitle>{t('shopDetails')}</DialogTitle>
           </DialogHeader>
           {selectedShop && (
             <div className="space-y-6">
@@ -412,39 +407,39 @@ export default function AdminShopsPage() {
                   <CardContent className="pt-4">
                     <DollarSign className="h-5 w-5 text-muted-foreground mb-1" />
                     <div className="text-lg font-semibold">{formatPrice(selectedShop.balance)}</div>
-                    <div className="text-xs text-muted-foreground">Balans</div>
+                    <div className="text-xs text-muted-foreground">{t('balance')}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="pt-4">
                     <ShoppingCart className="h-5 w-5 text-muted-foreground mb-1" />
                     <div className="text-lg font-semibold">{selectedShop.total_orders}</div>
-                    <div className="text-xs text-muted-foreground">Buyurtmalar</div>
+                    <div className="text-xs text-muted-foreground">{t('orders')}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="pt-4">
                     <Store className="h-5 w-5 text-muted-foreground mb-1" />
                     <div className="text-lg font-semibold">{selectedShop.total_products}</div>
-                    <div className="text-xs text-muted-foreground">Mahsulotlar</div>
+                    <div className="text-xs text-muted-foreground">{t('products')}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="pt-4">
                     <Settings className="h-5 w-5 text-muted-foreground mb-1" />
                     <div className="text-lg font-semibold">{selectedShop.commission_rate}%</div>
-                    <div className="text-xs text-muted-foreground">Komissiya</div>
+                    <div className="text-xs text-muted-foreground">{t('commission')}</div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Owner Info */}
               <div className="space-y-2">
-                <h4 className="font-medium">Egasi ma'lumotlari</h4>
+                <h4 className="font-medium">{t('shopDetails')}</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Ism:</span>
-                    <span>{selectedShop.owner?.full_name || "Noma'lum"}</span>
+                    <span className="text-muted-foreground">{t('name')}:</span>
+                    <span>{selectedShop.owner?.full_name || t('noData')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
@@ -471,25 +466,25 @@ export default function AdminShopsPage() {
               <>
                 <Button variant="destructive" onClick={() => handleStatusChange(selectedShop, "inactive")} disabled={actionLoading}>
                   <XCircle className="mr-2 h-4 w-4" />
-                  Rad etish
+                  {t('reject')}
                 </Button>
                 <Button onClick={() => handleStatusChange(selectedShop, "active")} disabled={actionLoading}>
                   {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <CheckCircle className="mr-2 h-4 w-4" />
-                  Tasdiqlash
+                  {t('approve')}
                 </Button>
               </>
             )}
             {selectedShop?.status === "active" && (
               <Button variant="destructive" onClick={() => handleStatusChange(selectedShop, "blocked")} disabled={actionLoading}>
                 <Ban className="mr-2 h-4 w-4" />
-                Bloklash
+                {t('blocked')}
               </Button>
             )}
             {selectedShop?.status === "blocked" && (
               <Button onClick={() => handleStatusChange(selectedShop, "active")} disabled={actionLoading}>
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Qayta faollashtirish
+                {t('active')}
               </Button>
             )}
           </DialogFooter>
@@ -500,14 +495,14 @@ export default function AdminShopsPage() {
       <Dialog open={isCommissionOpen} onOpenChange={setIsCommissionOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Komissiyani o'zgartirish</DialogTitle>
+            <DialogTitle>{t('commission')}</DialogTitle>
             <DialogDescription>
               {selectedShop?.name} uchun yangi komissiya foizini kiriting
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Komissiya (%)</Label>
+              <Label>{t('commission')} (%)</Label>
               <Input
                 type="number"
                 min="0"
@@ -519,11 +514,11 @@ export default function AdminShopsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCommissionOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button onClick={handleCommissionChange} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -533,21 +528,20 @@ export default function AdminShopsPage() {
       <Dialog open={isDeleteOpen} onOpenChange={(open) => { setIsDeleteOpen(open); if (!open) setDeleteConfirmName(""); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-destructive">Do&apos;konni o&apos;chirish</DialogTitle>
+            <DialogTitle className="text-destructive">{t('delete')}</DialogTitle>
             <DialogDescription>
-              Bu amalni qaytarib bo&apos;lmaydi! Do&apos;konning barcha mahsulotlari, sharhlar va ma&apos;lumotlari o&apos;chiriladi.
-              Tasdiqlash uchun do&apos;kon nomini kiriting:
+              {t('confirmDeleteDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-3 bg-destructive/10 rounded-md">
               <p className="text-sm font-semibold">{selectedShop?.name}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Egasi: {selectedShop?.owner?.full_name || "Noma'lum"} | {selectedShop?.owner?.phone || ""}
+                {t('seller')}: {selectedShop?.owner?.full_name || t('noData')} | {selectedShop?.owner?.phone || ""}
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Do&apos;kon nomini kiriting</Label>
+              <Label>{t('shopName')}</Label>
               <Input
                 placeholder={selectedShop?.name}
                 value={deleteConfirmName}
@@ -557,7 +551,7 @@ export default function AdminShopsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button 
               variant="destructive" 
@@ -566,7 +560,7 @@ export default function AdminShopsPage() {
             >
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Trash2 className="mr-2 h-4 w-4" />
-              O&apos;chirish
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

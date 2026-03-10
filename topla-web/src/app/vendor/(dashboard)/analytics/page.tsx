@@ -13,13 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AreaChart, BarChart, DonutChart } from "@tremor/react";
+import { RevenueAreaChart, StackedBarChart, StatusDonutChart } from "@/components/charts";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice } from "@/lib/utils";
 import { ClipboardList, Package, DollarSign, BarChart3, Eye, ShoppingCart, TrendingUp, ArrowRight } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 export default function AnalyticsPage() {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<"week" | "month" | "year">("week");
 
   const { data: analytics, isLoading } = useQuery({
@@ -45,8 +47,8 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Statistika</h1>
-          <p className="text-muted-foreground">Savdo va mahsulot analitikasi</p>
+          <h1 className="text-2xl font-bold">{t('vendorAnalyticsTitle')}</h1>
+          <p className="text-muted-foreground">{t('vendorAnalyticsDesc')}</p>
         </div>
         <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
           <SelectTrigger className="w-[160px]">
@@ -54,9 +56,9 @@ export default function AnalyticsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="week">Hafta</SelectItem>
-            <SelectItem value="month">Oy</SelectItem>
-            <SelectItem value="year">Yil</SelectItem>
+            <SelectItem value="week">{t('week')}</SelectItem>
+            <SelectItem value="month">{t('month')}</SelectItem>
+            <SelectItem value="year">{t('year')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -67,7 +69,7 @@ export default function AnalyticsPage() {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Daromad</span>
+              <span className="text-sm text-muted-foreground">{t('revenue')}</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-7 w-28" />
@@ -83,7 +85,7 @@ export default function AnalyticsPage() {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <ClipboardList className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Buyurtmalar</span>
+              <span className="text-sm text-muted-foreground">{t('orders')}</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-7 w-16" />
@@ -97,7 +99,7 @@ export default function AnalyticsPage() {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Komissiya</span>
+              <span className="text-sm text-muted-foreground">{t('commission')}</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-7 w-16" />
@@ -113,7 +115,7 @@ export default function AnalyticsPage() {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">O&apos;rtacha chek</span>
+              <span className="text-sm text-muted-foreground">{t('averageCheck')}</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-7 w-24" />
@@ -131,9 +133,9 @@ export default function AnalyticsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Konversiya voronkasi
+            {t('conversionFunnel')}
           </CardTitle>
-          <CardDescription>Ko&apos;rish → Savat → Buyurtma → Yetkazildi</CardDescription>
+          <CardDescription>{t('conversionFunnelDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {funnelLoading ? (
@@ -146,10 +148,10 @@ export default function AnalyticsPage() {
               {/* Funnel Steps */}
               <div className="flex flex-col sm:flex-row items-stretch gap-2">
                 {[
-                  { label: "Ko'rishlar", value: funnel.views, icon: Eye, color: "bg-blue-500" },
-                  { label: "Savatga", value: funnel.cartAdds, icon: ShoppingCart, color: "bg-yellow-500" },
-                  { label: "Buyurtma", value: funnel.orders, icon: ClipboardList, color: "bg-green-500" },
-                  { label: "Yetkazildi", value: funnel.delivered, icon: Package, color: "bg-emerald-600" },
+                  { label: t('views'), value: funnel.views, icon: Eye, color: "bg-blue-500" },
+                  { label: t('addedToCart'), value: funnel.cartAdds, icon: ShoppingCart, color: "bg-yellow-500" },
+                  { label: t('orderWord'), value: funnel.orders, icon: ClipboardList, color: "bg-green-500" },
+                  { label: t('delivered'), value: funnel.delivered, icon: Package, color: "bg-emerald-600" },
                 ].map((step, i) => (
                   <div key={step.label} className="flex items-center gap-2 flex-1">
                     <div className="flex-1 text-center p-3 rounded-xl bg-muted/50">
@@ -168,25 +170,25 @@ export default function AnalyticsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="text-center p-3 rounded-lg border">
                   <div className="text-lg font-bold text-blue-600">{conversionRates?.viewToCart}%</div>
-                  <div className="text-xs text-muted-foreground">Ko&apos;rish → Savat</div>
+                  <div className="text-xs text-muted-foreground">{t('viewToCart')}</div>
                 </div>
                 <div className="text-center p-3 rounded-lg border">
                   <div className="text-lg font-bold text-yellow-600">{conversionRates?.cartToOrder}%</div>
-                  <div className="text-xs text-muted-foreground">Savat → Buyurtma</div>
+                  <div className="text-xs text-muted-foreground">{t('cartToOrder')}</div>
                 </div>
                 <div className="text-center p-3 rounded-lg border">
                   <div className="text-lg font-bold text-green-600">{conversionRates?.orderToDelivered}%</div>
-                  <div className="text-xs text-muted-foreground">Buyurtma → Yetkazildi</div>
+                  <div className="text-xs text-muted-foreground">{t('orderToDelivered')}</div>
                 </div>
                 <div className="text-center p-3 rounded-lg border bg-primary/5">
                   <div className="text-lg font-bold text-primary">{conversionRates?.overall}%</div>
-                  <div className="text-xs text-muted-foreground">Umumiy konversiya</div>
+                  <div className="text-xs text-muted-foreground">{t('overallConversion')}</div>
                 </div>
               </div>
             </div>
           ) : (
             <div className="h-[120px] flex items-center justify-center text-muted-foreground">
-              Ma&apos;lumotlar yetarli emas
+              {t('insufficientData')}
             </div>
           )}
         </CardContent>
@@ -197,28 +199,23 @@ export default function AnalyticsPage() {
         {/* Revenue Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Daromad</CardTitle>
+            <CardTitle className="text-lg">{t('revenueChart')}</CardTitle>
             <CardDescription>
-              {period === "week" ? "Haftalik" : period === "month" ? "Oylik" : "Yillik"} daromad grafigi
+              {period === "week" ? t('weekly') : period === "month" ? t('monthly') : t('yearly')} {t('revenueChartDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-[250px] w-full" />
             ) : chartData.length > 0 ? (
-              <AreaChart
-                className="h-[250px]"
-                data={chartData}
-                index="date"
-                categories={["revenue"]}
-                colors={["blue"]}
+              <RevenueAreaChart
+                data={chartData.map((d: any) => ({ date: d.date, revenue: d.revenue, orders: d.orders || 0 }))}
+                height={250}
                 valueFormatter={(v) => formatPrice(v) + " so'm"}
-                showLegend={false}
-                showAnimation
               />
             ) : (
               <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Ma&apos;lumotlar yetarli emas
+                {t('insufficientData')}
               </div>
             )}
           </CardContent>
@@ -227,27 +224,23 @@ export default function AnalyticsPage() {
         {/* Orders Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Buyurtmalar</CardTitle>
+            <CardTitle className="text-lg">{t('ordersCount')}</CardTitle>
             <CardDescription>
-              {period === "week" ? "Haftalik" : period === "month" ? "Oylik" : "Yillik"} buyurtmalar soni
+              {period === "week" ? t('weekly') : period === "month" ? t('monthly') : t('yearly')} {t('ordersChartDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-[250px] w-full" />
             ) : chartData.length > 0 ? (
-              <BarChart
-                className="h-[250px]"
-                data={chartData}
-                index="date"
-                categories={["orders"]}
-                colors={["violet"]}
-                showLegend={false}
-                showAnimation
+              <StackedBarChart
+                categories={chartData.map((d: any) => d.date)}
+                series={[{ name: t('ordersCount'), data: chartData.map((d: any) => d.orders || 0) }]}
+                height={250}
               />
             ) : (
               <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Ma&apos;lumotlar yetarli emas
+                {t('insufficientData')}
               </div>
             )}
           </CardContent>
@@ -258,23 +251,20 @@ export default function AnalyticsPage() {
         {/* Status Donut */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Buyurtma holatlari</CardTitle>
+            <CardTitle className="text-lg">{t('orderStatuses')}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-[250px] w-full" />
             ) : statusData.length > 0 ? (
-              <DonutChart
-                className="h-[250px]"
-                data={statusData}
-                index="status"
-                category="count"
-                variant="pie"
-                showAnimation
+              <StatusDonutChart
+                data={statusData.map((s: any) => ({ name: s.status, value: s.count }))}
+                centerLabel={t('orderStatuses')}
+                centerValue={statusData.reduce((s: number, d: any) => s + d.count, 0).toString()}
               />
             ) : (
               <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Ma&apos;lumotlar yetarli emas
+                {t('insufficientData')}
               </div>
             )}
           </CardContent>
@@ -283,8 +273,8 @@ export default function AnalyticsPage() {
         {/* Top Products */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Eng ko&apos;p sotilgan</CardTitle>
-            <CardDescription>Top mahsulotlar</CardDescription>
+            <CardTitle className="text-lg">{t('topSelling')}</CardTitle>
+            <CardDescription>{t('topProducts')}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -307,7 +297,7 @@ export default function AnalyticsPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{product.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {product.totalSold || 0} ta sotildi
+                        {product.totalSold || 0} {t('soldCount')}
                       </p>
                     </div>
                     <span className="text-sm font-semibold">{product.orderCount || 0}</span>
@@ -317,7 +307,7 @@ export default function AnalyticsPage() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p>Ma&apos;lumotlar yetarli emas</p>
+                <p>{t('insufficientData')}</p>
               </div>
             )}
           </CardContent>

@@ -602,11 +602,35 @@
     min-height: 44px;
     min-width: 44px;
   }
+  /* Ensure all interactive elements meet minimum touch target */
+  button:not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]),
+  [role="button"],
+  a[class*="btn"],
+  [role="tab"] {
+    min-height: 40px;
+  }
+  /* Larger tap targets for icon-only buttons on mobile */
+  button[class*="size-icon"],
+  button[class*="h-8 w-8"],
+  button[class*="h-9 w-9"] {
+    min-height: 40px;
+    min-width: 40px;
+  }
 }
 @media (pointer: coarse) {
   .touch-action-btn {
     min-height: 44px;
     min-width: 44px;
+  }
+  /* Better scrolling on touch devices */
+  .overflow-x-auto,
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  /* Hide scrollbar on mobile for horizontal scroll areas */
+  .overflow-x-auto::-webkit-scrollbar {
+    height: 2px;
   }
 }
 

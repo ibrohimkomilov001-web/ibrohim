@@ -36,8 +36,10 @@ import {
   MessageCircle,
 } from "lucide-react";
 import Image from "next/image";
+import { useTranslation } from '@/store/locale-store';
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -88,11 +90,11 @@ export default function SettingsPage() {
   const updateMutation = useMutation({
     mutationFn: (data: any) => vendorApi.updateShop(data),
     onSuccess: () => {
-      toast.success("Sozlamalar saqlandi");
+      toast.success(t('settingsSaved'));
       queryClient.invalidateQueries({ queryKey: ["vendor-shop"] });
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -103,9 +105,9 @@ export default function SettingsPage() {
     try {
       const result = await uploadApi.uploadImage(file, 'shop');
       setLogoUrl(result.url);
-      toast.success("Logo yuklandi");
+      toast.success(t('logoUploaded'));
     } catch (err: any) {
-      toast.error(err.message || "Yuklashda xatolik");
+      toast.error(err.message || t('uploadError'));
     } finally {
       setIsUploading(false);
     }
@@ -118,9 +120,9 @@ export default function SettingsPage() {
     try {
       const result = await uploadApi.uploadImage(file, 'shop');
       setBannerUrl(result.url);
-      toast.success("Banner yuklandi");
+      toast.success(t('bannerUploaded'));
     } catch (err: any) {
-      toast.error(err.message || "Yuklashda xatolik");
+      toast.error(err.message || t('uploadError'));
     } finally {
       setIsUploading(false);
     }
@@ -128,20 +130,20 @@ export default function SettingsPage() {
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!shopName.trim()) errs.shopName = "Do'kon nomini kiriting";
-    if (!shopPhone.trim()) errs.shopPhone = "Telefon raqamini kiriting";
+    if (!shopName.trim()) errs.shopName = t('enterShopName');
+    if (!shopPhone.trim()) errs.shopPhone = t('enterPhone');
     else if (!/^\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2}$/.test(shopPhone.trim().replace(/[\-()]/g, '')))
       errs.shopPhone = "Format: +998 XX XXX XX XX";
     if (shopEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shopEmail.trim()))
-      errs.shopEmail = "Email formati noto'g'ri";
-    if (!shopCity) errs.shopCity = "Shaharni tanlang";
+      errs.shopEmail = t('emailFormatError');
+    if (!shopCity) errs.shopCity = t('selectCity');
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleSave = () => {
     if (!validate()) {
-      toast.error("Iltimos, majburiy maydonlarni to'ldiring");
+      toast.error(t('fillRequiredFields'));
       return;
     }
     updateMutation.mutate({
@@ -176,8 +178,8 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Sozlamalar</h1>
-          <p className="text-muted-foreground">Do&apos;kon ma&apos;lumotlarini boshqarish</p>
+          <h1 className="text-2xl font-bold">{t('vendorSettingsTitle')}</h1>
+          <p className="text-muted-foreground">{t('manageShopInfo')}</p>
         </div>
         <Button
           className="rounded-full"
@@ -187,12 +189,12 @@ export default function SettingsPage() {
           {updateMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saqlanmoqda...
+              {t('saving')}
             </>
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Saqlash
+              {t('saveBtn')}
             </>
           )}
         </Button>
@@ -204,15 +206,15 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <ImageIcon className="h-5 w-5 text-primary" />
-              Branding
+              {t('brandingTitle')}
             </CardTitle>
-            <CardDescription>Logo va banner rasmlarini yuklang</CardDescription>
+            <CardDescription>{t('brandingDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid sm:grid-cols-2 gap-6">
               {/* Logo */}
               <div>
-                <Label className="mb-2 block">Logo</Label>
+                <Label className="mb-2 block">{t('logoLabel')}</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
                     <AvatarImage src={resolveImageUrl(logoUrl)} />
@@ -224,7 +226,7 @@ export default function SettingsPage() {
                     <Button variant="outline" className="rounded-full" asChild>
                       <span>
                         <Upload className="mr-2 h-4 w-4" />
-                        Yuklash
+                        {t('uploadBtn2')}
                       </span>
                     </Button>
                     <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
@@ -234,7 +236,7 @@ export default function SettingsPage() {
 
               {/* Banner */}
               <div>
-                <Label className="mb-2 block">Banner</Label>
+                <Label className="mb-2 block">{t('bannerLabel')}</Label>
                 <label className="block cursor-pointer">
                   <div className="aspect-[3/1] rounded-xl border-2 border-dashed border-muted-foreground/30 overflow-hidden hover:border-primary/50 transition-colors relative">
                     {bannerUrl ? (
@@ -242,7 +244,7 @@ export default function SettingsPage() {
                     ) : (
                       <div className="flex items-center justify-center h-full text-muted-foreground">
                         <Upload className="h-6 w-6 mr-2" />
-                        <span className="text-sm">Banner yuklash</span>
+                        <span className="text-sm">{t('bannerUploadText')}</span>
                       </div>
                     )}
                   </div>
@@ -259,13 +261,13 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Store className="h-5 w-5 text-primary" />
-            Do&apos;kon ma&apos;lumotlari
+            {t('shopInfo')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="shopName">Do&apos;kon nomi <span className="text-destructive">*</span></Label>
+              <Label htmlFor="shopName">{t('shopNameLabel')} <span className="text-destructive">*</span></Label>
               <Input
                 id="shopName"
                 value={shopName}
@@ -276,10 +278,10 @@ export default function SettingsPage() {
               {errors.shopName && <p className="text-xs text-destructive">{errors.shopName}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Shahar</Label>
+              <Label>{t('cityLabel')}</Label>
               <Select value={shopCity} onValueChange={setShopCity}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Tanlang" />
+                  <SelectValue placeholder={t('selectPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {["Toshkent", "Samarqand", "Buxoro", "Namangan", "Andijon", "Farg'ona", "Nukus", "Qarshi", "Jizzax", "Navoiy", "Termiz", "Urganch", "Guliston"].map((c) => (
@@ -291,7 +293,7 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="shopDescription">Tavsif</Label>
+            <Label htmlFor="shopDescription">{t('descriptionLabel')}</Label>
             <Textarea
               id="shopDescription"
               value={shopDescription}
@@ -301,7 +303,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="shopAddress">Manzil</Label>
+            <Label htmlFor="shopAddress">{t('addressLabel')}</Label>
             <Input
               id="shopAddress"
               value={shopAddress}
@@ -317,13 +319,13 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Phone className="h-5 w-5 text-primary" />
-            Aloqa ma&apos;lumotlari
+            {t('contactInfo')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="shopPhone">Telefon <span className="text-destructive">*</span></Label>
+              <Label htmlFor="shopPhone">{t('phoneLabel2')} <span className="text-destructive">*</span></Label>
               <Input
                 id="shopPhone"
                 value={shopPhone}
@@ -334,7 +336,7 @@ export default function SettingsPage() {
               {errors.shopPhone && <p className="text-xs text-destructive">{errors.shopPhone}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="shopEmail">Email</Label>
+              <Label htmlFor="shopEmail">{t('emailLabel2')}</Label>
               <Input
                 id="shopEmail"
                 type="email"
@@ -374,7 +376,7 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="website" className="flex items-center gap-1">
-                <Globe className="h-3 w-3" /> Veb-sayt
+                <Globe className="h-3 w-3" /> {t('websiteLabel')}
               </Label>
               <Input
                 id="website"
@@ -392,32 +394,32 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
-            Yetkazib berish sozlamalari
+            {t('deliverySettings')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Yetkazib berish modeli</Label>
+            <Label>{t('deliveryModel')}</Label>
             <Select value={fulfillmentType} onValueChange={setFulfillmentType}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="FBS">
-                  FBS — Siz saqlaysiz, TOPLA yetkazadi
+                  {t('fbsOption')}
                 </SelectItem>
                 <SelectItem value="DBS">
-                  DBS — O&apos;zingiz saqlaysiz va yetkazasiz
+                  {t('dbsOption')}
                 </SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
-              FBS: Mahsulotni o&apos;zingiz saqlaysiz, TOPLA yetkazib beradi. DBS: O&apos;zingiz saqlaysiz va yetkazasiz.
+              {t('deliveryModelDesc')}
             </p>
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="minOrder">Min. buyurtma (so&apos;m)</Label>
+              <Label htmlFor="minOrder">{t('minOrderLabel')}</Label>
               <Input
                 id="minOrder"
                 type="number"
@@ -427,7 +429,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="deliveryFee">Yetkazish narxi (so&apos;m)</Label>
+              <Label htmlFor="deliveryFee">{t('deliveryFeeLabel')}</Label>
               <Input
                 id="deliveryFee"
                 type="number"
@@ -437,7 +439,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="freeDeliveryMin">Bepul yetkazish (so&apos;m dan)</Label>
+              <Label htmlFor="freeDeliveryMin">{t('freeDeliveryLabel')}</Label>
               <Input
                 id="freeDeliveryMin"
                 type="number"
@@ -460,10 +462,10 @@ export default function SettingsPage() {
           {updateMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saqlanmoqda...
+              {t('saving')}
             </>
           ) : (
-            "Saqlash"
+            t('saveBtn')
           )}
         </Button>
       </div>

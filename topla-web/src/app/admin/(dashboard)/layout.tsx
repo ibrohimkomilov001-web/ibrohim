@@ -53,45 +53,49 @@ import {
   CreditCard,
   Key,
   HelpCircle,
+  Star,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { isAdminAuthenticated, removeAdminToken } from "@/lib/api/admin";
+import { isAdminAuthenticated, removeAdminToken, hasPermission, fetchAdminMe, setAdminPermissions } from "@/lib/api/admin";
 import { useTranslation } from "@/store/locale-store";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 
+// Map sidebar items to required permissions
+// Items without a 'permission' field are visible to all admins
 const sidebarItems = [
   { icon: LayoutDashboard, key: 'dashboard', href: "/admin/dashboard" },
-  { icon: Users, key: 'users', href: "/admin/users" },
-  { icon: Store, key: 'shops', href: "/admin/shops" },
-  { icon: Package, key: 'products', href: "/admin/products" },
-  { icon: ShoppingCart, key: 'orders', href: "/admin/orders" },
-  { icon: Wallet, key: 'payments', href: "/admin/payouts" },
-  { icon: FolderTree, key: 'categories', href: "/admin/categories" },
-  { icon: Image, key: 'banners', href: "/admin/banners" },
-  { icon: Ticket, key: 'promoCodes', href: "/admin/promo-codes" },
-  { icon: Dices, key: 'luckyWheel', href: "/admin/lucky-wheel" },
-  { icon: UserPlus, key: 'referrals', href: "/admin/referrals" },
-  { icon: Truck, key: 'deliveryZones', href: "/admin/delivery-zones" },
-  { icon: MapPin, key: 'pickupPoints', href: "/admin/pickup-points" },
-  { icon: ClipboardList, key: 'pickupApplications', href: "/admin/pickup-applications" },
-  { icon: FileCheck, key: 'documents', href: "/admin/documents" },
+  { icon: Users, key: 'users', href: "/admin/users", permission: 'users.manage' },
+  { icon: Store, key: 'shops', href: "/admin/shops", permission: 'shops.manage' },
+  { icon: Package, key: 'products', href: "/admin/products", permission: 'products.manage' },
+  { icon: ShoppingCart, key: 'orders', href: "/admin/orders", permission: 'orders.manage' },
+  { icon: Wallet, key: 'payments', href: "/admin/payouts", permission: 'payouts.manage' },
+  { icon: FolderTree, key: 'categories', href: "/admin/categories", permission: 'categories.manage' },
+  { icon: Image, key: 'banners', href: "/admin/banners", permission: 'banners.manage' },
+  { icon: Ticket, key: 'promoCodes', href: "/admin/promo-codes", permission: 'promotions.manage' },
+  { icon: Dices, key: 'luckyWheel', href: "/admin/lucky-wheel", permission: 'promotions.manage' },
+  { icon: UserPlus, key: 'referrals', href: "/admin/referrals", permission: 'users.manage' },
+  { icon: Truck, key: 'deliveryZones', href: "/admin/delivery-zones", permission: 'settings.manage' },
+  { icon: MapPin, key: 'pickupPoints', href: "/admin/pickup-points", permission: 'settings.manage' },
+  { icon: ClipboardList, key: 'pickupApplications', href: "/admin/pickup-applications", permission: 'settings.manage' },
+  { icon: FileCheck, key: 'documents', href: "/admin/documents", permission: 'shops.manage' },
   { icon: MessageCircle, key: 'chat', href: "/admin/chat" },
   { icon: Bell, key: 'notifications', href: "/admin/notifications" },
-  { icon: LineChart, key: 'analytics', href: "/admin/analytics" },
-  { icon: BarChart3, key: 'reports', href: "/admin/reports" },
-  { icon: FileText, key: 'logs', href: "/admin/logs" },
-  { icon: Percent, key: 'commissions', href: "/admin/commissions" },
-  { icon: Megaphone, key: 'promotions', href: "/admin/promotions" },
-  { icon: AlertTriangle, key: 'penalties', href: "/admin/penalties" },
-  { icon: ShieldCheck, key: 'moderation', href: "/admin/moderation" },
-  { icon: Shield, key: 'roles', href: "/admin/roles" },
-  { icon: TrendingUp, key: 'extendedAnalytics', href: "/admin/extended-analytics" },
-  { icon: Trophy, key: 'loyalty', href: "/admin/loyalty" },
-  { icon: CreditCard, key: 'paymentSettings', href: "/admin/payment-settings" },
-  { icon: Key, key: 'apiKeys', href: "/admin/api-keys" },
+  { icon: LineChart, key: 'analytics', href: "/admin/analytics", permission: 'analytics.view' },
+  { icon: BarChart3, key: 'reports', href: "/admin/reports", permission: 'analytics.view' },
+  { icon: FileText, key: 'logs', href: "/admin/logs", permission: 'logs.view' },
+  { icon: Percent, key: 'commissions', href: "/admin/commissions", permission: 'settings.manage' },
+  { icon: Megaphone, key: 'promotions', href: "/admin/promotions", permission: 'promotions.manage' },
+  { icon: AlertTriangle, key: 'penalties', href: "/admin/penalties", permission: 'penalties.manage' },
+  { icon: ShieldCheck, key: 'moderation', href: "/admin/moderation", permission: 'moderation.manage' },
+  { icon: Star, key: 'reviews', href: "/admin/reviews", permission: 'moderation.manage' },
+  { icon: Shield, key: 'roles', href: "/admin/roles", permission: 'roles.manage' },
+  { icon: TrendingUp, key: 'extendedAnalytics', href: "/admin/extended-analytics", permission: 'analytics.view' },
+  { icon: Trophy, key: 'loyalty', href: "/admin/loyalty", permission: 'promotions.manage' },
+  { icon: CreditCard, key: 'paymentSettings', href: "/admin/payment-settings", permission: 'settings.manage' },
+  { icon: Key, key: 'apiKeys', href: "/admin/api-keys", permission: 'settings.manage' },
   { icon: HelpCircle, key: 'faq', href: "/admin/faq" },
-  { icon: Settings, key: 'settings', href: "/admin/settings" },
+  { icon: Settings, key: 'settings', href: "/admin/settings", permission: 'settings.manage' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -101,13 +105,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [, setForceUpdate] = useState(0);
 
-  // Auth guard
+  // Auth guard + load permissions
   useEffect(() => {
     if (!isAdminAuthenticated()) {
       router.replace("/admin/login");
+      return;
     }
+
+    // Fetch fresh permissions from server
+    fetchAdminMe()
+      .then(({ adminRole }) => {
+        setAdminPermissions(adminRole);
+        setPermissionsLoaded(true);
+        setForceUpdate((n) => n + 1); // re-render with new permissions
+      })
+      .catch(() => {
+        // If /admin/me fails, still show sidebar (with cached permissions)
+        setPermissionsLoaded(true);
+      });
   }, [router]);
+
+  // Filter sidebar items based on permissions
+  const visibleSidebarItems = sidebarItems.filter(
+    (item) => !item.permission || hasPermission(item.permission)
+  );
 
   // Prevent body scroll when mobile sidebar is open
   useEffect(() => {
@@ -170,7 +194,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Navigation */}
         <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
-          {sidebarItems.map((item) => {
+          {visibleSidebarItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link

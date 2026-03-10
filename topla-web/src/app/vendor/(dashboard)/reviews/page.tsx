@@ -35,6 +35,7 @@ import {
   Send,
   ThumbsUp,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -50,6 +51,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ReviewsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [ratingFilter, setRatingFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -72,14 +74,14 @@ export default function ReviewsPage() {
     mutationFn: ({ reviewId, reply }: { reviewId: string; reply: string }) =>
       vendorApi.replyToReview(reviewId, reply),
     onSuccess: () => {
-      toast.success("Javob yuborildi");
+      toast.success(t('replySent'));
       queryClient.invalidateQueries({ queryKey: ["vendor-reviews"] });
       setReplyDialogOpen(false);
       setReplyText("");
       setSelectedReview(null);
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -99,9 +101,9 @@ export default function ReviewsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Sharhlar</h1>
+        <h1 className="text-2xl font-bold">{t('vendorReviewsTitle')}</h1>
         <p className="text-muted-foreground">
-          Mijozlar fikrlari va baholar
+          {t('customerFeedback')}
         </p>
       </div>
 
@@ -112,7 +114,7 @@ export default function ReviewsPage() {
             <div className="text-center">
               <div className="text-5xl font-bold text-primary">{averageRating.toFixed(1)}</div>
               <StarRating rating={Math.round(averageRating)} />
-              <p className="text-sm text-muted-foreground mt-1">{totalReviews} ta sharh</p>
+              <p className="text-sm text-muted-foreground mt-1">{totalReviews} {t('reviewCount')}</p>
             </div>
             <div className="flex-1 w-full max-w-sm space-y-1.5">
               {[5, 4, 3, 2, 1].map((star) => {
@@ -142,15 +144,15 @@ export default function ReviewsPage() {
         <Select value={ratingFilter} onValueChange={(v) => { setRatingFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[180px]">
             <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Baho bo'yicha" />
+            <SelectValue placeholder={t('byRating')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Barchasi</SelectItem>
-            <SelectItem value="5">5 yulduz</SelectItem>
-            <SelectItem value="4">4 yulduz</SelectItem>
-            <SelectItem value="3">3 yulduz</SelectItem>
-            <SelectItem value="2">2 yulduz</SelectItem>
-            <SelectItem value="1">1 yulduz</SelectItem>
+            <SelectItem value="all">{t('allReviews')}</SelectItem>
+            <SelectItem value="5">5 {t('stars')}</SelectItem>
+            <SelectItem value="4">4 {t('stars')}</SelectItem>
+            <SelectItem value="3">3 {t('stars')}</SelectItem>
+            <SelectItem value="2">2 {t('stars')}</SelectItem>
+            <SelectItem value="1">1 {t('stars')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -189,7 +191,7 @@ export default function ReviewsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <div>
-                          <span className="font-semibold text-sm">{review.customerName || "Mijoz"}</span>
+                          <span className="font-semibold text-sm">{review.customerName || t('customerDefault')}</span>
                           <span className="text-xs text-muted-foreground ml-2">
                             {formatDate(review.createdAt)}
                           </span>
@@ -199,7 +201,7 @@ export default function ReviewsPage() {
 
                       {review.productName && (
                         <p className="text-xs text-muted-foreground mb-2">
-                          Mahsulot: {review.productName}
+                          {t('productLabel')} {review.productName}
                         </p>
                       )}
 
@@ -208,7 +210,7 @@ export default function ReviewsPage() {
                       {/* Reply */}
                       {review.reply ? (
                         <div className="bg-muted/50 rounded-xl p-3 mt-2">
-                          <p className="text-xs font-semibold text-primary mb-1">Sizning javobingiz:</p>
+                          <p className="text-xs font-semibold text-primary mb-1">{t('yourReply')}</p>
                           <p className="text-sm text-muted-foreground">{review.reply}</p>
                         </div>
                       ) : (
@@ -219,7 +221,7 @@ export default function ReviewsPage() {
                           onClick={() => openReplyDialog(review)}
                         >
                           <MessageCircle className="mr-1 h-3 w-3" />
-                          Javob berish
+                          {t('replyToReview')}
                         </Button>
                       )}
                     </div>
@@ -234,10 +236,10 @@ export default function ReviewsPage() {
           <CardContent className="py-16 text-center">
             <Star className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">
-              {ratingFilter !== "all" ? "Bu baho bo'yicha sharhlar yo'q" : "Hali sharhlar yo'q"}
+              {ratingFilter !== "all" ? t('noReviewsForRating') : t('noReviewsYet')}
             </h3>
             <p className="text-muted-foreground">
-              Mijozlar mahsulotlaringiz haqida sharh qoldirganida bu yerda ko&apos;rinadi
+              {t('reviewsAppearHere')}
             </p>
           </CardContent>
         </Card>
@@ -253,7 +255,7 @@ export default function ReviewsPage() {
             onClick={() => setPage(page - 1)}
             className="rounded-full"
           >
-            Oldingi
+            {t('previousPage')}
           </Button>
           <span className="text-sm text-muted-foreground px-4">
             {page} / {totalPages}
@@ -265,7 +267,7 @@ export default function ReviewsPage() {
             onClick={() => setPage(page + 1)}
             className="rounded-full"
           >
-            Keyingi
+            {t('nextPage')}
           </Button>
         </div>
       )}
@@ -274,7 +276,7 @@ export default function ReviewsPage() {
       <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Sharhga javob berish</DialogTitle>
+            <DialogTitle>{t('replyToReviewTitle')}</DialogTitle>
           </DialogHeader>
           {selectedReview && (
             <div className="space-y-4">
@@ -286,7 +288,7 @@ export default function ReviewsPage() {
                 <p className="text-sm text-muted-foreground">{selectedReview.comment}</p>
               </div>
               <Textarea
-                placeholder="Javobingizni yozing..."
+                placeholder={t('writeReplyPlaceholder')}
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 rows={3}
@@ -299,7 +301,7 @@ export default function ReviewsPage() {
               onClick={() => setReplyDialogOpen(false)}
               className="rounded-full"
             >
-              Bekor qilish
+              {t('cancelAction')}
             </Button>
             <Button
               className="rounded-full"
@@ -317,7 +319,7 @@ export default function ReviewsPage() {
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
-              Yuborish
+              {t('sendBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>

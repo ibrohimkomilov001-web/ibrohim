@@ -27,6 +27,8 @@ import { vendorApi } from "@/lib/api/vendor";
 import { formatPrice, formatDateTime } from "@/lib/utils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
+import { useTranslation } from '@/store/locale-store';
+import { useUrlState } from '@/hooks/use-url-state';
 import Link from "next/link";
 import {
   Search,
@@ -66,11 +68,11 @@ const nextStatusLabel: Record<string, string> = {
 };
 
 export default function OrdersPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [{ search, status: statusFilter, page: pageStr }, setFilters] = useUrlState({ search: '', status: 'all', page: '1' });
   const debouncedSearch = useDebounce(search);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
+  const page = parseInt(pageStr) || 1;
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const limit = 20;
 
@@ -89,7 +91,7 @@ export default function OrdersPage() {
     mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
       vendorApi.updateOrderStatus(orderId, status),
     onSuccess: () => {
-      toast.success("Buyurtma holati yangilandi");
+      toast.success(t('updated'));
       queryClient.invalidateQueries({ queryKey: ["vendor-orders"] });
       queryClient.invalidateQueries({ queryKey: ["vendor-stats"] });
       if (selectedOrder) {
@@ -97,7 +99,7 @@ export default function OrdersPage() {
       }
     },
     onError: (error: any) => {
-      toast.error(error.message || "Xatolik yuz berdi");
+      toast.error(error.message || t('errorOccurred'));
     },
   });
 
@@ -108,7 +110,7 @@ export default function OrdersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Buyurtmalar</h1>
+        <h1 className="text-2xl font-bold">{t('vendorOrders')}</h1>
         <p className="text-muted-foreground">Jami {data?.total || 0} ta buyurtma</p>
       </div>
 
@@ -119,26 +121,26 @@ export default function OrdersPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buyurtma raqami yoki mijoz nomi..."
+                placeholder={t('searchPlaceholderGeneric')}
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                onChange={(e) => setFilters({ search: e.target.value, page: '1' })}
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <Select value={statusFilter} onValueChange={(v) => setFilters({ status: v, page: '1' })}>
               <SelectTrigger className="w-[200px]">
                 <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Holati" />
+                <SelectValue placeholder={t('status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Barchasi</SelectItem>
-                <SelectItem value="pending">Kutilmoqda</SelectItem>
-                <SelectItem value="processing">Tayyorlanmoqda</SelectItem>
+                <SelectItem value="all">{t('all')}</SelectItem>
+                <SelectItem value="pending">{t('pending')}</SelectItem>
+                <SelectItem value="processing">{t('processing')}</SelectItem>
                 <SelectItem value="ready_for_pickup">Tayyor</SelectItem>
                 <SelectItem value="courier_assigned">Kuryer tayinlangan</SelectItem>
-                <SelectItem value="shipping">Yetkazilmoqda</SelectItem>
-                <SelectItem value="delivered">Yetkazildi</SelectItem>
-                <SelectItem value="cancelled">Bekor qilindi</SelectItem>
+                <SelectItem value="shipping">{t('shipped')}</SelectItem>
+                <SelectItem value="delivered">{t('delivered')}</SelectItem>
+                <SelectItem value="cancelled">{t('cancelled')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -239,7 +241,7 @@ export default function OrdersPage() {
           <CardContent className="py-16 text-center">
             <ClipboardList className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">
-              {search || statusFilter !== "all" ? "Buyurtma topilmadi" : "Hali buyurtmalar yo'q"}
+              {search || statusFilter !== "all" ? t('noItems') : t('noData')}
             </h3>
             <p className="text-muted-foreground">
               {search || statusFilter !== "all"
@@ -258,10 +260,10 @@ export default function OrdersPage() {
             variant="outline"
             size="sm"
             disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
+            onClick={() => setFilters({ page: String(page - 1) })}
             className="rounded-full"
           >
-            Oldingi
+            {t('previous')}
           </Button>
           <span className="text-sm text-muted-foreground px-4">
             {page} / {totalPages}
@@ -270,10 +272,10 @@ export default function OrdersPage() {
             variant="outline"
             size="sm"
             disabled={page >= totalPages}
-            onClick={() => setPage(page + 1)}
+            onClick={() => setFilters({ page: String(page + 1) })}
             className="rounded-full"
           >
-            Keyingi
+            {t('next')}
           </Button>
         </div>
       )}
@@ -295,7 +297,7 @@ export default function OrdersPage() {
               <div className="space-y-4">
                 {/* Status */}
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Holati:</span>
+                  <span className="text-sm text-muted-foreground">{t('status')}:</span>
                   <span className={`text-sm px-3 py-1 rounded-full ${statusConfig[selectedOrder.status]?.color || ""}`}>
                     {statusConfig[selectedOrder.status]?.label || selectedOrder.status}
                   </span>
@@ -330,7 +332,7 @@ export default function OrdersPage() {
 
                 {/* Items */}
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Mahsulotlar</h4>
+                  <h4 className="font-semibold text-sm">{t('products')}</h4>
                   {selectedOrder.items?.map((item: any, i: number) => (
                     <div key={i} className="flex items-center justify-between text-sm">
                       <span className="flex-1 truncate">{item.name || item.productName}</span>
@@ -356,7 +358,7 @@ export default function OrdersPage() {
               <DialogFooter className="gap-2">
                 <Button variant="outline" className="rounded-full" asChild>
                   <Link href={`/vendor/orders/${selectedOrder.id}`}>
-                    Batafsil ko&apos;rish
+                    {t('details')}
                   </Link>
                 </Button>
                 {selectedOrder.status === "pending" && (
@@ -372,7 +374,7 @@ export default function OrdersPage() {
                     }}
                   >
                     <XCircle className="mr-2 h-4 w-4" />
-                    Bekor qilish
+                    {t('cancel')}
                   </Button>
                 )}
                 {nextStatus[selectedOrder.status] && (

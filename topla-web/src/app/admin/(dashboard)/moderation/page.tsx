@@ -20,16 +20,18 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import {
   Shield, Search, Check, X, Eye, Loader2, Image as ImageIcon, ShoppingBag,
 } from "lucide-react";
+import { useTranslation } from '@/store/locale-store';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  on_review: { label: "Tekshiruvda", color: "outline" },
-  active: { label: "Faol", color: "default" },
-  has_errors: { label: "Xatoliklar", color: "destructive" },
-  blocked: { label: "Bloklangan", color: "destructive" },
-  draft: { label: "Qoralama", color: "secondary" },
+  on_review: { label: "onReview", color: "outline" },
+  active: { label: "active", color: "default" },
+  has_errors: { label: "hasErrors", color: "destructive" },
+  blocked: { label: "blocked", color: "destructive" },
+  draft: { label: "draft", color: "secondary" },
 };
 
 export default function ModerationPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("on_review");
   const [search, setSearch] = useState("");
@@ -47,7 +49,7 @@ export default function ModerationPage() {
   const approveMut = useMutation({
     mutationFn: approveProduct,
     onSuccess: () => {
-      toast.success("Mahsulot tasdiqlandi");
+      toast.success(t('productApproved'));
       queryClient.invalidateQueries({ queryKey: ["moderation-queue"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -56,7 +58,7 @@ export default function ModerationPage() {
   const rejectMut = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectProduct(id, reason),
     onSuccess: () => {
-      toast.success("Mahsulot rad etildi");
+      toast.success(t('productRejected'));
       queryClient.invalidateQueries({ queryKey: ["moderation-queue"] });
       setRejectOpen(false);
       setRejectReason("");
@@ -81,13 +83,13 @@ export default function ModerationPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="h-6 w-6" />
-            Moderatsiya navbati
+            {t('moderationQueue')}
           </h1>
-          <p className="text-muted-foreground">Mahsulotlarni tekshirish va tasdiqlash</p>
+          <p className="text-muted-foreground">{t('reviewAndApprove')}</p>
         </div>
         {pendingCount > 0 && (
           <Badge variant="destructive" className="text-lg px-4 py-1">
-            {pendingCount} ta kutmoqda
+            {pendingCount} {t('waiting')}
           </Badge>
         )}
       </div>
@@ -102,7 +104,7 @@ export default function ModerationPage() {
             onClick={() => { setStatusFilter(key); setPage(1); }}
             className="gap-2"
           >
-            {val.label}
+            {t(val.label)}
             {statusCounts[key] !== undefined && (
               <Badge variant="secondary" className="ml-1 text-xs">
                 {statusCounts[key]}
@@ -116,7 +118,7 @@ export default function ModerationPage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Mahsulot yoki do'kon nomi..."
+          placeholder={t('searchPlaceholderGeneric')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="pl-10"
@@ -156,7 +158,7 @@ export default function ModerationPage() {
                   variant={STATUS_LABELS[product.status]?.color as any || "secondary"}
                   className="absolute top-2 right-2"
                 >
-                  {STATUS_LABELS[product.status]?.label || product.status}
+                  {t(STATUS_LABELS[product.status]?.label) || product.status}
                 </Badge>
               </div>
               <CardContent className="p-4">
@@ -197,7 +199,7 @@ export default function ModerationPage() {
                         {approveMut.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <><Check className="h-4 w-4 mr-1" /> Tasdiqlash</>
+                          <><Check className="h-4 w-4 mr-1" /> {t('approve')}</>
                         )}
                       </Button>
                       <Button
@@ -206,7 +208,7 @@ export default function ModerationPage() {
                         className="flex-1"
                         onClick={() => openReject(product.id)}
                       >
-                        <X className="h-4 w-4 mr-1" /> Rad etish
+                        <X className="h-4 w-4 mr-1" /> {t('reject')}
                       </Button>
                     </>
                   )}
@@ -226,8 +228,8 @@ export default function ModerationPage() {
         <Card>
           <CardContent className="py-16 text-center">
             <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
-            <h3 className="text-lg font-semibold">Navbatda mahsulot yo&apos;q</h3>
-            <p className="text-muted-foreground">Barcha mahsulotlar tekshirilgan</p>
+            <h3 className="text-lg font-semibold">{t('noProductsInQueue')}</h3>
+            <p className="text-muted-foreground">{t('allProductsReviewed')}</p>
           </CardContent>
         </Card>
       )}
@@ -235,9 +237,9 @@ export default function ModerationPage() {
       {/* Pagination */}
       {meta && meta.totalPages > 1 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Oldingi</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t('previous')}</Button>
           <span className="text-sm py-2 px-4">{page} / {meta.totalPages}</span>
-          <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>Keyingi</Button>
+          <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)}>{t('next')}</Button>
         </div>
       )}
 
@@ -245,25 +247,25 @@ export default function ModerationPage() {
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mahsulotni rad etish</DialogTitle>
+            <DialogTitle>{t('rejectProduct')}</DialogTitle>
           </DialogHeader>
           <div>
             <Textarea
-              placeholder="Rad etish sababini kiriting..."
+              placeholder={t('rejectReasonPlaceholder')}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               rows={3}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectOpen(false)}>Bekor</Button>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>{t('cancel')}</Button>
             <Button
               variant="destructive"
               onClick={() => rejectMut.mutate({ id: rejectId, reason: rejectReason })}
               disabled={rejectMut.isPending || !rejectReason.trim()}
             >
               {rejectMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Rad etish
+              {t('reject')}
             </Button>
           </DialogFooter>
         </DialogContent>

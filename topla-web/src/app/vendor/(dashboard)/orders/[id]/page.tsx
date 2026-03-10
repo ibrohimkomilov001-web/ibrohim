@@ -16,14 +16,14 @@ import {
 } from 'lucide-react';
 
 const statusLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pending: { label: 'Kutilmoqda', color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="w-4 h-4" /> },
-  processing: { label: 'Tayyorlanmoqda', color: 'bg-purple-100 text-purple-800', icon: <Package className="w-4 h-4" /> },
-  ready_for_pickup: { label: 'Tayyor - kuryerga berish', color: 'bg-indigo-100 text-indigo-800', icon: <Package className="w-4 h-4" /> },
-  courier_assigned: { label: 'Kuryer tayinlandi', color: 'bg-cyan-100 text-cyan-800', icon: <Truck className="w-4 h-4" /> },
-  courier_picked_up: { label: 'Kuryer oldi', color: 'bg-cyan-100 text-cyan-800', icon: <Truck className="w-4 h-4" /> },
-  shipping: { label: 'Yetkazilmoqda', color: 'bg-orange-100 text-orange-800', icon: <Truck className="w-4 h-4" /> },
-  delivered: { label: 'Yetkazildi', color: 'bg-green-100 text-green-800', icon: <CheckCircle className="w-4 h-4" /> },
-  cancelled: { label: 'Bekor qilingan', color: 'bg-red-100 text-red-800', icon: <XCircle className="w-4 h-4" /> },
+  pending: { label: 'Kutilmoqda', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', icon: <Clock className="w-4 h-4" /> },
+  processing: { label: 'Tayyorlanmoqda', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300', icon: <Package className="w-4 h-4" /> },
+  ready_for_pickup: { label: 'Tayyor - kuryerga berish', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300', icon: <Package className="w-4 h-4" /> },
+  courier_assigned: { label: 'Kuryer tayinlandi', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300', icon: <Truck className="w-4 h-4" /> },
+  courier_picked_up: { label: 'Kuryer oldi', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300', icon: <Truck className="w-4 h-4" /> },
+  shipping: { label: 'Yetkazilmoqda', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', icon: <Truck className="w-4 h-4" /> },
+  delivered: { label: 'Yetkazildi', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: <CheckCircle className="w-4 h-4" /> },
+  cancelled: { label: 'Bekor qilingan', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', icon: <XCircle className="w-4 h-4" /> },
 };
 
 const nextStatus: Record<string, string> = {

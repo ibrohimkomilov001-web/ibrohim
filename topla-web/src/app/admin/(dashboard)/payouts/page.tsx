@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from '@/components/ui/skeleton'
 import { fetchPayouts, processPayout } from '@/lib/api/admin'
 import { toast } from 'sonner'
+import { useTranslation } from '@/store/locale-store';
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Clock, CheckCircle2, BarChart3 } from 'lucide-react'
+import { StatCard } from '@/components/charts'
 
 interface Payout {
   id: string
@@ -27,22 +31,40 @@ interface Payout {
 }
 
 const statusConfig: Record<string, { color: string; label: string }> = {
-  pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Kutilmoqda' },
-  processing: { color: 'bg-blue-100 text-blue-800', label: 'Jarayonda' },
-  completed: { color: 'bg-green-100 text-green-800', label: "To'landi" },
-  failed: { color: 'bg-red-100 text-red-800', label: 'Rad etildi' },
+  pending: { color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300', label: 'pending' },
+  processing: { color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300', label: 'inProcess' },
+  completed: { color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300', label: 'paid' },
+  failed: { color: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300', label: 'rejected' },
 }
 
 export default function AdminPayoutsPage() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('pending')
-  const [payouts, setPayouts] = useState<Payout[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 })
+
+  const { data: queryData, isLoading } = useQuery({
+    queryKey: ['admin-payouts', activeTab],
+    queryFn: async () => {
+      const status = activeTab !== 'all' ? activeTab : undefined
+      const result = await fetchPayouts({ status })
+      const data = result?.data || result
+      const items = data?.items || data?.payouts || (Array.isArray(data) ? data : [])
+      return { items, pagination: data?.pagination || { total: items.length, totalPages: 1 } }
+    },
+    staleTime: 10_000,
+  })
+
+  const payouts: Payout[] = queryData?.items || []
+  const pagination = queryData?.pagination || { total: 0, totalPages: 1 }
+
+  const loadPayouts = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-payouts'] })
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('uz-UZ').format(price) + " so'm"
@@ -58,38 +80,17 @@ export default function AdminPayoutsPage() {
     })
   }
 
-  const loadPayouts = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const status = activeTab !== 'all' ? activeTab : undefined
-      const result = await fetchPayouts({ status })
-      const data = result?.data || result
-      const items = data?.items || data?.payouts || (Array.isArray(data) ? data : [])
-      setPayouts(items)
-      setPagination(data?.pagination || { total: items.length, totalPages: 1 })
-    } catch (err: any) {
-      toast.error(err.message || "To'lovlarni yuklashda xatolik")
-      setPayouts([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    loadPayouts()
-  }, [loadPayouts])
-
   const handleApprove = async () => {
     if (!selectedPayout) return
     setIsProcessing(true)
     try {
       await processPayout(selectedPayout.id, { status: 'completed' })
-      toast.success("To'lov tasdiqlandi")
+      toast.success(t('payoutApproved'))
       setApproveDialogOpen(false)
       setSelectedPayout(null)
       loadPayouts()
     } catch (err: any) {
-      toast.error(err.message || "Xatolik yuz berdi")
+      toast.error(err.message || t('errorHappened'))
     } finally {
       setIsProcessing(false)
     }
@@ -103,13 +104,13 @@ export default function AdminPayoutsPage() {
         status: 'failed',
         rejectionReason: rejectReason || undefined,
       })
-      toast.success("To'lov rad etildi")
+      toast.success(t('payoutRejected'))
       setRejectDialogOpen(false)
       setSelectedPayout(null)
       setRejectReason('')
       loadPayouts()
     } catch (err: any) {
-      toast.error(err.message || "Xatolik yuz berdi")
+      toast.error(err.message || t('errorHappened'))
     } finally {
       setIsProcessing(false)
     }
@@ -122,65 +123,40 @@ export default function AdminPayoutsPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">To&apos;lovlar (Payouts)</h1>
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('payoutsTitle')}</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Vendorlarga to&apos;lovlarni boshqaring
+          {t('vendorPayments')}
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kutilmoqda</CardTitle>
-            <span className="text-2xl">⏳</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{formatPrice(totalPending)}</div>
-            <p className="text-xs text-muted-foreground">{pendingCount} ta so&apos;rov</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">To&apos;langan</CardTitle>
-            <span className="text-2xl">✅</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatPrice(totalCompleted)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jami so&apos;rovlar</CardTitle>
-            <span className="text-2xl">📊</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pagination.total}</div>
-          </CardContent>
-        </Card>
+        <StatCard icon={Clock} label={t('pending')} value={formatPrice(totalPending)} color="warning" />
+        <StatCard icon={CheckCircle2} label={t('paid')} value={formatPrice(totalCompleted)} color="success" />
+        <StatCard icon={BarChart3} label={t('totalRequests')} value={pagination.total} color="primary" />
       </div>
 
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>To&apos;lov so&apos;rovlari</CardTitle>
-            <CardDescription>Vendorlardan kelgan pul yechish so&apos;rovlari</CardDescription>
+            <CardTitle>{t('payoutRequests')}</CardTitle>
+            <CardDescription>{t('payoutRequestsDesc')}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="overflow-x-auto w-full justify-start">
               <TabsTrigger value="pending">
-                Kutilmoqda
+                {t('pending')}
                 {pendingCount > 0 && (
                   <Badge variant="destructive" className="ml-2">
                     {pendingCount}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="completed">To&apos;langan</TabsTrigger>
-              <TabsTrigger value="failed">Rad etilgan</TabsTrigger>
-              <TabsTrigger value="all">Barchasi</TabsTrigger>
+              <TabsTrigger value="completed">{t('paid')}</TabsTrigger>
+              <TabsTrigger value="failed">{t('rejected')}</TabsTrigger>
+              <TabsTrigger value="all">{t('all')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-4">
@@ -197,7 +173,7 @@ export default function AdminPayoutsPage() {
                 </div>
               ) : payouts.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
-                  To&apos;lovlar topilmadi
+                  {t('payoutsNotFound')}
                 </div>
               ) : (
                 <>
@@ -207,8 +183,8 @@ export default function AdminPayoutsPage() {
                       <div key={payout.id} className="border rounded-lg p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">{payout.shop?.name || '—'}</span>
-                          <Badge className={statusConfig[payout.status]?.color || 'bg-gray-100 text-gray-800'} >
-                            {statusConfig[payout.status]?.label || payout.status}
+                          <Badge className={statusConfig[payout.status]?.color || 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300'} >
+                            {t(statusConfig[payout.status]?.label || payout.status)}
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between">
@@ -218,8 +194,8 @@ export default function AdminPayoutsPage() {
                         <div className="text-xs text-muted-foreground">{formatDate(payout.createdAt)}</div>
                         {payout.status === 'pending' && (
                           <div className="flex gap-2 pt-1">
-                            <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => { setSelectedPayout(payout); setApproveDialogOpen(true) }}>✓ To&apos;lash</Button>
-                            <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs" onClick={() => { setSelectedPayout(payout); setRejectDialogOpen(true) }}>✕ Rad etish</Button>
+                            <Button size="sm" className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => { setSelectedPayout(payout); setApproveDialogOpen(true) }}>✓ {t('payButtonApprove')}</Button>
+                            <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs" onClick={() => { setSelectedPayout(payout); setRejectDialogOpen(true) }}>✕ {t('rejectButton')}</Button>
                           </div>
                         )}
                       </div>
@@ -230,12 +206,12 @@ export default function AdminPayoutsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Do&apos;kon</TableHead>
-                          <TableHead>Summa</TableHead>
-                          <TableHead>Karta</TableHead>
-                          <TableHead>Sana</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Amallar</TableHead>
+                          <TableHead>{t('shop')}</TableHead>
+                          <TableHead>{t('amount')}</TableHead>
+                          <TableHead>{t('card')}</TableHead>
+                          <TableHead>{t('date')}</TableHead>
+                          <TableHead>{t('status')}</TableHead>
+                          <TableHead className="text-right">{t('actions')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -254,8 +230,8 @@ export default function AdminPayoutsPage() {
                               {formatDate(payout.createdAt)}
                             </TableCell>
                             <TableCell>
-                              <Badge className={statusConfig[payout.status]?.color || 'bg-gray-100 text-gray-800'}>
-                                {statusConfig[payout.status]?.label || payout.status}
+                              <Badge className={statusConfig[payout.status]?.color || 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300'}>
+                                {t(statusConfig[payout.status]?.label || payout.status)}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
@@ -269,7 +245,7 @@ export default function AdminPayoutsPage() {
                                       setApproveDialogOpen(true)
                                     }}
                                   >
-                                    ✓ To&apos;lash
+                                    ✓ {t('payButtonApprove')}
                                   </Button>
                                   <Button
                                     variant="destructive"
@@ -279,7 +255,7 @@ export default function AdminPayoutsPage() {
                                       setRejectDialogOpen(true)
                                     }}
                                   >
-                                    ✕ Rad etish
+                                    ✕ {t('rejectButton')}
                                   </Button>
                                 </div>
                               )}
@@ -300,35 +276,35 @@ export default function AdminPayoutsPage() {
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>To&apos;lovni tasdiqlash</DialogTitle>
+            <DialogTitle>{t('confirmPayment')}</DialogTitle>
             <DialogDescription>
-              {selectedPayout?.shop?.name} ga {formatPrice(Number(selectedPayout?.amount || 0))} to&apos;lashni tasdiqlaysizmi?
+              {selectedPayout?.shop?.name} {t('confirmPaymentDesc')} ({formatPrice(Number(selectedPayout?.amount || 0))})
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Do&apos;kon:</span>
+              <span className="text-muted-foreground">{t('shop')}:</span>
               <span>{selectedPayout?.shop?.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Karta:</span>
+              <span className="text-muted-foreground">{t('card')}:</span>
               <span>{selectedPayout?.cardNumber || '—'}</span>
             </div>
             <div className="flex justify-between font-medium">
-              <span>To&apos;lanadigan summa:</span>
+              <span>{t('payableAmount')}:</span>
               <span className="text-green-600">{formatPrice(Number(selectedPayout?.amount || 0))}</span>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={isProcessing}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button
               className="bg-green-600 hover:bg-green-700"
               onClick={handleApprove}
               disabled={isProcessing}
             >
-              {isProcessing ? 'Yuklanmoqda...' : "To'lovni tasdiqlash"}
+              {isProcessing ? t('loading') : t('confirmPayment')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -338,26 +314,26 @@ export default function AdminPayoutsPage() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>To&apos;lovni rad etish</DialogTitle>
+            <DialogTitle>{t('rejectPayment')}</DialogTitle>
             <DialogDescription>
-              {selectedPayout?.shop?.name} ning to&apos;lov so&apos;rovini rad etish sababini kiriting
+              {t('rejectPaymentDesc')}
             </DialogDescription>
           </DialogHeader>
           <Input
-            placeholder="Sabab (masalan: Noto'g'ri karta ma'lumotlari)"
+            placeholder={t('rejectReasonPlaceholder')}
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)} disabled={isProcessing}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={handleReject}
               disabled={isProcessing}
             >
-              {isProcessing ? 'Yuklanmoqda...' : 'Rad etish'}
+              {isProcessing ? t('loading') : t('rejectButton')}
             </Button>
           </DialogFooter>
         </DialogContent>

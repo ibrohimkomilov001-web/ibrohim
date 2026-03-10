@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { toast } from 'sonner'
 import { useUrlState } from '@/hooks/use-url-state'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
+import { useTranslation } from '@/store/locale-store'
 
 const statusConfig: Record<string, { color: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
   pending: { color: 'secondary', label: 'Kutilmoqda' },
@@ -30,9 +32,8 @@ const statusConfig: Record<string, { color: "default" | "secondary" | "destructi
 }
 
 export default function AdminOrdersPage() {
-  const [loading, setLoading] = useState(true)
-  const [orders, setOrders] = useState<Order[]>([])
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false })
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
   
   const [{ search: searchQuery, tab: activeTab, page }, setFilters] = useUrlState({ search: '', tab: 'all', page: '1' })
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
@@ -41,28 +42,20 @@ export default function AdminOrdersPage() {
   const [newStatus, setNewStatus] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const { orders: ordersData, pagination: pag } = await getOrders({
-        search: debouncedSearch || undefined,
-        status: activeTab !== 'all' ? activeTab : undefined,
-        page: parseInt(page) || 1,
-      })
-      setOrders(ordersData)
-      setPagination(pag)
-    } catch {
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, activeTab, page])
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['admin-orders', debouncedSearch, activeTab, page],
+    queryFn: () => getOrders({
+      search: debouncedSearch || undefined,
+      status: activeTab !== 'all' ? activeTab : undefined,
+      page: parseInt(page) || 1,
+    }),
+    staleTime: 10_000,
+  });
 
-  useEffect(() => { loadData() }, [loadData])
+  const orders = data?.orders ?? [];
+  const pagination = data?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false };
 
-  useEffect(() => {
-    if (page !== '1') setFilters({ page: '1' })
-  }, [debouncedSearch, activeTab])
+  const loadData = () => queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
 
   const handleStatusChange = async () => {
     if (!selectedOrder || !newStatus) return
@@ -70,12 +63,12 @@ export default function AdminOrdersPage() {
       setActionLoading(true)
       await updateOrderStatus(selectedOrder.id, newStatus)
       await loadData()
-      toast.success("Buyurtma statusi yangilandi")
+      toast.success(t('updated'))
       setStatusDialogOpen(false)
       setSelectedOrder(null)
       setNewStatus('')
     } catch {
-      toast.error("Statusni yangilashda xatolik")
+      toast.error(t('errorOccurred'))
     } finally {
       setActionLoading(false)
     }
@@ -84,9 +77,9 @@ export default function AdminOrdersPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Buyurtmalar</h1>
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('orders')}</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Barcha buyurtmalarni boshqaring ({pagination.total} ta)
+          {t('orders')} ({pagination.total})
         </p>
       </div>
 
@@ -95,11 +88,11 @@ export default function AdminOrdersPage() {
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-lg">Buyurtmalar ro&apos;yxati</CardTitle>
-                <CardDescription>Buyurtmalar statusini kuzating</CardDescription>
+                <CardTitle className="text-lg">{t('orders')}</CardTitle>
+                <CardDescription>{t('orders')}</CardDescription>
               </div>
               <Input
-                placeholder="Buyurtma raqami, mijoz, telefon bo'yicha qidirish..."
+                placeholder={t('searchPlaceholderGeneric')}
                 value={searchQuery}
                 onChange={(e) => setFilters({ search: e.target.value })}
                 className="w-full sm:w-80"
@@ -108,12 +101,12 @@ export default function AdminOrdersPage() {
             <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })}>
               <div className="overflow-x-auto pb-2">
                 <TabsList className="inline-flex w-max sm:w-auto">
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">Barchasi</TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs sm:text-sm">Kutilmoqda</TabsTrigger>
-                  <TabsTrigger value="processing" className="text-xs sm:text-sm">Tayyorlanmoqda</TabsTrigger>
-                  <TabsTrigger value="shipping" className="text-xs sm:text-sm">Yo&apos;lda</TabsTrigger>
-                  <TabsTrigger value="delivered" className="text-xs sm:text-sm">Yetkazildi</TabsTrigger>
-                  <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Bekor</TabsTrigger>
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">{t('all')}</TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">{t('pending')}</TabsTrigger>
+                  <TabsTrigger value="processing" className="text-xs sm:text-sm">{t('processing')}</TabsTrigger>
+                  <TabsTrigger value="shipping" className="text-xs sm:text-sm">{t('shipped')}</TabsTrigger>
+                  <TabsTrigger value="delivered" className="text-xs sm:text-sm">{t('delivered')}</TabsTrigger>
+                  <TabsTrigger value="cancelled" className="text-xs sm:text-sm">{t('cancelled')}</TabsTrigger>
                 </TabsList>
               </div>
             </Tabs>
@@ -131,7 +124,7 @@ export default function AdminOrdersPage() {
                 {orders.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">Buyurtmalar topilmadi</p>
+                    <p className="text-muted-foreground">{t('noItems')}</p>
                   </div>
                 ) : (
                   orders.map((order) => (
@@ -143,7 +136,7 @@ export default function AdminOrdersPage() {
                         </Badge>
                       </div>
                       <div className="text-sm">
-                        <span className="font-medium">{order.customer?.full_name || "Noma'lum"}</span>
+                        <span className="font-medium">{order.customer?.full_name || t('noData')}</span>
                         <span className="text-muted-foreground"> • {order.shop?.name || '-'}</span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -166,14 +159,14 @@ export default function AdminOrdersPage() {
                 <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Buyurtma ID</TableHead>
-                    <TableHead>Mijoz</TableHead>
-                    <TableHead>Do'kon</TableHead>
-                    <TableHead>Summa</TableHead>
-                    <TableHead>To'lov</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Sana</TableHead>
-                    <TableHead className="text-right">Amallar</TableHead>
+                    <TableHead>{t('id')}</TableHead>
+                    <TableHead>{t('buyer')}</TableHead>
+                    <TableHead>{t('shop')}</TableHead>
+                    <TableHead>{t('amount')}</TableHead>
+                    <TableHead>{t('type')}</TableHead>
+                    <TableHead>{t('status')}</TableHead>
+                    <TableHead>{t('date')}</TableHead>
+                    <TableHead className="text-right">{t('actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -181,7 +174,7 @@ export default function AdminOrdersPage() {
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-12">
                         <Package className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">Buyurtmalar topilmadi</p>
+                        <p className="text-muted-foreground">{t('noItems')}</p>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -190,7 +183,7 @@ export default function AdminOrdersPage() {
                         <TableCell className="font-mono font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{order.customer?.full_name || "Noma'lum"}</div>
+                            <div className="font-medium">{order.customer?.full_name || t('noData')}</div>
                             <div className="text-sm text-muted-foreground">{order.customer?.phone || '-'}</div>
                           </div>
                         </TableCell>
@@ -237,7 +230,7 @@ export default function AdminOrdersPage() {
       <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Buyurtma statusini o'zgartirish</DialogTitle>
+            <DialogTitle>{t('status')}</DialogTitle>
             <DialogDescription>
               {selectedOrder?.order_number || selectedOrder?.id?.slice(0, 8)} raqamli buyurtma
             </DialogDescription>
@@ -265,11 +258,11 @@ export default function AdminOrdersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
             <Button onClick={handleStatusChange} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Saqlash
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

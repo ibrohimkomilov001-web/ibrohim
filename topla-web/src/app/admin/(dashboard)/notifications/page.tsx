@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,14 +14,13 @@ import { Loader2, Plus, Bell, Trash2, Send, CheckCircle, Image, Link, Upload, X 
 import { getNotifications, getNotificationStats, createNotification, sendNotification, deleteNotification, type Notification } from './actions'
 import { adminUploadImage } from '@/lib/api/admin'
 import { toast } from 'sonner'
+import { useTranslation } from '@/store/locale-store';
 
 export default function AdminNotificationsPage() {
-  const [loading, setLoading] = useState(true)
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [stats, setStats] = useState({ total: 0, sent: 0, pending: 0 })
+  const { t } = useTranslation();
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [actionLoading, setActionLoading] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -33,80 +33,85 @@ export default function AdminNotificationsPage() {
     linkUrl: '',
   })
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      const [notificationsData, statsData] = await Promise.all([
-        getNotifications(),
-        getNotificationStats()
-      ])
-      setNotifications(notificationsData)
-      setStats(statsData)
-    } catch (error) {
-      console.error(error)
-      toast.error("Ma'lumotlarni yuklashda xatolik")
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: notifications = [], isLoading: notificationsLoading } = useQuery({
+    queryKey: ['admin', 'notifications'],
+    queryFn: () => getNotifications(),
+  })
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const { data: stats = { total: 0, sent: 0, pending: 0 }, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin', 'notificationStats'],
+    queryFn: () => getNotificationStats(),
+  })
+
+  const loading = notificationsLoading || statsLoading
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof formData) => createNotification(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notificationStats'] })
+      toast.success(t('notificationCreated'))
+      setCreateDialogOpen(false)
+      setFormData({ title: '', body: '', type: 'news', target_type: 'all', imageUrl: '', linkUrl: '' })
+    },
+    onError: () => {
+      toast.error(t('createError'))
+    },
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: (id: string) => sendNotification(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notificationStats'] })
+      toast.success(t('notificationSent'))
+    },
+    onError: () => {
+      toast.error(t('sendError'))
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteNotification(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'notificationStats'] })
+      toast.success(t('notificationDeleted'))
+    },
+    onError: () => {
+      toast.error(t('deleteError'))
+    },
+  })
 
   const filteredNotifications = notifications.filter(n =>
     n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     n.body.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!formData.title || !formData.body) {
-      toast.error('Sarlavha va matnni kiriting')
+      toast.error(t('titleAndTextRequired'))
       return
     }
-
-    try {
-      setActionLoading(true)
-      await createNotification(formData)
-      await loadData()
-      toast.success('Bildirishnoma yaratildi')
-      setCreateDialogOpen(false)
-      setFormData({ title: '', body: '', type: 'news', target_type: 'all', imageUrl: '', linkUrl: '' })
-    } catch (error) {
-      toast.error('Yaratishda xatolik')
-    } finally {
-      setActionLoading(false)
-    }
+    createMutation.mutate(formData)
   }
 
-  const handleSend = async (id: string) => {
-    try {
-      await sendNotification(id)
-      await loadData()
-      toast.success('Bildirishnoma yuborildi')
-    } catch (error) {
-      toast.error('Yuborishda xatolik')
-    }
+  const handleSend = (id: string) => {
+    sendMutation.mutate(id)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bildirishnomani o'chirishni xohlaysizmi?")) return
-    try {
-      await deleteNotification(id)
-      await loadData()
-      toast.success("Bildirishnoma o'chirildi")
-    } catch (error) {
-      toast.error("O'chirishda xatolik")
-    }
+  const handleDelete = (id: string) => {
+    if (!confirm(t('confirmDeleteNotification'))) return
+    deleteMutation.mutate(id)
   }
 
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
-      case 'system': return 'bg-blue-100 text-blue-800'
-      case 'order': return 'bg-green-100 text-green-800'
-      case 'promo': return 'bg-purple-100 text-purple-800'
-      case 'news': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'system': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+      case 'order': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+      case 'promo': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+      case 'news': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
     }
   }
 
@@ -122,12 +127,12 @@ export default function AdminNotificationsPage() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Bildirishnomalar</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Push-bildirishnomalarni boshqaring</p>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">{t('notifications')}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{t('pushNotifications')}</p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Yangi bildirishnoma
+          {t('newNotification')}
         </Button>
       </div>
 
@@ -135,7 +140,7 @@ export default function AdminNotificationsPage() {
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card>
           <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Jami</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('totalItems')}</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0">
             <div className="text-xl sm:text-2xl font-bold">{stats.total}</div>
@@ -143,7 +148,7 @@ export default function AdminNotificationsPage() {
         </Card>
         <Card>
           <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Yuborilgan</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('sent')}</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0">
             <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.sent}</div>
@@ -151,7 +156,7 @@ export default function AdminNotificationsPage() {
         </Card>
         <Card>
           <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Kutilmoqda</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium">{t('pending')}</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0">
             <div className="text-xl sm:text-2xl font-bold text-orange-500">{stats.pending}</div>
@@ -163,10 +168,9 @@ export default function AdminNotificationsPage() {
       <Card>
         <CardHeader className="p-3 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base sm:text-lg">Bildirishnomalar ro'yxati</CardTitle>
+            <CardTitle className="text-base sm:text-lg">{t('notificationsList')}</CardTitle>
             <Input
-              placeholder="Qidirish..."
-              value={searchQuery}
+              placeholder={t('searchPlaceholderGeneric')}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-64"
             />
@@ -176,7 +180,7 @@ export default function AdminNotificationsPage() {
           {filteredNotifications.length === 0 ? (
             <div className="text-center py-12">
               <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">Bildirishnomalar topilmadi</p>
+              <p className="text-muted-foreground">{t('notificationsNotFound')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -216,16 +220,16 @@ export default function AdminNotificationsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Badge className={getTypeBadgeColor(notification.type)} variant="outline">
-                      {notification.type === 'system' && 'Tizim'}
-                      {notification.type === 'order' && 'Buyurtma'}
-                      {notification.type === 'promo' && 'Aksiya'}
-                      {notification.type === 'news' && 'Yangiliklar'}
+                      {notification.type === 'system' && t('systemType')}
+                      {notification.type === 'order' && t('orderType')}
+                      {notification.type === 'promo' && t('promoType')}
+                      {notification.type === 'news' && t('newsType')}
                     </Badge>
                     <Badge variant="outline">
-                      {notification.target_type === 'all' && 'Hammaga'}
-                      {notification.target_type === 'users' && 'Foydalanuvchilar'}
-                      {notification.target_type === 'vendors' && 'Sotuvchilar'}
-                      {notification.target_type === 'specific' && 'Tanlangan'}
+                      {notification.target_type === 'all' && t('toAll')}
+                      {notification.target_type === 'users' && t('toUsers')}
+                      {notification.target_type === 'vendors' && t('toVendors')}
+                      {notification.target_type === 'specific' && t('toSelected')}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       {new Date(notification.created_at).toLocaleDateString('uz-UZ')}
@@ -353,8 +357,8 @@ export default function AdminNotificationsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Bekor qilish</Button>
-            <Button onClick={handleCreate} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Yaratish
             </Button>
           </DialogFooter>
