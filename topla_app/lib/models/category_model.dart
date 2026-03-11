@@ -23,9 +23,10 @@ class CategoryModel {
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
-    // Parse nested subcategories if present
-    final subcatsJson = json['subcategories'] as List<dynamic>?;
-    final subcats = subcatsJson
+    // Parse nested children (was 'subcategories' in old API)
+    final childrenJson =
+        (json['children'] ?? json['subcategories']) as List<dynamic>?;
+    final subcats = childrenJson
             ?.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];

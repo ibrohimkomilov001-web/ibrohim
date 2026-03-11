@@ -13,55 +13,61 @@ export type Category = {
   name_uz: string;
   name_ru?: string | null;
   icon?: string | null;
+  slug?: string | null;
   parent_id?: string | null;
+  level: number;
   sort_order: number;
   is_active: boolean;
   children?: Category[];
+  _count?: { products: number };
   created_at?: string;
   [key: string]: any;
 };
 
+function mapCategory(c: any, depth = 0): Category {
+  return {
+    id: c.id,
+    name_uz: c.nameUz || c.name_uz || '',
+    name_ru: c.nameRu || c.name_ru || '',
+    icon: c.icon || null,
+    slug: c.slug || null,
+    parent_id: c.parentId || c.parent_id || null,
+    level: c.level ?? depth,
+    sort_order: c.sortOrder ?? c.sort_order ?? 0,
+    is_active: c.isActive ?? c.is_active ?? true,
+    _count: c._count,
+    children: (c.children || []).map((ch: any) => mapCategory(ch, depth + 1)),
+    created_at: c.createdAt || c.created_at,
+  };
+}
+
 export async function getCategories(): Promise<Category[]> {
   try {
     const data = await fetchCategories();
-    return (data || []).map((c: any) => ({
-      id: c.id,
-      name_uz: c.nameUz || c.name_uz || '',
-      name_ru: c.nameRu || c.name_ru || '',
-      icon: c.icon || null,
-      sort_order: c.sortOrder ?? c.sort_order ?? 0,
-      is_active: c.isActive ?? c.is_active ?? true,
-      children: (c.subcategories || []).map((s: any) => ({
-        id: s.id,
-        name_uz: s.nameUz || s.name_uz || '',
-        name_ru: s.nameRu || s.name_ru || '',
-        parent_id: c.id,
-        sort_order: s.sortOrder ?? s.sort_order ?? 0,
-        is_active: s.isActive ?? s.is_active ?? true,
-      })),
-      created_at: c.createdAt || c.created_at,
-    }));
+    return (data || []).map((c: any) => mapCategory(c, 0));
   } catch {
     return [];
   }
 }
 
-/** Create main category */
+/** Create category (any level — pass parentId for L1/L2) */
 export async function createCategory(data: {
   nameUz: string;
   nameRu: string;
   icon?: string;
+  parentId?: string;
   sortOrder?: number;
 }): Promise<void> {
   await apiCreateCategory({
     nameUz: data.nameUz,
     nameRu: data.nameRu,
     icon: data.icon || undefined,
+    parentId: data.parentId || undefined,
     sortOrder: data.sortOrder || 0,
   });
 }
 
-/** Update main category */
+/** Update category */
 export async function updateCategory(
   id: string,
   data: {
@@ -75,7 +81,7 @@ export async function updateCategory(
   await apiUpdateCategory(id, data);
 }
 
-/** Delete main category */
+/** Delete category */
 export async function deleteCategory(id: string): Promise<void> {
   await apiDeleteCategory(id);
 }
@@ -88,9 +94,9 @@ export async function toggleCategoryStatus(
   await apiUpdateCategory(id, { isActive });
 }
 
-// ─── Subcategory operations ───────────────────
+// ─── Child category operations (L1/L2) ───────
 
-/** Create subcategory under a parent category */
+/** Create child category under a parent */
 export async function createSubcategory(data: {
   categoryId: string;
   nameUz: string;
@@ -104,7 +110,7 @@ export async function createSubcategory(data: {
   });
 }
 
-/** Update subcategory */
+/** Update child category */
 export async function updateSubcategory(
   categoryId: string,
   subId: string,
@@ -118,7 +124,7 @@ export async function updateSubcategory(
   await apiUpdateSubcategory(categoryId, subId, data);
 }
 
-/** Delete subcategory */
+/** Delete child category */
 export async function deleteSubcategoryAction(
   categoryId: string,
   subId: string

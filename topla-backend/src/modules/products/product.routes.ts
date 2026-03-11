@@ -21,7 +21,6 @@ const createProductSchema = z.object({
   descriptionUz: z.string().optional(),
   descriptionRu: z.string().optional(),
   categoryId: z.string().uuid().optional(),
-  subcategoryId: z.string().uuid().optional(),
   brandId: z.string().uuid().optional(),
   colorId: z.string().uuid().optional(),
   price: z.number().positive(),
@@ -53,7 +52,6 @@ const updateProductSchema = createProductSchema.partial();
 
 const productFilterSchema = z.object({
   categoryId: z.string().uuid().optional(),
-  subcategoryId: z.string().uuid().optional(),
   brandId: z.string().uuid().optional(),
   colorId: z.string().uuid().optional(),
   brandIds: z.string().optional(),
@@ -307,8 +305,21 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     const where: any = { isActive: true, status: 'active' };
 
-    if (filters.categoryId) where.categoryId = filters.categoryId;
-    if (filters.subcategoryId) where.subcategoryId = filters.subcategoryId;
+    // 3-level category: agar L0 yoki L1 tanlangan bo'lsa, barcha avlodlarni topamiz
+    if (filters.categoryId) {
+      const descendants = await prisma.category.findMany({
+        where: {
+          OR: [
+            { id: filters.categoryId },
+            { parentId: filters.categoryId },
+            { parent: { parentId: filters.categoryId } },
+          ],
+        },
+        select: { id: true },
+      });
+      const catIds = descendants.map(d => d.id);
+      where.categoryId = catIds.length > 1 ? { in: catIds } : filters.categoryId;
+    }
     if (filters.brandIds) {
       const ids = filters.brandIds.split(',').filter((id: string) => id.trim());
       if (ids.length > 0) where.brandId = { in: ids };
@@ -373,8 +384,12 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         where,
         include: {
           shop: { select: { id: true, name: true, logoUrl: true, rating: true } },
-          category: { select: { id: true, nameUz: true, nameRu: true } },
-          subcategory: { select: { id: true, nameUz: true, nameRu: true } },
+          category: {
+            select: {
+              id: true, nameUz: true, nameRu: true, level: true,
+              parent: { select: { id: true, nameUz: true, nameRu: true, parent: { select: { id: true, nameUz: true, nameRu: true } } } },
+            },
+          },
           brand: { select: { id: true, name: true } },
           color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
         },
@@ -454,8 +469,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           shop: {
             select: { id: true, name: true, logoUrl: true, rating: true, reviewCount: true, phone: true },
           },
-          category: true,
-          subcategory: true,
+          category: {
+            include: {
+              parent: { include: { parent: true } },
+            },
+          },
           brand: true,
           color: true,
           variants: {
@@ -597,33 +615,65 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   app.get('/categories', async (request, reply) => {
     const query = request.query as Record<string, string>;
     const parentId = query.parentId;
+    const tree = query.tree === 'true';
+    const level = query.level !== undefined ? parseInt(query.level, 10) : undefined;
 
-    // Agar parentId berilgan bo'lsa, shu kategoriyaning subcategory-larini qaytarish
+    // Agar parentId berilgan bo'lsa, shu kategoriyaning children'larini qaytarish
     if (parentId) {
       const cacheKey = `categories:parent:${parentId}`;
       const cached = await cacheGet<any>(cacheKey);
       if (cached) return reply.send({ success: true, data: cached });
 
-      const subcategories = await prisma.subcategory.findMany({
-        where: { categoryId: parentId, isActive: true },
+      const children = await prisma.category.findMany({
+        where: { parentId, isActive: true },
         include: {
+          children: {
+            where: { isActive: true },
+            orderBy: { sortOrder: 'asc' },
+          },
           _count: { select: { products: true } },
         },
         orderBy: { sortOrder: 'asc' },
       });
 
-      await cacheSet(cacheKey, subcategories, 300);
-      return reply.send({ success: true, data: subcategories });
+      await cacheSet(cacheKey, children, 300);
+      return reply.send({ success: true, data: children });
     }
 
-    // Redis cache — 5 daqiqa (kategoriyalar kamdan-kam o'zgaradi)
-    const cached = await cacheGet<any>(CacheKeys.CATEGORIES_ALL);
+    // Redis cache — 5 daqiqa
+    const treeSuffix = tree ? ':tree' : (level !== undefined ? `:level${level}` : '');
+    const cacheKey = `${CacheKeys.CATEGORIES_ALL}${treeSuffix}`;
+    const cached = await cacheGet<any>(cacheKey);
     if (cached) return reply.send({ success: true, data: cached });
 
+    // Full 3-level tree
+    if (tree) {
+      const categories = await prisma.category.findMany({
+        where: { isActive: true, level: 0 },
+        include: {
+          children: {
+            where: { isActive: true },
+            include: {
+              children: {
+                where: { isActive: true },
+                orderBy: { sortOrder: 'asc' },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+          _count: { select: { products: true } },
+        },
+        orderBy: { sortOrder: 'asc' },
+      });
+      await cacheSet(cacheKey, categories, 300);
+      return reply.send({ success: true, data: categories });
+    }
+
+    // Level filter yoki default (L0 + L1 children)
     const categories = await prisma.category.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(level !== undefined ? { level } : { level: 0 }) },
       include: {
-        subcategories: {
+        children: {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
         },
@@ -632,7 +682,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { sortOrder: 'asc' },
     });
 
-    await cacheSet(CacheKeys.CATEGORIES_ALL, categories, 300); // 5 min
+    await cacheSet(cacheKey, categories, 300);
     return reply.send({ success: true, data: categories });
   });
 
@@ -644,10 +694,17 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const category = await prisma.category.findUnique({
       where: { id },
       include: {
-        subcategories: {
+        children: {
           where: { isActive: true },
+          include: {
+            children: {
+              where: { isActive: true },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
           orderBy: { sortOrder: 'asc' },
         },
+        parent: { select: { id: true, nameUz: true, nameRu: true, slug: true } },
         _count: { select: { products: true } },
       },
     });
@@ -761,7 +818,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Determine status based on validation
       const status = validation.isValid ? 'active' : 'has_errors';
 
-      const { categoryId, subcategoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, ...restBody } = body;
+      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, ...restBody } = body;
 
       const product = await prisma.product.create({
         data: {
@@ -778,7 +835,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           moderatedAt: new Date(),
           shop: { connect: { id: shop.id } },
           ...(categoryId && { category: { connect: { id: categoryId } } }),
-          ...(subcategoryId && { subcategory: { connect: { id: subcategoryId } } }),
           ...(brandId && { brand: { connect: { id: brandId } } }),
           ...(colorId && { color: { connect: { id: colorId } } }),
         } as any,
@@ -899,7 +955,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const status = validation.isValid ? 'active' : 'has_errors';
 
       // Extract variant data and relation IDs from body
-      const { categoryId: bodyCategoryId, subcategoryId: bodySubcategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, ...updateFields } = body;
+      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, ...updateFields } = body;
 
       const updated = await prisma.product.update({
         where: { id },
@@ -917,9 +973,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           moderatedAt: new Date(),
           ...(bodyCategoryId !== undefined && {
             category: bodyCategoryId ? { connect: { id: bodyCategoryId } } : { disconnect: true },
-          }),
-          ...(bodySubcategoryId !== undefined && {
-            subcategory: bodySubcategoryId ? { connect: { id: bodySubcategoryId } } : { disconnect: true },
           }),
           ...(bodyBrandId !== undefined && {
             brand: bodyBrandId ? { connect: { id: bodyBrandId } } : { disconnect: true },
@@ -1298,17 +1351,17 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     const product = await prisma.product.findUnique({
       where: { id },
-      select: { id: true, subcategoryId: true, price: true, shopId: true, name: true },
+      select: { id: true, categoryId: true, price: true, shopId: true, name: true },
     });
     if (!product) throw new NotFoundError('Mahsulot');
 
-    // Similar products (same subcategory, similar price range)
+    // Similar products (same category, similar price range)
     const priceMin = Number(product.price) * 0.5;
     const priceMax = Number(product.price) * 2;
 
     const similar = await prisma.product.findMany({
       where: {
-        subcategoryId: product.subcategoryId,
+        categoryId: product.categoryId,
         id: { not: id },
         status: 'active',
         price: { gte: priceMin, lte: priceMax },
@@ -1354,10 +1407,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    // Up-sell: more expensive products in same subcategory
+    // Up-sell: more expensive products in same category
     const upSell = await prisma.product.findMany({
       where: {
-        subcategoryId: product.subcategoryId,
+        categoryId: product.categoryId,
         id: { not: id },
         status: 'active',
         price: { gt: product.price },
@@ -1387,14 +1440,14 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     // Get user's recently viewed product categories
     const recentViews = await prisma.productView.findMany({
       where: { userId },
-      select: { product: { select: { subcategoryId: true } } },
+      select: { product: { select: { categoryId: true } } },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
-    const subcatIds = [...new Set(recentViews.map(v => v.product.subcategoryId).filter(Boolean))];
+    const catIds = [...new Set(recentViews.map(v => v.product.categoryId).filter(Boolean))];
 
-    if (subcatIds.length === 0) {
+    if (catIds.length === 0) {
       // Fallback: trending products
       const trending = await prisma.product.findMany({
         where: { status: 'active' },
@@ -1419,7 +1472,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     const recommendations = await prisma.product.findMany({
       where: {
-        subcategoryId: { in: subcatIds as string[] },
+        categoryId: { in: catIds as string[] },
         status: 'active',
         id: { notIn: viewedIds },
       },

@@ -36,7 +36,6 @@ export interface Shop {
 export interface Product {
   id: string;
   categoryId?: string;
-  subcategoryId?: string;
   brandId?: string;
   colorId?: string;
   name: string;
@@ -58,8 +57,7 @@ export interface Product {
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   isActive: boolean;
   viewCount: number;
-  category?: { id: string; nameUz: string; nameRu?: string };
-  subcategory?: { id: string; nameUz: string; nameRu?: string };
+  category?: { id: string; nameUz: string; nameRu?: string; parent?: { id: string; nameUz: string; nameRu?: string } };
   brand?: { id: string; name: string };
   hasVariants?: boolean;
   colors?: { id: string; name: string; hexCode: string }[];
@@ -207,11 +205,19 @@ export interface Category {
   nameRu?: string;
   icon?: string;
   sortOrder: number;
-  subcategories: {
+  children?: {
     id: string;
     nameUz: string;
     nameRu?: string;
+    icon?: string;
     sortOrder: number;
+    isActive?: boolean;
+    children?: {
+      id: string;
+      nameUz: string;
+      nameRu?: string;
+      sortOrder: number;
+    }[];
   }[];
 }
 

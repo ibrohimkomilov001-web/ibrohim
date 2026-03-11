@@ -37,12 +37,11 @@ export default function CategoryDetailPage() {
     : t('categories');
 
   const params: Record<string, string> = {
-    categoryId: id,
+    categoryId: subcategoryId || id,
     sortBy,
     page: String(page),
     limit: '24',
   };
-  if (subcategoryId) params.subcategoryId = subcategoryId;
 
   const { data, isLoading } = useQuery({
     queryKey: ['category-products', id, sortBy, page, subcategoryId],
@@ -156,7 +155,7 @@ export default function CategoryDetailPage() {
       </AnimatePresence>
 
       {/* Subcategory pills */}
-      {category?.subcategories && category.subcategories.length > 0 && (
+      {category?.children && category.children.length > 0 && (
         <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
           <button
             onClick={() => { setSubcategoryId(null); setPage(1); }}
@@ -164,7 +163,7 @@ export default function CategoryDetailPage() {
           >
             {locale === 'ru' ? 'Все' : 'Barchasi'}
           </button>
-          {category.subcategories.map((sub) => (
+          {category.children.map((sub) => (
             <button
               key={sub.id}
               onClick={() => { setSubcategoryId(sub.id === subcategoryId ? null : sub.id); setPage(1); }}
@@ -184,10 +183,10 @@ export default function CategoryDetailPage() {
             onClick={() => { setSubcategoryId(null); setPage(1); }}
             className="inline-flex items-center gap-1 text-sm bg-primary/10 text-primary px-3 py-1 rounded-full"
           >
-            {category?.subcategories?.find(s => s.id === subcategoryId)
-              ? (locale === 'ru' && category.subcategories.find(s => s.id === subcategoryId)?.nameRu
-                ? category.subcategories.find(s => s.id === subcategoryId)!.nameRu
-                : category.subcategories.find(s => s.id === subcategoryId)!.nameUz)
+            {category?.children?.find(s => s.id === subcategoryId)
+              ? (locale === 'ru' && category.children.find(s => s.id === subcategoryId)?.nameRu
+                ? category.children.find(s => s.id === subcategoryId)!.nameRu
+                : category.children.find(s => s.id === subcategoryId)!.nameUz)
               : ''
             }
             <X className="w-3.5 h-3.5" />

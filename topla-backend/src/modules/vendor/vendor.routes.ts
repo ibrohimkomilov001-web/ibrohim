@@ -103,7 +103,6 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
         where,
         include: {
           category: { select: { id: true, nameUz: true, nameRu: true } },
-          subcategory: { select: { id: true, nameUz: true, nameRu: true } },
           brand: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -134,8 +133,12 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const product = await prisma.product.findFirst({
       where: { id, shopId: shop.id },
       include: {
-        category: { select: { id: true, nameUz: true, nameRu: true } },
-        subcategory: { select: { id: true, nameUz: true, nameRu: true } },
+        category: {
+          select: {
+            id: true, nameUz: true, nameRu: true, level: true,
+            parent: { select: { id: true, nameUz: true, nameRu: true, parent: { select: { id: true, nameUz: true, nameRu: true } } } },
+          },
+        },
         brand: { select: { id: true, name: true } },
         color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
         variants: {
@@ -1340,14 +1343,14 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
 
     const product = await prisma.product.findFirst({
       where: { id: productId, shopId: shop.id },
-      include: { subcategory: { include: { category: true } } },
+      include: { category: { include: { parent: true } } },
     });
     if (!product) throw new NotFoundError('Mahsulot');
 
-    // Get competing products in same subcategory
+    // Get competing products in same category
     const competitors = await prisma.product.findMany({
       where: {
-        subcategoryId: product.subcategoryId,
+        categoryId: product.categoryId,
         status: 'active',
         id: { not: product.id },
       },
@@ -1418,7 +1421,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
 
     const products = await prisma.product.findMany({
       where: { shopId: shop.id, status: 'active' },
-      select: { id: true, name: true, price: true, originalPrice: true, subcategoryId: true, salesCount: true },
+      select: { id: true, name: true, price: true, originalPrice: true, categoryId: true, salesCount: true },
     });
 
     const alerts: Array<{
@@ -1430,18 +1433,18 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
       alert: 'overpriced' | 'underpriced' | 'ok';
     }> = [];
 
-    // Group by subcategory and compare
-    const bySubcat = new Map<string, typeof products>();
+    // Group by category and compare
+    const byCat = new Map<string, typeof products>();
     for (const p of products) {
-      if (!p.subcategoryId) continue;
-      if (!bySubcat.has(p.subcategoryId)) bySubcat.set(p.subcategoryId, []);
-      bySubcat.get(p.subcategoryId)!.push(p);
+      if (!p.categoryId) continue;
+      if (!byCat.has(p.categoryId)) byCat.set(p.categoryId, []);
+      byCat.get(p.categoryId)!.push(p);
     }
 
-    for (const [subcatId, prods] of bySubcat) {
+    for (const [catId, prods] of byCat) {
       const competitors = await prisma.product.findMany({
         where: {
-          subcategoryId: subcatId,
+          categoryId: catId,
           status: 'active',
           shopId: { not: shop.id },
         },

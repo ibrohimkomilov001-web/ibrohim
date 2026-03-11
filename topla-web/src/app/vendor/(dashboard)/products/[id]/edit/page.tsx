@@ -103,7 +103,7 @@ export default function EditProductPage() {
 
   // Tanlangan kategoriyaning subkategoriyalari
   const selectedCategory = categories?.find((c: any) => c.id === categoryId);
-  const subcategories = selectedCategory?.subcategories || [];
+  const subcategories = selectedCategory?.children || [];
 
   // Variant matrix keys
   const variantKeys = useMemo(() => {
@@ -154,7 +154,7 @@ export default function EditProductPage() {
       setPrice(String(product.price || ''));
       setOriginalPrice(String(product.originalPrice || product.compareAtPrice || ''));
       setCategoryId(product.categoryId || '');
-      setSubcategoryId(product.subcategoryId || '');
+      setSubcategoryId('');
       setStock(String(product.stock || ''));
       setSku(product.sku || '');
       setWeight(String(product.weight || ''));
@@ -264,8 +264,7 @@ export default function EditProductPage() {
       descriptionRu,
       price: Number(price),
       originalPrice: originalPrice ? Number(originalPrice) : undefined,
-      categoryId: categoryId || undefined,
-      subcategoryId: subcategoryId || undefined,
+      categoryId: subcategoryId || categoryId || undefined,
       colorId: colorId || undefined,
       brandId: brandId || undefined,
       stock: Number(stock) || 0,

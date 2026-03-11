@@ -24,7 +24,6 @@ interface ProductData {
   originalPrice?: number | null;
   images?: string[] | null;
   categoryId?: string | null;
-  subcategoryId?: string | null;
   brandId?: string | null;
   colorId?: string | null;
   stock?: number | null;
@@ -192,10 +191,9 @@ export function calculateQualityScore(data: ProductData): number {
     if (data.images.length >= 6) score += 6;  // 6+ images
   }
 
-  // 6. Category + Subcategory (max 5 points)
+  // 6. Category (max 5 points)
   if (data.categoryId) {
-    score += 3;
-    if (data.subcategoryId) score += 2;
+    score += 5;
   }
 
   // 7. Brand (max 5 points)

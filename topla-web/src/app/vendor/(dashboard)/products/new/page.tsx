@@ -90,7 +90,7 @@ export default function NewProductPage() {
 
   // Tanlangan kategoriyaning subkategoriyalari
   const selectedCategory = categories?.find((c: any) => c.id === categoryId);
-  const subcategories = selectedCategory?.subcategories || [];
+  const subcategories = selectedCategory?.children || [];
 
   // Fetch colors
   const { data: colorsRes } = useQuery({
@@ -237,8 +237,7 @@ export default function NewProductPage() {
       descriptionRu: descriptionRu.trim() || undefined,
       price: Number(price),
       originalPrice: originalPrice ? Number(originalPrice) : undefined,
-      categoryId,
-      subcategoryId: subcategoryId || undefined,
+      categoryId: subcategoryId || categoryId,
       colorId: colorId || undefined,
       brandId: brandId || undefined,
       stock: stock ? Number(stock) : 0,

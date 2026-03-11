@@ -147,7 +147,7 @@ function HeatmapTab({ period }: { period: string }) {
                     <tr key={i} className="border-b last:border-0">
                       <td className="py-2">
                         <div className="max-w-[200px] truncate">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">{p.category} &gt; {p.subcategory}</div>
+                        <div className="text-xs text-muted-foreground">{p.category}{p.subcategory ? ` > ${p.subcategory}` : ''}</div>
                       </td>
                       <td className="py-2 text-right font-medium">{p.views.toLocaleString()}</td>
                       <td className="py-2 text-right">{p.soldCount.toLocaleString()}</td>

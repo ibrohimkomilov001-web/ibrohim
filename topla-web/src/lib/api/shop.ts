@@ -10,17 +10,7 @@ export interface Category {
   imageUrl?: string;
   sortOrder: number;
   isActive: boolean;
-  subcategories?: Subcategory[];
-  _count?: { products: number };
-}
-
-export interface Subcategory {
-  id: string;
-  categoryId: string;
-  nameUz: string;
-  nameRu?: string;
-  sortOrder: number;
-  isActive: boolean;
+  children?: Category[];
   _count?: { products: number };
 }
 
@@ -52,8 +42,7 @@ export interface ProductItem {
   flashSaleStart?: string;
   flashSaleEnd?: string;
   shop?: ShopInfo;
-  category?: { id: string; nameUz: string; nameRu?: string };
-  subcategory?: { id: string; nameUz: string; nameRu?: string };
+  category?: { id: string; nameUz: string; nameRu?: string; parent?: { id: string; nameUz: string; nameRu?: string } };
   brand?: { id: string; name: string };
   color?: { id: string; nameUz: string; nameRu?: string; hexCode: string };
 }

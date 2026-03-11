@@ -27,7 +27,6 @@ interface MeiliProduct {
   categoryId: string | null;
   categoryNameUz: string;
   categoryNameRu: string;
-  subcategoryId: string | null;
   brandId: string | null;
   brandName: string;
   colorId: string | null;
@@ -94,7 +93,6 @@ export async function initMeilisearch(): Promise<void> {
       ],
       filterableAttributes: [
         'categoryId',
-        'subcategoryId',
         'brandId',
         'colorId',
         'shopId',
@@ -232,7 +230,6 @@ export function buildMeiliDocument(product: any): MeiliProduct {
     categoryId: product.categoryId,
     categoryNameUz: product.category?.nameUz || '',
     categoryNameRu: product.category?.nameRu || '',
-    subcategoryId: product.subcategoryId,
     brandId: product.brandId,
     brandName: product.brand?.name || '',
     colorId: product.colorId,

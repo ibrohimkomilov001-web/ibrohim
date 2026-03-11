@@ -74,13 +74,13 @@ export default function CategoriesPage() {
                       {cat._count.products} {t('shopProducts')}
                     </p>
                   )}
-                  {cat.subcategories && cat.subcategories.length > 0 && (
+                  {cat.children && cat.children.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {cat.subcategories
+                      {cat.children
                         .map((s) => locale === 'ru' && s.nameRu ? s.nameRu : s.nameUz)
                         .slice(0, 3)
                         .join(', ')}
-                      {cat.subcategories.length > 3 && '...'}
+                      {cat.children.length > 3 && '...'}
                     </p>
                   )}
                 </div>

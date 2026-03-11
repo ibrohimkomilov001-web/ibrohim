@@ -304,10 +304,10 @@ export async function updateOrderStatus(id: string, status: string, note?: strin
 }
 
 // ============================================
-// Categories
+// Categories — unified 3-level self-referencing tree
 // ============================================
 export async function fetchCategories() {
-  const res = await adminRequest<{ success: boolean; data: any }>('/admin/categories');
+  const res = await adminRequest<{ success: boolean; data: any }>('/admin/categories?tree=true');
   return res.data;
 }
 
@@ -329,23 +329,23 @@ export async function deleteCategory(id: string) {
   return adminRequest(`/admin/categories/${id}`, { method: 'DELETE' });
 }
 
-// Subcategories — backend uses flat /admin/subcategories routes
-export async function createSubcategory(categoryId: string, data: any) {
-  return adminRequest('/admin/subcategories', {
+// Child categories (L1/L2) use the same unified endpoints with parentId
+export async function createSubcategory(parentId: string, data: any) {
+  return adminRequest('/admin/categories', {
     method: 'POST',
-    body: JSON.stringify({ categoryId, ...data }),
+    body: JSON.stringify({ parentId, ...data }),
   });
 }
 
-export async function updateSubcategory(_categoryId: string, subId: string, data: any) {
-  return adminRequest(`/admin/subcategories/${subId}`, {
+export async function updateSubcategory(_parentId: string, id: string, data: any) {
+  return adminRequest(`/admin/categories/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteSubcategory(_categoryId: string, subId: string) {
-  return adminRequest(`/admin/subcategories/${subId}`, { method: 'DELETE' });
+export async function deleteSubcategory(_parentId: string, id: string) {
+  return adminRequest(`/admin/categories/${id}`, { method: 'DELETE' });
 }
 
 // ============================================

@@ -1038,15 +1038,52 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   // ==========================================
-  // CATEGORIES
+  // CATEGORIES — 3-level self-referencing tree
   // ==========================================
   app.get('/admin/categories', {
     preHandler: [authMiddleware, requireRole('admin')],
-  }, async () => {
+  }, async (request) => {
+    const { parentId, level, tree } = request.query as { parentId?: string; level?: string; tree?: string };
+
+    // Agar tree=true bo'lsa, to'liq 3 darajali daraxt
+    if (tree === 'true') {
+      const categories = await prisma.category.findMany({
+        where: { level: 0 },
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          children: {
+            orderBy: { sortOrder: 'asc' },
+            include: {
+              children: { orderBy: { sortOrder: 'asc' }, include: { _count: { select: { products: true } } } },
+              _count: { select: { products: true } },
+            },
+          },
+          _count: { select: { products: true } },
+        },
+      });
+      return { success: true, data: categories };
+    }
+
+    // Agar parentId berilgan bo'lsa, shu kategoriyaning bolalarini qaytarish
+    if (parentId) {
+      const categories = await prisma.category.findMany({
+        where: { parentId },
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          children: { orderBy: { sortOrder: 'asc' } },
+          _count: { select: { products: true } },
+        },
+      });
+      return { success: true, data: categories };
+    }
+
+    // Default: faqat L0 kategoriyalar bilan L1 bolalari
+    const lvl = level !== undefined ? parseInt(level, 10) : 0;
     const categories = await prisma.category.findMany({
+      where: { level: lvl },
       orderBy: { sortOrder: 'asc' },
       include: {
-        subcategories: { orderBy: { sortOrder: 'asc' } },
+        children: { orderBy: { sortOrder: 'asc' } },
         _count: { select: { products: true } },
       },
     });
@@ -1057,14 +1094,43 @@ export async function adminRoutes(app: FastifyInstance) {
     preHandler: [authMiddleware, requireRole('admin')],
   }, async (request) => {
     const data = z.object({
+      parentId: z.string().uuid().optional(),
       nameUz: z.string().min(1),
       nameRu: z.string().min(1),
+      slug: z.string().optional(),
       icon: z.string().optional(),
       imageUrl: z.string().optional(),
+      level: z.number().int().min(0).max(2).optional(),
       sortOrder: z.number().optional(),
     }).parse(request.body);
 
-    const category = await prisma.category.create({ data: data as any });
+    // Auto-calculate level from parent
+    let level = data.level ?? 0;
+    if (data.parentId && data.level === undefined) {
+      const parent = await prisma.category.findUnique({ where: { id: data.parentId }, select: { level: true } });
+      if (parent) level = parent.level + 1;
+    }
+
+    // Auto-generate slug
+    const slug = data.slug || data.nameUz.toLowerCase()
+      .replace(/['\u2018\u2019\u02BC`]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    const category = await prisma.category.create({
+      data: {
+        nameUz: data.nameUz,
+        nameRu: data.nameRu,
+        slug,
+        icon: data.icon,
+        imageUrl: data.imageUrl,
+        level,
+        sortOrder: data.sortOrder ?? 0,
+        ...(data.parentId && { parent: { connect: { id: data.parentId } } }),
+      } as any,
+    });
     await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, data: category };
   });
@@ -1076,6 +1142,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const data = z.object({
       nameUz: z.string().min(1).optional(),
       nameRu: z.string().min(1).optional(),
+      slug: z.string().optional(),
       icon: z.string().optional(),
       imageUrl: z.string().optional(),
       sortOrder: z.number().optional(),
@@ -1092,63 +1159,22 @@ export async function adminRoutes(app: FastifyInstance) {
   }, async (request) => {
     const { id } = request.params as { id: string };
 
-    // Tegishli mahsulotlar borligini tekshirish
-    const productCount = await prisma.product.count({ where: { categoryId: id } });
+    // Check products in this category OR descendant categories
+    const descendants = await prisma.category.findMany({
+      where: { OR: [{ id }, { parentId: id }, { parent: { parentId: id } }] },
+      select: { id: true },
+    });
+    const catIds = descendants.map(d => d.id);
+
+    const productCount = await prisma.product.count({ where: { categoryId: { in: catIds } } });
     if (productCount > 0) {
-      throw new AppError(`Bu kategoriyada ${productCount} ta mahsulot bor. Avval mahsulotlarni ko'chiring.`, 400);
+      throw new AppError(`Bu kategoriya va bolalarida ${productCount} ta mahsulot bor. Avval mahsulotlarni ko'chiring.`, 400);
     }
 
+    // Cascade delete handles children
     await prisma.category.delete({ where: { id } });
     await cacheDelete(CacheKeys.CATEGORIES_ALL);
     return { success: true, message: 'Kategoriya o\'chirildi' };
-  });
-
-  // Subcategories
-  app.post('/admin/subcategories', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request) => {
-    const data = z.object({
-      categoryId: z.string().uuid(),
-      nameUz: z.string().min(1),
-      nameRu: z.string().min(1),
-      sortOrder: z.number().optional(),
-    }).parse(request.body);
-
-    const sub = await prisma.subcategory.create({ data: data as any });
-    await cacheDelete(CacheKeys.CATEGORIES_ALL);
-    return { success: true, data: sub };
-  });
-
-  app.put('/admin/subcategories/:id', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request) => {
-    const { id } = request.params as { id: string };
-    const data = z.object({
-      nameUz: z.string().min(1).optional(),
-      nameRu: z.string().min(1).optional(),
-      sortOrder: z.number().optional(),
-      isActive: z.boolean().optional(),
-    }).parse(request.body);
-
-    const sub = await prisma.subcategory.update({ where: { id }, data });
-    await cacheDelete(CacheKeys.CATEGORIES_ALL);
-    return { success: true, data: sub };
-  });
-
-  app.delete('/admin/subcategories/:id', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request) => {
-    const { id } = request.params as { id: string };
-
-    // Tegishli mahsulotlar borligini tekshirish
-    const productCount = await prisma.product.count({ where: { subcategoryId: id } });
-    if (productCount > 0) {
-      throw new AppError(`Bu subkategoriyada ${productCount} ta mahsulot bor. Avval mahsulotlarni ko'chiring.`, 400);
-    }
-
-    await prisma.subcategory.delete({ where: { id } });
-    await cacheDelete(CacheKeys.CATEGORIES_ALL);
-    return { success: true, message: 'Subkategoriya o\'chirildi' };
   });
 
   // ==========================================
@@ -3240,8 +3266,7 @@ export async function adminRoutes(app: FastifyInstance) {
         where,
         include: {
           shop: { select: { id: true, name: true, logoUrl: true } },
-          category: { select: { id: true, nameUz: true, nameRu: true } },
-          subcategory: { select: { id: true, nameUz: true, nameRu: true } },
+          category: { select: { id: true, nameUz: true, nameRu: true, parent: { select: { id: true, nameUz: true, nameRu: true } } } },
           moderationLogs: {
             take: 3,
             orderBy: { createdAt: 'desc' },
@@ -3356,6 +3381,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/admin/roles', {
     preHandler: [authMiddleware, requireRole('admin'), requirePermission('roles.manage')],
   }, async (request, reply) => {
+    const roles = await prisma.adminRole.findMany({
       include: {
         user: { select: { id: true, fullName: true, email: true, avatarUrl: true, phone: true } },
       },
@@ -3441,7 +3467,7 @@ export async function adminRoutes(app: FastifyInstance) {
       where: { id: { in: productIds } },
       select: {
         id: true, name: true, price: true, viewCount: true, salesCount: true,
-        subcategory: { select: { nameUz: true, category: { select: { nameUz: true } } } },
+        category: { select: { nameUz: true, parent: { select: { nameUz: true } } } },
       },
     });
 
@@ -3451,8 +3477,8 @@ export async function adminRoutes(app: FastifyInstance) {
       return {
         productId: v.productId,
         name: p?.name ?? 'Unknown',
-        category: p?.subcategory?.category?.nameUz ?? '',
-        subcategory: p?.subcategory?.nameUz ?? '',
+        category: p?.category?.parent?.nameUz ?? p?.category?.nameUz ?? '',
+        subcategory: p?.category?.nameUz ?? '',
         views: v._count.productId,
         totalViews: p?.viewCount ?? 0,
         soldCount: p?.salesCount ?? 0,
@@ -3910,7 +3936,7 @@ export async function adminRoutes(app: FastifyInstance) {
       search: z.string().optional(),
     }).parse(request.query);
 
-    const { skip, take } = parsePagination(query.page, query.limit);
+    const { page, limit, skip } = parsePagination(request.query as any);
 
     const where: any = {};
     if (query.rating) where.rating = query.rating;
@@ -3926,7 +3952,7 @@ export async function adminRoutes(app: FastifyInstance) {
       prisma.productReview.findMany({
         where,
         skip,
-        take,
+        take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           product: { select: { id: true, nameUz: true, nameRu: true, images: true } },
@@ -3962,7 +3988,7 @@ export async function adminRoutes(app: FastifyInstance) {
       search: z.string().optional(),
     }).parse(request.query);
 
-    const { skip, take } = parsePagination(query.page, query.limit);
+    const { page, limit, skip } = parsePagination(request.query as any);
 
     const where: any = {};
     if (query.rating) where.rating = query.rating;
@@ -3978,7 +4004,7 @@ export async function adminRoutes(app: FastifyInstance) {
       prisma.shopReview.findMany({
         where,
         skip,
-        take,
+        take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           shop: { select: { id: true, name: true, logoUrl: true } },

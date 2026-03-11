@@ -8,7 +8,6 @@ class ProductModel {
   final double price;
   final double? oldPrice;
   final String? categoryId;
-  final String? subcategoryId;
   final String? shopId;
   final List<String> images;
   final int stock;
@@ -34,7 +33,6 @@ class ProductModel {
     required this.price,
     this.oldPrice,
     this.categoryId,
-    this.subcategoryId,
     this.shopId,
     this.images = const [],
     this.stock = 0,
@@ -88,8 +86,6 @@ class ProductModel {
               json['oldPrice'] ?? json['old_price'] ?? json['originalPrice'])
           : null,
       categoryId: (json['categoryId'] ?? json['category_id']) as String?,
-      subcategoryId:
-          (json['subcategoryId'] ?? json['subcategory_id']) as String?,
       shopId: (json['shopId'] ??
           json['shop_id'] ??
           (json['shop'] is Map ? json['shop']['id'] : null)) as String?,
@@ -125,7 +121,6 @@ class ProductModel {
       'price': price,
       'originalPrice': oldPrice,
       'categoryId': categoryId,
-      'subcategoryId': subcategoryId,
       'shopId': shopId,
       'images': images,
       'stock': stock,

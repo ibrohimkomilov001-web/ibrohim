@@ -223,7 +223,6 @@ export async function startWorkers(): Promise<void> {
             include: {
               shop: { select: { id: true, name: true } },
               category: { select: { id: true, nameUz: true, nameRu: true } },
-              subcategory: { select: { id: true, nameUz: true, nameRu: true } },
             },
           });
           // Batch in groups of 500
