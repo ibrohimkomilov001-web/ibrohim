@@ -70,6 +70,9 @@ abstract class IProductRepository {
   /// Kategoriyaga xos filter atributlarini olish
   Future<List<CategoryFilterAttribute>> getCategoryFilters(String categoryId);
 
+  /// Fasetli filtr ma'lumotlarini olish (brendlar, ranglar, o'lchamlar soni bilan)
+  Future<ProductFacets> getFacets(String categoryId);
+
   /// Filtrlangan mahsulotlarni olish
   Future<FilteredProductsResult> getFilteredProducts({
     required String categoryId,

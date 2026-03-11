@@ -36,6 +36,7 @@ interface MeiliProduct {
   salesCount: number;
   qualityScore: number;
   stock: number;
+  discountPercent: number;
   status: string;
   createdAt: string;
 }
@@ -101,6 +102,7 @@ export async function initMeilisearch(): Promise<void> {
         'rating',
         'qualityScore',
         'stock',
+        'discountPercent',
       ],
       sortableAttributes: [
         'price',
@@ -108,6 +110,7 @@ export async function initMeilisearch(): Promise<void> {
         'salesCount',
         'qualityScore',
         'createdAt',
+        'discountPercent',
       ],
       rankingRules: [
         'words',
@@ -239,6 +242,7 @@ export function buildMeiliDocument(product: any): MeiliProduct {
     salesCount: product.salesCount || 0,
     qualityScore: product.qualityScore || 0,
     stock: product.stock || 0,
+    discountPercent: product.discountPercent || 0,
     status: product.status || 'active',
     createdAt: product.createdAt?.toISOString?.() || new Date().toISOString(),
   };

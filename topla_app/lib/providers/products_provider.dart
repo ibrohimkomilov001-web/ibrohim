@@ -490,6 +490,16 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
+  /// Kategoriya bo'yicha facets (brendlar/ranglar/o'lchamlar soni bilan)
+  Future<ProductFacets> getFacets(String categoryId) async {
+    try {
+      return await _productRepo.getFacets(categoryId);
+    } catch (e) {
+      debugPrint('Error loading facets: $e');
+      return ProductFacets.empty;
+    }
+  }
+
   /// Filtrlangan mahsulotlarni olish
   Future<FilteredProductsResult> getFilteredProducts({
     required String categoryId,

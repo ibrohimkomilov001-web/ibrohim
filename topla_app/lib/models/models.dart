@@ -16,6 +16,7 @@ export 'brand_model.dart';
 export 'color_option.dart';
 export 'category_filter_attribute.dart';
 export 'filtered_products_result.dart';
+export 'product_facets.dart';
 export 'shop_review_model.dart';
 export 'shop_conversation_model.dart';
 export 'shop_message_model.dart';

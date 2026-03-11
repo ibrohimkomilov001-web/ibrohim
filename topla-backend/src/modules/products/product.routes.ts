@@ -56,13 +56,16 @@ const productFilterSchema = z.object({
   colorId: z.string().uuid().optional(),
   brandIds: z.string().optional(),
   colorIds: z.string().optional(),
+  sizeIds: z.string().optional(),
   shopId: z.string().uuid().optional(),
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
+  minRating: z.coerce.number().min(0).max(5).optional(),
+  inStock: z.coerce.boolean().optional(),
   search: z.string().optional(),
   isFlashSale: z.coerce.boolean().optional(),
   hasDiscount: z.coerce.boolean().optional(),
-  sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'popular', 'rating']).optional(),
+  sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'popular', 'rating', 'discount']).optional(),
   page: z.coerce.number().default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
@@ -176,8 +179,13 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       limit: z.coerce.number().int().min(1).max(50).default(20),
       categoryId: z.string().uuid().optional(),
       shopId: z.string().uuid().optional(),
+      brandIds: z.string().optional(),
+      colorIds: z.string().optional(),
       minPrice: z.coerce.number().min(0).optional(),
       maxPrice: z.coerce.number().min(0).optional(),
+      minRating: z.coerce.number().min(0).max(5).optional(),
+      inStock: z.coerce.boolean().optional(),
+      hasDiscount: z.coerce.boolean().optional(),
       sort: z.enum(['price_asc', 'price_desc', 'rating', 'newest', 'popular']).optional(),
     });
     const params = searchSchema.parse(request.query);
@@ -202,6 +210,22 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     if (params.shopId) filters.push(`shopId = "${params.shopId}"`);
     if (params.minPrice !== undefined) filters.push(`price >= ${params.minPrice}`);
     if (params.maxPrice !== undefined) filters.push(`price <= ${params.maxPrice}`);
+    if (params.minRating !== undefined) filters.push(`rating >= ${params.minRating}`);
+    if (params.inStock) filters.push(`stock > 0`);
+    if (params.brandIds) {
+      const ids = params.brandIds.split(',').filter((id: string) => id.trim());
+      if (ids.length > 0) {
+        const brandFilter = ids.map((id: string) => `brandId = "${id.trim()}"`).join(' OR ');
+        filters.push(`(${brandFilter})`);
+      }
+    }
+    if (params.colorIds) {
+      const ids = params.colorIds.split(',').filter((id: string) => id.trim());
+      if (ids.length > 0) {
+        const colorFilter = ids.map((id: string) => `colorId = "${id.trim()}"`).join(' OR ');
+        filters.push(`(${colorFilter})`);
+      }
+    }
 
     // Build sort
     const sortMap: Record<string, string[]> = {
@@ -256,6 +280,23 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       where.price = {};
       if (params.minPrice !== undefined) where.price.gte = params.minPrice;
       if (params.maxPrice !== undefined) where.price.lte = params.maxPrice;
+    }
+    if (params.brandIds) {
+      const ids = params.brandIds.split(',').filter((id: string) => id.trim());
+      if (ids.length > 0) where.brandId = { in: ids };
+    }
+    if (params.colorIds) {
+      const ids = params.colorIds.split(',').filter((id: string) => id.trim());
+      if (ids.length > 0) where.colorId = { in: ids };
+    }
+    if (params.minRating !== undefined) {
+      where.rating = { gte: params.minRating };
+    }
+    if (params.inStock) {
+      where.stock = { gt: 0 };
+    }
+    if (params.hasDiscount) {
+      where.discountPercent = { gt: 0 };
     }
 
     let orderBy: any = { createdAt: 'desc' };
@@ -332,12 +373,29 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     } else if (filters.colorId) {
       where.colorId = filters.colorId;
     }
+    // Size filter (variant-based)
+    if (filters.sizeIds) {
+      const ids = filters.sizeIds.split(',').filter((id: string) => id.trim());
+      if (ids.length > 0) {
+        where.variants = { some: { sizeId: { in: ids }, isActive: true } };
+      }
+    }
     if (filters.shopId) where.shopId = filters.shopId;
 
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
       where.price = {};
       if (filters.minPrice) where.price.gte = filters.minPrice;
       if (filters.maxPrice) where.price.lte = filters.maxPrice;
+    }
+
+    // Rating filter
+    if (filters.minRating !== undefined) {
+      where.rating = { gte: filters.minRating };
+    }
+
+    // In stock filter
+    if (filters.inStock) {
+      where.stock = { gt: 0 };
     }
 
     // Flash sale filter
@@ -368,6 +426,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       case 'newest': orderBy = { createdAt: 'desc' }; break;
       case 'popular': orderBy = { salesCount: 'desc' }; break;
       case 'rating': orderBy = { rating: 'desc' }; break;
+      case 'discount': orderBy = { discountPercent: 'desc' }; break;
     }
 
     const skip = (filters.page - 1) * filters.limit;
@@ -740,26 +799,153 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /colors
+   * Ranglar ro'yxati (categoryId bilan filtrlanishi mumkin)
    */
   app.get('/colors', async (request, reply) => {
-    const cached = await cacheGet<any>(CacheKeys.COLORS_ALL);
+    const { categoryId } = request.query as { categoryId?: string };
+    const cacheKey = categoryId ? `colors:cat:${categoryId}` : CacheKeys.COLORS_ALL;
+
+    const cached = await cacheGet<any>(cacheKey);
     if (cached) return reply.send({ success: true, data: cached });
 
+    if (categoryId) {
+      // Faqat shu kategoriyada mahsuloti bor ranglar
+      const descendants = await prisma.category.findMany({
+        where: { OR: [{ id: categoryId }, { parentId: categoryId }, { parent: { parentId: categoryId } }] },
+        select: { id: true },
+      });
+      const catIds = descendants.map(d => d.id);
+
+      const colors = await prisma.color.findMany({
+        where: { products: { some: { categoryId: { in: catIds }, isActive: true, status: 'active' } } },
+        orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }],
+      });
+      await cacheSet(cacheKey, colors, 300);
+      return reply.send({ success: true, data: colors });
+    }
+
     const colors = await prisma.color.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }] });
-    await cacheSet(CacheKeys.COLORS_ALL, colors, 600); // 10 min
+    await cacheSet(CacheKeys.COLORS_ALL, colors, 600);
     return reply.send({ success: true, data: colors });
   });
 
   /**
    * GET /sizes
+   * O'lchamlar ro'yxati (categoryId bilan filtrlanishi mumkin)
    */
-  app.get('/sizes', async (_request, reply) => {
-    const cached = await cacheGet<any>('sizes:all');
+  app.get('/sizes', async (request, reply) => {
+    const { categoryId } = request.query as { categoryId?: string };
+    const cacheKey = categoryId ? `sizes:cat:${categoryId}` : 'sizes:all';
+
+    const cached = await cacheGet<any>(cacheKey);
     if (cached) return reply.send({ success: true, data: cached });
 
+    if (categoryId) {
+      const descendants = await prisma.category.findMany({
+        where: { OR: [{ id: categoryId }, { parentId: categoryId }, { parent: { parentId: categoryId } }] },
+        select: { id: true },
+      });
+      const catIds = descendants.map(d => d.id);
+
+      const sizes = await prisma.size.findMany({
+        where: { variants: { some: { product: { categoryId: { in: catIds }, isActive: true, status: 'active' } } } },
+        orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }],
+      });
+      await cacheSet(cacheKey, sizes, 300);
+      return reply.send({ success: true, data: sizes });
+    }
+
     const sizes = await prisma.size.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }] });
-    await cacheSet('sizes:all', sizes, 600); // 10 min
+    await cacheSet('sizes:all', sizes, 600);
     return reply.send({ success: true, data: sizes });
+  });
+
+  /**
+   * GET /products/facets
+   * Fasetli filtr ma'lumotlari — kategoriya bo'yicha brendlar, ranglar, o'lchamlar
+   * soni bilan, narx oralig'i, chegirmali va stokdagi mahsulotlar soni
+   */
+  app.get('/products/facets', async (request, reply) => {
+    const { categoryId } = z.object({ categoryId: z.string().uuid() }).parse(request.query);
+
+    const facetCacheKey = `facets:${categoryId}`;
+    const cached = await cacheGet<any>(facetCacheKey);
+    if (cached) return reply.send({ success: true, data: cached });
+
+    // Barcha descendant kategoriyalarni topish
+    const descendants = await prisma.category.findMany({
+      where: { OR: [{ id: categoryId }, { parentId: categoryId }, { parent: { parentId: categoryId } }] },
+      select: { id: true },
+    });
+    const catIds = descendants.map(d => d.id);
+    const baseWhere = { categoryId: { in: catIds }, isActive: true, status: 'active' as const };
+
+    // Parallel so'rovlar
+    const [
+      brandFacets,
+      colorFacets,
+      sizeFacets,
+      priceAgg,
+      discountCount,
+      inStockCount,
+      totalCount,
+    ] = await Promise.all([
+      // Brendlar va soni
+      prisma.brand.findMany({
+        where: { products: { some: baseWhere } },
+        select: { id: true, name: true, logoUrl: true, _count: { select: { products: { where: baseWhere } } } },
+        orderBy: { name: 'asc' },
+      }),
+      // Ranglar va soni
+      prisma.color.findMany({
+        where: { products: { some: baseWhere } },
+        select: { id: true, nameUz: true, nameRu: true, hexCode: true, _count: { select: { products: { where: baseWhere } } } },
+        orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }],
+      }),
+      // O'lchamlar va soni (variantlar orqali)
+      prisma.size.findMany({
+        where: { variants: { some: { product: baseWhere, isActive: true } } },
+        select: {
+          id: true, nameUz: true, nameRu: true,
+          _count: { select: { variants: { where: { product: baseWhere, isActive: true } } } },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }],
+      }),
+      // Min/Max narx
+      prisma.product.aggregate({
+        where: baseWhere,
+        _min: { price: true },
+        _max: { price: true },
+        _avg: { price: true },
+      }),
+      // Chegirmali mahsulotlar soni
+      prisma.product.count({
+        where: { ...baseWhere, discountPercent: { gt: 0 } },
+      }),
+      // Stokdagi mahsulotlar soni
+      prisma.product.count({
+        where: { ...baseWhere, stock: { gt: 0 } },
+      }),
+      // Jami mahsulotlar soni
+      prisma.product.count({ where: baseWhere }),
+    ]);
+
+    const facets = {
+      brands: brandFacets.map(b => ({ id: b.id, name: b.name, logoUrl: b.logoUrl, count: b._count.products })),
+      colors: colorFacets.map(c => ({ id: c.id, nameUz: c.nameUz, nameRu: c.nameRu, hexCode: c.hexCode, count: c._count.products })),
+      sizes: sizeFacets.map(s => ({ id: s.id, nameUz: s.nameUz, nameRu: s.nameRu, count: s._count.variants })),
+      priceRange: {
+        min: priceAgg._min.price ? Number(priceAgg._min.price) : 0,
+        max: priceAgg._max.price ? Number(priceAgg._max.price) : 0,
+        avg: priceAgg._avg.price ? Number(priceAgg._avg.price) : 0,
+      },
+      discountCount,
+      inStockCount,
+      totalCount,
+    };
+
+    await cacheSet(facetCacheKey, facets, 180); // 3 min cache
+    return reply.send({ success: true, data: facets });
   });
 
   // ============================================
@@ -1610,4 +1796,181 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.send({ success: true, data: entries });
   });
+
+  // ============================================
+  // PUBLIC: Kategoriya atributlari (filtr uchun)
+  // ============================================
+
+  /**
+   * GET /categories/:id/attributes
+   * Kategoriyaning filtr atributlari va mavjud qiymatlari
+   */
+  app.get('/categories/:id/attributes', async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+
+    const cacheKey = `cat-attrs:${id}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) return reply.send({ success: true, data: cached });
+
+    // Kategoriya va uning barcha ota-kategoriyalarining atributlarini topish
+    const category = await prisma.category.findUnique({
+      where: { id },
+      select: { id: true, parentId: true, level: true, parent: { select: { parentId: true } } },
+    });
+    if (!category) return reply.status(404).send({ success: false, message: 'Kategoriya topilmadi' });
+
+    // Kategoriya o'zi va ota-kategoriyalarining atributlari
+    const categoryIds = [id];
+    if (category.parentId) categoryIds.push(category.parentId);
+    if (category.parent?.parentId) categoryIds.push(category.parent.parentId);
+
+    const attributes = await prisma.categoryAttribute.findMany({
+      where: { categoryId: { in: categoryIds }, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        nameUz: true,
+        nameRu: true,
+        key: true,
+        type: true,
+        unit: true,
+        options: true,
+        rangeMin: true,
+        rangeMax: true,
+        isRequired: true,
+        sortOrder: true,
+      },
+    });
+
+    // Har bir atribut uchun mavjud (ishlatilayotgan) qiymatlarni topish
+    if (attributes.length > 0) {
+      const descendants = await prisma.category.findMany({
+        where: { OR: [{ id }, { parentId: id }, { parent: { parentId: id } }] },
+        select: { id: true },
+      });
+      const catIds = descendants.map(d => d.id);
+
+      const attrValues = await prisma.productAttributeValue.findMany({
+        where: {
+          attributeId: { in: attributes.map(a => a.id) },
+          product: { categoryId: { in: catIds }, isActive: true, status: 'active' },
+        },
+        select: { attributeId: true, value: true },
+      });
+
+      // Atributlarga qiymatlarni birlashtirish
+      const valueMap = new Map<string, Set<string>>();
+      for (const v of attrValues) {
+        if (!valueMap.has(v.attributeId)) valueMap.set(v.attributeId, new Set());
+        valueMap.get(v.attributeId)!.add(v.value);
+      }
+
+      const enriched = attributes.map(a => ({
+        ...a,
+        usedValues: Array.from(valueMap.get(a.id) || []).sort(),
+      }));
+
+      await cacheSet(cacheKey, enriched, 300);
+      return reply.send({ success: true, data: enriched });
+    }
+
+    await cacheSet(cacheKey, attributes, 300);
+    return reply.send({ success: true, data: attributes });
+  });
+
+  // ============================================
+  // ADMIN: Kategoriya atributlari CRUD
+  // ============================================
+
+  /**
+   * GET /admin/category-attributes/:categoryId
+   * Kategoriyaning barcha atributlari (admin uchun)
+   */
+  app.get(
+    '/admin/category-attributes/:categoryId',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const { categoryId } = z.object({ categoryId: z.string().uuid() }).parse(request.params);
+      const attrs = await prisma.categoryAttribute.findMany({
+        where: { categoryId },
+        orderBy: { sortOrder: 'asc' },
+        include: { _count: { select: { values: true } } },
+      });
+      return reply.send({ success: true, data: attrs });
+    }
+  );
+
+  /**
+   * POST /admin/category-attributes
+   * Yangi atribut yaratish
+   */
+  app.post(
+    '/admin/category-attributes',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const body = z.object({
+        categoryId: z.string().uuid(),
+        nameUz: z.string().min(1),
+        nameRu: z.string().min(1),
+        key: z.string().min(1).max(50).regex(/^[a-z0-9_]+$/),
+        type: z.enum(['chips', 'range', 'toggle', 'color', 'radio']).default('chips'),
+        unit: z.string().optional(),
+        options: z.array(z.string()).optional(),
+        rangeMin: z.number().optional(),
+        rangeMax: z.number().optional(),
+        isRequired: z.boolean().default(false),
+        sortOrder: z.number().int().default(0),
+      }).parse(request.body);
+
+      const attr = await prisma.categoryAttribute.create({ data: body });
+      // Clear cache
+      cacheDelete(`cat-attrs:${body.categoryId}`).catch(() => {});
+      return reply.status(201).send({ success: true, data: attr });
+    }
+  );
+
+  /**
+   * PUT /admin/category-attributes/:id
+   * Atributni yangilash
+   */
+  app.put(
+    '/admin/category-attributes/:id',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+      const body = z.object({
+        nameUz: z.string().min(1).optional(),
+        nameRu: z.string().min(1).optional(),
+        key: z.string().min(1).max(50).regex(/^[a-z0-9_]+$/).optional(),
+        type: z.enum(['chips', 'range', 'toggle', 'color', 'radio']).optional(),
+        unit: z.string().nullable().optional(),
+        options: z.array(z.string()).optional(),
+        rangeMin: z.number().nullable().optional(),
+        rangeMax: z.number().nullable().optional(),
+        isRequired: z.boolean().optional(),
+        sortOrder: z.number().int().optional(),
+        isActive: z.boolean().optional(),
+      }).parse(request.body);
+
+      const attr = await prisma.categoryAttribute.update({ where: { id }, data: body });
+      cacheDelete(`cat-attrs:${attr.categoryId}`).catch(() => {});
+      return reply.send({ success: true, data: attr });
+    }
+  );
+
+  /**
+   * DELETE /admin/category-attributes/:id
+   * Atributni o'chirish
+   */
+  app.delete(
+    '/admin/category-attributes/:id',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+      const attr = await prisma.categoryAttribute.delete({ where: { id } });
+      cacheDelete(`cat-attrs:${attr.categoryId}`).catch(() => {});
+      return reply.send({ success: true, message: 'Atribut o\'chirildi' });
+    }
+  );
+
 }

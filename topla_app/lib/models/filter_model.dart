@@ -20,6 +20,9 @@ class ProductFilter {
   /// Tanlangan ranglar
   final Set<String> colorIds;
 
+  /// Tanlangan o'lchamlar
+  final Set<String> sizeIds;
+
   /// Yetkazib berish muddati (soat)
   /// null = hammasi, 2 = 2 soat ichida, 24 = ertaga, 72 = 3 kun ichida
   final int? deliveryHours;
@@ -48,6 +51,7 @@ class ProductFilter {
     this.sortAscending = true,
     this.brandIds = const {},
     this.colorIds = const {},
+    this.sizeIds = const {},
     this.deliveryHours,
     this.isClickDelivery,
     this.isOriginal,
@@ -67,6 +71,7 @@ class ProductFilter {
       onlyWithDiscount ||
       brandIds.isNotEmpty ||
       colorIds.isNotEmpty ||
+      sizeIds.isNotEmpty ||
       deliveryHours != null ||
       isClickDelivery != null ||
       isOriginal != null ||
@@ -81,6 +86,7 @@ class ProductFilter {
     if (onlyWithDiscount) count++;
     if (brandIds.isNotEmpty) count++;
     if (colorIds.isNotEmpty) count++;
+    if (sizeIds.isNotEmpty) count++;
     if (deliveryHours != null) count++;
     if (isClickDelivery == true) count++;
     if (isOriginal == true) count++;
@@ -99,6 +105,7 @@ class ProductFilter {
     bool? sortAscending,
     Set<String>? brandIds,
     Set<String>? colorIds,
+    Set<String>? sizeIds,
     int? deliveryHours,
     bool? isClickDelivery,
     bool? isOriginal,
@@ -122,6 +129,7 @@ class ProductFilter {
       sortAscending: sortAscending ?? this.sortAscending,
       brandIds: brandIds ?? this.brandIds,
       colorIds: colorIds ?? this.colorIds,
+      sizeIds: sizeIds ?? this.sizeIds,
       deliveryHours:
           clearDeliveryHours ? null : (deliveryHours ?? this.deliveryHours),
       isClickDelivery: clearIsClickDelivery
@@ -173,6 +181,16 @@ class ProductFilter {
     return copyWith(colorIds: colorIds.where((id) => id != colorId).toSet());
   }
 
+  /// O'lcham qo'shish
+  ProductFilter withSize(String sizeId) {
+    return copyWith(sizeIds: {...sizeIds, sizeId});
+  }
+
+  /// O'lchamni olib tashlash
+  ProductFilter withoutSize(String sizeId) {
+    return copyWith(sizeIds: sizeIds.where((id) => id != sizeId).toSet());
+  }
+
   /// Barcha filterlarni tozalash
   ProductFilter clear() => ProductFilter.empty();
 
@@ -192,26 +210,20 @@ class ProductFilter {
   static const String sortByNewest = 'created_at';
   static const String sortByDiscount = 'discount';
 
-  /// API query uchun filter map
+  /// API query uchun filter map (backend param nomlari bilan)
   Map<String, dynamic> toQueryMap() {
     final map = <String, dynamic>{};
 
-    if (minPrice != null) map['min_price'] = minPrice;
-    if (maxPrice != null) map['max_price'] = maxPrice;
-    if (minRating != null) map['min_rating'] = minRating;
-    if (onlyInStock) map['in_stock'] = true;
-    if (onlyWithDiscount) map['has_discount'] = true;
-    if (brandIds.isNotEmpty) map['brand_ids'] = brandIds.toList();
-    if (colorIds.isNotEmpty) map['color_ids'] = colorIds.toList();
-    if (deliveryHours != null) map['delivery_hours'] = deliveryHours;
-    if (isClickDelivery != null) map['is_click_delivery'] = isClickDelivery;
-    if (isOriginal != null) map['is_original'] = isOriginal;
-    if (selectedCategoryId != null) map['category_id'] = selectedCategoryId;
-
-    // Kategoriya atributlari
-    for (final entry in attributes.entries) {
-      map.addAll(entry.value.toQueryMap());
-    }
+    if (minPrice != null) map['minPrice'] = minPrice;
+    if (maxPrice != null) map['maxPrice'] = maxPrice;
+    if (minRating != null) map['minRating'] = minRating;
+    if (onlyInStock) map['inStock'] = true;
+    if (onlyWithDiscount) map['hasDiscount'] = true;
+    if (sortBy != null) map['sortBy'] = sortBy;
+    if (brandIds.isNotEmpty) map['brandIds'] = brandIds.join(',');
+    if (colorIds.isNotEmpty) map['colorIds'] = colorIds.join(',');
+    if (sizeIds.isNotEmpty) map['sizeIds'] = sizeIds.join(',');
+    if (selectedCategoryId != null) map['categoryId'] = selectedCategoryId;
 
     return map;
   }
@@ -238,6 +250,7 @@ class ProductFilter {
         other.sortAscending == sortAscending &&
         _setEquals(other.brandIds, brandIds) &&
         _setEquals(other.colorIds, colorIds) &&
+        _setEquals(other.sizeIds, sizeIds) &&
         other.deliveryHours == deliveryHours &&
         other.isClickDelivery == isClickDelivery &&
         other.isOriginal == isOriginal &&
@@ -264,6 +277,7 @@ class ProductFilter {
       sortAscending,
       Object.hashAll(brandIds),
       Object.hashAll(colorIds),
+      Object.hashAll(sizeIds),
       deliveryHours,
       isClickDelivery,
       isOriginal,

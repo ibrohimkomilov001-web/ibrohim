@@ -132,38 +132,60 @@ class CategoryFilterAttribute {
   }
 
   factory CategoryFilterAttribute.fromJson(Map<String, dynamic> json) {
-    final filterTypeStr = json['filter_type'] as String? ?? 'chips';
+    final filterTypeStr =
+        json['type'] as String? ?? json['filter_type'] as String? ?? 'chips';
     final filterType = FilterType.values.firstWhere(
       (e) => e.name == filterTypeStr,
       orElse: () => FilterType.chips,
     );
 
+    // Options bo'lishi mumkin: backend'dan ["4GB", "8GB"] yoki [{value, label}] formatda
     List<FilterOption> options = [];
     if (json['options'] != null) {
       final optionsList = json['options'] as List<dynamic>;
-      options = optionsList
-          .map((e) => FilterOption.fromJson(e as Map<String, dynamic>))
-          .toList();
+      options = optionsList.map((e) {
+        if (e is String) {
+          return FilterOption(value: e, labelUz: e);
+        }
+        return FilterOption.fromJson(e as Map<String, dynamic>);
+      }).toList();
+    }
+    // usedValues bo'lsa (backend'dan keladi) options bilan birlashtirish
+    if (json['usedValues'] != null) {
+      final usedValues = (json['usedValues'] as List<dynamic>).cast<String>();
+      if (options.isEmpty) {
+        options =
+            usedValues.map((v) => FilterOption(value: v, labelUz: v)).toList();
+      }
     }
 
     RangeFilterConfig? rangeConfig;
-    if (filterType == FilterType.range && json['options'] != null) {
-      rangeConfig = RangeFilterConfig.fromJson(
-        json['options'] is Map ? json['options'] as Map<String, dynamic> : null,
+    if (filterType == FilterType.range) {
+      rangeConfig = RangeFilterConfig(
+        minValue: (json['rangeMin'] as num?)?.toDouble() ??
+            (json['range_min'] as num?)?.toDouble(),
+        maxValue: (json['rangeMax'] as num?)?.toDouble() ??
+            (json['range_max'] as num?)?.toDouble(),
+        unit: json['unit'] as String?,
       );
     }
 
     return CategoryFilterAttribute(
       id: json['id'] as String,
-      categoryId: json['category_id'] as String,
-      attributeKey: json['attribute_key'] as String,
-      attributeNameUz: json['attribute_name_uz'] as String,
-      attributeNameRu: json['attribute_name_ru'] as String?,
+      categoryId:
+          json['categoryId'] as String? ?? json['category_id'] as String? ?? '',
+      attributeKey:
+          json['key'] as String? ?? json['attribute_key'] as String? ?? '',
+      attributeNameUz: json['nameUz'] as String? ??
+          json['attribute_name_uz'] as String? ??
+          '',
+      attributeNameRu:
+          json['nameRu'] as String? ?? json['attribute_name_ru'] as String?,
       filterType: filterType,
       options: options,
       rangeConfig: rangeConfig,
       unit: json['unit'] as String?,
-      sortOrder: json['sort_order'] as int? ?? 0,
+      sortOrder: json['sortOrder'] as int? ?? json['sort_order'] as int? ?? 0,
       hasHelpInfo: json['has_help'] as bool? ?? false,
     );
   }

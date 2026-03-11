@@ -209,8 +209,35 @@ class ApiProductRepositoryImpl implements IProductRepository {
   @override
   Future<List<CategoryFilterAttribute>> getCategoryFilters(
       String categoryId) async {
-    // TODO: Backend endpoint qo'shish kerak
-    return [];
+    try {
+      final response =
+          await _api.get('/categories/$categoryId/attributes', auth: false);
+      final data = response.data['data'];
+      if (data is List) {
+        return data
+            .map((e) =>
+                CategoryFilterAttribute.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  @override
+  Future<ProductFacets> getFacets(String categoryId) async {
+    try {
+      final response = await _api.get('/products/facets',
+          queryParams: {'categoryId': categoryId}, auth: false);
+      final data = response.data['data'];
+      if (data is Map<String, dynamic>) {
+        return ProductFacets.fromJson(data);
+      }
+      return ProductFacets.empty;
+    } catch (e) {
+      return ProductFacets.empty;
+    }
   }
 
   @override
@@ -220,18 +247,26 @@ class ApiProductRepositoryImpl implements IProductRepository {
     int limit = 20,
     int offset = 0,
   }) async {
+    final page = (offset ~/ limit) + 1;
     final params = <String, dynamic>{
       'categoryId': categoryId,
       'limit': limit,
-      'offset': offset,
+      'page': page,
     };
+    // Asosiy filtrlar
     if (filter.minPrice != null) params['minPrice'] = filter.minPrice;
     if (filter.maxPrice != null) params['maxPrice'] = filter.maxPrice;
+    if (filter.minRating != null) params['minRating'] = filter.minRating;
+    if (filter.onlyInStock) params['inStock'] = true;
+    if (filter.onlyWithDiscount) params['hasDiscount'] = true;
     if (filter.brandIds.isNotEmpty) {
       params['brandIds'] = filter.brandIds.join(',');
     }
     if (filter.colorIds.isNotEmpty) {
       params['colorIds'] = filter.colorIds.join(',');
+    }
+    if (filter.sizeIds.isNotEmpty) {
+      params['sizeIds'] = filter.sizeIds.join(',');
     }
     if (filter.sortBy != null) params['sortBy'] = filter.sortBy;
 
@@ -242,9 +277,17 @@ class ApiProductRepositoryImpl implements IProductRepository {
         .map((e) => ProductModel.fromJson(e))
         .toList();
 
+    // Pagination ma'lumotlarini olish
+    final pagination = response.data['data']?['pagination'];
+    final total = pagination?['total'] ?? products.length;
+    final totalPages = pagination?['totalPages'] ?? 1;
+
     return FilteredProductsResult(
       products: products,
-      totalCount: products.length,
+      totalCount: total,
+      page: page,
+      perPage: limit,
+      totalPages: totalPages,
     );
   }
 

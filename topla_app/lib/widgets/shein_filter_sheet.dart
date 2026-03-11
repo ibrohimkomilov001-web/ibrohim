@@ -3,12 +3,19 @@ import 'package:flutter/services.dart';
 import '../core/constants/constants.dart';
 import '../models/filter_model.dart';
 import '../models/brand_model.dart';
+import '../models/product_facets.dart';
+import '../models/color_option.dart';
+import '../models/category_filter_attribute.dart';
 
 /// SHEIN uslubidagi professional filter sheet
 /// Compact chips, gradient accents, 70% height bottom sheet
+/// Ranglar (hex swatch), o'lchamlar, brendlar (count bilan), dynamic atributlar
 class SheinFilterSheet extends StatefulWidget {
   final ProductFilter currentFilter;
   final List<BrandModel> brands;
+  final List<ColorOption> colors;
+  final ProductFacets? facets;
+  final List<CategoryFilterAttribute> categoryAttributes;
   final String categoryName;
   final Color accentColor;
   final int? productCount;
@@ -17,6 +24,9 @@ class SheinFilterSheet extends StatefulWidget {
     super.key,
     required this.currentFilter,
     this.brands = const [],
+    this.colors = const [],
+    this.facets,
+    this.categoryAttributes = const [],
     this.categoryName = 'Filtrlar',
     this.accentColor = const Color(0xFFFF6B6B),
     this.productCount,
@@ -27,6 +37,9 @@ class SheinFilterSheet extends StatefulWidget {
     BuildContext context, {
     required ProductFilter currentFilter,
     List<BrandModel> brands = const [],
+    List<ColorOption> colors = const [],
+    ProductFacets? facets,
+    List<CategoryFilterAttribute> categoryAttributes = const [],
     String categoryName = 'Filtrlar',
     Color accentColor = const Color(0xFFFF6B6B),
     int? productCount,
@@ -38,6 +51,9 @@ class SheinFilterSheet extends StatefulWidget {
       builder: (context) => SheinFilterSheet(
         currentFilter: currentFilter,
         brands: brands,
+        colors: colors,
+        facets: facets,
+        categoryAttributes: categoryAttributes,
         categoryName: categoryName,
         accentColor: accentColor,
         productCount: productCount,
@@ -127,13 +143,33 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
                   _buildRatingSection(),
                   _buildDivider(),
 
-                  // 4. Brendlar
+                  // 4. Ranglar
+                  if (_effectiveColors.isNotEmpty) ...[
+                    _buildColorsSection(),
+                    _buildDivider(),
+                  ],
+
+                  // 5. O'lchamlar
+                  if (_effectiveSizes.isNotEmpty) ...[
+                    _buildSizesSection(),
+                    _buildDivider(),
+                  ],
+
+                  // 6. Brendlar
                   if (widget.brands.isNotEmpty) ...[
                     _buildBrandsSection(),
                     _buildDivider(),
                   ],
 
-                  // 5. Holatlar (Toggles)
+                  // 7. Dinamik kategoriya atributlari
+                  ...widget.categoryAttributes.map((attr) => Column(
+                        children: [
+                          _buildCategoryAttributeSection(attr),
+                          _buildDivider(),
+                        ],
+                      )),
+
+                  // 8. Holatlar (Toggles)
                   _buildStatusSection(),
 
                   const SizedBox(height: 100),
@@ -250,6 +286,377 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // COMPUTED HELPERS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Facets yoki colors listdan ranglarni olish
+  List<_ColorItem> get _effectiveColors {
+    final facets = widget.facets;
+    if (facets != null && facets.colors.isNotEmpty) {
+      return facets.colors
+          .map((c) => _ColorItem(
+              id: c.id,
+              nameUz: c.nameUz,
+              nameRu: c.nameRu,
+              hexCode: c.hexCode,
+              count: c.count))
+          .toList();
+    }
+    if (widget.colors.isNotEmpty) {
+      return widget.colors
+          .map((c) => _ColorItem(
+              id: c.id,
+              nameUz: c.nameUz,
+              nameRu: c.nameRu,
+              hexCode: c.hexCode,
+              count: c.productCount))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Facets dan o'lchamlarni olish
+  List<SizeFacet> get _effectiveSizes {
+    return widget.facets?.sizes ?? [];
+  }
+
+  /// Brand uchun product count olish (facets dan)
+  int? _getBrandCount(String brandId) {
+    final facets = widget.facets;
+    if (facets == null) return null;
+    final match = facets.brands.where((b) => b.id == brandId);
+    if (match.isEmpty) return null;
+    return match.first.count;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SECTION: RANGLAR (Colors)
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildColorsSection() {
+    final colors = _effectiveColors;
+    final visibleColors = colors.take(12).toList();
+    final hasMore = colors.length > 12;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _buildSectionTitle('Rang', Icons.palette_outlined),
+            const Spacer(),
+            if (hasMore)
+              TextButton(
+                onPressed: () => _showAllColors(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: widget.accentColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(
+                  'Barchasi (${colors.length})',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: visibleColors.map((color) {
+            final isSelected = _filter.colorIds.contains(color.id);
+            return _buildColorSwatch(color, isSelected);
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildColorSwatch(_ColorItem color, bool isSelected) {
+    final colorValue = _parseHexColor(color.hexCode);
+    final isLight = _isLightColor(colorValue);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        final newColors = Set<String>.from(_filter.colorIds);
+        if (isSelected) {
+          newColors.remove(color.id);
+        } else {
+          newColors.add(color.id);
+        }
+        _updateFilter(_filter.copyWith(colorIds: newColors));
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: colorValue,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected
+                    ? widget.accentColor
+                    : (isLight ? Colors.grey.shade300 : Colors.transparent),
+                width: isSelected ? 3 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: widget.accentColor.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : null,
+            ),
+            child: isSelected
+                ? Icon(
+                    Icons.check_rounded,
+                    size: 20,
+                    color: isLight ? Colors.grey.shade800 : Colors.white,
+                  )
+                : null,
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 52,
+            child: Text(
+              color.nameUz,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+          if (color.count > 0)
+            Text(
+              '${color.count}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade400,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Color _parseHexColor(String hex) {
+    String cleaned = hex.replaceAll('#', '');
+    if (cleaned.length == 6) cleaned = 'FF$cleaned';
+    return Color(int.parse(cleaned, radix: 16));
+  }
+
+  bool _isLightColor(Color color) {
+    return (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) > 186;
+  }
+
+  void _showAllColors(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AllColorsSheet(
+        colors: _effectiveColors,
+        selectedColorIds: _filter.colorIds,
+        accentColor: widget.accentColor,
+        onColorsSelected: (selectedIds) {
+          _updateFilter(_filter.copyWith(colorIds: selectedIds));
+        },
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SECTION: O'LCHAMLAR (Sizes)
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildSizesSection() {
+    final sizes = _effectiveSizes;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('O\'lcham', Icons.straighten_outlined),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: sizes.map((size) {
+            final isSelected = _filter.sizeIds.contains(size.id);
+            return _buildSizeChip(size, isSelected);
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSizeChip(SizeFacet size, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        final newSizes = Set<String>.from(_filter.sizeIds);
+        if (isSelected) {
+          newSizes.remove(size.id);
+        } else {
+          newSizes.add(size.id);
+        }
+        _updateFilter(_filter.copyWith(sizeIds: newSizes));
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    widget.accentColor.withValues(alpha: 0.15),
+                    widget.accentColor.withValues(alpha: 0.05),
+                  ],
+                )
+              : null,
+          color: isSelected ? null : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? widget.accentColor : Colors.grey.shade200,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              size.nameUz,
+              style: TextStyle(
+                color: isSelected ? widget.accentColor : Colors.grey.shade800,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
+            if (size.count > 0) ...[
+              const SizedBox(width: 4),
+              Text(
+                '(${size.count})',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected
+                      ? widget.accentColor.withValues(alpha: 0.7)
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SECTION: DINAMIK KATEGORIYA ATRIBUTLARI
+  // ═══════════════════════════════════════════════════════════════
+  Widget _buildCategoryAttributeSection(CategoryFilterAttribute attr) {
+    switch (attr.filterType) {
+      case FilterType.chips:
+        return _buildChipsAttribute(attr);
+      case FilterType.range:
+        return _buildRangeAttribute(attr);
+      case FilterType.toggle:
+        return _buildToggleAttribute(attr);
+      case FilterType.color:
+        return _buildChipsAttribute(attr); // Same UI as chips
+      case FilterType.radio:
+        return _buildRadioAttribute(attr);
+    }
+  }
+
+  Widget _buildChipsAttribute(CategoryFilterAttribute attr) {
+    final options = attr.options;
+    if (options.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(attr.attributeNameUz, Icons.tune_rounded),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((option) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Text(
+                option.label,
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRangeAttribute(CategoryFilterAttribute attr) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+          '${attr.attributeNameUz}${attr.unit != null ? ' (${attr.unit})' : ''}',
+          Icons.linear_scale_rounded,
+        ),
+        const SizedBox(height: 12),
+        if (attr.rangeConfig != null &&
+            attr.rangeConfig!.minValue != null &&
+            attr.rangeConfig!.maxValue != null)
+          Text(
+            '${attr.rangeConfig!.minValue!.toStringAsFixed(0)} - ${attr.rangeConfig!.maxValue!.toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildToggleAttribute(CategoryFilterAttribute attr) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _buildSectionTitle(attr.attributeNameUz, Icons.toggle_on_outlined),
+            const Spacer(),
+            Switch(
+              value: false, // TODO: connect to filter state
+              onChanged: (_) {},
+              activeColor: widget.accentColor,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRadioAttribute(CategoryFilterAttribute attr) {
+    return _buildChipsAttribute(attr);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // SECTION 1: SARALASH (Sort)
   // ═══════════════════════════════════════════════════════════════
   Widget _buildSortSection() {
@@ -268,6 +675,7 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
               _buildSortChip('Arzon→', ProductFilter.sortByPriceLow, '💰'),
               _buildSortChip('Qimmat→', ProductFilter.sortByPriceHigh, '💎'),
               _buildSortChip('Reyting', ProductFilter.sortByRating, '⭐'),
+              _buildSortChip('Chegirma', ProductFilter.sortByDiscount, '🏷️'),
             ],
           ),
         ),
@@ -331,10 +739,26 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
   // SECTION 2: NARX (Price)
   // ═══════════════════════════════════════════════════════════════
   Widget _buildPriceSection() {
+    final priceRange = widget.facets?.priceRange;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Narxi, so\'m', Icons.payments_outlined),
+        Row(
+          children: [
+            _buildSectionTitle('Narxi, so\'m', Icons.payments_outlined),
+            if (priceRange != null) ...[
+              const Spacer(),
+              Text(
+                '${_formatPrice(priceRange.min)} - ${_formatPrice(priceRange.max)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade400,
+                ),
+              ),
+            ],
+          ],
+        ),
         const SizedBox(height: 12),
 
         // Manual input
@@ -344,7 +768,7 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
               child: _buildPriceInput(
                 controller: _minPriceCtrl,
                 label: 'd.',
-                hint: 'dan',
+                hint: priceRange != null ? _formatPrice(priceRange.min) : 'dan',
                 onChanged: (value) {
                   final price = double.tryParse(value);
                   _updateFilter(_filter.copyWith(
@@ -359,7 +783,8 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
               child: _buildPriceInput(
                 controller: _maxPriceCtrl,
                 label: 'g.',
-                hint: 'gacha',
+                hint:
+                    priceRange != null ? _formatPrice(priceRange.max) : 'gacha',
                 onChanged: (value) {
                   final price = double.tryParse(value);
                   _updateFilter(_filter.copyWith(
@@ -373,6 +798,15 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
         ),
       ],
     );
+  }
+
+  String _formatPrice(double price) {
+    if (price >= 1000000) {
+      return '${(price / 1000000).toStringAsFixed(1)}M';
+    } else if (price >= 1000) {
+      return '${(price / 1000).toStringAsFixed(0)}K';
+    }
+    return price.toStringAsFixed(0);
   }
 
   Widget _buildPriceInput({
@@ -548,6 +982,8 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
   }
 
   Widget _buildBrandChip(BrandModel brand, bool isSelected) {
+    final count = _getBrandCount(brand.id);
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -597,6 +1033,18 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
                 fontSize: 14,
               ),
             ),
+            if (count != null && count > 0) ...[
+              const SizedBox(width: 4),
+              Text(
+                '($count)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isSelected
+                      ? widget.accentColor.withValues(alpha: 0.7)
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -785,6 +1233,206 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER: Color item (unified from ColorOption/ColorFacet)
+// ═══════════════════════════════════════════════════════════════════════════
+class _ColorItem {
+  final String id;
+  final String nameUz;
+  final String? nameRu;
+  final String hexCode;
+  final int count;
+
+  const _ColorItem({
+    required this.id,
+    required this.nameUz,
+    this.nameRu,
+    required this.hexCode,
+    this.count = 0,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ALL COLORS SHEET (for "Barchasi" button)
+// ═══════════════════════════════════════════════════════════════════════════
+class _AllColorsSheet extends StatefulWidget {
+  final List<_ColorItem> colors;
+  final Set<String> selectedColorIds;
+  final Color accentColor;
+  final Function(Set<String>) onColorsSelected;
+
+  const _AllColorsSheet({
+    required this.colors,
+    required this.selectedColorIds,
+    required this.accentColor,
+    required this.onColorsSelected,
+  });
+
+  @override
+  State<_AllColorsSheet> createState() => _AllColorsSheetState();
+}
+
+class _AllColorsSheetState extends State<_AllColorsSheet> {
+  late Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set.from(widget.selectedColorIds);
+  }
+
+  Color _parseHex(String hex) {
+    String cleaned = hex.replaceAll('#', '');
+    if (cleaned.length == 6) cleaned = 'FF$cleaned';
+    return Color(int.parse(cleaned, radix: 16));
+  }
+
+  bool _isLight(Color color) {
+    return (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) > 186;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+
+    return Container(
+      height: screenHeight * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 16),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'Ranglar',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade900,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        widget.onColorsSelected(_selected);
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(
+                        Icons.check_rounded,
+                        color: widget.accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Colors grid
+          Expanded(
+            child: GridView.builder(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, bottomPadding + 20),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: widget.colors.length,
+              itemBuilder: (context, index) {
+                final color = widget.colors[index];
+                final isSelected = _selected.contains(color.id);
+                final colorValue = _parseHex(color.hexCode);
+                final isLight = _isLight(colorValue);
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selected.remove(color.id);
+                      } else {
+                        _selected.add(color.id);
+                      }
+                    });
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: colorValue,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? widget.accentColor
+                                : (isLight
+                                    ? Colors.grey.shade300
+                                    : Colors.transparent),
+                            width: isSelected ? 3 : 1,
+                          ),
+                        ),
+                        child: isSelected
+                            ? Icon(Icons.check_rounded,
+                                size: 22,
+                                color: isLight
+                                    ? Colors.grey.shade800
+                                    : Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        color.nameUz,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isSelected
+                              ? widget.accentColor
+                              : Colors.grey.shade700,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                      if (color.count > 0)
+                        Text(
+                          '${color.count}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],

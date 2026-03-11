@@ -40,9 +40,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   List<ColorOption> _colors = [];
   // ignore: unused_field
   List<CategoryFilterAttribute> _categoryFilters = [];
+  ProductFacets? _facets;
   int _totalProductCount = 0;
   bool _isLoading = true;
   bool _isGridView = true;
+
+  // Pagination
+  int _currentPage = 1;
+  bool _isLoadingMore = false;
+  bool _hasMorePages = true;
+  static const int _pageSize = 20;
   String? _selectedSubCategoryId;
   ProductFilter _filter = ProductFilter.empty();
   bool _hasLoadedInitialData = false; // Subcategoriyalar yuklandimi?
@@ -109,7 +116,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     }
   }
 
-  /// Filter ma'lumotlarini yuklash (brendlar, ranglar, kategoriya filterlari)
+  /// Filter ma'lumotlarini yuklash (brendlar, ranglar, kategoriya filterlari, facets)
   Future<void> _loadFilterData() async {
     try {
       final productsProvider = context.read<ProductsProvider>();
@@ -118,8 +125,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       // Parallel yuklash
       final results = await Future.wait([
         productsProvider.getBrandsByCategory(categoryId),
-        productsProvider.getColors(),
+        productsProvider.getColorsByCategory(categoryId),
         productsProvider.getCategoryFilters(categoryId),
+        productsProvider.getFacets(categoryId),
       ]);
 
       if (mounted) {
@@ -127,6 +135,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
           _brands = results[0] as List<BrandModel>;
           _colors = results[1] as List<ColorOption>;
           _categoryFilters = results[2] as List<CategoryFilterAttribute>;
+          _facets = results[3] as ProductFacets;
         });
       }
     } catch (e) {
@@ -134,39 +143,64 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     }
   }
 
-  Future<void> _loadProducts({bool showLoading = false}) async {
-    if (showLoading && mounted) {
-      setState(() => _isLoading = true);
+  Future<void> _loadProducts(
+      {bool showLoading = false, bool loadMore = false}) async {
+    if (loadMore) {
+      if (_isLoadingMore || !_hasMorePages) return;
+      setState(() => _isLoadingMore = true);
+    } else {
+      // Reset pagination
+      _currentPage = 1;
+      _hasMorePages = true;
+      if (showLoading && mounted) {
+        setState(() => _isLoading = true);
+      }
     }
 
     try {
       final productsProvider = context.read<ProductsProvider>();
       final categoryId = _selectedSubCategoryId ?? widget.category.id;
 
+      final page = loadMore ? _currentPage + 1 : 1;
+      final offset = (page - 1) * _pageSize;
+
       // Server-side filtering orqali yuklash
       final result = await productsProvider.getFilteredProducts(
         categoryId: categoryId,
         filter: _filter,
+        limit: _pageSize,
+        offset: offset,
       );
 
       if (mounted) {
         setState(() {
-          _filteredProducts = result.products;
-          _products = result.products; // Raw listni ham yangilaymiz
+          if (loadMore) {
+            _filteredProducts = [..._filteredProducts, ...result.products];
+            _products = _filteredProducts;
+            _currentPage = page;
+          } else {
+            _filteredProducts = result.products;
+            _products = result.products;
+          }
           _totalProductCount = result.totalCount;
+          _hasMorePages = _filteredProducts.length < result.totalCount;
         });
       }
     } catch (e) {
       debugPrint('Error loading products: $e');
-      if (mounted) {
+      if (mounted && !loadMore) {
         _showError(_isUzbek
             ? 'Mahsulotlarni yuklashda xatolik'
             : 'Ошибка загрузки товаров');
       }
     }
 
-    if (showLoading && mounted) {
-      setState(() => _isLoading = false);
+    if (mounted) {
+      if (loadMore) {
+        setState(() => _isLoadingMore = false);
+      } else if (showLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -226,6 +260,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       accentColor: widget.categoryColor,
       productCount: _totalProductCount,
       brands: _brands,
+      colors: _colors,
+      facets: _facets,
+      categoryAttributes: _categoryFilters,
     );
     if (newFilter != null && mounted) {
       setState(() => _filter = newFilter);
@@ -354,6 +391,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         _buildSliverAppBar(),
         _buildUzumFilterBar(),
+        if (_filter.hasActiveFilters) _buildActiveFilterChips(),
       ],
       body: _isLoading
           ? _isGridView
@@ -361,6 +399,250 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
               : const ProductsSkeletonList(itemCount: 6)
           : _buildProductsView(),
     );
+  }
+
+  /// Faol filterlarni ko'rsatuvchi chips (har bir filterni alohida olib tashlash mumkin)
+  Widget _buildActiveFilterChips() {
+    final chips = <Widget>[];
+
+    // Narx
+    if (_filter.minPrice != null || _filter.maxPrice != null) {
+      String priceLabel = '';
+      if (_filter.minPrice != null && _filter.maxPrice != null) {
+        priceLabel =
+            '${_formatChipPrice(_filter.minPrice!)} - ${_formatChipPrice(_filter.maxPrice!)}';
+      } else if (_filter.minPrice != null) {
+        priceLabel = '${_formatChipPrice(_filter.minPrice!)}+';
+      } else {
+        priceLabel =
+            '${_isUzbek ? 'gacha' : 'до'} ${_formatChipPrice(_filter.maxPrice!)}';
+      }
+      chips.add(_buildRemovableChip(
+        '💰 $priceLabel',
+        () {
+          setState(() => _filter = _filter.copyWith(
+                clearMinPrice: true,
+                clearMaxPrice: true,
+              ));
+          _loadProducts(showLoading: true);
+        },
+      ));
+    }
+
+    // Reyting
+    if (_filter.minRating != null) {
+      chips.add(_buildRemovableChip(
+        '⭐ ${_filter.minRating}+',
+        () {
+          setState(() => _filter = _filter.copyWith(clearMinRating: true));
+          _loadProducts(showLoading: true);
+        },
+      ));
+    }
+
+    // Brendlar
+    for (final brandId in _filter.brandIds) {
+      final brand = _brands.where((b) => b.id == brandId).firstOrNull;
+      if (brand != null) {
+        chips.add(_buildRemovableChip(
+          brand.nameUz,
+          () {
+            final newBrands = Set<String>.from(_filter.brandIds)
+              ..remove(brandId);
+            setState(() => _filter = _filter.copyWith(brandIds: newBrands));
+            _loadProducts(showLoading: true);
+          },
+        ));
+      }
+    }
+
+    // Ranglar
+    for (final colorId in _filter.colorIds) {
+      final color = _colors.where((c) => c.id == colorId).firstOrNull;
+      if (color != null) {
+        chips.add(_buildRemovableColorChip(
+          color,
+          () {
+            final newColors = Set<String>.from(_filter.colorIds)
+              ..remove(colorId);
+            setState(() => _filter = _filter.copyWith(colorIds: newColors));
+            _loadProducts(showLoading: true);
+          },
+        ));
+      }
+    }
+
+    // O'lchamlar
+    for (final sizeId in _filter.sizeIds) {
+      final size = _facets?.sizes.where((s) => s.id == sizeId).firstOrNull;
+      if (size != null) {
+        chips.add(_buildRemovableChip(
+          '📐 ${size.nameUz}',
+          () {
+            final newSizes = Set<String>.from(_filter.sizeIds)..remove(sizeId);
+            setState(() => _filter = _filter.copyWith(sizeIds: newSizes));
+            _loadProducts(showLoading: true);
+          },
+        ));
+      }
+    }
+
+    // Holat toggles
+    if (_filter.onlyWithDiscount) {
+      chips.add(_buildRemovableChip(
+        '🏷️ ${_isUzbek ? 'Chegirma' : 'Скидка'}',
+        () {
+          setState(() => _filter = _filter.copyWith(onlyWithDiscount: false));
+          _loadProducts(showLoading: true);
+        },
+      ));
+    }
+    if (_filter.onlyInStock) {
+      chips.add(_buildRemovableChip(
+        '📦 ${_isUzbek ? 'Mavjud' : 'В наличии'}',
+        () {
+          setState(() => _filter = _filter.copyWith(onlyInStock: false));
+          _loadProducts(showLoading: true);
+        },
+      ));
+    }
+
+    // Tozalash tugmasi
+    chips.add(
+      GestureDetector(
+        onTap: () {
+          setState(() {
+            _filter = ProductFilter.empty();
+          });
+          _loadProducts(showLoading: true);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            _isUzbek ? 'Tozalash' : 'Очистить',
+            style: TextStyle(
+              color: Colors.red.shade700,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return SliverToBoxAdapter(
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: chips,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRemovableChip(String label, VoidCallback onRemove) {
+    return Container(
+      padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: widget.categoryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.categoryColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: widget.categoryColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: widget.categoryColor.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemovableColorChip(ColorOption color, VoidCallback onRemove) {
+    Color colorValue;
+    try {
+      String hex = color.hexCode.replaceAll('#', '');
+      if (hex.length == 6) hex = 'FF$hex';
+      colorValue = Color(int.parse(hex, radix: 16));
+    } catch (_) {
+      colorValue = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.only(left: 6, right: 4, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: widget.categoryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.categoryColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: colorValue,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade300, width: 0.5),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            color.nameUz,
+            style: TextStyle(
+              color: widget.categoryColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: widget.categoryColor.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatChipPrice(double price) {
+    if (price >= 1000000) {
+      return '${(price / 1000000).toStringAsFixed(1)}M';
+    } else if (price >= 1000) {
+      return '${(price / 1000).toStringAsFixed(0)}K';
+    }
+    return price.toStringAsFixed(0);
   }
 
   /// Oddiy app bar (subcategoriyalar sahifasi uchun)
@@ -1543,31 +1825,78 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
 
   Widget _buildProductsGrid() {
     final locale = context.l10n.locale.languageCode;
+    final itemCount =
+        _filteredProducts.length + (_hasMorePages || _isLoadingMore ? 1 : 0);
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSizes.lg),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: AppSizes.md,
-        crossAxisSpacing: AppSizes.md,
-        childAspectRatio: 0.52,
-      ),
-      itemCount: _filteredProducts.length,
-      itemBuilder: (context, index) {
-        return _buildProductCard(_filteredProducts[index], locale);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollEndNotification &&
+            notification.metrics.pixels >=
+                notification.metrics.maxScrollExtent - 200) {
+          _loadProducts(loadMore: true);
+        }
+        return false;
       },
+      child: GridView.builder(
+        padding: const EdgeInsets.all(AppSizes.lg),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: AppSizes.md,
+          crossAxisSpacing: AppSizes.md,
+          childAspectRatio: 0.52,
+        ),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (index >= _filteredProducts.length) {
+            return _buildLoadMoreIndicator();
+          }
+          return _buildProductCard(_filteredProducts[index], locale);
+        },
+      ),
     );
   }
 
   Widget _buildProductsList() {
     final locale = context.l10n.locale.languageCode;
+    final itemCount =
+        _filteredProducts.length + (_hasMorePages || _isLoadingMore ? 1 : 0);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppSizes.md),
-      itemCount: _filteredProducts.length,
-      itemBuilder: (context, index) {
-        return _buildProductListItem(_filteredProducts[index], locale);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollEndNotification &&
+            notification.metrics.pixels >=
+                notification.metrics.maxScrollExtent - 200) {
+          _loadProducts(loadMore: true);
+        }
+        return false;
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(AppSizes.md),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (index >= _filteredProducts.length) {
+            return _buildLoadMoreIndicator();
+          }
+          return _buildProductListItem(_filteredProducts[index], locale);
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMorePages) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: widget.categoryColor,
+          ),
+        ),
+      ),
     );
   }
 

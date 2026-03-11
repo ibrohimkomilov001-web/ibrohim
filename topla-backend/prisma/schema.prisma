@@ -377,6 +377,7 @@ model Category {
   children           Category[]          @relation("CategoryTree")
   products           Product[]
   categoryCommission CategoryCommission?
+  attributes         CategoryAttribute[]
 
   @@index([parentId, isActive])
   @@index([level, isActive, sortOrder])
@@ -412,6 +413,52 @@ model Size {
   variants  ProductVariant[]
 
   @@map("sizes")
+}
+
+// Kategoriyaga xos filtr atributlari (masalan: Telefonlar -> RAM, Ekran o'lchami)
+model CategoryAttribute {
+  id         String @id @default(uuid()) @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+  nameUz     String @map("name_uz")
+  nameRu     String @map("name_ru")
+  key        String // masalan: "ram", "screen_size", "material"
+  type       String @default("chips") // chips | range | toggle | color | radio
+  unit       String? // masalan: "GB", "dyuym", "mAh"
+  options    Json?  // chips/radio uchun: ["4GB", "8GB", "16GB"]
+  rangeMin   Float? @map("range_min") // range uchun
+  rangeMax   Float? @map("range_max") // range uchun
+  isRequired Boolean @default(false) @map("is_required")
+  sortOrder  Int     @default(0) @map("sort_order")
+  isActive   Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  category Category               @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  values   ProductAttributeValue[]
+
+  @@unique([categoryId, key])
+  @@index([categoryId, isActive, sortOrder])
+  @@map("category_attributes")
+}
+
+// Mahsulotning atribut qiymatlari
+model ProductAttributeValue {
+  id          String @id @default(uuid()) @db.Uuid
+  productId   String @map("product_id") @db.Uuid
+  attributeId String @map("attribute_id") @db.Uuid
+  value       String // qiymat (masalan: "8GB", "6.7", "true")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeId])
+  @@index([attributeId, value])
+  @@index([productId])
+  @@map("product_attribute_values")
 }
 
 model Product {
@@ -483,6 +530,7 @@ model Product {
   views          ProductView[]
   productReviews ProductReview[]
   productBoosts  ProductBoost[]
+  attributeValues ProductAttributeValue[]
 
   @@index([shopId])
   @@index([shopId, isActive, status])
