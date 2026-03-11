@@ -37,7 +37,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   ];
 
   static const Color _activeColor =
-      AppColors.accent; // #FF6B35 — Temu uslubida yorqin
+      AppColors.primary; // #3B82F6 — Professional ko'k
   static const Color _inactiveColor = Colors.black; // Qora rang
 
   static void switchToTab(int index) {
@@ -345,7 +345,7 @@ class _NavItemButtonState extends State<_NavItemButton>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
-                          color: AppColors.accent,
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         constraints:

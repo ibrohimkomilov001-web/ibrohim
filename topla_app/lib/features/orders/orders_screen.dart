@@ -75,10 +75,10 @@ class _OrdersScreenState extends State<OrdersScreen>
             fontSize: 12,
           ),
           tabs: [
-            Tab(text: context.l10n.translate('all_tab')),
             Tab(text: context.l10n.translate('in_process_tab')),
             Tab(text: context.l10n.translate('delivered')),
             Tab(text: context.l10n.translate('cancelled_tab')),
+            Tab(text: context.l10n.translate('all_tab')),
           ],
         ),
       ),
@@ -126,10 +126,10 @@ class _OrdersScreenState extends State<OrdersScreen>
             physics:
                 const NeverScrollableScrollPhysics(), // Swipe qilishni o'chirish
             children: [
-              _buildOrdersList(ordersProvider.orders),
               _buildOrdersList(ordersProvider.activeOrders),
               _buildOrdersList(ordersProvider.completedOrders),
               _buildOrdersList(ordersProvider.cancelledOrders),
+              _buildOrdersList(ordersProvider.orders),
             ],
           );
         },
@@ -382,7 +382,7 @@ class _OrdersScreenState extends State<OrdersScreen>
       case OrderStatus.processing:
         return {
           'text': context.l10n.translate('status_store_preparing'),
-          'color': AppColors.accent,
+          'color': AppColors.primary,
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.readyForPickup:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -13,9 +13,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import {
-  ShoppingBag,
   LayoutDashboard,
   Users,
   Store,
@@ -32,7 +34,6 @@ import {
   FileText,
   Settings,
   ChevronLeft,
-  ChevronRight,
   LogOut,
   Moon,
   Sun,
@@ -54,12 +55,18 @@ import {
   Key,
   HelpCircle,
   Star,
+  Languages,
+  Check,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { isAdminAuthenticated, removeAdminToken, hasPermission, fetchAdminMe, setAdminPermissions } from "@/lib/api/admin";
 import { useTranslation } from "@/store/locale-store";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { useLocaleStore } from "@/store/locale-store";
 
+const languages = [
+  { code: 'uz' as const, label: "O'zbekcha", flag: '🇺🇿' },
+  { code: 'ru' as const, label: 'Русский', flag: '🇷🇺' },
+];
 
 // Map sidebar items to required permissions
 // Items without a 'permission' field are visible to all admins
@@ -101,12 +108,15 @@ const sidebarItems = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
+  const { locale, setLocale } = useLocaleStore();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [, setForceUpdate] = useState(0);
+
+  const isDark = resolvedTheme === "dark";
 
   // Auth guard + load permissions
   useEffect(() => {
@@ -115,15 +125,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    // Fetch fresh permissions from server
     fetchAdminMe()
       .then(({ adminRole }) => {
         setAdminPermissions(adminRole);
         setPermissionsLoaded(true);
-        setForceUpdate((n) => n + 1); // re-render with new permissions
+        setForceUpdate((n) => n + 1);
       })
       .catch(() => {
-        // If /admin/me fails, still show sidebar (with cached permissions)
         setPermissionsLoaded(true);
       });
   }, [router]);
@@ -132,6 +140,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const visibleSidebarItems = sidebarItems.filter(
     (item) => !item.permission || hasPermission(item.permission)
   );
+
+  // Track scroll for glass header effect
+  useEffect(() => {
+    const main = document.getElementById("admin-scroll-area");
+    if (!main) return;
+    const onScroll = () => setScrolled(main.scrollTop > 8);
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => main.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Prevent body scroll when mobile sidebar is open
   useEffect(() => {
@@ -150,11 +167,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay — full screen, blocks all touch on right side */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden touch-none"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          style={{ touchAction: "none", overscrollBehavior: "none" }}
           onClick={() => setMobileOpen(false)}
+          onTouchStart={(e) => e.preventDefault()}
           onTouchMove={(e) => e.preventDefault()}
         />
       )}
@@ -162,30 +181,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full bg-card border-r transition-all duration-300",
-          collapsed ? "w-16" : "w-64",
+          "fixed left-0 top-0 z-50 h-full w-64 bg-card border-r transition-transform duration-300 overscroll-none",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo */}
-        <div className="flex h-16 items-center justify-between px-4 border-b">
-          {!collapsed && (
-            <Link href="/admin/dashboard" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <ShoppingBag className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="font-bold">TOPLA Admin</span>
-            </Link>
-          )}
-          {collapsed && (
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
-              <ShoppingBag className="h-5 w-5 text-primary-foreground" />
-            </div>
-          )}
+        {/* Mobile close button */}
+        <div className="flex h-16 items-center justify-end px-4 border-b lg:hidden">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-8 w-8 shrink-0"
+            className="h-8 w-8 shrink-0"
             onClick={() => setMobileOpen(false)}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -193,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Navigation */}
-        <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
+        <nav className="p-2 space-y-1 overflow-y-auto overscroll-contain h-[calc(100vh-4rem)] lg:h-full">
           {visibleSidebarItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -209,29 +214,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onClick={() => setMobileOpen(false)}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{t(item.key)}</span>}
+                <span>{t(item.key)}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* Collapse Button */}
-        <div className="absolute bottom-4 left-0 right-0 px-2 hidden lg:block">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-        </div>
       </aside>
 
       {/* Main Content */}
-      <div className={cn("transition-all duration-300", collapsed ? "lg:pl-16" : "lg:pl-64")}>
-        {/* Header */}
-        <header className="sticky top-0 z-30 h-16 bg-card border-b flex items-center justify-between px-4 lg:px-6">
+      <div className="transition-all duration-300 lg:pl-64 h-screen flex flex-col">
+        {/* Sticky Glass Header */}
+        <header
+          className={cn(
+            "sticky top-0 z-30 h-16 flex items-center justify-between px-4 lg:px-6 transition-all duration-200 border-b",
+            scrolled
+              ? "bg-card/75 backdrop-blur-xl backdrop-saturate-150 border-border/50 shadow-sm"
+              : "bg-card border-border"
+          )}
+        >
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -245,37 +246,74 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
-
-            <LanguageSwitcher />
-
-            <Button variant="ghost" size="icon" className="relative" onClick={() => router.push('/admin/notifications')}>
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
-            </Button>
-
+            {/* Profile Menu — contains dark mode, language, settings, logout */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src="" />
-                    <AvatarFallback>
-                      A
-                    </AvatarFallback>
+                    <AvatarFallback>A</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  {t('admin')}
-                </DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>{t('admin')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {/* Apple-style Dark Mode Toggle */}
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setTheme(isDark ? "light" : "dark");
+                  }}
+                  className="cursor-pointer justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                    {isDark ? t('darkMode') : t('lightMode')}
+                  </span>
+                  {/* Apple-style toggle switch */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTheme(isDark ? "light" : "dark");
+                    }}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out",
+                      isDark ? "bg-primary" : "bg-muted-foreground/25"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out mt-0.5",
+                        isDark ? "translate-x-[22px]" : "translate-x-[2px]"
+                      )}
+                    />
+                  </button>
+                </DropdownMenuItem>
+
+                {/* Language Selector */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Languages className="mr-2 h-4 w-4" />
+                    {languages.find(l => l.code === locale)?.flag}{" "}
+                    {languages.find(l => l.code === locale)?.label}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {languages.map((lang) => (
+                      <DropdownMenuItem
+                        key={lang.code}
+                        onClick={() => setLocale(lang.code)}
+                        className="cursor-pointer"
+                      >
+                        <span className="mr-2">{lang.flag}</span>
+                        {lang.label}
+                        {locale === lang.code && <Check className="ml-auto h-4 w-4" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/admin/settings">
@@ -284,7 +322,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   {t('exit')}
                 </DropdownMenuItem>
@@ -293,8 +331,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="p-2 sm:p-4 lg:p-6">{children}</main>
+        {/* Page Content — scrollable area */}
+        <main id="admin-scroll-area" className="flex-1 overflow-y-auto overscroll-contain p-2 sm:p-4 lg:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

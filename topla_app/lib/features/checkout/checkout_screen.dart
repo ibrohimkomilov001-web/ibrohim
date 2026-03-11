@@ -1480,7 +1480,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     Text(
                                       '+${plan.interestRate}%',
                                       style: const TextStyle(
-                                          color: Colors.orange,
+                                          color: AppColors.warning,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600),
                                     )
@@ -2089,7 +2089,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           SnackBar(
                             content:
                                 Text(context.l10n.translate('enter_address')),
-                            backgroundColor: Colors.orange.shade700,
+                            backgroundColor: AppColors.warning,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),

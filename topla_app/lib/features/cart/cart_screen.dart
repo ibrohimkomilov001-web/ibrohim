@@ -397,7 +397,8 @@ class _CartScreenState extends State<CartScreen>
                           ),
                         ),
                         child: _selectedItems.contains(item.id)
-                            ? const Icon(Icons.check, color: Colors.white, size: 12)
+                            ? const Icon(Icons.check,
+                                color: Colors.white, size: 12)
                             : null,
                       ),
                     ),
@@ -768,7 +769,7 @@ class _CartScreenState extends State<CartScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.l10n.translate('enter_promo')),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
@@ -806,7 +807,7 @@ class _CartScreenState extends State<CartScreen>
             SnackBar(
               content: Text(
                   '${context.l10n.translate('min_order_sum')}: ${_formatPrice(minAmount.toDouble())} ${context.l10n.translate('currency')}'),
-              backgroundColor: Colors.orange,
+              backgroundColor: AppColors.warning,
             ),
           );
         }

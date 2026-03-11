@@ -995,7 +995,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       case OrderStatus.processing:
         return {
           'text': context.l10n.translate('status_store_preparing'),
-          'color': AppColors.accent,
+          'color': AppColors.primary,
           'icon': Iconsax.box_tick,
         };
       case OrderStatus.readyForPickup:

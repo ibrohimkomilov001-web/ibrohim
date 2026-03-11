@@ -153,7 +153,7 @@ class _ProductCardState extends State<ProductCard>
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF6D00),
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -179,7 +179,7 @@ class _ProductCardState extends State<ProductCard>
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [AppColors.sale, AppColors.accent],
+                            colors: [AppColors.sale, AppColors.primary],
                           ),
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusSm),
@@ -343,7 +343,7 @@ class _ProductCardState extends State<ProductCard>
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFF6D00),
+                                    color: AppColors.primary,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

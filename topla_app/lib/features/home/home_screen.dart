@@ -257,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildBannerPlaceholder(BannerModel banner) {
     final title = banner.getTitle('uz');
     final colors = [
-      [const Color(0xFFFF6D00), const Color(0xFFFF9100)],
+      [AppColors.primary, AppColors.primaryLight],
       [const Color(0xFF1976D2), const Color(0xFF42A5F5)],
       [const Color(0xFF388E3C), const Color(0xFF66BB6A)],
     ];

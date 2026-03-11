@@ -2,6 +2,7 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -455,62 +456,103 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       foregroundColor: Colors.black,
       leading: _buildBackButton(),
       actions: [
-        Consumer<ProductsProvider>(
-          builder: (context, provider, _) {
-            final isFavorite =
-                _productId.isNotEmpty && provider.isFavorite(_productId);
-            return _buildActionButton(
-              icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? AppColors.error : null,
-              onTap: () async {
-                if (_productId.isEmpty) return;
-                if (!context.read<AuthProvider>().isLoggedIn) {
-                  Navigator.pushNamed(context, '/auth');
-                  return;
-                }
-                try {
-                  await provider.toggleFavorite(_productId);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(provider.isFavorite(_productId)
-                            ? 'Sevimlilarga qo\'shildi'
-                            : 'Sevimlilardan olib tashlandi'),
-                        backgroundColor: provider.isFavorite(_productId)
-                            ? AppColors.success
-                            : Colors.grey,
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          child: Consumer<ProductsProvider>(
+            builder: (context, provider, _) {
+              final isFav =
+                  _productId.isNotEmpty && provider.isFavorite(_productId);
+              return Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Compare
+                    GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Solishtirish tez orada!'),
+                            backgroundColor: AppColors.primary,
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: _buildCompareIcon(),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${context.l10n.translate('error')}: $e'),
-                        backgroundColor: AppColors.error,
+                    ),
+                    // Favorite
+                    GestureDetector(
+                      onTap: () async {
+                        if (_productId.isEmpty) return;
+                        if (!context.read<AuthProvider>().isLoggedIn) {
+                          Navigator.pushNamed(context, '/auth');
+                          return;
+                        }
+                        try {
+                          await provider.toggleFavorite(_productId);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(provider.isFavorite(_productId)
+                                  ? 'Sevimlilarga qo\'shildi'
+                                  : 'Sevimlilardan olib tashlandi'),
+                              backgroundColor: provider.isFavorite(_productId)
+                                  ? AppColors.success
+                                  : Colors.grey,
+                            ));
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(
+                                  '${context.l10n.translate('error')}: $e'),
+                              backgroundColor: AppColors.error,
+                            ));
+                          }
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: Icon(
+                          isFav
+                              ? Icons.favorite
+                              : Icons.favorite_border_rounded,
+                          color: isFav ? AppColors.error : Colors.black87,
+                          size: 19,
+                        ),
                       ),
-                    );
-                  }
-                }
-              },
-            );
-          },
+                    ),
+                    // Share
+                    GestureDetector(
+                      onTap: () async {
+                        final productName =
+                            widget.product['name'] ?? 'Mahsulot';
+                        final productPrice =
+                            _formatPrice(widget.product['price']);
+                        final message =
+                            '$productName - $productPrice so\'m\n\nTOPLA Market da xarid qiling!\nhttps://topla.uz';
+                        await Share.share(message, subject: productName);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: Transform.scale(
+                          scaleX: -1,
+                          child: Icon(CupertinoIcons.reply,
+                              color: Colors.black87, size: 21),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
-        _buildActionButton(
-          icon: Icons.ios_share,
-          onTap: () async {
-            final productName = widget.product['name'] ?? 'Mahsulot';
-            final productPrice = _formatPrice(widget.product['price']);
-            final message =
-                '$productName - $productPrice so\'m\n\nTOPLA Market da xarid qiling!\nhttps://topla.uz';
-
-            await Share.share(
-              message,
-              subject: productName,
-            );
-          },
-        ),
-        const SizedBox(width: 8),
       ],
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
@@ -567,7 +609,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 if (_productImages.length > 1)
                   Positioned(
-                    bottom: 16,
+                    bottom: 56,
                     left: 0,
                     right: 0,
                     child: Row(
@@ -1231,41 +1273,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
       ),
       child: Row(
         children: List.generate(labels.length, (i) {
           final isSelected = i == selectedIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onTap(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Text(
-                  labels[i],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? Colors.black : Colors.grey.shade500,
+          return GestureDetector(
+            onTap: () => onTap(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding:
+                  const EdgeInsets.only(left: 4, right: 16, top: 8, bottom: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isSelected ? Colors.black87 : Colors.transparent,
+                    width: 2,
                   ),
+                ),
+              ),
+              child: Text(
+                labels[i],
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? Colors.black87 : Colors.grey.shade400,
                 ),
               ),
             ),
@@ -1734,10 +1769,36 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.grey.shade200.withValues(alpha: 0.85),
+            color: Colors.grey.shade200.withValues(alpha: 0.7),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.arrow_back_ios_new, size: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionIconButton({
+    IconData? icon,
+    Widget? child,
+    Color? iconColor,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200.withValues(alpha: 0.85),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: child ??
+                Icon(icon, color: iconColor ?? Colors.grey.shade700, size: 19),
+          ),
         ),
       ),
     );
@@ -1761,6 +1822,66 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
           child: Icon(icon, color: color ?? Colors.grey.shade700, size: 20),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPillButton({
+    IconData? icon,
+    Widget? child,
+    Color? color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(
+          child: child ?? Icon(icon, color: color ?? Colors.black87, size: 19),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompareIcon() {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 1,
+            top: 1,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.black87,
+                  width: 1.6,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 7,
+            top: 7,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.black87,
+                  width: 1.6,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

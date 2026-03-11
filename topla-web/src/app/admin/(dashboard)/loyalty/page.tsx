@@ -35,7 +35,7 @@ const tierConfig: Record<string, { icon: typeof Crown; color: string; label: str
 export default function LoyaltyPage() {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
-  const [tierFilter, setTierFilter] = useState("");
+  const [tierFilter, setTierFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [adjustData, setAdjustData] = useState({ userId: "", points: 0, description: "" });
@@ -48,7 +48,7 @@ export default function LoyaltyPage() {
 
   const { data: accountsRes, isLoading: accountsLoading } = useQuery({
     queryKey: ["loyalty-accounts", tierFilter, search, page],
-    queryFn: () => fetchLoyaltyAccounts({ tier: tierFilter || undefined, search: search || undefined, page }),
+    queryFn: () => fetchLoyaltyAccounts({ tier: tierFilter === 'all' ? undefined : tierFilter, search: search || undefined, page }),
   });
 
   const adjustMutation = useMutation({
@@ -134,7 +134,7 @@ export default function LoyaltyPage() {
                   <SelectValue placeholder={t('tier')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('all')}</SelectItem>
+                  <SelectItem value="all">{t('all')}</SelectItem>
                   <SelectItem value="bronze">Bronze</SelectItem>
                   <SelectItem value="silver">Silver</SelectItem>
                   <SelectItem value="gold">Gold</SelectItem>
