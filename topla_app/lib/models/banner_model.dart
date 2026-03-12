@@ -1,4 +1,5 @@
 /// Banner modeli
+library;
 import '../core/config/api_config.dart';
 
 class BannerModel {

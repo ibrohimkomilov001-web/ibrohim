@@ -15,7 +15,7 @@ function slugify(text: string): string {
 }
 
 // ============================================
-// 16 L0 kategoriyalar - Uzum Market darajasida
+// 22 L0 kategoriyalar - Uzum Market darajasida
 // Har biri L1 (o'rta) va L2 (barg) kategoriyalari bilan
 // ============================================
 
@@ -284,10 +284,10 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 5. GO'ZALLIK VA PARVARISH
+  // 5. GO'ZALLIK VA SALOMATLIK (merged: Go'zallik + Parfyumeriya + Shaxsiy gigiena + Dorixona)
   {
-    nameUz: 'Go\'zallik va parvarish',
-    nameRu: '\u041A\u0440\u0430\u0441\u043E\u0442\u0430 \u0438 \u0443\u0445\u043E\u0434',
+    nameUz: 'Go\'zallik va salomatlik',
+    nameRu: '\u041A\u0440\u0430\u0441\u043E\u0442\u0430 \u0438 \u0437\u0434\u043E\u0440\u043E\u0432\u044C\u0435',
     icon: 'magic_star',
     children: [
       {
@@ -339,57 +339,20 @@ const CATEGORIES: L0Cat[] = [
           { nameUz: 'Ustara va malhamlar', nameRu: '\u0411\u0440\u0438\u0442\u0432\u044B \u0438 \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430 \u0434\u043B\u044F \u0431\u0440\u0438\u0442\u044C\u044F' },
         ],
       },
-    ],
-  },
-
-  // 6. SALOMATLIK
-  {
-    nameUz: 'Salomatlik',
-    nameRu: '\u0417\u0434\u043E\u0440\u043E\u0432\u044C\u0435',
-    icon: 'health',
-    children: [
       {
-        nameUz: 'Vitaminlar va BADlar',
-        nameRu: '\u0412\u0438\u0442\u0430\u043C\u0438\u043D\u044B \u0438 \u0411\u0410\u0414\u044B',
+        nameUz: 'Dorixona',
+        nameRu: '\u0410\u043F\u0442\u0435\u043A\u0430',
         children: [
-          { nameUz: 'Vitaminlar', nameRu: '\u0412\u0438\u0442\u0430\u043C\u0438\u043D\u044B' },
-          { nameUz: 'BADlar', nameRu: '\u0411\u0410\u0414\u044B' },
-          { nameUz: 'Omega va baliq yog\'i', nameRu: '\u041E\u043C\u0435\u0433\u0430 \u0438 \u0440\u044B\u0431\u0438\u0439 \u0436\u0438\u0440' },
-          { nameUz: 'Sport ozuqa', nameRu: '\u0421\u043F\u043E\u0440\u0442\u0438\u0432\u043D\u043E\u0435 \u043F\u0438\u0442\u0430\u043D\u0438\u0435' },
-        ],
-      },
-      {
-        nameUz: 'Tibbiy jihozlar',
-        nameRu: '\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0441\u043A\u0438\u0435 \u043F\u0440\u0438\u0431\u043E\u0440\u044B',
-        children: [
-          { nameUz: 'Tonometrlar', nameRu: '\u0422\u043E\u043D\u043E\u043C\u0435\u0442\u0440\u044B' },
-          { nameUz: 'Termometrlar', nameRu: '\u0422\u0435\u0440\u043C\u043E\u043C\u0435\u0442\u0440\u044B' },
-          { nameUz: 'Ingalyatorlar', nameRu: '\u0418\u043D\u0433\u0430\u043B\u044F\u0442\u043E\u0440\u044B' },
-          { nameUz: 'Qon shakar o\'lchagich', nameRu: '\u0413\u043B\u044E\u043A\u043E\u043C\u0435\u0442\u0440\u044B' },
-        ],
-      },
-      {
-        nameUz: 'Birinchi yordam',
-        nameRu: '\u041F\u0435\u0440\u0432\u0430\u044F \u043F\u043E\u043C\u043E\u0449\u044C',
-        children: [
-          { nameUz: 'Plasterlar va bintlar', nameRu: '\u041F\u043B\u0430\u0441\u0442\u044B\u0440\u0438 \u0438 \u0431\u0438\u043D\u0442\u044B' },
-          { nameUz: 'Antiseptiklar', nameRu: '\u0410\u043D\u0442\u0438\u0441\u0435\u043F\u0442\u0438\u043A\u0438' },
-          { nameUz: 'Tibbiy niqoblar', nameRu: '\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0441\u043A\u0438\u0435 \u043C\u0430\u0441\u043A\u0438' },
-        ],
-      },
-      {
-        nameUz: 'Ortopedik buyumlar',
-        nameRu: '\u041E\u0440\u0442\u043E\u043F\u0435\u0434\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0442\u043E\u0432\u0430\u0440\u044B',
-        children: [
-          { nameUz: 'Ortopedik yostiqlar', nameRu: '\u041E\u0440\u0442\u043E\u043F\u0435\u0434\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u043F\u043E\u0434\u0443\u0448\u043A\u0438' },
-          { nameUz: 'Ortopedik tasmalar', nameRu: '\u041E\u0440\u0442\u043E\u043F\u0435\u0434\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0431\u0430\u043D\u0434\u0430\u0436\u0438' },
-          { nameUz: 'Ortopedik taqalar', nameRu: '\u041E\u0440\u0442\u043E\u043F\u0435\u0434\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0441\u0442\u0435\u043B\u044C\u043A\u0438' },
+          { nameUz: 'Vitaminlar va BADlar', nameRu: '\u0412\u0438\u0442\u0430\u043C\u0438\u043D\u044B \u0438 \u0411\u0410\u0414\u044B' },
+          { nameUz: 'Tibbiy jihozlar', nameRu: '\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0441\u043A\u0438\u0435 \u043F\u0440\u0438\u0431\u043E\u0440\u044B' },
+          { nameUz: 'Birinchi yordam', nameRu: '\u041F\u0435\u0440\u0432\u0430\u044F \u043F\u043E\u043C\u043E\u0449\u044C' },
+          { nameUz: 'Ortopedik buyumlar', nameRu: '\u041E\u0440\u0442\u043E\u043F\u0435\u0434\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0442\u043E\u0432\u0430\u0440\u044B' },
         ],
       },
     ],
   },
 
-  // 7. BOLALAR UCHUN
+  // 6. BOLALAR UCHUN
   {
     nameUz: 'Bolalar uchun',
     nameRu: '\u0414\u0435\u0442\u0441\u043A\u0438\u0435 \u0442\u043E\u0432\u0430\u0440\u044B',
@@ -449,7 +412,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 8. UY VA MEBEL
+  // 7. UY VA MEBEL
   {
     nameUz: 'Uy va mebel',
     nameRu: '\u0414\u043E\u043C \u0438 \u043C\u0435\u0431\u0435\u043B\u044C',
@@ -521,7 +484,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 9. MAISHIY KIMYO
+  // 8. MAISHIY KIMYO
   {
     nameUz: 'Maishiy kimyo',
     nameRu: '\u0411\u044B\u0442\u043E\u0432\u0430\u044F \u0445\u0438\u043C\u0438\u044F',
@@ -567,7 +530,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 10. QURILISH VA TA'MIRLASH
+  // 9. QURILISH VA TA'MIRLASH
   {
     nameUz: 'Qurilish va ta\'mirlash',
     nameRu: '\u0421\u0442\u0440\u043E\u0438\u0442\u0435\u043B\u044C\u0441\u0442\u0432\u043E \u0438 \u0440\u0435\u043C\u043E\u043D\u0442',
@@ -622,7 +585,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 11. OZIQ-OVQAT
+  // 10. OZIQ-OVQAT
   {
     nameUz: 'Oziq-ovqat',
     nameRu: '\u041F\u0440\u043E\u0434\u0443\u043A\u0442\u044B \u043F\u0438\u0442\u0430\u043D\u0438\u044F',
@@ -693,7 +656,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 12. AVTOTOVARLAR
+  // 11. AVTOTOVARLAR
   {
     nameUz: 'Avtotovarlar',
     nameRu: '\u0410\u0432\u0442\u043E\u0442\u043E\u0432\u0430\u0440\u044B',
@@ -742,7 +705,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 13. SPORT VA DAM OLISH
+  // 12. SPORT VA DAM OLISH
   {
     nameUz: 'Sport va dam olish',
     nameRu: '\u0421\u043F\u043E\u0440\u0442 \u0438 \u043E\u0442\u0434\u044B\u0445',
@@ -798,7 +761,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 14. KITOBLAR VA KANSELYARIYA
+  // 13. KITOBLAR VA KANSELYARIYA
   {
     nameUz: 'Kitoblar va kanselyariya',
     nameRu: '\u041A\u043D\u0438\u0433\u0438 \u0438 \u043A\u0430\u043D\u0446\u0435\u043B\u044F\u0440\u0438\u044F',
@@ -845,7 +808,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 15. UY HAYVONLARI
+  // 14. UY HAYVONLARI
   {
     nameUz: 'Uy hayvonlari',
     nameRu: '\u0414\u043E\u043C\u0430\u0448\u043D\u0438\u0435 \u0436\u0438\u0432\u043E\u0442\u043D\u044B\u0435',
@@ -891,7 +854,7 @@ const CATEGORIES: L0Cat[] = [
     ],
   },
 
-  // 16. BOG' VA TOMORQA
+  // 15. BOG' VA TOMORQA
   {
     nameUz: 'Bog\' va tomorqa',
     nameRu: '\u0421\u0430\u0434 \u0438 \u043E\u0433\u043E\u0440\u043E\u0434',

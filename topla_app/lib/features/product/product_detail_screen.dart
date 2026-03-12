@@ -52,11 +52,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final vs = v['sizeId'] ?? v['size_id'];
       if (vc == _selectedColorId && vs == _selectedSizeId) return v;
       // Faqat rang bo'lsa (o'lchamsiz)
-      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null)
+      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null) {
         return v;
+      }
       // Faqat o'lcham bo'lsa (rangsiz)
-      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null)
+      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null) {
         return v;
+      }
     }
     return null;
   }
@@ -78,10 +80,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// Tanlangan variant stoki
   int get _displayStock {
     final v = _selectedVariant;
-    if (v != null)
+    if (v != null) {
       return (v['stock'] ?? 0) is int
           ? v['stock'] as int
           : int.tryParse(v['stock'].toString()) ?? 0;
+    }
     return (widget.product['stock'] ?? 100) is int
         ? (widget.product['stock'] ?? 100) as int
         : 100;
@@ -742,7 +745,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '$reviewCount ta sharh · ${sold}+ buyurtma',
+                      '$reviewCount ta sharh · $sold+ buyurtma',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,

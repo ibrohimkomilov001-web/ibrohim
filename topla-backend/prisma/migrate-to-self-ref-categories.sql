@@ -44,12 +44,12 @@ ALTER TABLE "categories"
   FOREIGN KEY ("parent_id") REFERENCES "categories"("id")
   ON DELETE CASCADE;
 
--- Step 7: Add indexes
+-- Step 7: Add indexes (slug unique index added AFTER slug generation)
 CREATE INDEX IF NOT EXISTS "categories_parent_id_is_active_idx" ON "categories"("parent_id", "is_active");
 CREATE INDEX IF NOT EXISTS "categories_level_is_active_sort_order_idx" ON "categories"("level", "is_active", "sort_order");
-CREATE UNIQUE INDEX IF NOT EXISTS "categories_slug_key" ON "categories"("slug");
 
--- Step 8: Generate slugs from names (simple transliteration)
+-- Step 8: Generate slugs — root categories get simple slug, children get parent-slug prefix
+-- First: root categories (level=0)
 UPDATE "categories" SET "slug" = LOWER(
   REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
     "name_uz",
@@ -62,7 +62,26 @@ UPDATE "categories" SET "slug" = LOWER(
     ',', ''),
     '.', ''),
     '--', '-')
-);
+) WHERE "level" = 0;
+
+-- Then: child categories (level=1) get parent-slug/child-slug format for uniqueness
+UPDATE "categories" c SET "slug" = LOWER(
+  (SELECT p."slug" FROM "categories" p WHERE p."id" = c."parent_id") || '-' ||
+  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+    c."name_uz",
+    ' ', '-'),
+    '''', ''),
+    'ʼ', ''),
+    'ʻ', ''),
+    '''', ''),
+    'va ', ''),
+    ',', ''),
+    '.', ''),
+    '--', '-')
+) WHERE c."level" = 1;
+
+-- Now create unique slug index
+CREATE UNIQUE INDEX IF NOT EXISTS "categories_slug_key" ON "categories"("slug");
 
 -- Step 9: Drop subcategories table
 DROP TABLE IF EXISTS "subcategories" CASCADE;

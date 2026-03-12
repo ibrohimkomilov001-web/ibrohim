@@ -65,6 +65,7 @@ const productFilterSchema = z.object({
   search: z.string().optional(),
   isFlashSale: z.coerce.boolean().optional(),
   hasDiscount: z.coerce.boolean().optional(),
+  attributes: z.string().optional(), // format: "key1:val1,val2;key2:val3;key3_min:10;key3_max:100"
   sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'popular', 'rating', 'discount']).optional(),
   page: z.coerce.number().default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
@@ -186,6 +187,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       minRating: z.coerce.number().min(0).max(5).optional(),
       inStock: z.coerce.boolean().optional(),
       hasDiscount: z.coerce.boolean().optional(),
+      attributes: z.string().optional(),
       sort: z.enum(['price_asc', 'price_desc', 'rating', 'newest', 'popular']).optional(),
     });
     const params = searchSchema.parse(request.query);
@@ -297,6 +299,64 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
     if (params.hasDiscount) {
       where.discountPercent = { gt: 0 };
+    }
+
+    // Attribute filtering for search (same logic as GET /products)
+    if (params.attributes) {
+      const attrParts = params.attributes.split(';').filter((s: string) => s.trim());
+      const rangeFilters: Record<string, { min?: number; max?: number }> = {};
+      const chipFilters: Record<string, string[]> = {};
+
+      for (const part of attrParts) {
+        const [rawKey, rawVal] = part.split(':');
+        if (!rawKey || !rawVal) continue;
+        const key = rawKey.trim();
+        const val = rawVal.trim();
+
+        if (key.endsWith('_min')) {
+          const baseKey = key.replace(/_min$/, '');
+          if (!rangeFilters[baseKey]) rangeFilters[baseKey] = {};
+          rangeFilters[baseKey].min = parseFloat(val);
+        } else if (key.endsWith('_max')) {
+          const baseKey = key.replace(/_max$/, '');
+          if (!rangeFilters[baseKey]) rangeFilters[baseKey] = {};
+          rangeFilters[baseKey].max = parseFloat(val);
+        } else {
+          chipFilters[key] = val.split(',').map((v: string) => v.trim()).filter((v: string) => v);
+        }
+      }
+
+      const attrConditions: any[] = [];
+      for (const [key, values] of Object.entries(chipFilters)) {
+        if (values.length > 0) {
+          attrConditions.push({
+            attributeValues: {
+              some: {
+                attribute: { key },
+                value: { in: values },
+              },
+            },
+          });
+        }
+      }
+      for (const [key, range] of Object.entries(rangeFilters)) {
+        const valCondition: any = {};
+        if (range.min !== undefined && !isNaN(range.min)) valCondition.gte = String(range.min);
+        if (range.max !== undefined && !isNaN(range.max)) valCondition.lte = String(range.max);
+        if (Object.keys(valCondition).length > 0) {
+          attrConditions.push({
+            attributeValues: {
+              some: {
+                attribute: { key },
+                value: valCondition,
+              },
+            },
+          });
+        }
+      }
+      if (attrConditions.length > 0) {
+        where.AND = [...(where.AND || []), ...attrConditions];
+      }
     }
 
     let orderBy: any = { createdAt: 'desc' };
@@ -416,6 +476,81 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         { nameRu: { contains: filters.search, mode: 'insensitive' } },
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
+    }
+
+    // Attribute filtering (CategoryAttribute + ProductAttributeValue)
+    // Format: "ram:8GB,16GB;screen_size_min:6;screen_size_max:17;material:cotton,silk"
+    if (filters.attributes) {
+      const attrParts = filters.attributes.split(';').filter((s: string) => s.trim());
+      const rangeFilters: Record<string, { min?: number; max?: number }> = {};
+      const chipFilters: Record<string, string[]> = {};
+
+      for (const part of attrParts) {
+        const [rawKey, rawVal] = part.split(':');
+        if (!rawKey || !rawVal) continue;
+        const key = rawKey.trim();
+        const val = rawVal.trim();
+
+        // Range filters: key_min / key_max
+        if (key.endsWith('_min')) {
+          const baseKey = key.replace(/_min$/, '');
+          if (!rangeFilters[baseKey]) rangeFilters[baseKey] = {};
+          rangeFilters[baseKey].min = parseFloat(val);
+        } else if (key.endsWith('_max')) {
+          const baseKey = key.replace(/_max$/, '');
+          if (!rangeFilters[baseKey]) rangeFilters[baseKey] = {};
+          rangeFilters[baseKey].max = parseFloat(val);
+        } else {
+          // Chips/radio: multiple values comma-separated
+          chipFilters[key] = val.split(',').map((v: string) => v.trim()).filter((v: string) => v);
+        }
+      }
+
+      const attrConditions: any[] = [];
+
+      // Chips/radio: product must have attribute value IN the selected values
+      for (const [attrKey, values] of Object.entries(chipFilters)) {
+        attrConditions.push({
+          attributeValues: {
+            some: {
+              attribute: { key: attrKey },
+              value: { in: values },
+            },
+          },
+        });
+      }
+
+      // Range: product attribute value must be between min and max (numeric comparison)
+      for (const [attrKey, range] of Object.entries(rangeFilters)) {
+        const rangeConditions: any[] = [];
+        // Since value is stored as String, we find matching attributes first
+        // and filter with gte/lte on the numeric value
+        if (range.min !== undefined) {
+          rangeConditions.push({
+            attributeValues: {
+              some: {
+                attribute: { key: attrKey },
+                value: { gte: String(range.min) },
+              },
+            },
+          });
+        }
+        if (range.max !== undefined) {
+          rangeConditions.push({
+            attributeValues: {
+              some: {
+                attribute: { key: attrKey },
+                value: { lte: String(range.max) },
+              },
+            },
+          });
+        }
+        attrConditions.push(...rangeConditions);
+      }
+
+      if (attrConditions.length > 0) {
+        where.AND = [...(where.AND || []), ...attrConditions];
+      }
     }
 
     // Saralash

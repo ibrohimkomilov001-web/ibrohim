@@ -70,9 +70,16 @@ class ApiProductRepositoryImpl implements IProductRepository {
 
   @override
   Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20, String? sort}) async {
+      {int limit = 20, String? sort, Map<String, dynamic>? filters}) async {
     final params = <String, dynamic>{'q': query, 'limit': limit};
     if (sort != null) params['sort'] = sort;
+    if (filters != null) {
+      filters.forEach((key, value) {
+        if (value != null && value.toString().isNotEmpty) {
+          params[key] = value;
+        }
+      });
+    }
     final response = await _api.get(
       '/products/search',
       queryParams: params,
@@ -280,14 +287,12 @@ class ApiProductRepositoryImpl implements IProductRepository {
     // Pagination ma'lumotlarini olish
     final pagination = response.data['data']?['pagination'];
     final total = pagination?['total'] ?? products.length;
-    final totalPages = pagination?['totalPages'] ?? 1;
 
     return FilteredProductsResult(
       products: products,
       totalCount: total,
       page: page,
       perPage: limit,
-      totalPages: totalPages,
     );
   }
 

@@ -288,9 +288,10 @@ class ProductsProvider extends ChangeNotifier {
 
   /// Mahsulotlarni qidirish (Meilisearch)
   Future<List<ProductModel>> searchProducts(String query,
-      {String? sort}) async {
+      {String? sort, Map<String, dynamic>? filters}) async {
     try {
-      return await _productRepo.searchProducts(query, sort: sort);
+      return await _productRepo.searchProducts(query,
+          sort: sort, filters: filters);
     } catch (e) {
       AppLogger.e(_tag, 'searchProducts error', e);
       _error = e.toString();

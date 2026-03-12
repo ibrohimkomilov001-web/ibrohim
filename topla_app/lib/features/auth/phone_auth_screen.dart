@@ -19,7 +19,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  String _selectedCountryCode = '+998';
+  final String _selectedCountryCode = '+998';
 
   @override
   void dispose() {

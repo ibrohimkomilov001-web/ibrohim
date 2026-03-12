@@ -6,12 +6,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/product_model.dart';
+import '../../models/filter_model.dart';
+import '../../models/brand_model.dart';
+import '../../models/color_option.dart';
+import '../../models/product_facets.dart';
+import '../../models/category_filter_attribute.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/products_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
+import '../../widgets/shein_filter_sheet.dart';
 import '../product/product_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -33,6 +39,14 @@ class _SearchScreenState extends State<SearchScreen>
   bool _hasSearched = false;
   String _sortBy = 'popular';
   bool _showClearButton = false;
+
+  // Filter tizimi
+  ProductFilter _filter = const ProductFilter();
+  List<BrandModel> _brands = [];
+  List<ColorOption> _colors = [];
+  List<CategoryFilterAttribute> _categoryFilters = [];
+  ProductFacets? _facets;
+  String? _dominantCategoryId;
 
   // Qidiruv tarixi
   List<String> _searchHistory = [];
@@ -177,14 +191,45 @@ class _SearchScreenState extends State<SearchScreen>
     try {
       final productsProvider = context.read<ProductsProvider>();
       final sortParam = _getSortParam();
-      final results =
-          await productsProvider.searchProducts(query, sort: sortParam);
 
-      setState(() {
-        _searchResults = results;
-        _totalResults = results.length;
-        _isSearching = false;
-      });
+      // Build filter params for API
+      final filterParams = <String, dynamic>{};
+      final queryMap = _filter.toQueryMap();
+      if (queryMap.containsKey('minPrice'))
+        filterParams['minPrice'] = queryMap['minPrice'];
+      if (queryMap.containsKey('maxPrice'))
+        filterParams['maxPrice'] = queryMap['maxPrice'];
+      if (queryMap.containsKey('brandIds'))
+        filterParams['brandIds'] = queryMap['brandIds'];
+      if (queryMap.containsKey('colorIds'))
+        filterParams['colorIds'] = queryMap['colorIds'];
+      if (queryMap.containsKey('minRating'))
+        filterParams['minRating'] = queryMap['minRating'];
+      if (queryMap.containsKey('inStock'))
+        filterParams['inStock'] = queryMap['inStock'];
+      if (queryMap.containsKey('hasDiscount'))
+        filterParams['hasDiscount'] = queryMap['hasDiscount'];
+      if (queryMap.containsKey('attributes'))
+        filterParams['attributes'] = queryMap['attributes'];
+      if (_dominantCategoryId != null)
+        filterParams['categoryId'] = _dominantCategoryId;
+
+      final results = await productsProvider.searchProducts(
+        query,
+        sort: sortParam,
+        filters: filterParams.isNotEmpty ? filterParams : null,
+      );
+
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _totalResults = results.length;
+          _isSearching = false;
+        });
+
+        // Detect dominant category from results and load its filters
+        _detectAndLoadCategoryFilters(results);
+      }
 
       // Tarixga qo'shish
       _searchHistory.remove(query);
@@ -200,6 +245,76 @@ class _SearchScreenState extends State<SearchScreen>
             backgroundColor: AppColors.error,
           ),
         );
+      }
+    }
+  }
+
+  /// Detect dominant category from search results and load its filters
+  Future<void> _detectAndLoadCategoryFilters(List<ProductModel> results) async {
+    if (results.isEmpty) return;
+
+    // Count category occurrences
+    final categoryCounts = <String, int>{};
+    for (final product in results) {
+      final catId = product.categoryId;
+      if (catId != null && catId.isNotEmpty) {
+        categoryCounts[catId] = (categoryCounts[catId] ?? 0) + 1;
+      }
+    }
+
+    if (categoryCounts.isEmpty) return;
+
+    // Find dominant category (most products)
+    final sortedEntries = categoryCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final dominantId = sortedEntries.first.key;
+
+    // Only reload filters if dominant category changed
+    if (_dominantCategoryId == dominantId) return;
+    _dominantCategoryId = dominantId;
+
+    try {
+      final provider = context.read<ProductsProvider>();
+      final filterResults = await Future.wait([
+        provider.getBrandsByCategory(dominantId),
+        provider.getColorsByCategory(dominantId),
+        provider.getCategoryFilters(dominantId),
+        provider.getFacets(dominantId),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _brands = filterResults[0] as List<BrandModel>;
+          _colors = filterResults[1] as List<ColorOption>;
+          _categoryFilters = filterResults[2] as List<CategoryFilterAttribute>;
+          _facets = filterResults[3] as ProductFacets;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading search category filters: $e');
+    }
+  }
+
+  Future<void> _openFilterSheet() async {
+    final newFilter = await SheinFilterSheet.show(
+      context,
+      currentFilter: _filter,
+      categoryName: 'Filtrlar',
+      accentColor: AppColors.primary,
+      productCount: _totalResults,
+      brands: _brands,
+      colors: _colors,
+      facets: _facets,
+      categoryAttributes: _categoryFilters,
+    );
+    if (newFilter != null && mounted) {
+      setState(() {
+        _filter = newFilter;
+        _sortBy = newFilter.sortBy ?? 'popular';
+      });
+      // Re-search with new filters
+      if (_searchController.text.isNotEmpty) {
+        _performSearch(_searchController.text);
       }
     }
   }
@@ -288,12 +403,44 @@ class _SearchScreenState extends State<SearchScreen>
         titleSpacing: 0,
         title: _buildSearchField(),
         actions: [
-          if (_hasSearched && _searchResults.isNotEmpty)
+          if (_hasSearched && _searchResults.isNotEmpty) ...[
+            // Filter icon with active count badge
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  onPressed: _openFilterSheet,
+                  icon: const Icon(Icons.tune_rounded, size: 22),
+                  tooltip: 'Filtrlar',
+                ),
+                if (_filter.activeFilterCount > 0)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${_filter.activeFilterCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             IconButton(
               onPressed: _showSortOptions,
               icon: const Icon(Iconsax.sort),
               tooltip: context.l10n.translate('sort_by'),
             ),
+          ],
         ],
       ),
       body: _buildBody(),

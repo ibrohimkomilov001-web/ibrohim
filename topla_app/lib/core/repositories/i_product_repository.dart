@@ -22,7 +22,7 @@ abstract class IProductRepository {
 
   /// Mahsulot qidirish (Meilisearch)
   Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20, String? sort});
+      {int limit = 20, String? sort, Map<String, dynamic>? filters});
 
   /// Mashhur qidiruv so'zlari
   Future<List<String>> getPopularSearches();

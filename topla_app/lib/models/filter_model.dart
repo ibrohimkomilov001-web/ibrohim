@@ -27,6 +27,10 @@ class ProductFilter {
   /// null = hammasi, 2 = 2 soat ichida, 24 = ertaga, 72 = 3 kun ichida
   final int? deliveryHours;
 
+  /// Yetkazish usuli
+  /// null = Muhim emas, 'courier' = Kuryer, 'pickup_point' = Topshirish punktiga, 'pickup' = Olib ketish
+  final String? deliveryType;
+
   /// Click yetkazib berish (tez yetkazib berish)
   final bool? isClickDelivery;
 
@@ -53,6 +57,7 @@ class ProductFilter {
     this.colorIds = const {},
     this.sizeIds = const {},
     this.deliveryHours,
+    this.deliveryType,
     this.isClickDelivery,
     this.isOriginal,
     this.attributes = const {},
@@ -73,6 +78,7 @@ class ProductFilter {
       colorIds.isNotEmpty ||
       sizeIds.isNotEmpty ||
       deliveryHours != null ||
+      deliveryType != null ||
       isClickDelivery != null ||
       isOriginal != null ||
       attributes.values.any((v) => v.hasValue);
@@ -88,6 +94,7 @@ class ProductFilter {
     if (colorIds.isNotEmpty) count++;
     if (sizeIds.isNotEmpty) count++;
     if (deliveryHours != null) count++;
+    if (deliveryType != null) count++;
     if (isClickDelivery == true) count++;
     if (isOriginal == true) count++;
     count += attributes.values.where((v) => v.hasValue).length;
@@ -107,6 +114,7 @@ class ProductFilter {
     Set<String>? colorIds,
     Set<String>? sizeIds,
     int? deliveryHours,
+    String? deliveryType,
     bool? isClickDelivery,
     bool? isOriginal,
     Map<String, SelectedFilterValue>? attributes,
@@ -115,6 +123,7 @@ class ProductFilter {
     bool clearMaxPrice = false,
     bool clearMinRating = false,
     bool clearDeliveryHours = false,
+    bool clearDeliveryType = false,
     bool clearIsClickDelivery = false,
     bool clearIsOriginal = false,
     bool clearSelectedCategoryId = false,
@@ -132,6 +141,8 @@ class ProductFilter {
       sizeIds: sizeIds ?? this.sizeIds,
       deliveryHours:
           clearDeliveryHours ? null : (deliveryHours ?? this.deliveryHours),
+      deliveryType:
+          clearDeliveryType ? null : (deliveryType ?? this.deliveryType),
       isClickDelivery: clearIsClickDelivery
           ? null
           : (isClickDelivery ?? this.isClickDelivery),
@@ -223,7 +234,29 @@ class ProductFilter {
     if (brandIds.isNotEmpty) map['brandIds'] = brandIds.join(',');
     if (colorIds.isNotEmpty) map['colorIds'] = colorIds.join(',');
     if (sizeIds.isNotEmpty) map['sizeIds'] = sizeIds.join(',');
+    if (deliveryHours != null) map['deliveryHours'] = deliveryHours;
+    if (deliveryType != null) map['deliveryType'] = deliveryType;
     if (selectedCategoryId != null) map['categoryId'] = selectedCategoryId;
+
+    // Dynamic category attributes → "ram:8GB,16GB;screen_size_min:6;screen_size_max:17"
+    if (attributes.isNotEmpty) {
+      final parts = <String>[];
+      for (final entry in attributes.entries) {
+        final val = entry.value;
+        if (!val.hasValue) continue;
+        final qm = val.toQueryMap();
+        for (final kv in qm.entries) {
+          if (kv.value is List) {
+            parts.add('${kv.key}:${(kv.value as List).join(',')}');
+          } else {
+            parts.add('${kv.key}:${kv.value}');
+          }
+        }
+      }
+      if (parts.isNotEmpty) {
+        map['attributes'] = parts.join(';');
+      }
+    }
 
     return map;
   }
@@ -233,7 +266,7 @@ class ProductFilter {
     return 'ProductFilter(minPrice: $minPrice, maxPrice: $maxPrice, minRating: $minRating, '
         'onlyInStock: $onlyInStock, onlyWithDiscount: $onlyWithDiscount, '
         'sortBy: $sortBy, sortAscending: $sortAscending, brands: ${brandIds.length}, colors: ${colorIds.length}, '
-        'deliveryHours: $deliveryHours, isClickDelivery: $isClickDelivery, isOriginal: $isOriginal, '
+        'deliveryHours: $deliveryHours, deliveryType: $deliveryType, isClickDelivery: $isClickDelivery, isOriginal: $isOriginal, '
         'attributes: ${attributes.length})';
   }
 
@@ -252,6 +285,7 @@ class ProductFilter {
         _setEquals(other.colorIds, colorIds) &&
         _setEquals(other.sizeIds, sizeIds) &&
         other.deliveryHours == deliveryHours &&
+        other.deliveryType == deliveryType &&
         other.isClickDelivery == isClickDelivery &&
         other.isOriginal == isOriginal &&
         other.selectedCategoryId == selectedCategoryId;
@@ -279,6 +313,7 @@ class ProductFilter {
       Object.hashAll(colorIds),
       Object.hashAll(sizeIds),
       deliveryHours,
+      deliveryType,
       isClickDelivery,
       isOriginal,
       selectedCategoryId,

@@ -579,6 +579,9 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
     final options = attr.options;
     if (options.isEmpty) return const SizedBox.shrink();
 
+    final selectedAttr = _filter.attributes[attr.attributeKey];
+    final selectedValues = selectedAttr?.selectedValues ?? {};
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -588,19 +591,74 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
           spacing: 8,
           runSpacing: 8,
           children: options.map((option) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Text(
-                option.label,
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
+            final isSelected = selectedValues.contains(option.value);
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                final newSelected = Set<String>.from(selectedValues);
+                if (isSelected) {
+                  newSelected.remove(option.value);
+                } else {
+                  newSelected.add(option.value);
+                }
+                final newAttr = SelectedFilterValue(
+                  attributeKey: attr.attributeKey,
+                  filterType: attr.filterType,
+                  selectedValues: newSelected,
+                );
+                if (newSelected.isEmpty) {
+                  _updateFilter(_filter.withoutAttribute(attr.attributeKey));
+                } else {
+                  _updateFilter(
+                      _filter.withAttribute(attr.attributeKey, newAttr));
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? widget.accentColor.withValues(alpha: 0.1)
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color:
+                        isSelected ? widget.accentColor : Colors.grey.shade200,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSelected) ...[
+                      Icon(Icons.check, size: 16, color: widget.accentColor),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      option.label,
+                      style: TextStyle(
+                        color: isSelected
+                            ? widget.accentColor
+                            : Colors.grey.shade700,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (option.productCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${option.productCount})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isSelected
+                              ? widget.accentColor.withValues(alpha: 0.7)
+                              : Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             );
@@ -611,6 +669,12 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
   }
 
   Widget _buildRangeAttribute(CategoryFilterAttribute attr) {
+    final selectedAttr = _filter.attributes[attr.attributeKey];
+    final currentMin = selectedAttr?.minValue;
+    final currentMax = selectedAttr?.maxValue;
+    final rangeMin = attr.rangeConfig?.minValue ?? 0;
+    final rangeMax = attr.rangeConfig?.maxValue ?? 100;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -619,21 +683,101 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
           Icons.linear_scale_rounded,
         ),
         const SizedBox(height: 12),
-        if (attr.rangeConfig != null &&
-            attr.rangeConfig!.minValue != null &&
-            attr.rangeConfig!.maxValue != null)
-          Text(
-            '${attr.rangeConfig!.minValue!.toStringAsFixed(0)} - ${attr.rangeConfig!.maxValue!.toStringAsFixed(0)}',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    hintText: 'dan ${rangeMin.toStringAsFixed(0)}',
+                    hintStyle:
+                        TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  ),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500),
+                  controller: TextEditingController(
+                      text: currentMin?.toStringAsFixed(0) ?? ''),
+                  onChanged: (val) {
+                    final v = double.tryParse(val);
+                    _updateFilter(_filter.withAttribute(
+                      attr.attributeKey,
+                      SelectedFilterValue(
+                        attributeKey: attr.attributeKey,
+                        filterType: FilterType.range,
+                        minValue: v,
+                        maxValue: currentMax,
+                      ),
+                    ));
+                  },
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    hintText: 'gacha ${rangeMax.toStringAsFixed(0)}',
+                    hintStyle:
+                        TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  ),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500),
+                  controller: TextEditingController(
+                      text: currentMax?.toStringAsFixed(0) ?? ''),
+                  onChanged: (val) {
+                    final v = double.tryParse(val);
+                    _updateFilter(_filter.withAttribute(
+                      attr.attributeKey,
+                      SelectedFilterValue(
+                        attributeKey: attr.attributeKey,
+                        filterType: FilterType.range,
+                        minValue: currentMin,
+                        maxValue: v,
+                      ),
+                    ));
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildToggleAttribute(CategoryFilterAttribute attr) {
+    final selectedAttr = _filter.attributes[attr.attributeKey];
+    final isOn = selectedAttr?.toggleValue ?? false;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -642,8 +786,22 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
             _buildSectionTitle(attr.attributeNameUz, Icons.toggle_on_outlined),
             const Spacer(),
             Switch(
-              value: false, // TODO: connect to filter state
-              onChanged: (_) {},
+              value: isOn,
+              onChanged: (val) {
+                HapticFeedback.selectionClick();
+                if (val) {
+                  _updateFilter(_filter.withAttribute(
+                    attr.attributeKey,
+                    SelectedFilterValue(
+                      attributeKey: attr.attributeKey,
+                      filterType: FilterType.toggle,
+                      toggleValue: true,
+                    ),
+                  ));
+                } else {
+                  _updateFilter(_filter.withoutAttribute(attr.attributeKey));
+                }
+              },
               activeColor: widget.accentColor,
             ),
           ],
