@@ -58,6 +58,7 @@ const productFilterSchema = z.object({
   colorIds: z.string().optional(),
   sizeIds: z.string().optional(),
   shopId: z.string().uuid().optional(),
+  shopIds: z.string().optional(), // comma-separated UUIDs
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   minRating: z.coerce.number().min(0).max(5).optional(),
@@ -65,6 +66,10 @@ const productFilterSchema = z.object({
   search: z.string().optional(),
   isFlashSale: z.coerce.boolean().optional(),
   hasDiscount: z.coerce.boolean().optional(),
+  deliveryHours: z.coerce.number().optional(), // max delivery hours filter
+  deliveryType: z.string().optional(), // e.g. 'express', 'standard'
+  isWowPrice: z.coerce.boolean().optional(), // flash sale / wow price filter
+  isOriginal: z.coerce.boolean().optional(), // original price products only
   attributes: z.string().optional(), // format: "key1:val1,val2;key2:val3;key3_min:10;key3_max:100"
   sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'popular', 'rating', 'discount']).optional(),
   page: z.coerce.number().default(1),
@@ -180,6 +185,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       limit: z.coerce.number().int().min(1).max(50).default(20),
       categoryId: z.string().uuid().optional(),
       shopId: z.string().uuid().optional(),
+      shopIds: z.string().optional(), // comma-separated UUIDs
       brandIds: z.string().optional(),
       colorIds: z.string().optional(),
       sizeIds: z.string().optional(),
@@ -188,6 +194,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       minRating: z.coerce.number().min(0).max(5).optional(),
       inStock: z.coerce.boolean().optional(),
       hasDiscount: z.coerce.boolean().optional(),
+      deliveryHours: z.coerce.number().optional(),
+      deliveryType: z.string().optional(),
+      isWowPrice: z.coerce.boolean().optional(),
+      isOriginal: z.coerce.boolean().optional(),
       attributes: z.string().optional(),
       sort: z.enum(['price_asc', 'price_desc', 'rating', 'newest', 'popular']).optional(),
     });
@@ -211,11 +221,20 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const filters: string[] = ['status = active'];
     if (params.categoryId) filters.push(`categoryId = "${params.categoryId}"`);
     if (params.shopId) filters.push(`shopId = "${params.shopId}"`);
+    if (params.shopIds) {
+      const sids = params.shopIds.split(',').filter((id: string) => id.trim());
+      if (sids.length > 0) {
+        const shopFilter = sids.map((id: string) => `shopId = "${id.trim()}"`).join(' OR ');
+        filters.push(`(${shopFilter})`);
+      }
+    }
     if (params.minPrice !== undefined) filters.push(`price >= ${params.minPrice}`);
     if (params.maxPrice !== undefined) filters.push(`price <= ${params.maxPrice}`);
     if (params.minRating !== undefined) filters.push(`rating >= ${params.minRating}`);
     if (params.inStock) filters.push(`stock > 0`);
     if (params.hasDiscount) filters.push(`discountPercent > 0`);
+    if (params.isWowPrice) filters.push(`isFlashSale = true`);
+    if (params.isOriginal) filters.push(`originalPrice IS NOT NULL`);
     if (params.brandIds) {
       const ids = params.brandIds.split(',').filter((id: string) => id.trim());
       if (ids.length > 0) {
@@ -280,6 +299,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     };
     if (params.categoryId) where.categoryId = params.categoryId;
     if (params.shopId) where.shopId = params.shopId;
+    if (params.shopIds) {
+      const sids = params.shopIds.split(',').filter((id: string) => id.trim());
+      if (sids.length > 0) where.shopId = { in: sids };
+    }
     if (params.minPrice !== undefined || params.maxPrice !== undefined) {
       where.price = {};
       if (params.minPrice !== undefined) where.price.gte = params.minPrice;
@@ -307,6 +330,13 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     }
     if (params.hasDiscount) {
       where.discountPercent = { gt: 0 };
+    }
+    if (params.isWowPrice) {
+      where.isFlashSale = true;
+      where.flashSaleEnd = { gte: new Date() };
+    }
+    if (params.isOriginal) {
+      where.originalPrice = { not: null };
     }
 
     // Attribute filtering for search (same logic as GET /products)
@@ -468,6 +498,10 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       }
     }
     if (filters.shopId) where.shopId = filters.shopId;
+    if (filters.shopIds) {
+      const sids = filters.shopIds.split(',').filter((id: string) => id.trim());
+      if (sids.length > 0) where.shopId = { in: sids };
+    }
 
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
       where.price = {};
@@ -494,6 +528,17 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     // Discount filter
     if (filters.hasDiscount) {
       where.discountPercent = { gt: 0 };
+    }
+
+    // WOW price filter (flash sale)
+    if (filters.isWowPrice) {
+      where.isFlashSale = true;
+      where.flashSaleEnd = { gte: new Date() };
+    }
+
+    // Original products filter
+    if (filters.isOriginal) {
+      where.originalPrice = { not: null };
     }
 
     if (filters.search) {
