@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// TOPLA App ranglari - Temu/Yandex Market uslubida
+/// TOPLA App ranglari
 /// Sotuvni oshiruvchi ranglar
 class AppColors {
   AppColors._();

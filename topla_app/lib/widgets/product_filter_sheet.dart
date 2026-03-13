@@ -6,8 +6,8 @@ import '../models/product_facets.dart';
 import '../models/color_option.dart';
 import '../models/category_filter_attribute.dart';
 
-/// Uzum Market uslubidagi professional filter sheet
-class SheinFilterSheet extends StatefulWidget {
+/// Topla.uz marketplace filter sheet
+class ProductFilterSheet extends StatefulWidget {
   final ProductFilter currentFilter;
   final List<BrandModel> brands;
   final List<ColorOption> colors;
@@ -19,7 +19,7 @@ class SheinFilterSheet extends StatefulWidget {
   final List<ShopFilterItem> shops;
   final bool isUzbek;
 
-  const SheinFilterSheet({
+  const ProductFilterSheet({
     super.key,
     required this.currentFilter,
     this.brands = const [],
@@ -53,7 +53,7 @@ class SheinFilterSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => SheinFilterSheet(
+      builder: (context) => ProductFilterSheet(
         currentFilter: currentFilter,
         brands: brands,
         colors: colors,
@@ -69,10 +69,10 @@ class SheinFilterSheet extends StatefulWidget {
   }
 
   @override
-  State<SheinFilterSheet> createState() => _SheinFilterSheetState();
+  State<ProductFilterSheet> createState() => _ProductFilterSheetState();
 }
 
-class _SheinFilterSheetState extends State<SheinFilterSheet> {
+class _ProductFilterSheetState extends State<ProductFilterSheet> {
   bool get _isUz => widget.isUzbek;
   String get _locale => _isUz ? 'uz' : 'ru';
 
@@ -140,7 +140,7 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
               count: c.productCount))
           .toList();
     }
-    // Fallback ranglar - Uzum Market uslubida
+    // Fallback ranglar
     return const [
       _ColorItemData(
           id: 'yellow', nameUz: 'Sariq', nameRu: 'желтый', hexCode: '#FFD700'),
@@ -1801,7 +1801,7 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
   // CHIPS
   // ═══════════════════════════════════════════════════════════════
 
-  /// Uzum uslubidagi oddiy chip (Brend, O'lcham, Atributlar uchun)
+  /// Oddiy chip (Brend, O'lcham, Atributlar uchun)
   Widget _buildSimpleChip({
     required String label,
     required bool isSelected,
@@ -1830,7 +1830,7 @@ class _SheinFilterSheetState extends State<SheinFilterSheet> {
     );
   }
 
-  /// Uzum uslubidagi radio chip (sariq nuqta bilan)
+  /// Radio chip (sariq nuqta bilan)
   Widget _buildRadioChip({
     required String label,
     required bool isSelected,

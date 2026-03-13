@@ -8,7 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../../widgets/product_card.dart';
-import '../../widgets/shein_filter_sheet.dart';
+import '../../widgets/product_filter_sheet.dart';
 import '../../widgets/product_skeleton.dart';
 import '../product/product_detail_screen.dart';
 import '../search/search_screen.dart';
@@ -254,7 +254,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   }
 
   Future<void> _openFilterSheet() async {
-    final newFilter = await SheinFilterSheet.show(
+    final newFilter = await ProductFilterSheet.show(
       context,
       currentFilter: _filter,
       categoryName: widget.category.getName(_isUzbek ? 'uz' : 'ru'),
@@ -388,13 +388,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
-  /// Mahsulotlar sahifasi - Uzum uslubida filter bar + products
+  /// Mahsulotlar sahifasi - filter bar + products
   Widget _buildProductListingView() {
     return NestedScrollView(
       controller: _scrollController,
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         _buildSliverAppBar(),
-        _buildUzumFilterBar(),
+        _buildFilterBar(),
       ],
       body: _isLoading
           ? _isGridView
@@ -758,8 +758,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
-  /// Yandex Market uslubidagi filter bar
-  Widget _buildUzumFilterBar() {
+  /// Filter bar
+  Widget _buildFilterBar() {
     final facets = _facets;
     final hasActiveFilters = _filter.hasActiveFilters;
 
@@ -2406,7 +2406,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _SheinPriceFilterSheet(
+      builder: (context) => _PriceFilterSheet(
         categoryColor: widget.categoryColor,
         currentMinPrice: _filter.minPrice,
         currentMaxPrice: _filter.maxPrice,
@@ -3747,14 +3747,14 @@ class _PremiumFilterSheet extends StatelessWidget {
   }
 }
 
-class _SheinPriceFilterSheet extends StatefulWidget {
+class _PriceFilterSheet extends StatefulWidget {
   final Color categoryColor;
   final double? currentMinPrice;
   final double? currentMaxPrice;
   final Function(double? min, double? max) onApply;
   final bool isUzbek;
 
-  const _SheinPriceFilterSheet({
+  const _PriceFilterSheet({
     required this.categoryColor,
     this.currentMinPrice,
     this.currentMaxPrice,
@@ -3763,10 +3763,10 @@ class _SheinPriceFilterSheet extends StatefulWidget {
   });
 
   @override
-  State<_SheinPriceFilterSheet> createState() => _SheinPriceFilterSheetState();
+  State<_PriceFilterSheet> createState() => _PriceFilterSheetState();
 }
 
-class _SheinPriceFilterSheetState extends State<_SheinPriceFilterSheet> {
+class _PriceFilterSheetState extends State<_PriceFilterSheet> {
   late TextEditingController _minController;
   late TextEditingController _maxController;
   late FocusNode _minFocus;
@@ -3818,7 +3818,7 @@ class _SheinPriceFilterSheetState extends State<_SheinPriceFilterSheet> {
     super.dispose();
   }
 
-  Widget _buildSheinInput({
+  Widget _buildPriceInput({
     required String label,
     required String hint,
     required TextEditingController controller,

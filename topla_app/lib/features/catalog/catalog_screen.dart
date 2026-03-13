@@ -7,7 +7,7 @@ import '../../providers/providers.dart';
 import '../../models/models.dart';
 import 'category_detail_screen.dart';
 
-/// Uzum/Ozon uslubidagi Katalog sahifasi
+/// Katalog sahifasi
 /// Oddiy list ko'rinishi - chapda ikona, o'ngda strelka
 class CatalogScreen extends StatefulWidget {
   final String? initialCategoryId;

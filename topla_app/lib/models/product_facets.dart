@@ -148,7 +148,7 @@ class PriceRange {
   }
 }
 
-/// Atribut facet — Yandex Market style
+/// Atribut facet
 /// Har bir atribut uchun qiymatlar va ularning product soni
 class AttributeFacet {
   final String id;

@@ -65,7 +65,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
                 const SizedBox(height: 16),
 
-                // QR Code (barcha pickup buyurtmalar uchun — Yandex Market uslubida)
+                // QR Code (barcha pickup buyurtmalar uchun)
                 if (order.deliveryMethod == 'pickup' &&
                     order.pickupToken != null &&
                     order.status != OrderStatus.delivered &&

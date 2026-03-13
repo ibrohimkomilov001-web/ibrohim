@@ -152,7 +152,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                 ),
               ),
 
-              // ===== QR Kod bo'limi (faqat pickup uchun — Yandex Market uslubida) =====
+              // ===== QR Kod bo'limi (faqat pickup uchun) =====
               if (isPickup) ...[
                 const SizedBox(height: AppSizes.xl),
                 FadeTransition(

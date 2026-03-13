@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
 
-/// Mahsulot sharhlari ekrani - Uzum/Wildberries darajasida
+/// Mahsulot sharhlari ekrani
 class ProductReviewsScreen extends StatefulWidget {
   final String productId;
   final String productName;

@@ -2,7 +2,7 @@ import 'category_filter_attribute.dart';
 
 /// Mahsulotlar uchun filter modeli
 /// Bu model barcha filter parametrlarini saqlaydi
-/// Uzum-style professional filtering uchun kengaytirilgan
+/// Professional filtering uchun kengaytirilgan
 class ProductFilter {
   // === Asosiy filterlar ===
   final double? minPrice;
@@ -13,7 +13,7 @@ class ProductFilter {
   final String? sortBy;
   final bool sortAscending;
 
-  // === Yangi Uzum-style filterlar ===
+  // === Kengaytirilgan filterlar ===
   /// Tanlangan brendlar
   final Set<String> brandIds;
 

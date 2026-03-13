@@ -33,7 +33,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late List<String> _productImages;
   late String _productId;
 
-  // === VARIANT SYSTEM (Uzum style) ===
+  // === VARIANT SYSTEM ===
   List<Map<String, dynamic>> _variants = [];
   List<Map<String, dynamic>> _uniqueColors = []; // [{id, nameUz, hexCode}]
   List<Map<String, dynamic>> _uniqueSizes = []; // [{id, nameUz}]
@@ -1070,7 +1070,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  // ============ COLOR SELECTOR - UZUM STYLE ============
+  // ============ COLOR SELECTOR ============
   Widget _buildColorSelectorWithImages() {
     if (_uniqueColors.isEmpty) return const SizedBox.shrink();
 
@@ -1169,7 +1169,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // ============ SIZE SELECTOR - UZUM STYLE ============
+  // ============ SIZE SELECTOR ============
   Widget _buildSizeSelector() {
     if (_uniqueSizes.isEmpty) return const SizedBox.shrink();
 

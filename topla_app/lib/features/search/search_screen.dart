@@ -17,7 +17,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
-import '../../widgets/shein_filter_sheet.dart';
+import '../../widgets/product_filter_sheet.dart';
 import '../product/product_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -353,7 +353,7 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _openFilterSheet() async {
-    final newFilter = await SheinFilterSheet.show(
+    final newFilter = await ProductFilterSheet.show(
       context,
       currentFilter: _filter,
       categoryName: _isUzbek ? 'Filtrlar' : 'Фильтры',
@@ -742,7 +742,7 @@ class _SearchScreenState extends State<SearchScreen>
 
     return Column(
       children: [
-        // Quick filter bar (Yandex Market style)
+        // Quick filter bar
         Container(
           color: Theme.of(context).colorScheme.surface,
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1054,7 +1054,7 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  // === Yandex Market-style helper widgets ===
+  // === Helper widgets ===
 
   Widget _buildSearchFilterButton() {
     final count = _filter.activeFilterCount;
