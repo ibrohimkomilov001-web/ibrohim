@@ -31,6 +31,16 @@ class _CartScreenState extends State<CartScreen>
   bool _isSelectionInitialized = false;
   final Set<String> _knownItemIds = {}; // Bilgan item ID'lar
 
+  /// Faqat tanlangan mahsulotlar jami narxi
+  double _getSelectedTotal(CartProvider cart) {
+    return cart.items
+        .where((item) => _selectedItems.contains(item.id))
+        .fold(0.0, (sum, item) => sum + item.total);
+  }
+
+  /// Tanlangan mahsulotlar soni
+  int get _selectedCount => _selectedItems.length;
+
   @override
   void initState() {
     super.initState();
@@ -149,14 +159,18 @@ class _CartScreenState extends State<CartScreen>
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Text(
-                        '${cart.itemCount} ${context.l10n.translate('items_count_suffix')}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          _selectedItems.isEmpty
+                              ? '${cart.itemCount} ${context.l10n.translate('items_count_suffix')}'
+                              : '$_selectedCount / ${cart.itemCount} ${context.l10n.translate('items_count_suffix')}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      const Spacer(),
                       if (cart.items.isNotEmpty)
                         GestureDetector(
                           onTap: () {
@@ -714,7 +728,7 @@ class _CartScreenState extends State<CartScreen>
                 ),
               ),
               Text(
-                '${_formatPrice(cart.total - _discount)} ${context.l10n.translate('currency')}',
+                '${_formatPrice(_getSelectedTotal(cart) - _discount)} ${context.l10n.translate('currency')}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -750,7 +764,7 @@ class _CartScreenState extends State<CartScreen>
                 elevation: 0,
               ),
               child: Text(
-                '${context.l10n.checkout} • ${_formatPrice(cart.total - _discount)} ${context.l10n.translate('currency')}',
+                '${context.l10n.checkout} • ${_formatPrice(_getSelectedTotal(cart) - _discount)} ${context.l10n.translate('currency')}',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
