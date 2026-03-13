@@ -900,8 +900,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(15.5),
                       color: _doNotCall
-                          ? const Color(0xFF34C759) // iOS green
-                          : const Color(0xFFE9E9EB), // iOS inactive grey
+                          ? AppColors.primary
+                          : const Color(0xFFE9E9EB), // inactive grey
                     ),
                   ),
                   // Thumb (oq doira)
@@ -2320,15 +2320,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: SafeArea(
         child: SizedBox(
           width: double.infinity,
+          height: 48,
           child: ElevatedButton(
             onPressed:
                 _isLoading ? null : () => _handlePlaceOrder(cartProvider),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(100),
               ),
+              elevation: 0,
             ),
             child: _isLoading
                 ? const SizedBox(
@@ -2342,8 +2344,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 : Text(
                     '${context.l10n.translate('place_order')} • ${_formatPrice(total.toInt())} so\'m',
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
           ),
