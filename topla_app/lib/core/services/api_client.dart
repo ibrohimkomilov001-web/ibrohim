@@ -284,6 +284,9 @@ class ApiClient {
         data: body['data'],
         message: body['message']?.toString(),
         statusCode: response.statusCode,
+        meta: body['meta'] is Map<String, dynamic>
+            ? body['meta'] as Map<String, dynamic>
+            : null,
       );
     }
 
@@ -356,12 +359,14 @@ class ApiResponse {
   final dynamic data;
   final String? message;
   final int statusCode;
+  final Map<String, dynamic>? meta;
 
   ApiResponse({
     required this.success,
     this.data,
     this.message,
     required this.statusCode,
+    this.meta,
   });
 
   /// Data'ni List sifatida olish

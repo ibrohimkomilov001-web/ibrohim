@@ -182,6 +182,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       shopId: z.string().uuid().optional(),
       brandIds: z.string().optional(),
       colorIds: z.string().optional(),
+      sizeIds: z.string().optional(),
       minPrice: z.coerce.number().min(0).optional(),
       maxPrice: z.coerce.number().min(0).optional(),
       minRating: z.coerce.number().min(0).max(5).optional(),
@@ -193,8 +194,8 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const params = searchSchema.parse(request.query);
     const offset = (params.page - 1) * params.limit;
 
-    // Check Redis cache first
-    const cacheKey = `search:${params.q.toLowerCase().trim()}:${params.page}:${params.limit}:${params.sort || 'default'}:${params.categoryId || ''}:${params.shopId || ''}`;
+    // Check Redis cache first (M5 fix: include all filter params in cache key)
+    const cacheKey = `search:${params.q.toLowerCase().trim()}:${params.page}:${params.limit}:${params.sort || 'default'}:${params.categoryId || ''}:${params.shopId || ''}:${params.brandIds || ''}:${params.colorIds || ''}:${params.sizeIds || ''}:${params.minPrice ?? ''}:${params.maxPrice ?? ''}:${params.minRating ?? ''}:${params.inStock || ''}:${params.hasDiscount || ''}:${params.attributes || ''}`;
     const cached = await cacheGet<any>(cacheKey);
     if (cached) return reply.send(cached);
 
@@ -214,6 +215,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     if (params.maxPrice !== undefined) filters.push(`price <= ${params.maxPrice}`);
     if (params.minRating !== undefined) filters.push(`rating >= ${params.minRating}`);
     if (params.inStock) filters.push(`stock > 0`);
+    if (params.hasDiscount) filters.push(`discountPercent > 0`);
     if (params.brandIds) {
       const ids = params.brandIds.split(',').filter((id: string) => id.trim());
       if (ids.length > 0) {
@@ -291,6 +293,12 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const ids = params.colorIds.split(',').filter((id: string) => id.trim());
       if (ids.length > 0) where.colorId = { in: ids };
     }
+    if (params.sizeIds) {
+      const ids = params.sizeIds.split(',').filter((id: string) => id.trim());
+      if (ids.length > 0) {
+        where.variants = { some: { sizeId: { in: ids } } };
+      }
+    }
     if (params.minRating !== undefined) {
       where.rating = { gte: params.minRating };
     }
@@ -340,18 +348,37 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         }
       }
       for (const [key, range] of Object.entries(rangeFilters)) {
-        const valCondition: any = {};
-        if (range.min !== undefined && !isNaN(range.min)) valCondition.gte = String(range.min);
-        if (range.max !== undefined && !isNaN(range.max)) valCondition.lte = String(range.max);
-        if (Object.keys(valCondition).length > 0) {
-          attrConditions.push({
-            attributeValues: {
-              some: {
-                attribute: { key },
-                value: valCondition,
-              },
-            },
-          });
+        // C3 fix: raqamli range comparison uchun raw SQL ishlatamiz
+        const attr = await prisma.categoryAttribute.findFirst({
+          where: { key },
+          select: { id: true },
+        });
+        if (!attr) continue;
+
+        const conditions: string[] = [];
+        if (range.min !== undefined && !isNaN(range.min)) {
+          conditions.push(`CAST(pav.value AS DECIMAL) >= ${range.min}`);
+        }
+        if (range.max !== undefined && !isNaN(range.max)) {
+          conditions.push(`CAST(pav.value AS DECIMAL) <= ${range.max}`);
+        }
+
+        if (conditions.length > 0) {
+          const matchingProducts: Array<{ product_id: string }> = await prisma.$queryRawUnsafe(`
+            SELECT DISTINCT pav.product_id
+            FROM product_attribute_values pav
+            WHERE pav.attribute_id = '${attr.id}'
+              AND pav.value ~ '^[0-9]+(\\.[0-9]+)?$'
+              AND ${conditions.join(' AND ')}
+          `);
+
+          if (matchingProducts.length > 0) {
+            attrConditions.push({
+              id: { in: matchingProducts.map(p => p.product_id) },
+            });
+          } else {
+            attrConditions.push({ id: 'no-match' });
+          }
         }
       }
       if (attrConditions.length > 0) {
@@ -444,8 +471,8 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
       where.price = {};
-      if (filters.minPrice) where.price.gte = filters.minPrice;
-      if (filters.maxPrice) where.price.lte = filters.maxPrice;
+      if (filters.minPrice !== undefined) where.price.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined) where.price.lte = filters.maxPrice;
     }
 
     // Rating filter
@@ -520,32 +547,45 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // Range: product attribute value must be between min and max (numeric comparison)
+      // Range: product attribute value must be between min and max
+      // value saqlanishi String sifatida, shuning uchun raw SQL CAST ishlatamiz (C3 fix)
       for (const [attrKey, range] of Object.entries(rangeFilters)) {
-        const rangeConditions: any[] = [];
-        // Since value is stored as String, we find matching attributes first
-        // and filter with gte/lte on the numeric value
+        // Find attribute id for this key
+        const attr = await prisma.categoryAttribute.findFirst({
+          where: { key: attrKey },
+          select: { id: true },
+        });
+        if (!attr) continue;
+
+        const conditions: string[] = [];
+        const params: any[] = [attr.id];
+
         if (range.min !== undefined) {
-          rangeConditions.push({
-            attributeValues: {
-              some: {
-                attribute: { key: attrKey },
-                value: { gte: String(range.min) },
-              },
-            },
-          });
+          conditions.push(`CAST(pav.value AS DECIMAL) >= ${range.min}`);
         }
         if (range.max !== undefined) {
-          rangeConditions.push({
-            attributeValues: {
-              some: {
-                attribute: { key: attrKey },
-                value: { lte: String(range.max) },
-              },
-            },
-          });
+          conditions.push(`CAST(pav.value AS DECIMAL) <= ${range.max}`);
         }
-        attrConditions.push(...rangeConditions);
+
+        if (conditions.length > 0) {
+          // Use raw subquery to find product IDs matching numeric range
+          const matchingProducts: Array<{ product_id: string }> = await prisma.$queryRawUnsafe(`
+            SELECT DISTINCT pav.product_id
+            FROM product_attribute_values pav
+            WHERE pav.attribute_id = '${attr.id}'
+              AND pav.value ~ '^[0-9]+(\\.[0-9]+)?$'
+              AND ${conditions.join(' AND ')}
+          `);
+
+          if (matchingProducts.length > 0) {
+            attrConditions.push({
+              id: { in: matchingProducts.map(p => p.product_id) },
+            });
+          } else {
+            // No products match this range, add impossible condition
+            attrConditions.push({ id: 'no-match' });
+          }
+        }
       }
 
       if (attrConditions.length > 0) {
@@ -920,7 +960,13 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     const where: any = {};
     if (categoryId) {
-      where.products = { some: { categoryId } };
+      // Descendant kategoriyalar ham (m2 fix)
+      const descendants = await prisma.category.findMany({
+        where: { OR: [{ id: categoryId }, { parentId: categoryId }, { parent: { parentId: categoryId } }] },
+        select: { id: true },
+      });
+      const catIds = descendants.map(d => d.id);
+      where.products = { some: { categoryId: catIds.length > 1 ? { in: catIds } : categoryId } };
     }
     const brands = await prisma.brand.findMany({
       where,
@@ -1024,6 +1070,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       discountCount,
       inStockCount,
       totalCount,
+      attributeFacets,
     ] = await Promise.all([
       // Brendlar va soni
       prisma.brand.findMany({
@@ -1063,12 +1110,65 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       }),
       // Jami mahsulotlar soni
       prisma.product.count({ where: baseWhere }),
+      // Kategoriya atributlari va qiymatlar soni (Yandex Market-style facets)
+      prisma.categoryAttribute.findMany({
+        where: { categoryId: { in: catIds }, isActive: true },
+        select: {
+          id: true, key: true, nameUz: true, nameRu: true, type: true, unit: true,
+          options: true, rangeMin: true, rangeMax: true,
+          values: {
+            where: { product: baseWhere },
+            select: { value: true, productId: true },
+          },
+        },
+        orderBy: { sortOrder: 'asc' },
+      }),
     ]);
+
+    // Atribut facetlarini hisoblash
+    const attributes = attributeFacets.map(attr => {
+      const uniqueProducts = new Set(attr.values.map(v => v.productId));
+      if (attr.type === 'range') {
+        const numericValues = attr.values
+          .map(v => parseFloat(v.value))
+          .filter(n => !isNaN(n));
+        return {
+          id: attr.id,
+          key: attr.key,
+          nameUz: attr.nameUz,
+          nameRu: attr.nameRu,
+          type: attr.type,
+          unit: attr.unit,
+          productCount: uniqueProducts.size,
+          rangeMin: numericValues.length > 0 ? Math.min(...numericValues) : (attr.rangeMin ?? 0),
+          rangeMax: numericValues.length > 0 ? Math.max(...numericValues) : (attr.rangeMax ?? 0),
+        };
+      }
+      // chips/radio/color/toggle
+      const valueCounts: Record<string, number> = {};
+      for (const v of attr.values) {
+        valueCounts[v.value] = (valueCounts[v.value] || 0) + 1;
+      }
+      return {
+        id: attr.id,
+        key: attr.key,
+        nameUz: attr.nameUz,
+        nameRu: attr.nameRu,
+        type: attr.type,
+        unit: attr.unit,
+        productCount: uniqueProducts.size,
+        options: attr.options,
+        values: Object.entries(valueCounts)
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }).filter(a => a.productCount > 0);
 
     const facets = {
       brands: brandFacets.map(b => ({ id: b.id, name: b.name, logoUrl: b.logoUrl, count: b._count.products })),
       colors: colorFacets.map(c => ({ id: c.id, nameUz: c.nameUz, nameRu: c.nameRu, hexCode: c.hexCode, count: c._count.products })),
       sizes: sizeFacets.map(s => ({ id: s.id, nameUz: s.nameUz, nameRu: s.nameRu, count: s._count.variants })),
+      attributes,
       priceRange: {
         min: priceAgg._min.price ? Number(priceAgg._min.price) : 0,
         max: priceAgg._max.price ? Number(priceAgg._max.price) : 0,

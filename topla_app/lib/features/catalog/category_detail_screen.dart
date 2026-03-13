@@ -98,11 +98,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
         setState(() => _hasLoadedInitialData = true);
       }
 
+      // Filter ma'lumotlarini har doim yuklash (brendlar, ranglar va h.k.)
+      await _loadFilterData();
+
       // Agar subcategoriya yo'q bo'lsa, mahsulotlarni yuklash
       if (_subCategories.isEmpty) {
         await _loadProducts();
-        // Filter ma'lumotlarini yuklash
-        await _loadFilterData();
       }
     } catch (e) {
       if (mounted) {
@@ -270,6 +271,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     }
   }
 
+  /// Alias — quick filter chiplariga ulangan
+  Future<void> _openFullFilterSheet() => _openFilterSheet();
+
   @override
   Widget build(BuildContext context) {
     // Agar hali ma'lumotlar yuklanmagan bo'lsa - loading ko'rsatish
@@ -391,7 +395,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         _buildSliverAppBar(),
         _buildUzumFilterBar(),
-        if (_filter.hasActiveFilters) _buildActiveFilterChips(),
       ],
       body: _isLoading
           ? _isGridView
@@ -445,7 +448,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       final brand = _brands.where((b) => b.id == brandId).firstOrNull;
       if (brand != null) {
         chips.add(_buildRemovableChip(
-          brand.nameUz,
+          brand.getName(_isUzbek ? 'uz' : 'ru'),
           () {
             final newBrands = Set<String>.from(_filter.brandIds)
               ..remove(brandId);
@@ -477,7 +480,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       final size = _facets?.sizes.where((s) => s.id == sizeId).firstOrNull;
       if (size != null) {
         chips.add(_buildRemovableChip(
-          '📐 ${size.nameUz}',
+          '📐 ${size.getName(_isUzbek ? 'uz' : 'ru')}',
           () {
             final newSizes = Set<String>.from(_filter.sizeIds)..remove(sizeId);
             setState(() => _filter = _filter.copyWith(sizeIds: newSizes));
@@ -615,7 +618,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
           ),
           const SizedBox(width: 4),
           Text(
-            color.nameUz,
+            color.getName(_isUzbek ? 'uz' : 'ru'),
             style: TextStyle(
               color: widget.categoryColor,
               fontSize: 12,
@@ -725,7 +728,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
               icon: Icon(
                 Icons.tune,
                 color: _filter.hasActiveFilters
-                    ? widget.categoryColor
+                    ? const Color(0xFF4E6AFF)
                     : Colors.grey.shade700,
               ),
             ),
@@ -755,67 +758,499 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
-  /// Uzum uslubidagi filter bar
+  /// Yandex Market uslubidagi filter bar
   Widget _buildUzumFilterBar() {
+    final facets = _facets;
+    final hasActiveFilters = _filter.hasActiveFilters;
+
     return SliverToBoxAdapter(
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+      child: Column(
+        children: [
+          // === 1-qator: Asosiy filter chiplar ===
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+              child: Row(
+                children: [
+                  // 1. Sort icon button
+                  _buildFilterIconButton(
+                    icon: Icons.sort,
+                    onTap: _showSortOptions,
+                    isActive: _filter.sortBy != null &&
+                        _filter.sortBy != ProductFilter.sortByPopular,
+                  ),
+                  const SizedBox(width: 10),
+                  Container(width: 1, height: 24, color: Colors.grey.shade300),
+                  const SizedBox(width: 10),
+
+                  // 2. Turkumlar chip
+                  if (_subCategories.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildFilterChip(
+                          label: _isUzbek ? 'Turkumlar' : 'Категории',
+                          onTap: () => _showCategoryFilterSheet(),
+                          isActive: _selectedSubCategoryId != null,
+                          onClear: () {
+                            setState(() => _selectedSubCategoryId = null);
+                            _loadProducts(showLoading: true);
+                          }),
+                    ),
+
+                  // 3. Narxi chip
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildFilterChip(
+                      label:
+                          _filter.minPrice != null || _filter.maxPrice != null
+                              ? _formatPriceLabel()
+                              : (_isUzbek ? 'Narxi' : 'Цена'),
+                      onTap: () => _showPriceFilterSheet(),
+                      isActive:
+                          _filter.minPrice != null || _filter.maxPrice != null,
+                      onClear: () {
+                        setState(() => _filter = _filter.copyWith(
+                              clearMinPrice: true,
+                              clearMaxPrice: true,
+                            ));
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 4. Chegirmali
+                  if (facets != null && facets.discountCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildQuickToggleChip(
+                        label: _isUzbek ? 'Chegirmali' : 'Со скидкой',
+                        count: facets.discountCount,
+                        isActive: _filter.onlyWithDiscount,
+                        onTap: () {
+                          setState(() {
+                            _filter = _filter.copyWith(
+                              onlyWithDiscount: !_filter.onlyWithDiscount,
+                            );
+                          });
+                          _applyFilters();
+                        },
+                      ),
+                    ),
+
+                  // 5. WOW narx
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildQuickToggleChip(
+                      label: _isUzbek ? 'WOW narx' : 'WOW цена',
+                      isActive: _filter.isWowPrice == true,
+                      onTap: () {
+                        setState(() {
+                          _filter = _filter.copyWith(
+                            isWowPrice:
+                                _filter.isWowPrice == true ? null : true,
+                            clearIsWowPrice: _filter.isWowPrice == true,
+                          );
+                        });
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 6. Brend
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildFilterChip(
+                      label: _filter.brandIds.isNotEmpty
+                          ? '${_isUzbek ? "Brend" : "Бренд"}: ${_filter.brandIds.length}'
+                          : (_isUzbek ? 'Brend' : 'Бренд'),
+                      onTap: () => _showBrandFilterSheet(),
+                      isActive: _filter.brandIds.isNotEmpty,
+                      onClear: () {
+                        setState(
+                            () => _filter = _filter.copyWith(brandIds: {}));
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 7. Ranglar chip
+                  if (facets != null && facets.colors.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildFilterChip(
+                        label: _filter.colorIds.isNotEmpty
+                            ? '${_isUzbek ? "Ranglar" : "Цвета"}: ${_filter.colorIds.length}'
+                            : (_isUzbek
+                                ? 'Ranglar (${facets.colors.length})'
+                                : 'Цвета (${facets.colors.length})'),
+                        onTap: () => _openFullFilterSheet(),
+                        isActive: _filter.colorIds.isNotEmpty,
+                        onClear: () {
+                          setState(
+                              () => _filter = _filter.copyWith(colorIds: {}));
+                          _applyFilters();
+                        },
+                      ),
+                    ),
+
+                  // 8. O'lchamlar chip
+                  if (facets != null && facets.sizes.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildFilterChip(
+                        label: _filter.sizeIds.isNotEmpty
+                            ? '${_isUzbek ? "O\'lchamlar" : "Размеры"}: ${_filter.sizeIds.length}'
+                            : (_isUzbek
+                                ? 'O\'lchamlar (${facets.sizes.length})'
+                                : 'Размеры (${facets.sizes.length})'),
+                        onTap: () => _openFullFilterSheet(),
+                        isActive: _filter.sizeIds.isNotEmpty,
+                        onClear: () {
+                          setState(
+                              () => _filter = _filter.copyWith(sizeIds: {}));
+                          _applyFilters();
+                        },
+                      ),
+                    ),
+
+                  // 9. Reyting
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildFilterChip(
+                      label: _filter.minRating != null
+                          ? '★ ${_filter.minRating!.toStringAsFixed(0)}+'
+                          : (_isUzbek ? 'Yuqori reyting' : 'Высокий рейтинг'),
+                      onTap: () {
+                        setState(
+                            () => _filter = _filter.copyWith(minRating: 4.0));
+                        _applyFilters();
+                      },
+                      isActive: _filter.minRating != null,
+                      hideArrow: true,
+                      onClear: () {
+                        setState(() =>
+                            _filter = _filter.copyWith(clearMinRating: true));
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 10. Original
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildQuickToggleChip(
+                      label: _isUzbek ? 'Original' : 'Оригинал',
+                      isActive: _filter.isOriginal == true,
+                      onTap: () {
+                        setState(() {
+                          _filter = _filter.copyWith(
+                            isOriginal:
+                                _filter.isOriginal == true ? null : true,
+                            clearIsOriginal: _filter.isOriginal == true,
+                          );
+                        });
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 11. Stokda bor
+                  if (facets != null && facets.inStockCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildQuickToggleChip(
+                        label: _isUzbek ? 'Stokda bor' : 'В наличии',
+                        count: facets.inStockCount,
+                        isActive: _filter.onlyInStock,
+                        onTap: () {
+                          setState(() {
+                            _filter = _filter.copyWith(
+                              onlyInStock: !_filter.onlyInStock,
+                            );
+                          });
+                          _applyFilters();
+                        },
+                      ),
+                    ),
+
+                  // 12. Do'kon
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildFilterChip(
+                      label: _filter.shopIds.isNotEmpty
+                          ? '${_isUzbek ? "Do\'kon" : "Магазин"}: ${_filter.shopIds.length}'
+                          : (_isUzbek ? 'Do\'kon' : 'Магазин'),
+                      onTap: () => _showShopFilterSheet(),
+                      isActive: _filter.shopIds.isNotEmpty,
+                      onClear: () {
+                        setState(() => _filter = _filter.copyWith(shopIds: {}));
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 13. Yetkazish usuli
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildFilterChip(
+                      label: _filter.deliveryType != null
+                          ? _filter.deliveryType == 'courier'
+                              ? (_isUzbek ? 'Kuryer' : 'Курьер')
+                              : _filter.deliveryType == 'pickup_point'
+                                  ? (_isUzbek
+                                      ? 'Topshirish punkti'
+                                      : 'Пункт выдачи')
+                                  : (_isUzbek ? 'Olib ketish' : 'Самовывоз')
+                          : (_isUzbek ? 'Yetkazish usuli' : 'Способ доставки'),
+                      onTap: () => _showDeliveryTypeFilterSheet(),
+                      isActive: _filter.deliveryType != null,
+                      onClear: () {
+                        setState(() => _filter =
+                            _filter.copyWith(clearDeliveryType: true));
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+
+                  // 14. Yetkazish muddati
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildFilterChip(
+                      label: _filter.deliveryHours != null
+                          ? '${_filter.deliveryHours! / 24} ${_isUzbek ? "kungacha" : "дней"}'
+                          : (_isUzbek ? 'Yetkazish muddati' : 'Срок доставки'),
+                      onTap: () => _showDeliveryFilterSheet(),
+                      isActive: _filter.deliveryHours != null,
+                      onClear: () {
+                        setState(() => _filter =
+                            _filter.copyWith(clearDeliveryHours: true));
+                        _applyFilters();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Narx labelini formatlash
+  String _formatPriceLabel() {
+    final min = _filter.minPrice;
+    final max = _filter.maxPrice;
+    if (min != null && max != null) {
+      return '${_formatPrice(min)} - ${_formatPrice(max)}';
+    } else if (min != null) {
+      return '${_isUzbek ? "dan" : "от"} ${_formatPrice(min)}';
+    } else if (max != null) {
+      return '${_isUzbek ? "gacha" : "до"} ${_formatPrice(max)}';
+    }
+    return _isUzbek ? 'Narxi' : 'Цена';
+  }
+
+  String _formatPrice(double price) {
+    if (price >= 1000000) {
+      return '${(price / 1000000).toStringAsFixed(1)}M';
+    } else if (price >= 1000) {
+      return '${(price / 1000).toStringAsFixed(0)}K';
+    }
+    return price.toStringAsFixed(0);
+  }
+
+  /// Active filterlarni pill shaklida ko'rsatish
+  List<Widget> _buildActiveFilterPills() {
+    final pills = <Widget>[];
+
+    if (_filter.isOriginal == true) {
+      pills.add(_buildRemovablePill(
+        _isUzbek ? 'Original' : 'Оригинал',
+        () => setState(() {
+          _filter = _filter.copyWith(clearIsOriginal: true);
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.onlyWithDiscount) {
+      pills.add(_buildRemovablePill(
+        _isUzbek ? 'Chegirmali' : 'Со скидкой',
+        () => setState(() {
+          _filter = _filter.copyWith(onlyWithDiscount: false);
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.onlyInStock) {
+      pills.add(_buildRemovablePill(
+        _isUzbek ? 'Stokda' : 'В наличии',
+        () => setState(() {
+          _filter = _filter.copyWith(onlyInStock: false);
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.minPrice != null || _filter.maxPrice != null) {
+      pills.add(_buildRemovablePill(
+        _formatPriceLabel(),
+        () => setState(() {
+          _filter = _filter.copyWith(clearMinPrice: true, clearMaxPrice: true);
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.minRating != null) {
+      pills.add(_buildRemovablePill(
+        '★ ${_filter.minRating!.toStringAsFixed(0)}+',
+        () => setState(() {
+          _filter = _filter.copyWith(clearMinRating: true);
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.brandIds.isNotEmpty) {
+      pills.add(_buildRemovablePill(
+        '${_isUzbek ? "Brendlar" : "Бренды"}: ${_filter.brandIds.length}',
+        () => setState(() {
+          _filter = _filter.copyWith(brandIds: {});
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.colorIds.isNotEmpty) {
+      pills.add(_buildRemovablePill(
+        '${_isUzbek ? "Ranglar" : "Цвета"}: ${_filter.colorIds.length}',
+        () => setState(() {
+          _filter = _filter.copyWith(colorIds: {});
+          _applyFilters();
+        }),
+      ));
+    }
+    if (_filter.sizeIds.isNotEmpty) {
+      pills.add(_buildRemovablePill(
+        '${_isUzbek ? "O\'lchamlar" : "Размеры"}: ${_filter.sizeIds.length}',
+        () => setState(() {
+          _filter = _filter.copyWith(sizeIds: {});
+          _applyFilters();
+        }),
+      ));
+    }
+
+    return pills;
+  }
+
+  Widget _buildRemovablePill(String label, VoidCallback onRemove) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: GestureDetector(
+        onTap: onRemove,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEEF2FF),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF4E6AFF),
+              width: 1.2,
+            ),
+          ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Sort icon button
-              _buildFilterIconButton(
-                icon: Icons.sort,
-                onTap: _showSortOptions,
-                isActive: _filter.sortBy != null &&
-                    _filter.sortBy != ProductFilter.sortByPopular,
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 14,
+                color: Color(0xFF4E6AFF),
               ),
-              const SizedBox(width: 12),
-              // Divider
-              Container(
-                width: 1,
-                height: 24,
-                color: Colors.grey.shade300,
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF4E6AFF),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(width: 12),
-              // Turkumlar chip
-              _buildFilterChip(
-                label: _isUzbek ? 'Turkumlar' : 'Категории',
-                onTap: () => _showCategoryFilterSheet(),
-              ),
-              const SizedBox(width: 8),
-              // Narxi chip
-              _buildFilterChip(
-                label: _isUzbek ? 'Narxi' : 'Цена',
-                onTap: () => _showPriceFilterSheet(),
-                isActive: _filter.minPrice != null || _filter.maxPrice != null,
-              ),
-              const SizedBox(width: 8),
-              // Yetkazish muddati chip
-              _buildFilterChip(
-                label: _isUzbek ? 'Yetkazish muddati' : 'Срок доставки',
-                onTap: () => _showDeliveryFilterSheet(),
-                isActive: _filter.deliveryHours != null,
-              ),
-              const SizedBox(width: 8),
-              // Yetkazish usuli chip
-              _buildFilterChip(
-                label: _isUzbek ? 'Yetkazish usuli' : 'Способ доставки',
-                onTap: () => _showDeliveryTypeFilterSheet(),
-                isActive: _filter.deliveryType != null,
-              ),
-              const SizedBox(width: 8),
-              // Reyting chip
-              _buildFilterChip(
-                label: _isUzbek ? 'Reyting' : 'Рейтинг',
-                onTap: () => _showRatingFilterSheet(),
-                isActive: _filter.minRating != null,
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: Color(0xFF4E6AFF),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Quick toggle chip (Chegirmali, Stokda bor)
+  Widget _buildQuickToggleChip({
+    required String label,
+    int? count,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFEEF2FF) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+          border: Border.all(
+            color: isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade300,
+            width: isActive ? 1.2 : 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isActive)
+              const Padding(
+                padding: EdgeInsets.only(right: 5),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Color(0xFF4E6AFF),
+                ),
+              ),
+            Text(
+              label,
+              style: TextStyle(
+                color:
+                    isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade800,
+                fontSize: 13,
+                height: 1.2,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            if (count != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                '$count',
+                style: TextStyle(
+                  color: isActive
+                      ? const Color(0xFF4E6AFF).withValues(alpha: 0.7)
+                      : Colors.grey.shade500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            if (isActive) ...[
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: Color(0xFF4E6AFF),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -880,41 +1315,922 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
+    bool hideArrow = false,
+    VoidCallback? onClear,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: isActive
-              ? widget.categoryColor.withValues(alpha: 0.1)
-              : Colors.grey.shade100,
+          color: isActive ? const Color(0xFFEEF2FF) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(AppSizes.radiusFull),
-          border: isActive
-              ? Border.all(color: widget.categoryColor, width: 1.5)
-              : null,
+          border: Border.all(
+            color: isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade300,
+            width: isActive ? 1.2 : 0.5,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isActive)
+              const Padding(
+                padding: EdgeInsets.only(right: 5),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Color(0xFF4E6AFF),
+                ),
+              ),
             Text(
               label,
               style: TextStyle(
-                color: isActive ? widget.categoryColor : Colors.grey.shade800,
+                color:
+                    isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade800,
                 fontSize: 13,
                 height: 1.2,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down,
-              size: 16,
-              color: isActive ? widget.categoryColor : Colors.grey.shade600,
-            ),
+            if (isActive && onClear != null) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: onClear,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: Color(0xFF4E6AFF),
+                  ),
+                ),
+              ),
+            ] else if (!hideArrow) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: Colors.grey.shade600,
+              ),
+            ]
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSheetRadioChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool hideClose = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEEF2FF) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4E6AFF) : Colors.grey.shade200,
+            width: isSelected ? 1.2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 14,
+                color: Color(0xFF4E6AFF),
+              ),
+            if (!isSelected)
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade300,
+                ),
+              ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? const Color(0xFF4E6AFF)
+                        : Colors.grey.shade800,
+                  ),
+                ),
+              ),
+            ),
+            if (isSelected && !hideClose) ...[
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: Color(0xFF4E6AFF),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Fallback brendlar ro'yxati - API hech narsa qaytarmaganda
+  static final List<_BrandItem> _fallbackBrands = [
+    _BrandItem(id: 'apple', name: 'Apple'),
+    _BrandItem(id: 'samsung', name: 'Samsung'),
+    _BrandItem(id: 'xiaomi', name: 'Xiaomi'),
+    _BrandItem(id: 'huawei', name: 'Huawei'),
+    _BrandItem(id: 'sony', name: 'Sony'),
+    _BrandItem(id: 'lg', name: 'LG'),
+    _BrandItem(id: 'lenovo', name: 'Lenovo'),
+    _BrandItem(id: 'asus', name: 'ASUS'),
+    _BrandItem(id: 'hp', name: 'HP'),
+    _BrandItem(id: 'dell', name: 'Dell'),
+    _BrandItem(id: 'bosch', name: 'Bosch'),
+    _BrandItem(id: 'philips', name: 'Philips'),
+    _BrandItem(id: 'artel', name: 'Artel'),
+    _BrandItem(id: 'haier', name: 'Haier'),
+    _BrandItem(id: 'midea', name: 'Midea'),
+  ];
+
+  void _showBrandFilterSheet() {
+    // Brendlarni facets yoki _brands dan olish
+    final List<_BrandItem> brandItems = [];
+
+    if (_facets != null && _facets!.brands.isNotEmpty) {
+      for (final b in _facets!.brands) {
+        brandItems.add(_BrandItem(id: b.id, name: b.name));
+      }
+    } else if (_brands.isNotEmpty) {
+      for (final b in _brands) {
+        brandItems
+            .add(_BrandItem(id: b.id, name: b.getName(_isUzbek ? 'uz' : 'ru')));
+      }
+    }
+
+    // Agar API hech narsa qaytarmasa - fallback brendlar
+    final List<_BrandItem> items =
+        brandItems.isNotEmpty ? brandItems : _fallbackBrands;
+
+    // Faqat 6 ta ko'rsatish, qolganlari "Hammasini ko'rsatish" orqali
+    final int maxVisible = 6;
+    final visibleBrands = items.take(maxVisible).toList();
+    final hasMore = items.length > maxVisible;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                top: 16,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Sarlavha + X tugma
+                  Row(
+                    children: [
+                      Text(
+                        _isUzbek ? 'Brend' : 'Бренд',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close,
+                              color: Colors.grey.shade600, size: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Brendlar chiplar
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: visibleBrands.map((brand) {
+                      final isSelected = _filter.brandIds.contains(brand.id);
+                      return GestureDetector(
+                        onTap: () {
+                          final newBrandIds =
+                              Set<String>.from(_filter.brandIds);
+                          if (isSelected) {
+                            newBrandIds.remove(brand.id);
+                          } else {
+                            newBrandIds.add(brand.id);
+                          }
+                          setState(() => _filter =
+                              _filter.copyWith(brandIds: newBrandIds));
+                          setSheetState(() {});
+                          _applyFilters();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFEEF2FF)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF4E6AFF)
+                                  : Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isSelected) ...[
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 16,
+                                  color: Color(0xFF4E6AFF),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                brand.name,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? const Color(0xFF4E6AFF)
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  // "Hammasini ko'rsatish" tugmasi
+                  if (hasMore) ...[
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showAllBrandsSheet(items);
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isUzbek ? 'Hammasini ko\'rsatish' : 'Показать все',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF4E6AFF),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 12,
+                            color: Color(0xFF4E6AFF),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Barcha brendlar to'liq ro'yxati
+  void _showAllBrandsSheet(List<_BrandItem> allBrands) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filteredBrands = searchQuery.isEmpty
+                ? allBrands
+                : allBrands
+                    .where((b) => b.name
+                        .toLowerCase()
+                        .contains(searchQuery.toLowerCase()))
+                    .toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          _isUzbek ? 'Brendlar' : 'Бренды',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade900,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(sheetContext);
+                            _applyFilters();
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.close,
+                                color: Colors.grey.shade600, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Qidiruv maydoni
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Container(
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextField(
+                        onChanged: (val) =>
+                            setSheetState(() => searchQuery = val),
+                        decoration: InputDecoration(
+                          hintText: _isUzbek
+                              ? 'Brendni qidirish...'
+                              : 'Поиск бренда...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 13,
+                          ),
+                          prefixIcon: Icon(Icons.search,
+                              color: Colors.grey.shade400, size: 20),
+                          border: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: filteredBrands.isEmpty
+                        ? Center(
+                            child: Text(
+                              _isUzbek ? 'Topilmadi' : 'Не найдено',
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 13),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.fromLTRB(20, 0, 20,
+                                MediaQuery.of(context).viewPadding.bottom + 20),
+                            itemCount: filteredBrands.length,
+                            itemBuilder: (context, index) {
+                              final brand = filteredBrands[index];
+                              final isSelected =
+                                  _filter.brandIds.contains(brand.id);
+                              return GestureDetector(
+                                onTap: () {
+                                  final newBrandIds =
+                                      Set<String>.from(_filter.brandIds);
+                                  if (isSelected) {
+                                    newBrandIds.remove(brand.id);
+                                  } else {
+                                    newBrandIds.add(brand.id);
+                                  }
+                                  setState(() => _filter =
+                                      _filter.copyWith(brandIds: newBrandIds));
+                                  setSheetState(() {});
+                                  _applyFilters();
+                                },
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade100,
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? const Color(0xFF4E6AFF)
+                                              : Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(5),
+                                          border: isSelected
+                                              ? null
+                                              : Border.all(
+                                                  color: Colors.grey.shade300,
+                                                  width: 1.5),
+                                        ),
+                                        child: isSelected
+                                            ? const Icon(Icons.check,
+                                                size: 14, color: Colors.white)
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          brand.name,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: isSelected
+                                                ? const Color(0xFF4E6AFF)
+                                                : Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Fallback do'konlar ro'yxati
+  static final List<_ShopItem> _fallbackShops = [
+    const _ShopItem(id: 'topla-official', name: 'Topla Official'),
+    const _ShopItem(id: 'tech-store', name: 'Tech Store'),
+    const _ShopItem(id: 'gadget-world', name: 'Gadget World'),
+    const _ShopItem(id: 'smart-home-uz', name: 'Smart Home UZ'),
+    const _ShopItem(id: 'best-electronics', name: 'Best Electronics'),
+    const _ShopItem(id: 'mobile-land', name: 'Mobile Land'),
+    const _ShopItem(id: 'digital-plaza', name: 'Digital Plaza'),
+    const _ShopItem(id: 'mega-market', name: 'Mega Market'),
+    const _ShopItem(id: 'premium-store', name: 'Premium Store'),
+    const _ShopItem(id: 'tech-planet', name: 'Tech Planet'),
+  ];
+
+  void _showShopFilterSheet() {
+    final List<_ShopItem> shopItems = _fallbackShops;
+
+    // Faqat 4 ta ko'rsatish, qolganlari "Hammasini ko'rsatish" orqali
+    final int maxVisible = 4;
+    final visibleShops = shopItems.take(maxVisible).toList();
+    final hasMore = shopItems.length > maxVisible;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                top: 16,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Sarlavha + X tugma
+                  Row(
+                    children: [
+                      Text(
+                        _isUzbek ? 'Do\'kon' : 'Магазин',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close,
+                              color: Colors.grey.shade600, size: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Do'konlar chiplar
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: visibleShops.map((shop) {
+                      final isSelected = _filter.shopIds.contains(shop.id);
+                      return GestureDetector(
+                        onTap: () {
+                          final newShopIds = Set<String>.from(_filter.shopIds);
+                          if (isSelected) {
+                            newShopIds.remove(shop.id);
+                          } else {
+                            newShopIds.add(shop.id);
+                          }
+                          setState(() =>
+                              _filter = _filter.copyWith(shopIds: newShopIds));
+                          setSheetState(() {});
+                          _applyFilters();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFEEF2FF)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF4E6AFF)
+                                  : Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isSelected) ...[
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 16,
+                                  color: Color(0xFF4E6AFF),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                shop.name,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? const Color(0xFF4E6AFF)
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  // "Hammasini ko'rsatish" tugmasi
+                  if (hasMore) ...[
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showAllShopsSheet(shopItems);
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isUzbek ? 'Hammasini ko\'rsatish' : 'Показать все',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF4E6AFF),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 12,
+                            color: Color(0xFF4E6AFF),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Barcha do'konlar to'liq ro'yxati - qidiruv bilan
+  void _showAllShopsSheet(List<_ShopItem> allShops) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filteredShops = searchQuery.isEmpty
+                ? allShops
+                : allShops
+                    .where((s) => s.name
+                        .toLowerCase()
+                        .contains(searchQuery.toLowerCase()))
+                    .toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  // Header: title + close
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          _isUzbek ? 'Do\'konlar' : 'Магазины',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade900,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(sheetContext);
+                            _applyFilters();
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.close,
+                                color: Colors.grey.shade600, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Qidiruv maydoni
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Container(
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextField(
+                        onChanged: (val) =>
+                            setSheetState(() => searchQuery = val),
+                        decoration: InputDecoration(
+                          hintText: _isUzbek
+                              ? 'Do\'konni qidirish...'
+                              : 'Поиск магазина...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 13,
+                          ),
+                          prefixIcon: Icon(Icons.search,
+                              color: Colors.grey.shade400, size: 20),
+                          border: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  // Do'konlar ro'yxati
+                  Expanded(
+                    child: filteredShops.isEmpty
+                        ? Center(
+                            child: Text(
+                              _isUzbek ? 'Topilmadi' : 'Не найдено',
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 13),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.fromLTRB(20, 0, 20,
+                                MediaQuery.of(context).viewPadding.bottom + 20),
+                            itemCount: filteredShops.length,
+                            itemBuilder: (context, index) {
+                              final shop = filteredShops[index];
+                              final isSelected =
+                                  _filter.shopIds.contains(shop.id);
+                              return GestureDetector(
+                                onTap: () {
+                                  final newShopIds =
+                                      Set<String>.from(_filter.shopIds);
+                                  if (isSelected) {
+                                    newShopIds.remove(shop.id);
+                                  } else {
+                                    newShopIds.add(shop.id);
+                                  }
+                                  setState(() => _filter =
+                                      _filter.copyWith(shopIds: newShopIds));
+                                  setSheetState(() {});
+                                  _applyFilters();
+                                },
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade100,
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? const Color(0xFF4E6AFF)
+                                              : Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(5),
+                                          border: isSelected
+                                              ? null
+                                              : Border.all(
+                                                  color: Colors.grey.shade300,
+                                                  width: 1.5),
+                                        ),
+                                        child: isSelected
+                                            ? const Icon(Icons.check,
+                                                size: 14, color: Colors.white)
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          shop.name,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: isSelected
+                                                ? const Color(0xFF4E6AFF)
+                                                : Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -923,110 +2239,161 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _PremiumFilterSheet(
-        title: _isUzbek ? 'Turkumlar' : 'Категории',
-        categoryColor: widget.categoryColor,
-        child: _buildCategoryFilterContent(),
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          top: 16,
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Text(
+                  _isUzbek ? 'Turkumlar' : 'Категории',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade900,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close,
+                        color: Colors.grey.shade600, size: 16),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildSheetRadioChip(
+                  label: _isUzbek ? 'Barchasi' : 'Все',
+                  isSelected: _selectedSubCategoryId == null,
+                  onTap: () {
+                    setState(() => _selectedSubCategoryId = null);
+                    _loadProducts(showLoading: true);
+                    Navigator.pop(context);
+                  },
+                ),
+                if (_subCategories.isNotEmpty)
+                  ...List.generate(_subCategories.length, (index) {
+                    final sub = _subCategories[index];
+                    return _buildSheetRadioChip(
+                      label: sub.getName(context.l10n.locale.languageCode),
+                      isSelected: _selectedSubCategoryId == sub.id,
+                      onTap: () {
+                        setState(() => _selectedSubCategoryId = sub.id);
+                        _loadProducts(showLoading: true);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryFilterContent() {
-    return Column(
-      children: [
-        // Barcha turkumlar
-        _buildPremiumSelectableItem(
-          icon: Icons.apps_rounded,
-          label: _isUzbek ? 'Barcha turkumlar' : 'Все категории',
-          isSelected: _selectedSubCategoryId == null,
-          onTap: () {
-            setState(() => _selectedSubCategoryId = null);
-            _loadProducts(showLoading: true);
-            Navigator.pop(context);
-          },
-        ),
-        if (_subCategories.isNotEmpty) ...[
-          const Divider(height: 24),
-          ...List.generate(_subCategories.length, (index) {
-            final sub = _subCategories[index];
-            return _buildPremiumSelectableItem(
-              icon: Icons.category_outlined,
-              label: sub.getName(context.l10n.locale.languageCode),
-              isSelected: _selectedSubCategoryId == sub.id,
-              onTap: () {
-                setState(() => _selectedSubCategoryId = sub.id);
-                _loadProducts(showLoading: true);
-                Navigator.pop(context);
-              },
-            );
-          }),
-        ],
-      ],
-    );
-  }
-
   Widget _buildPremiumSelectableItem({
-    required IconData icon,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
+    bool hideBottomBorder = false,
+    bool isCheckbox = false,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected
-              ? widget.categoryColor.withValues(alpha: 0.1)
-              : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? widget.categoryColor : Colors.transparent,
-            width: 1.5,
-          ),
+          color: Colors.white, // aniq oq fon
+          border: hideBottomBorder
+              ? null
+              : Border(
+                  bottom: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1,
+                  ),
+                ),
         ),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? widget.categoryColor.withValues(alpha: 0.2)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? widget.categoryColor : Colors.grey.shade600,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? widget.categoryColor : Colors.black87,
+                  color: Colors.black87,
                 ),
               ),
             ),
-            if (isSelected)
+            if (isSelected && !isCheckbox)
               Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: widget.categoryColor,
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFD100), // sarik rang
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 16,
+                child: Center(
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
+              ),
+            if (isCheckbox)
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: isSelected ? widget.categoryColor : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: isSelected
+                      ? null
+                      : Border.all(color: Colors.grey.shade300, width: 1.5),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
               ),
           ],
         ),
@@ -1043,6 +2410,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
         categoryColor: widget.categoryColor,
         currentMinPrice: _filter.minPrice,
         currentMaxPrice: _filter.maxPrice,
+        isUzbek: _isUzbek,
         onApply: (min, max) {
           setState(() {
             _filter = _filter.copyWith(
@@ -1130,120 +2498,115 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
-  String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M so\'m';
-    } else if (price >= 1000) {
-      return '${(price / 1000).toStringAsFixed(0)}K so\'m';
-    }
-    return '${price.toStringAsFixed(0)} so\'m';
-  }
+  // _formatPrice is defined earlier in the Yandex filter bar section
 
   void _showDeliveryFilterSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          top: 16,
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Text(
                   _isUzbek ? 'Yetkazish muddati' : 'Срок доставки',
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade900,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 12,
-                  children: [
-                    _buildOptionChip(
-                      label: _isUzbek ? '3 kungacha' : 'До 3 дней',
-                      isActive: _filter.deliveryHours == 72,
-                      onTap: () {
-                        setState(() => _filter = _filter.copyWith(
-                            deliveryHours: 72, clearDeliveryHours: false));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
                     ),
-                    _buildOptionChip(
-                      label: _isUzbek ? '7 kungacha' : 'До 7 дней',
-                      isActive: _filter.deliveryHours == 168,
-                      onTap: () {
-                        setState(() => _filter = _filter.copyWith(
-                            deliveryHours: 168, clearDeliveryHours: false));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                    ),
-                    _buildOptionChip(
-                      label: _isUzbek ? 'Muhim emas' : 'Не важно',
-                      isActive: _filter.deliveryHours == null,
-                      onTap: () {
-                        setState(() => _filter =
-                            _filter.copyWith(clearDeliveryHours: true));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEBEBEB),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                    ),
-                    child: Text(
-                      _isUzbek ? 'Bekor qilish' : 'Отмена',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: Icon(Icons.close,
+                        color: Colors.grey.shade600, size: 16),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? '3 kungacha' : 'До 3 дней',
+                    isSelected: _filter.deliveryHours == 72,
+                    onTap: () {
+                      setState(() => _filter = _filter.copyWith(
+                          deliveryHours:
+                              _filter.deliveryHours == 72 ? null : 72,
+                          clearDeliveryHours: _filter.deliveryHours == 72));
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? '7 kungacha' : 'До 7 дней',
+                    isSelected: _filter.deliveryHours == 168,
+                    onTap: () {
+                      setState(() => _filter = _filter.copyWith(
+                          deliveryHours:
+                              _filter.deliveryHours == 168 ? null : 168,
+                          clearDeliveryHours: _filter.deliveryHours == 168));
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? 'Muhim emas' : 'Не важно',
+                    isSelected: _filter.deliveryHours == null,
+                    hideClose: true,
+                    onTap: () {
+                      setState(() =>
+                          _filter = _filter.copyWith(clearDeliveryHours: true));
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
@@ -1252,120 +2615,140 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   void _showDeliveryTypeFilterSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          top: 16,
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Text(
                   _isUzbek ? 'Yetkazish usuli' : 'Способ доставки',
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade900,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 12,
-                  children: [
-                    _buildOptionChip(
-                      label: _isUzbek ? 'Kuryer' : 'Курьер',
-                      isActive: _filter.deliveryType == 'courier',
-                      onTap: () {
-                        setState(() => _filter = _filter.copyWith(
-                            deliveryType: 'courier', clearDeliveryType: false));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
                     ),
-                    _buildOptionChip(
-                      label:
-                          _isUzbek ? 'Topshirish punktiga' : 'В пункт выдачи',
-                      isActive: _filter.deliveryType == 'pickup_point',
-                      onTap: () {
-                        setState(() => _filter = _filter.copyWith(
-                            deliveryType: 'pickup_point',
-                            clearDeliveryType: false));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                    ),
-                    _buildOptionChip(
-                      label: _isUzbek ? 'Olib ketish' : 'Самовывоз',
-                      isActive: _filter.deliveryType == 'pickup',
-                      onTap: () {
-                        setState(() => _filter = _filter.copyWith(
-                            deliveryType: 'pickup', clearDeliveryType: false));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                    ),
-                    _buildOptionChip(
-                      label: _isUzbek ? 'Muhim emas' : 'Не важно',
-                      isActive: _filter.deliveryType == null,
-                      onTap: () {
-                        setState(() => _filter =
-                            _filter.copyWith(clearDeliveryType: true));
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEBEBEB),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                    ),
-                    child: Text(
-                      _isUzbek ? 'Bekor qilish' : 'Отмена',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: Icon(Icons.close,
+                        color: Colors.grey.shade600, size: 16),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? 'Kuryer' : 'Курьер',
+                    isSelected: _filter.deliveryType == 'courier',
+                    onTap: () {
+                      setState(() {
+                        if (_filter.deliveryType == 'courier') {
+                          _filter = _filter.copyWith(clearDeliveryType: true);
+                        } else {
+                          _filter = _filter.copyWith(deliveryType: 'courier');
+                        }
+                      });
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? 'Punktga' : 'Пункт выдачи',
+                    isSelected: _filter.deliveryType == 'pickup_point',
+                    onTap: () {
+                      setState(() {
+                        if (_filter.deliveryType == 'pickup_point') {
+                          _filter = _filter.copyWith(clearDeliveryType: true);
+                        } else {
+                          _filter =
+                              _filter.copyWith(deliveryType: 'pickup_point');
+                        }
+                      });
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? 'Olib ketish' : 'Самовывоз',
+                    isSelected: _filter.deliveryType == 'pickup',
+                    onTap: () {
+                      setState(() {
+                        if (_filter.deliveryType == 'pickup') {
+                          _filter = _filter.copyWith(clearDeliveryType: true);
+                        } else {
+                          _filter = _filter.copyWith(deliveryType: 'pickup');
+                        }
+                      });
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSheetRadioChip(
+                    label: _isUzbek ? 'Muhim emas' : 'Не важно',
+                    isSelected: _filter.deliveryType == null,
+                    hideClose: true,
+                    onTap: () {
+                      setState(() =>
+                          _filter = _filter.copyWith(clearDeliveryType: true));
+                      _applyFilters();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const Expanded(flex: 2, child: SizedBox()),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
@@ -1422,6 +2805,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
+  // ignore: unused_element
   void _showRatingFilterSheet() {
     showModalBottomSheet(
       context: context,
@@ -1435,6 +2819,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
+  // ignore: unused_element
   Widget _buildRatingFilterContent() {
     return Column(
       children: [
@@ -1466,6 +2851,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
+  // ignore: unused_element
   Widget _buildPremiumRatingTile(double rating) {
     final isSelected = _filter.minRating == rating;
     return GestureDetector(
@@ -1831,139 +3217,113 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   void _showSortOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSizes.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          top: 16,
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: AppSizes.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                child: Text(
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Text(
                   _isUzbek ? 'Avval ko\'rsatish' : 'Сначала показывать',
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade900,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSizes.md),
-              _buildSortOption(
-                ProductFilter.sortByPopular,
-                _isUzbek ? 'Ommabop' : 'Популярные',
-              ),
-              _buildSortOption(
-                ProductFilter.sortByPriceLow,
-                _isUzbek ? 'Arzonroq' : 'Дешевле',
-              ),
-              _buildSortOption(
-                ProductFilter.sortByPriceHigh,
-                _isUzbek ? 'Qimmatroq' : 'Дороже',
-              ),
-              _buildSortOption(
-                ProductFilter.sortByRating,
-                _isUzbek ? 'Yuqori reyting' : 'Высокий рейтинг',
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEBEBEB),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
                     ),
-                    child: Text(
-                      _isUzbek ? 'Bekor qilish' : 'Отмена',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: Icon(Icons.close,
+                        color: Colors.grey.shade600, size: 16),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSortChip(
+                    ProductFilter.sortByPopular,
+                    _isUzbek ? 'Ommabop' : 'Популярные',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSortChip(
+                    ProductFilter.sortByPriceLow,
+                    _isUzbek ? 'Arzonroq' : 'Дешевле',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSortChip(
+                    ProductFilter.sortByPriceHigh,
+                    _isUzbek ? 'Qimmatroq' : 'Дороже',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSortChip(
+                    ProductFilter.sortByRating,
+                    _isUzbek ? 'Yuqori reyting' : 'Высокий рейтинг',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSortOption(String value, String label) {
+  Widget _buildSortChip(String value, String label) {
     final isSelected = (_filter.sortBy ?? ProductFilter.sortByPopular) == value;
-    return InkWell(
+    return _buildSheetRadioChip(
+      label: label,
+      isSelected: isSelected,
       onTap: () {
         setState(() => _filter = _filter.copyWith(sortBy: value));
         _applyFilters();
         Navigator.pop(context);
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.lg,
-          vertical: AppSizes.md,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.normal,
-                color: Colors.black,
-              ),
-            ),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? const Color(0xFFFFD100)
-                    : const Color(0xFFF2F2F2),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -2289,6 +3649,20 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   }
 }
 
+/// Brend item helper
+class _BrandItem {
+  final String id;
+  final String name;
+  const _BrandItem({required this.id, required this.name});
+}
+
+/// Do'kon item helper
+class _ShopItem {
+  final String id;
+  final String name;
+  const _ShopItem({required this.id, required this.name});
+}
+
 /// Premium Filter Sheet Widget - professional bottom sheet design
 class _PremiumFilterSheet extends StatelessWidget {
   final String title;
@@ -2304,6 +3678,8 @@ class _PremiumFilterSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: MediaQuery.of(context).size.height *
+          0.75, // 75% height xuddi Turkumlar kabi
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -2323,37 +3699,25 @@ class _PremiumFilterSheet extends StatelessWidget {
           ),
           // Header with title
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 4), // qisqartirildi
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center, // markazlashtirish
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Iconsax.candle_2,
-                    color: categoryColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     title,
+                    textAlign: TextAlign.center, // markazlashtirish
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       shape: BoxShape.circle,
@@ -2361,19 +3725,17 @@ class _PremiumFilterSheet extends StatelessWidget {
                     child: Icon(
                       Icons.close,
                       color: Colors.grey.shade600,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          // Divider
-          Divider(height: 1, color: Colors.grey.shade200),
           // Content
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: child,
             ),
           ),
@@ -2390,12 +3752,14 @@ class _SheinPriceFilterSheet extends StatefulWidget {
   final double? currentMinPrice;
   final double? currentMaxPrice;
   final Function(double? min, double? max) onApply;
+  final bool isUzbek;
 
   const _SheinPriceFilterSheet({
     required this.categoryColor,
     this.currentMinPrice,
     this.currentMaxPrice,
     required this.onApply,
+    this.isUzbek = true,
   });
 
   @override
@@ -2432,6 +3796,10 @@ class _SheinPriceFilterSheetState extends State<_SheinPriceFilterSheet> {
     });
     _maxFocus.addListener(() {
       setState(() {});
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _minFocus.requestFocus();
     });
   }
 
@@ -2473,7 +3841,7 @@ class _SheinPriceFilterSheetState extends State<_SheinPriceFilterSheet> {
               ),
               const SizedBox(width: 4),
               Text(
-                "so'm",
+                widget.isUzbek ? "so'm" : "сум",
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 14,
@@ -2565,60 +3933,183 @@ class _SheinPriceFilterSheetState extends State<_SheinPriceFilterSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Narxi',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             children: [
-              _buildSheinInput(
-                label: 'dan',
-                hint: '4 500',
-                controller: _minController,
-                focusNode: _minFocus,
+              Text(
+                widget.isUzbek ? 'Narxi, so\'m' : 'Цена, сум',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade900,
+                ),
               ),
-              const SizedBox(width: 12),
-              _buildSheinInput(
-                label: 'gacha',
-                hint: '25 652 000',
-                controller: _maxController,
-                focusNode: _maxFocus,
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child:
+                      Icon(Icons.close, color: Colors.grey.shade600, size: 16),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isUzbek ? 'dan' : 'от',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 38,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border:
+                            Border.all(color: Colors.grey.shade300, width: 0.5),
+                      ),
+                      child: TextField(
+                        controller: _minController,
+                        focusNode: _minFocus,
+                        keyboardType: TextInputType.number,
+                        cursorColor: Colors.grey.shade800,
+                        decoration: InputDecoration(
+                          isCollapsed: true,
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          hintText: '0',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isUzbek ? 'gacha' : 'до',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 38,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border:
+                            Border.all(color: Colors.grey.shade300, width: 0.5),
+                      ),
+                      child: TextField(
+                        controller: _maxController,
+                        focusNode: _maxFocus,
+                        keyboardType: TextInputType.number,
+                        cursorColor: Colors.grey.shade800,
+                        decoration: InputDecoration(
+                          isCollapsed: true,
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          hintText: '0',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 40,
             child: ElevatedButton(
               onPressed: () {
-                final min =
-                    double.tryParse(_minController.text.replaceAll(' ', ''));
-                final max =
-                    double.tryParse(_maxController.text.replaceAll(' ', ''));
-                widget.onApply(min, max);
+                if (hasInput) {
+                  final min =
+                      double.tryParse(_minController.text.replaceAll(' ', ''));
+                  final max =
+                      double.tryParse(_maxController.text.replaceAll(' ', ''));
+                  widget.onApply(min, max);
+                } else {
+                  widget.onApply(null, null);
+                }
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    hasInput ? Colors.blue.shade600 : const Color(0xFFEBEBEB),
-                foregroundColor: hasInput ? Colors.white : Colors.black,
+                backgroundColor: hasInput
+                    ? const Color(0xFF4E6AFF)
+                    : const Color(0xFFEBEBEB),
+                foregroundColor: hasInput ? Colors.white : Colors.grey.shade700,
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(50),
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                "Qo'llash",
-                style: TextStyle(
-                  fontSize: 16,
+              child: Text(
+                hasInput
+                    ? (widget.isUzbek ? "Qo'llash" : "Применить")
+                    : (widget.isUzbek ? "Bekor qilish" : "Отменить"),
+                style: const TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),

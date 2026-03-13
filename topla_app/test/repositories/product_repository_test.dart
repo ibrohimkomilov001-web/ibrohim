@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:topla_app/core/repositories/i_product_repository.dart';
 import 'package:topla_app/models/models.dart';
+import 'package:topla_app/models/search_result.dart';
 
 /// Mock product repository for testing
 class MockProductRepository implements IProductRepository {
@@ -138,9 +139,18 @@ class MockProductRepository implements IProductRepository {
   }
 
   @override
-  Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20, String? sort}) async {
-    return getProducts(search: query, limit: limit);
+  Future<SearchResult> searchProducts(String query,
+      {int page = 1,
+      int limit = 20,
+      String? sort,
+      Map<String, dynamic>? filters}) async {
+    final products = await getProducts(search: query, limit: limit);
+    return SearchResult(
+        products: products,
+        total: products.length,
+        page: page,
+        limit: limit,
+        totalPages: 1);
   }
 
   @override
@@ -150,8 +160,8 @@ class MockProductRepository implements IProductRepository {
 
   @override
   Future<List<Map<String, dynamic>>> getSearchSuggestions(String query) async {
-    final products = await searchProducts(query);
-    return products.map((p) => {'id': p.id, 'name': p.nameUz}).toList();
+    final result = await searchProducts(query);
+    return result.products.map((p) => {'id': p.id, 'name': p.nameUz}).toList();
   }
 
   @override
@@ -239,6 +249,11 @@ class MockProductRepository implements IProductRepository {
   Future<List<CategoryFilterAttribute>> getCategoryFilters(
       String categoryId) async {
     return [];
+  }
+
+  @override
+  Future<ProductFacets> getFacets(String categoryId) async {
+    return ProductFacets.empty;
   }
 
   @override
@@ -358,23 +373,23 @@ void main() {
     });
 
     test('searchProducts finds by Uzbek name', () async {
-      final products = await productRepo.searchProducts('Banan');
+      final result = await productRepo.searchProducts('Banan');
 
-      expect(products.length, equals(1));
-      expect(products.first.nameUz, equals('Banan'));
+      expect(result.products.length, equals(1));
+      expect(result.products.first.nameUz, equals('Banan'));
     });
 
     test('searchProducts finds by Russian name', () async {
-      final products = await productRepo.searchProducts('Яблоко');
+      final result = await productRepo.searchProducts('Яблоко');
 
-      expect(products.length, equals(1));
-      expect(products.first.nameRu, equals('Яблоко'));
+      expect(result.products.length, equals(1));
+      expect(result.products.first.nameRu, equals('Яблоко'));
     });
 
     test('searchProducts is case insensitive', () async {
-      final products = await productRepo.searchProducts('OLMA');
+      final result = await productRepo.searchProducts('OLMA');
 
-      expect(products.length, equals(1));
+      expect(result.products.length, equals(1));
     });
 
     test('getProductsByCategory returns products in category', () async {

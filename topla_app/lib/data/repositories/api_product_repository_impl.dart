@@ -1,6 +1,7 @@
 import '../../core/repositories/i_product_repository.dart';
 import '../../core/services/api_client.dart';
 import '../../models/models.dart';
+import '../../models/search_result.dart';
 
 /// Product repository - Node.js backend implementation
 class ApiProductRepositoryImpl implements IProductRepository {
@@ -69,9 +70,12 @@ class ApiProductRepositoryImpl implements IProductRepository {
   }
 
   @override
-  Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20, String? sort, Map<String, dynamic>? filters}) async {
-    final params = <String, dynamic>{'q': query, 'limit': limit};
+  Future<SearchResult> searchProducts(String query,
+      {int page = 1,
+      int limit = 20,
+      String? sort,
+      Map<String, dynamic>? filters}) async {
+    final params = <String, dynamic>{'q': query, 'page': page, 'limit': limit};
     if (sort != null) params['sort'] = sort;
     if (filters != null) {
       filters.forEach((key, value) {
@@ -85,9 +89,10 @@ class ApiProductRepositoryImpl implements IProductRepository {
       queryParams: params,
       auth: false,
     );
-    return response.dataList
+    final products = response.dataList
         .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
         .toList();
+    return SearchResult.fromResponse(products, response.meta);
   }
 
   @override
@@ -275,7 +280,30 @@ class ApiProductRepositoryImpl implements IProductRepository {
     if (filter.sizeIds.isNotEmpty) {
       params['sizeIds'] = filter.sizeIds.join(',');
     }
+    if (filter.shopIds.isNotEmpty) {
+      params['shopIds'] = filter.shopIds.join(',');
+    }
+    if (filter.deliveryHours != null) {
+      params['deliveryHours'] = filter.deliveryHours;
+    }
+    if (filter.deliveryType != null) {
+      params['deliveryType'] = filter.deliveryType;
+    }
+    if (filter.isWowPrice == true) {
+      params['isWowPrice'] = true;
+    }
+    if (filter.isOriginal == true) {
+      params['isOriginal'] = true;
+    }
     if (filter.sortBy != null) params['sortBy'] = filter.sortBy;
+
+    // Dinamik kategoriya atributlari (C1 fix)
+    if (filter.attributes.isNotEmpty) {
+      final queryMap = filter.toQueryMap();
+      if (queryMap.containsKey('attributes')) {
+        params['attributes'] = queryMap['attributes'];
+      }
+    }
 
     final response =
         await _api.get('/products', queryParams: params, auth: false);

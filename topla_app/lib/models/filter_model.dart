@@ -37,6 +37,12 @@ class ProductFilter {
   /// Original mahsulot (sifat kafolati)
   final bool? isOriginal;
 
+  /// WOW narx (katta chegirmali maxsus narx)
+  final bool? isWowPrice;
+
+  /// Tanlangan do'konlar
+  final Set<String> shopIds;
+
   /// Kategoriyaga xos atributlar
   /// Key: attribute_key (masalan: 'ram', 'storage', 'screen_size')
   /// Value: SelectedFilterValue (tanlangan qiymatlar)
@@ -60,6 +66,8 @@ class ProductFilter {
     this.deliveryType,
     this.isClickDelivery,
     this.isOriginal,
+    this.isWowPrice,
+    this.shopIds = const {},
     this.attributes = const {},
     this.selectedCategoryId,
   });
@@ -81,6 +89,8 @@ class ProductFilter {
       deliveryType != null ||
       isClickDelivery != null ||
       isOriginal != null ||
+      isWowPrice != null ||
+      shopIds.isNotEmpty ||
       attributes.values.any((v) => v.hasValue);
 
   /// Faol filterlar soni
@@ -97,6 +107,8 @@ class ProductFilter {
     if (deliveryType != null) count++;
     if (isClickDelivery == true) count++;
     if (isOriginal == true) count++;
+    if (isWowPrice == true) count++;
+    if (shopIds.isNotEmpty) count++;
     count += attributes.values.where((v) => v.hasValue).length;
     return count;
   }
@@ -117,6 +129,8 @@ class ProductFilter {
     String? deliveryType,
     bool? isClickDelivery,
     bool? isOriginal,
+    bool? isWowPrice,
+    Set<String>? shopIds,
     Map<String, SelectedFilterValue>? attributes,
     String? selectedCategoryId,
     bool clearMinPrice = false,
@@ -126,6 +140,7 @@ class ProductFilter {
     bool clearDeliveryType = false,
     bool clearIsClickDelivery = false,
     bool clearIsOriginal = false,
+    bool clearIsWowPrice = false,
     bool clearSelectedCategoryId = false,
   }) {
     return ProductFilter(
@@ -147,6 +162,8 @@ class ProductFilter {
           ? null
           : (isClickDelivery ?? this.isClickDelivery),
       isOriginal: clearIsOriginal ? null : (isOriginal ?? this.isOriginal),
+      isWowPrice: clearIsWowPrice ? null : (isWowPrice ?? this.isWowPrice),
+      shopIds: shopIds ?? this.shopIds,
       attributes: attributes ?? this.attributes,
       selectedCategoryId: clearSelectedCategoryId
           ? null
@@ -202,6 +219,16 @@ class ProductFilter {
     return copyWith(sizeIds: sizeIds.where((id) => id != sizeId).toSet());
   }
 
+  /// Do'kon qo'shish
+  ProductFilter withShop(String shopId) {
+    return copyWith(shopIds: {...shopIds, shopId});
+  }
+
+  /// Do'konni olib tashlash
+  ProductFilter withoutShop(String shopId) {
+    return copyWith(shopIds: shopIds.where((id) => id != shopId).toSet());
+  }
+
   /// Barcha filterlarni tozalash
   ProductFilter clear() => ProductFilter.empty();
 
@@ -213,12 +240,12 @@ class ProductFilter {
     );
   }
 
-  /// Sort options
-  static const String sortByPopular = 'sold_count';
+  /// Sort options (backend enum bilan mos)
+  static const String sortByPopular = 'popular';
   static const String sortByPriceLow = 'price_asc';
   static const String sortByPriceHigh = 'price_desc';
   static const String sortByRating = 'rating';
-  static const String sortByNewest = 'created_at';
+  static const String sortByNewest = 'newest';
   static const String sortByDiscount = 'discount';
 
   /// API query uchun filter map (backend param nomlari bilan)
@@ -234,6 +261,8 @@ class ProductFilter {
     if (brandIds.isNotEmpty) map['brandIds'] = brandIds.join(',');
     if (colorIds.isNotEmpty) map['colorIds'] = colorIds.join(',');
     if (sizeIds.isNotEmpty) map['sizeIds'] = sizeIds.join(',');
+    if (shopIds.isNotEmpty) map['shopIds'] = shopIds.join(',');
+    if (isWowPrice == true) map['isWowPrice'] = true;
     if (deliveryHours != null) map['deliveryHours'] = deliveryHours;
     if (deliveryType != null) map['deliveryType'] = deliveryType;
     if (selectedCategoryId != null) map['categoryId'] = selectedCategoryId;
@@ -266,7 +295,7 @@ class ProductFilter {
     return 'ProductFilter(minPrice: $minPrice, maxPrice: $maxPrice, minRating: $minRating, '
         'onlyInStock: $onlyInStock, onlyWithDiscount: $onlyWithDiscount, '
         'sortBy: $sortBy, sortAscending: $sortAscending, brands: ${brandIds.length}, colors: ${colorIds.length}, '
-        'deliveryHours: $deliveryHours, deliveryType: $deliveryType, isClickDelivery: $isClickDelivery, isOriginal: $isOriginal, '
+        'deliveryHours: $deliveryHours, deliveryType: $deliveryType, isClickDelivery: $isClickDelivery, isOriginal: $isOriginal, isWowPrice: $isWowPrice, shops: ${shopIds.length}, '
         'attributes: ${attributes.length})';
   }
 
@@ -288,7 +317,29 @@ class ProductFilter {
         other.deliveryType == deliveryType &&
         other.isClickDelivery == isClickDelivery &&
         other.isOriginal == isOriginal &&
-        other.selectedCategoryId == selectedCategoryId;
+        other.isWowPrice == isWowPrice &&
+        _setEquals(other.shopIds, shopIds) &&
+        other.selectedCategoryId == selectedCategoryId &&
+        _mapEquals(other.attributes, attributes);
+  }
+
+  static bool _mapEquals(
+      Map<String, SelectedFilterValue> a, Map<String, SelectedFilterValue> b) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key)) return false;
+      final aVal = a[key]!;
+      final bVal = b[key]!;
+      if (aVal.attributeKey != bVal.attributeKey ||
+          aVal.filterType != bVal.filterType ||
+          aVal.minValue != bVal.minValue ||
+          aVal.maxValue != bVal.maxValue ||
+          aVal.toggleValue != bVal.toggleValue ||
+          !_setEquals(aVal.selectedValues, bVal.selectedValues)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static bool _setEquals<T>(Set<T> a, Set<T> b) {
@@ -316,7 +367,10 @@ class ProductFilter {
       deliveryType,
       isClickDelivery,
       isOriginal,
+      isWowPrice,
+      Object.hashAll(shopIds),
       selectedCategoryId,
+      Object.hashAll(attributes.keys),
     );
   }
 }

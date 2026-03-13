@@ -1,4 +1,5 @@
 import '../../models/models.dart';
+import '../../models/search_result.dart';
 
 /// Mahsulot operatsiyalari uchun interface
 abstract class IProductRepository {
@@ -20,9 +21,12 @@ abstract class IProductRepository {
   /// Tavsiya etilgan mahsulotlar
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10});
 
-  /// Mahsulot qidirish (Meilisearch)
-  Future<List<ProductModel>> searchProducts(String query,
-      {int limit = 20, String? sort, Map<String, dynamic>? filters});
+  /// Mahsulot qidirish (Meilisearch) — pagination bilan
+  Future<SearchResult> searchProducts(String query,
+      {int page = 1,
+      int limit = 20,
+      String? sort,
+      Map<String, dynamic>? filters});
 
   /// Mashhur qidiruv so'zlari
   Future<List<String>> getPopularSearches();

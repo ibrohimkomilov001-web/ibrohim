@@ -61,6 +61,14 @@ class _SearchScreenState extends State<SearchScreen>
   // Natijalar soni
   int _totalResults = 0;
 
+  bool get _isUzbek => context.l10n.locale.languageCode == 'uz';
+
+  // Pagination
+  int _currentPage = 1;
+  int _totalPages = 1;
+  bool _isLoadingMore = false;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +84,20 @@ class _SearchScreenState extends State<SearchScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _searchFocusNode.requestFocus();
       });
+    }
+
+    // Pagination scroll listener
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoadingMore &&
+          _currentPage < _totalPages &&
+          _searchController.text.trim().isNotEmpty) {
+        _performSearch(_searchController.text, loadMore: true);
+      }
     }
   }
 
@@ -126,6 +148,8 @@ class _SearchScreenState extends State<SearchScreen>
     _searchController.dispose();
     _searchFocusNode.removeListener(_onFocusChange);
     _searchFocusNode.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -178,15 +202,21 @@ class _SearchScreenState extends State<SearchScreen>
     _overlayEntry = null;
   }
 
-  Future<void> _performSearch(String query) async {
+  Future<void> _performSearch(String query, {bool loadMore = false}) async {
     if (query.trim().isEmpty) return;
+    if (loadMore && (_isLoadingMore || _currentPage >= _totalPages)) return;
 
     _removeSuggestionOverlay();
-    setState(() {
-      _isSearching = true;
-      _hasSearched = true;
-      _showSuggestions = false;
-    });
+    if (!loadMore) {
+      setState(() {
+        _isSearching = true;
+        _hasSearched = true;
+        _showSuggestions = false;
+        _currentPage = 1;
+      });
+    } else {
+      setState(() => _isLoadingMore = true);
+    }
 
     try {
       final productsProvider = context.read<ProductsProvider>();
@@ -203,6 +233,8 @@ class _SearchScreenState extends State<SearchScreen>
         filterParams['brandIds'] = queryMap['brandIds'];
       if (queryMap.containsKey('colorIds'))
         filterParams['colorIds'] = queryMap['colorIds'];
+      if (queryMap.containsKey('sizeIds'))
+        filterParams['sizeIds'] = queryMap['sizeIds'];
       if (queryMap.containsKey('minRating'))
         filterParams['minRating'] = queryMap['minRating'];
       if (queryMap.containsKey('inStock'))
@@ -211,33 +243,58 @@ class _SearchScreenState extends State<SearchScreen>
         filterParams['hasDiscount'] = queryMap['hasDiscount'];
       if (queryMap.containsKey('attributes'))
         filterParams['attributes'] = queryMap['attributes'];
+      if (queryMap.containsKey('shopIds'))
+        filterParams['shopIds'] = queryMap['shopIds'];
+      if (queryMap.containsKey('deliveryHours'))
+        filterParams['deliveryHours'] = queryMap['deliveryHours'];
+      if (queryMap.containsKey('deliveryType'))
+        filterParams['deliveryType'] = queryMap['deliveryType'];
+      if (queryMap.containsKey('isWowPrice'))
+        filterParams['isWowPrice'] = queryMap['isWowPrice'];
+      if (_filter.isOriginal == true) filterParams['isOriginal'] = true;
       if (_dominantCategoryId != null)
         filterParams['categoryId'] = _dominantCategoryId;
 
-      final results = await productsProvider.searchProducts(
+      final page = loadMore ? _currentPage + 1 : 1;
+      final result = await productsProvider.searchProducts(
         query,
+        page: page,
         sort: sortParam,
         filters: filterParams.isNotEmpty ? filterParams : null,
       );
 
       if (mounted) {
         setState(() {
-          _searchResults = results;
-          _totalResults = results.length;
+          if (loadMore) {
+            _searchResults.addAll(result.products);
+          } else {
+            _searchResults = result.products;
+          }
+          _totalResults = result.total;
+          _currentPage = result.page;
+          _totalPages = result.totalPages;
           _isSearching = false;
+          _isLoadingMore = false;
         });
 
         // Detect dominant category from results and load its filters
-        _detectAndLoadCategoryFilters(results);
+        if (!loadMore) {
+          _detectAndLoadCategoryFilters(result.products);
+        }
       }
 
       // Tarixga qo'shish
-      _searchHistory.remove(query);
-      _searchHistory.insert(0, query);
-      if (_searchHistory.length > 15) _searchHistory.removeLast();
-      _saveSearchHistory();
+      if (!loadMore) {
+        _searchHistory.remove(query);
+        _searchHistory.insert(0, query);
+        if (_searchHistory.length > 15) _searchHistory.removeLast();
+        _saveSearchHistory();
+      }
     } catch (e) {
-      setState(() => _isSearching = false);
+      setState(() {
+        _isSearching = false;
+        _isLoadingMore = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -299,13 +356,14 @@ class _SearchScreenState extends State<SearchScreen>
     final newFilter = await SheinFilterSheet.show(
       context,
       currentFilter: _filter,
-      categoryName: 'Filtrlar',
+      categoryName: _isUzbek ? 'Filtrlar' : 'Фильтры',
       accentColor: AppColors.primary,
       productCount: _totalResults,
       brands: _brands,
       colors: _colors,
       facets: _facets,
       categoryAttributes: _categoryFilters,
+      isUzbek: _isUzbek,
     );
     if (newFilter != null && mounted) {
       setState(() {
@@ -322,13 +380,19 @@ class _SearchScreenState extends State<SearchScreen>
   String? _getSortParam() {
     switch (_sortBy) {
       case 'price_low':
+      case 'price_asc':
         return 'price_asc';
       case 'price_high':
+      case 'price_desc':
         return 'price_desc';
       case 'newest':
         return 'newest';
       case 'popular':
         return 'popular';
+      case 'rating':
+        return 'rating';
+      case 'discount':
+        return 'popular'; // search API has no discount sort, fallback to popular
       default:
         return null;
     }
@@ -411,7 +475,7 @@ class _SearchScreenState extends State<SearchScreen>
                 IconButton(
                   onPressed: _openFilterSheet,
                   icon: const Icon(Icons.tune_rounded, size: 22),
-                  tooltip: 'Filtrlar',
+                  tooltip: _isUzbek ? 'Filtrlar' : 'Фильтры',
                 ),
                 if (_filter.activeFilterCount > 0)
                   Positioned(
@@ -678,69 +742,169 @@ class _SearchScreenState extends State<SearchScreen>
 
     return Column(
       children: [
-        // Natijalar soni + saralash
+        // Quick filter bar (Yandex Market style)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+          color: Theme.of(context).colorScheme.surface,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                // Filter button
+                _buildSearchFilterButton(),
+                const SizedBox(width: 8),
+                // Sort button
+                _buildSearchSortButton(),
+                const SizedBox(width: 8),
+                Container(width: 1, height: 22, color: Colors.grey.shade300),
+                const SizedBox(width: 8),
+                // Quick toggle: Original
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: _buildSearchQuickChip(
+                    label: _isUzbek ? 'Original' : 'Оригинал',
+                    isActive: _filter.isOriginal == true,
+                    onTap: () {
+                      setState(() {
+                        _filter = _filter.copyWith(
+                          isOriginal: _filter.isOriginal == true ? null : true,
+                          clearIsOriginal: _filter.isOriginal == true,
+                        );
+                      });
+                      _performSearch(_searchController.text);
+                    },
+                  ),
+                ),
+                // Quick toggle: Chegirmali
+                if (_facets != null && _facets!.discountCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _buildSearchQuickChip(
+                      label: context.l10n.locale.languageCode == 'uz'
+                          ? 'Chegirmali'
+                          : 'Со скидкой',
+                      isActive: _filter.onlyWithDiscount,
+                      onTap: () {
+                        setState(() {
+                          _filter = _filter.copyWith(
+                              onlyWithDiscount: !_filter.onlyWithDiscount);
+                        });
+                        _performSearch(_searchController.text);
+                      },
+                    ),
+                  ),
+                // Quick toggle: Stokda bor
+                if (_facets != null && _facets!.inStockCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _buildSearchQuickChip(
+                      label: context.l10n.locale.languageCode == 'uz'
+                          ? 'Stokda'
+                          : 'В наличии',
+                      isActive: _filter.onlyInStock,
+                      onTap: () {
+                        setState(() {
+                          _filter = _filter.copyWith(
+                              onlyInStock: !_filter.onlyInStock);
+                        });
+                        _performSearch(_searchController.text);
+                      },
+                    ),
+                  ),
+                // Results count
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    '$_totalResults ${context.l10n.translate('results_count')}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              RichText(
-                text: TextSpan(
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
-                  children: [
-                    TextSpan(
-                      text: '$_totalResults ',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+        ),
+
+        // Active filter pills row
+        if (_filter.hasActiveFilters)
+          Container(
+            color: Theme.of(context).colorScheme.surface,
+            padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  if (_filter.minPrice != null || _filter.maxPrice != null)
+                    _buildSearchRemovablePill(
+                      _filter.minPrice != null && _filter.maxPrice != null
+                          ? '${(_filter.minPrice! / 1000).toStringAsFixed(0)}K - ${(_filter.maxPrice! / 1000).toStringAsFixed(0)}K'
+                          : _filter.minPrice != null
+                              ? '${_isUzbek ? "dan" : "от"} ${(_filter.minPrice! / 1000).toStringAsFixed(0)}K'
+                              : '${_isUzbek ? "gacha" : "до"} ${(_filter.maxPrice! / 1000).toStringAsFixed(0)}K',
+                      () {
+                        setState(() {
+                          _filter = _filter.copyWith(
+                              clearMinPrice: true, clearMaxPrice: true);
+                        });
+                        _performSearch(_searchController.text);
+                      },
                     ),
-                    TextSpan(
-                      text: context.l10n.translate('results_count'),
+                  if (_filter.brandIds.isNotEmpty)
+                    _buildSearchRemovablePill(
+                      '${_isUzbek ? "Brendlar" : "Бренды"}: ${_filter.brandIds.length}',
+                      () {
+                        setState(
+                            () => _filter = _filter.copyWith(brandIds: {}));
+                        _performSearch(_searchController.text);
+                      },
                     ),
-                  ],
-                ),
-              ),
-              InkWell(
-                onTap: _showSortOptions,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Iconsax.sort,
-                          size: 16, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        _getSortLabel(),
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                  if (_filter.minRating != null)
+                    _buildSearchRemovablePill(
+                      '★ ${_filter.minRating!.toStringAsFixed(0)}+',
+                      () {
+                        setState(() =>
+                            _filter = _filter.copyWith(clearMinRating: true));
+                        _performSearch(_searchController.text);
+                      },
+                    ),
+                  // Clear all
+                  if (_filter.activeFilterCount > 1)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _filter = const ProductFilter());
+                        _performSearch(_searchController.text);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.shade300),
+                        ),
+                        child: Text(
+                          context.l10n.locale.languageCode == 'uz'
+                              ? 'Tozalash'
+                              : 'Сбросить',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.red.shade400,
+                              fontWeight: FontWeight.w500),
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+
+        // Divider
+        Container(height: 0.5, color: Colors.grey.shade200),
 
         // Mahsulotlar grid
         Expanded(
           child: GridView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.all(12),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -748,8 +912,17 @@ class _SearchScreenState extends State<SearchScreen>
               crossAxisSpacing: 10,
               childAspectRatio: 0.52,
             ),
-            itemCount: _searchResults.length,
+            itemCount: _searchResults.length + (_isLoadingMore ? 2 : 0),
             itemBuilder: (context, index) {
+              // Loading indicator at the bottom
+              if (index >= _searchResults.length) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
               final product = _searchResults[index];
               final locale = context.l10n.locale.languageCode;
               return ProductCard(
@@ -878,6 +1051,159 @@ class _SearchScreenState extends State<SearchScreen>
           }
         }
       },
+    );
+  }
+
+  // === Yandex Market-style helper widgets ===
+
+  Widget _buildSearchFilterButton() {
+    final count = _filter.activeFilterCount;
+    return GestureDetector(
+      onTap: _openFilterSheet,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: count > 0
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: count > 0
+              ? Border.all(color: AppColors.primary, width: 1.5)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.tune_rounded,
+                size: 16,
+                color: count > 0 ? AppColors.primary : Colors.grey.shade700),
+            if (count > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('$count',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchSortButton() {
+    return GestureDetector(
+      onTap: _showSortOptions,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Iconsax.sort, size: 14, color: Colors.grey.shade700),
+            const SizedBox(width: 4),
+            Text(
+              _getSortLabel(),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade800,
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchQuickChip({
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF232323) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: isActive
+              ? null
+              : Border.all(color: Colors.grey.shade300, width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isActive ? Colors.white : Colors.grey.shade800,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF757575),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 10, color: Colors.black),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchRemovablePill(String label, VoidCallback onRemove) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: GestureDetector(
+        onTap: onRemove,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF232323),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF757575),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 10, color: Colors.black),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

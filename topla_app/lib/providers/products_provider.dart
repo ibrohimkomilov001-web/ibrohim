@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
 import '../core/utils/app_logger.dart';
 import '../models/models.dart';
+import '../models/search_result.dart';
 
 /// Mahsulotlar holati uchun Provider
 /// Repository pattern bilan - backend o'zgarganda bu kod o'zgarmaydi
@@ -286,16 +287,16 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
-  /// Mahsulotlarni qidirish (Meilisearch)
-  Future<List<ProductModel>> searchProducts(String query,
-      {String? sort, Map<String, dynamic>? filters}) async {
+  /// Mahsulotlarni qidirish (Meilisearch) — pagination bilan
+  Future<SearchResult> searchProducts(String query,
+      {int page = 1, String? sort, Map<String, dynamic>? filters}) async {
     try {
       return await _productRepo.searchProducts(query,
-          sort: sort, filters: filters);
+          page: page, sort: sort, filters: filters);
     } catch (e) {
       AppLogger.e(_tag, 'searchProducts error', e);
       _error = e.toString();
-      return [];
+      return const SearchResult(products: []);
     }
   }
 
@@ -378,7 +379,8 @@ class ProductsProvider extends ChangeNotifier {
             await _productRepo.getProductsByCategory(category.id);
       } else {
         // Agar kategoriya topilmasa, qidirish qilish
-        _filteredProducts = await _productRepo.searchProducts(categorySlug);
+        final result = await _productRepo.searchProducts(categorySlug);
+        _filteredProducts = result.products;
       }
     } catch (e) {
       _error = e.toString();
