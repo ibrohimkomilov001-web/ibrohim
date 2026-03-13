@@ -331,7 +331,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                 borderRadius: BorderRadius.circular(40),
               ),
               child: const Icon(
-                Iconsax.refresh_left_square,
+                Iconsax.box_1,
                 size: 40,
                 color: AppColors.primary,
               ),

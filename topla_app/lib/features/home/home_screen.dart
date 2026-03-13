@@ -61,39 +61,36 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       body: Consumer<ProductsProvider>(
         builder: (context, productsProvider, _) {
-          return ToplaRefreshIndicator(
-            onRefresh: () => productsProvider.loadAll(forceReload: true),
-            child: CustomScrollView(
-              slivers: [
-                // Status bar uchun padding
-                SliverToBoxAdapter(
-                  child: SizedBox(height: statusBarHeight),
-                ),
+          return CustomScrollView(
+            slivers: [
+              // Status bar uchun padding
+              SliverToBoxAdapter(
+                child: SizedBox(height: statusBarHeight),
+              ),
 
-                // App Bar with Search
-                SliverToBoxAdapter(
-                  child: _buildSearchHeader(),
-                ),
+              // App Bar with Search
+              SliverToBoxAdapter(
+                child: _buildSearchHeader(),
+              ),
 
-                // Banner Carousel
-                SliverToBoxAdapter(
-                  child: _buildBannerCarousel(productsProvider),
-                ),
+              // Banner Carousel
+              SliverToBoxAdapter(
+                child: _buildBannerCarousel(productsProvider),
+              ),
 
-                // Filter chips
-                SliverToBoxAdapter(
-                  child: _buildFilterChips(),
-                ),
+              // Filter chips
+              SliverToBoxAdapter(
+                child: _buildFilterChips(),
+              ),
 
-                // Featured products grid
-                _buildFeaturedProductsGrid(productsProvider),
+              // Featured products grid
+              _buildFeaturedProductsGrid(productsProvider),
 
-                // Bottom padding
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSizes.xxl),
-                ),
-              ],
-            ),
+              // Bottom padding
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSizes.xxl),
+              ),
+            ],
           );
         },
       ),
