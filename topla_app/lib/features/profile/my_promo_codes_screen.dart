@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_colors.dart';
 import '../../providers/lucky_wheel_provider.dart';
 import '../../core/repositories/i_lucky_wheel_repository.dart';
 
@@ -56,15 +57,7 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
         ),
         actions: [
           IconButton(
-            icon: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE91E63).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.add, size: 20, color: Color(0xFFE91E63)),
-            ),
+            icon: const Icon(Icons.add, size: 24, color: Colors.black87),
             onPressed: _showAddPromoCodeDialog,
           ),
           const SizedBox(width: 4),
@@ -374,100 +367,123 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Promokod kiritish',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-          decoration: InputDecoration(
-            hintText: 'Promokodni kiriting',
-            hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF999999)),
-            filled: true,
-            fillColor: const Color(0xFFF5F5F5),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide.none,
+        titlePadding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Promokod kiritish',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          ),
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1,
-          ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 20, color: Color(0xFF999999)),
+              onPressed: () => Navigator.pop(ctx),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Bekor qilish',
-                style: TextStyle(color: Color(0xFF999999))),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final code = controller.text.trim();
-              if (code.isEmpty) return;
-              Navigator.pop(ctx);
-              try {
-                final provider =
-                    Provider.of<LuckyWheelProvider>(context, listen: false);
-                final result = await provider.verifyPromoCode(code);
-                if (mounted) {
-                  final discountType = result['discountType'] ?? '';
-                  final discountValue = result['discountValue'] ?? 0;
-                  String discountText = '';
-                  if (discountType == 'percentage') {
-                    discountText = '$discountValue% chegirma';
-                  } else {
-                    discountText = '${discountValue.toInt()} so\'m chegirma';
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'Promokodni kiriting',
+                hintStyle:
+                    const TextStyle(fontSize: 14, color: Color(0xFF999999)),
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final code = controller.text.trim();
+                  if (code.isEmpty) return;
+                  Navigator.pop(ctx);
+                  try {
+                    final provider =
+                        Provider.of<LuckyWheelProvider>(context, listen: false);
+                    final result = await provider.verifyPromoCode(code);
+                    if (mounted) {
+                      final discountType = result['discountType'] ?? '';
+                      final discountValue = result['discountValue'] ?? 0;
+                      String discountText = '';
+                      if (discountType == 'percentage') {
+                        discountText = '$discountValue% chegirma';
+                      } else {
+                        discountText =
+                            '${discountValue.toInt()} so\'m chegirma';
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              '✅ Promokod faol! $discountText. Buyurtma berishda ishlating.',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13)),
+                          backgroundColor: const Color(0xFF4CAF50),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24)),
+                          duration: const Duration(seconds: 3),
+                          margin: const EdgeInsets.only(
+                              left: 40, right: 40, bottom: 80),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              e.toString().replaceAll('Exception: ', ''),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13)),
+                          backgroundColor: Colors.red.shade400,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24)),
+                          duration: const Duration(seconds: 3),
+                          margin: const EdgeInsets.only(
+                              left: 40, right: 40, bottom: 80),
+                        ),
+                      );
+                    }
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          '✅ Promokod faol! $discountText. Buyurtma berishda ishlating.',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 13)),
-                      backgroundColor: const Color(0xFF4CAF50),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24)),
-                      duration: const Duration(seconds: 3),
-                      margin: const EdgeInsets.only(
-                          left: 40, right: 40, bottom: 80),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.toString().replaceAll('Exception: ', ''),
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 13)),
-                      backgroundColor: Colors.red.shade400,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24)),
-                      duration: const Duration(seconds: 3),
-                      margin: const EdgeInsets.only(
-                          left: 40, right: 40, bottom: 80),
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE91E63),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(100)),
+                  elevation: 0,
+                ),
+                child: const Text('Qo\'shish',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              ),
             ),
-            child:
-                const Text('Qo\'shish', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+          ],
+        ),
+        actionsPadding: EdgeInsets.zero,
+        actions: const [],
       ),
     );
   }
