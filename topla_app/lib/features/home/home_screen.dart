@@ -59,8 +59,8 @@ class _HomeScreenState extends State<HomeScreen>
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      body: Consumer<ProductsProvider>(
-        builder: (context, productsProvider, _) {
+      body: Builder(
+        builder: (context) {
           return CustomScrollView(
             slivers: [
               // Status bar uchun padding
@@ -75,16 +75,24 @@ class _HomeScreenState extends State<HomeScreen>
 
               // Banner Carousel
               SliverToBoxAdapter(
-                child: _buildBannerCarousel(productsProvider),
+                child: Consumer<ProductsProvider>(
+                  builder: (context, productsProvider, _) {
+                    return _buildBannerCarousel(productsProvider);
+                  },
+                ),
               ),
 
-              // Filter chips
+              // Filter chips - Consumer tashqarisida, faqat setState bilan boshqariladi
               SliverToBoxAdapter(
                 child: _buildFilterChips(),
               ),
 
-              // Featured products grid
-              _buildFeaturedProductsGrid(productsProvider),
+              // Featured products grid - faqat shu qism provider bilan yangilanadi
+              Consumer<ProductsProvider>(
+                builder: (context, productsProvider, _) {
+                  return _buildFeaturedProductsGrid(productsProvider);
+                },
+              ),
 
               // Bottom padding
               const SliverToBoxAdapter(
@@ -679,13 +687,11 @@ class _HomeScreenState extends State<HomeScreen>
                   // Filtrlangan mahsulotlarni yuklash
                   _loadFilteredProducts(filter);
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOut,
+                child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 1),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10, // 12 dan 10 ga qisqartirdik
-                    vertical: 4, // 6 dan 4 ga qisqartirdik
+                    horizontal: 10,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
