@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { authMiddleware, requireRole } from '../../middleware/auth.js';
+import { authMiddleware, requireRole, requireActiveShop } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { getVendorShop } from '../../utils/shop.js';
@@ -26,6 +26,8 @@ const analyticsQuerySchema = z.object({
 export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // All vendor routes require auth + vendor/admin role
   const vendorAuth = [authMiddleware, requireRole('vendor', 'admin')];
+  // Write operations also require active shop status
+  const vendorWriteAuth = [...vendorAuth, requireActiveShop()];
 
   // ============================================
   // GET /vendor/profile
@@ -160,7 +162,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // PATCH /vendor/products/:id
   // Mahsulotni active/inactive qilish (toggle)
   // ============================================
-  app.patch('/vendor/products/:id', { preHandler: vendorAuth }, async (request, reply) => {
+  app.patch('/vendor/products/:id', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({
       isActive: z.boolean().optional(),
@@ -417,7 +419,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // POST /vendor/payouts
   // Pul yechish so'rovi
   // ============================================
-  app.post('/vendor/payouts', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/payouts', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const body = payoutRequestSchema.parse(request.body);
 
     const shop = await getVendorShop(request.user!.userId);
@@ -578,7 +580,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   // POST /vendor/reviews/:id/reply
   // Vendor sharhga javob berish
   // ============================================
-  app.post('/vendor/reviews/:id/reply', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/reviews/:id/reply', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const { reply: replyText } = z.object({
       reply: z.string().min(1, 'Javob matnini kiriting'),
@@ -692,7 +694,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post('/vendor/chats/:id/messages', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/chats/:id/messages', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
     const { message, imageUrl } = z.object({
@@ -822,7 +824,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   /**
    * POST /vendor/promo-codes
    */
-  app.post('/vendor/promo-codes', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/promo-codes', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const userId = request.user!.userId;
     const data = vendorPromoSchema.parse(request.body);
 
@@ -854,7 +856,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   /**
    * PUT /vendor/promo-codes/:id
    */
-  app.put('/vendor/promo-codes/:id', { preHandler: vendorAuth }, async (request, reply) => {
+  app.put('/vendor/promo-codes/:id', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
     const data = vendorPromoSchema.partial().extend({
@@ -880,7 +882,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   /**
    * DELETE /vendor/promo-codes/:id
    */
-  app.delete('/vendor/promo-codes/:id', { preHandler: vendorAuth }, async (request, reply) => {
+  app.delete('/vendor/promo-codes/:id', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
@@ -1060,7 +1062,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post('/vendor/boosts', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/boosts', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const body = boostSchema.parse(request.body);
     const shop = await getVendorShop(request.user!.userId);
 
@@ -1104,7 +1106,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(201).send({ success: true, data: boost });
   });
 
-  app.patch('/vendor/boosts/:id/pause', { preHandler: vendorAuth }, async (request, reply) => {
+  app.patch('/vendor/boosts/:id/pause', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const shop = await getVendorShop(request.user!.userId);
 
@@ -1121,7 +1123,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ success: true, data: updated });
   });
 
-  app.patch('/vendor/boosts/:id/resume', { preHandler: vendorAuth }, async (request, reply) => {
+  app.patch('/vendor/boosts/:id/resume', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const shop = await getVendorShop(request.user!.userId);
 
@@ -1138,7 +1140,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ success: true, data: updated });
   });
 
-  app.delete('/vendor/boosts/:id', { preHandler: vendorAuth }, async (request, reply) => {
+  app.delete('/vendor/boosts/:id', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const shop = await getVendorShop(request.user!.userId);
 
@@ -1204,7 +1206,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post('/vendor/penalties/:id/appeal', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/penalties/:id/appeal', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const { note } = z.object({ note: z.string().min(10, 'Kamida 10 belgi') }).parse(request.body);
     const shop = await getVendorShop(request.user!.userId);
@@ -1248,7 +1250,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
    * PUT /vendor/delivery-settings
    * Yetkazib berish sozlamalarini yangilash
    */
-  app.put('/vendor/delivery-settings', { preHandler: vendorAuth }, async (request, reply) => {
+  app.put('/vendor/delivery-settings', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const shop = await getVendorShop(request.user!.userId);
     const body = z.object({
       fulfillmentType: z.enum(['FBS', 'DBS']).optional(),
@@ -1305,7 +1307,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
    * POST /vendor/orders/:id/tracking
    * Kuzatuv ma'lumotlarini qo'shish (track raqami)
    */
-  app.post('/vendor/orders/:id/tracking', { preHandler: vendorAuth }, async (request, reply) => {
+  app.post('/vendor/orders/:id/tracking', { preHandler: vendorWriteAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const { trackingNumber, carrier } = z.object({
       trackingNumber: z.string().min(1),

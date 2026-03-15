@@ -20,6 +20,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { authApi } from "@/lib/api/auth";
 import { setToken } from "@/lib/api/client";
 import api from "@/lib/api/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Loader2,
   CheckCircle,
@@ -105,6 +106,7 @@ function toSlug(text: string): string {
 
 export default function VendorRegisterPage() {
   const router = useRouter();
+  const { refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,82 +271,16 @@ export default function VendorRegisterPage() {
         mfo: mfo.replace(/\s/g, "") || undefined,
       });
 
-      if (response.token) {
-        setToken(response.token);
-      }
-      setStep(4);
+      // Token already stored by authApi.register()
+      // Update auth context and redirect to dashboard
+      await refreshProfile();
+      router.push("/vendor/dashboard");
     } catch (err: any) {
       setError(err.message || "Ro'yxatdan o'tishda xatolik yuz berdi");
     } finally {
       setIsLoading(false);
     }
   };
-
-  // ==================== SUCCESS STATE ====================
-  if (step === 4) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="w-full max-w-md"
-        >
-          <Card className="border-0 shadow-2xl shadow-emerald-500/10 overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-emerald-400 via-green-500 to-teal-500" />
-            <CardContent className="pt-10 pb-8 px-8">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
-              >
-                <CheckCircle className="h-10 w-10 text-white" />
-              </motion.div>
-              <h2 className="text-2xl font-bold mb-2 text-center">
-                Ariza qabul qilindi!
-              </h2>
-              <p className="text-muted-foreground text-center mb-6 leading-relaxed">
-                Arizangiz muvaffaqiyatli yuborildi. Adminlar tekshirib
-                chiqqanidan so&apos;ng sizga xabar beramiz.
-              </p>
-
-              {/* Shop URL preview */}
-              <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4">
-                <Globe className="h-4 w-4 text-slate-400 shrink-0" />
-                <p className="text-sm text-slate-600 truncate">
-                  topla.uz/shop/<span className="font-semibold text-primary">{slugPreview}</span>
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl mb-6">
-                <Clock className="h-5 w-5 text-amber-500 shrink-0" />
-                <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Tasdiqlash 1-2 ish kunini oladi
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <Button
-                  asChild
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all font-semibold"
-                >
-                  <Link href="/vendor/login">Kabinetga o&apos;tish</Link>
-                </Button>
-                <Button
-                  variant="ghost"
-                  asChild
-                  className="w-full h-12 rounded-xl text-muted-foreground hover:text-foreground"
-                >
-                  <Link href="/">← Bosh sahifaga qaytish</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
 
   // ==================== MAIN FORM ====================
   const stepInfo = [

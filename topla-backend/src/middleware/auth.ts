@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { verifyToken, isTokenBlacklisted, JwtPayload } from '../utils/jwt.js';
 import { prisma } from '../config/database.js';
+import { AppError } from './error.js';
 
 // Extend FastifyRequest to include user and admin permissions
 declare module 'fastify' {
@@ -117,6 +118,49 @@ export function requirePermission(...requiredPermissions: string[]) {
       return reply.status(403).send({
         error: 'Forbidden',
         message: `Sizda "${requiredPermissions.join('" yoki "')}" ruxsati yo'q`,
+      });
+    }
+  };
+}
+
+/**
+ * Vendor do'koni active ekanligini tekshirish middleware.
+ * Pending/inactive/blocked do'konlar uchun yozish amallarini bloklaydi.
+ * Faqat vendorAuth bilan birga ishlatiladi.
+ */
+export function requireActiveShop() {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    // Admin har doim ruxsat oladi
+    if (request.user.role === 'admin') return;
+
+    const shop = await prisma.shop.findUnique({
+      where: { ownerId: request.user.userId },
+      select: { status: true },
+    });
+
+    if (!shop) {
+      return reply.status(404).send({
+        error: 'NotFound',
+        message: "Do'kon topilmadi",
+      });
+    }
+
+    if (shop.status === 'blocked') {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: "Do'koningiz bloklangan. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
+      });
+    }
+
+    if (shop.status !== 'active') {
+      return reply.status(403).send({
+        error: 'ShopNotActive',
+        message: "Do'koningiz hali tasdiqlanmagan. Admin tekshiruvini kuting.",
+        shopStatus: shop.status,
       });
     }
   };

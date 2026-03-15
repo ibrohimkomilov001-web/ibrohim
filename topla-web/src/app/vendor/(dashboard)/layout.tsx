@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./components/NotificationBell";
+import { ShopStatusBanner } from "./components/ShopStatusBanner";
 import { useTranslation } from "@/store/locale-store";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
@@ -311,6 +312,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
         {/* Page Content */}
         <main className="p-4 lg:p-6">
+          <ShopStatusBanner shopStatus={shop?.status || user?.shop?.status} />
           {children}
         </main>
       </div>
