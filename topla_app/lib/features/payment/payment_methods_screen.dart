@@ -233,54 +233,55 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             fontSize: 20,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, size: 24, color: Colors.black87),
+            onPressed: _isAddingCard ? null : _addNewCard,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadCards,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Payment Methods Section
-                          _buildOtherPaymentMethods(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Payment Methods Section
+                    _buildOtherPaymentMethods(),
 
-                          const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                          // Saved Cards Section
-                          if (_cards.isNotEmpty) ...[
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 4, bottom: 12),
-                              child: Text(
-                                'Saqlangan kartalar',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
-                            ..._cards.map((card) => _buildCardItem(card)),
-                          ],
-
-                          const SizedBox(height: 16),
-
-                          // Security Info
-                          _buildSecurityInfo(),
-                        ],
+                    // Saved Cards Section
+                    if (_cards.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 12),
+                        child: Text(
+                          'Saqlangan kartalar',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                      ..._cards.map((card) => _buildCardItem(card)),
+                    ],
 
-                  // Add Card Button - pinned at bottom
-                  _buildAddCardButton(),
-                ],
+                    const SizedBox(height: 12),
+
+                    // Add Card Button - compact inline
+                    _buildAddCardButton(),
+
+                    const SizedBox(height: 16),
+
+                    // Security Info
+                    _buildSecurityInfo(),
+                  ],
+                ),
               ),
             ),
     );
@@ -494,54 +495,37 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
 
   Widget _buildAddCardButton() {
     return Container(
-      padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: ElevatedButton(
-          onPressed: _isAddingCard ? null : _addNewCard,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          child: _isAddingCard
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
+      child: InkWell(
+        onTap: _isAddingCard ? null : _addNewCard,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.l10n.translate('add_new_card'),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade800,
                   ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Iconsax.add_circle, size: 22),
-                    const SizedBox(width: 10),
-                    Text(
-                      context.l10n.translate('add_new_card'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
                 ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 20),
+            ],
+          ),
         ),
       ),
     );

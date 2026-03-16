@@ -15,6 +15,7 @@ class HelpScreen extends StatefulWidget {
 
 class _HelpScreenState extends State<HelpScreen> {
   String _appVersion = '';
+  bool _showSocialLinks = false;
 
   @override
   void initState() {
@@ -217,6 +218,62 @@ class _HelpScreenState extends State<HelpScreen> {
             ),
             onTap: () {},
           ),
+          Divider(height: 24, color: Colors.grey.shade200),
+          _buildInfoRow(
+            icon: Icons.share_rounded,
+            title: 'Ijtimoiy tarmoqlar',
+            trailing: AnimatedRotation(
+              turns: _showSocialLinks ? 0.25 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.chevron_right,
+                color: Colors.grey.shade300,
+                size: 28,
+              ),
+            ),
+            onTap: () {
+              setState(() => _showSocialLinks = !_showSocialLinks);
+            },
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSocialIcon(
+                    'Telegram',
+                    'https://t.me/topla_uz',
+                    const Color(0xFF0088CC),
+                    Icons.telegram,
+                  ),
+                  _buildSocialIcon(
+                    'Instagram',
+                    'https://instagram.com/topla.uz',
+                    const Color(0xFFE4405F),
+                    Icons.camera_alt_rounded,
+                  ),
+                  _buildSocialIcon(
+                    'Facebook',
+                    'https://facebook.com/topla.uz',
+                    const Color(0xFF1877F2),
+                    Icons.facebook_rounded,
+                  ),
+                  _buildSocialIcon(
+                    'YouTube',
+                    'https://youtube.com/@topla_uz',
+                    const Color(0xFFFF0000),
+                    Icons.play_circle_fill_rounded,
+                  ),
+                ],
+              ),
+            ),
+            crossFadeState: _showSocialLinks
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+          ),
         ],
       ),
     );
@@ -249,6 +306,45 @@ class _HelpScreenState extends State<HelpScreen> {
                 color: Colors.grey.shade300,
                 size: 28,
               ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSocialIcon(
+    String label,
+    String url,
+    Color color,
+    IconData icon,
+  ) {
+    return GestureDetector(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {}
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

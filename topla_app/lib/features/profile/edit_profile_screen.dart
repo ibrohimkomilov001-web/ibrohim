@@ -42,6 +42,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _initialEmail = widget.profile?['email'] ?? '';
     _initialPhone = _hasPhone ? phone : '';
 
+    // Google orqali kirganida ism to'liq first_name'da bo'lishi mumkin
+    if (_initialLastName.isEmpty && _initialFirstName.contains(' ')) {
+      final parts = _initialFirstName.split(RegExp(r'\s+'));
+      _initialFirstName = parts.first;
+      _initialLastName = parts.sublist(1).join(' ');
+    }
+
     _firstNameController = TextEditingController(text: _initialFirstName);
     _lastNameController = TextEditingController(text: _initialLastName);
     _emailController = TextEditingController(text: _initialEmail);
@@ -181,10 +188,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   hintText: 'Ism',
                   hintStyle: TextStyle(color: Color(0xFFC4C4C6), fontSize: 16),
                   border: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 style: const TextStyle(fontSize: 16),
+                cursorColor: Colors.black54,
               ),
               const Divider(height: 1, indent: 16, color: Color(0xFFE5E5EA)),
               TextField(
@@ -193,10 +203,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   hintText: 'Familiya',
                   hintStyle: TextStyle(color: Color(0xFFC4C4C6), fontSize: 16),
                   border: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 style: const TextStyle(fontSize: 16),
+                cursorColor: Colors.black54,
               ),
             ],
           ),

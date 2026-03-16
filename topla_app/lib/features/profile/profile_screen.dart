@@ -10,7 +10,7 @@ import '../../models/user_role.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
 import 'edit_profile_screen.dart';
-import '../notifications/notifications_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -72,7 +72,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ],
                   _buildAccountSection(isLoggedIn),
                   const SizedBox(height: 8),
-                  _buildSettingsSection(isLoggedIn),
+                  _buildSettingsButton(),
+                  const SizedBox(height: 8),
+                  _buildExternalLinksSection(isLoggedIn),
 
                   const SizedBox(height: 8),
 
@@ -297,25 +299,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.notification_copy,
-          label: 'Bildirishnomalar',
-          iconColor: const Color(0xFF8B5CF6),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const NotificationsScreen(),
-            ),
-          ),
-        ),
-        _divider(),
-        _buildMenuItem(
-          icon: Iconsax.ticket_discount_copy,
-          label: 'Promokodlarim',
-          iconColor: const Color(0xFFE91E63),
-          onTap: () => Navigator.pushNamed(context, '/my-promo-codes'),
-        ),
-        _divider(),
-        _buildMenuItem(
           icon: Iconsax.box_tick_copy,
           label: context.l10n.translate('purchased_products'),
           iconColor: Colors.green,
@@ -369,6 +352,15 @@ class _ProfileScreenState extends State<ProfileScreen>
           showLogin: !isLoggedIn,
         ),
         _divider(),
+        if (isLoggedIn) ...[
+          _buildMenuItem(
+            icon: Iconsax.ticket_discount_copy,
+            label: 'Promokodlarim',
+            iconColor: const Color(0xFFE91E63),
+            onTap: () => Navigator.pushNamed(context, '/my-promo-codes'),
+          ),
+          _divider(),
+        ],
         _buildMenuItem(
           icon: Iconsax.people_copy,
           label: context.l10n.inviteFriends,
@@ -376,98 +368,75 @@ class _ProfileScreenState extends State<ProfileScreen>
           onTap: () => Navigator.pushNamed(context, '/invite'),
           showLogin: !isLoggedIn,
         ),
-        if (isLoggedIn) ...[
-          _divider(),
-          _buildMenuItem(
-            icon: Iconsax.mobile_copy,
-            label: context.l10n.translate('devices'),
-            subtitle: context.l10n.translate('manage_devices'),
-            iconColor: Colors.cyan,
-            onTap: () => Navigator.pushNamed(context, '/devices'),
-          ),
-        ],
       ],
     );
   }
 
-  // ===== Settings Section =====
-  Widget _buildSettingsSection(bool isLoggedIn) {
+  // ===== Settings Button =====
+  Widget _buildSettingsButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        ),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Iconsax.setting_2_copy,
+                  color: Colors.grey.shade700, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  context.l10n.translate('settings'),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===== External Links Section =====
+  Widget _buildExternalLinksSection(bool isLoggedIn) {
     return _buildGroupCard(
       children: [
-        Consumer<SettingsProvider>(
-          builder: (context, settings, _) => _buildMenuItem(
-            icon: Iconsax.global_copy,
-            label: context.l10n.language,
-            iconColor: Colors.blueGrey,
-            trailing: Text(
-              settings.language == 'uz' ? 'O\'zbek' : 'Русский',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-            ),
-            onTap: () => _showLanguageBottomSheet(),
-          ),
+        _buildMenuItem(
+          icon: Iconsax.shop_add_copy,
+          label: context.l10n.translate('open_shop'),
+          subtitle: context.l10n.translate('become_seller'),
+          iconColor: Colors.orange.shade700,
+          onTap: () => _openVendorWebsite(),
         ),
         _divider(),
         _buildMenuItem(
-          icon: Iconsax.message_question_copy,
-          label: context.l10n.helpCenter,
-          iconColor: Colors.lightBlue,
-          onTap: () => Navigator.pushNamed(context, '/help'),
+          icon: Iconsax.location_copy,
+          label: context.l10n.translate('open_pickup_point'),
+          subtitle: context.l10n.translate('become_pickup_partner'),
+          iconColor: Colors.teal.shade600,
+          onTap: () => _openPickupPartnerWebsite(),
         ),
-        // Vendor / Admin / Open Shop
-        if (!isLoggedIn) ...[
-          _divider(),
-          _buildMenuItem(
-            icon: Iconsax.shop_add_copy,
-            label: context.l10n.translate('open_shop'),
-            subtitle: context.l10n.translate('become_seller'),
-            iconColor: Colors.orange.shade700,
-            onTap: () => _openVendorWebsite(),
-          ),
-          _divider(),
-          _buildMenuItem(
-            icon: Iconsax.location_copy,
-            label: context.l10n.translate('open_pickup_point'),
-            subtitle: context.l10n.translate('become_pickup_partner'),
-            iconColor: Colors.teal.shade600,
-            onTap: () => _openPickupPartnerWebsite(),
-          ),
-        ] else ...[
-          _divider(),
-          Consumer<AuthProvider>(
-            builder: (context, authProvider, _) {
-              final profile = authProvider.profile;
-              if (profile == null) return const SizedBox.shrink();
-
-              final role = profile.role;
-
-              // Vendor va oddiy foydalanuvchilar — do'kon web orqali
-              if (!role.isAdmin) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildMenuItem(
-                      icon: Iconsax.shop_add_copy,
-                      label: context.l10n.translate('open_shop'),
-                      subtitle: context.l10n.translate('become_seller'),
-                      iconColor: Colors.orange.shade700,
-                      onTap: () => _openVendorWebsite(),
-                    ),
-                    _divider(),
-                    _buildMenuItem(
-                      icon: Iconsax.location_copy,
-                      label: context.l10n.translate('open_pickup_point'),
-                      subtitle: context.l10n.translate('become_pickup_partner'),
-                      iconColor: Colors.teal.shade600,
-                      onTap: () => _openPickupPartnerWebsite(),
-                    ),
-                  ],
-                );
-              }
-
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
       ],
     );
   }
@@ -655,163 +624,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
       }
     }
-  }
-
-  void _showLanguageBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => Consumer<SettingsProvider>(
-        builder: (context, settings, _) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const SizedBox(width: 32),
-                  Text(
-                    context.l10n.translate('choose_language'),
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.close,
-                        color: Colors.grey.shade400, size: 22),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildLanguageOption(
-                flagWidget: _buildUzbekistanFlag(),
-                name: context.l10n.translate('uzbek_lang'),
-                isSelected: settings.language == 'uz',
-                onTap: () {
-                  settings.setLanguage('uz');
-                  Navigator.pop(context);
-                },
-              ),
-              Divider(height: 1, color: Colors.grey.shade100),
-              _buildLanguageOption(
-                flagWidget: _buildRussiaFlag(),
-                name: context.l10n.translate('russian_lang'),
-                isSelected: settings.language == 'ru',
-                onTap: () {
-                  settings.setLanguage('ru');
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRussiaFlag() {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.grey.shade200, width: 1),
-      ),
-      child: ClipOval(
-        child: Column(
-          children: [
-            Expanded(child: Container(color: Colors.white)),
-            Expanded(child: Container(color: const Color(0xFF0039A6))),
-            Expanded(child: Container(color: const Color(0xFFD52B1E))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUzbekistanFlag() {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.grey.shade200, width: 1),
-      ),
-      child: ClipOval(
-        child: Column(
-          children: [
-            Expanded(flex: 2, child: Container(color: const Color(0xFF0099B5))),
-            Expanded(flex: 1, child: Container(color: const Color(0xFFCE1126))),
-            Expanded(flex: 1, child: Container(color: Colors.white)),
-            Expanded(flex: 2, child: Container(color: const Color(0xFF1EB53A))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageOption({
-    required Widget flagWidget,
-    required String name,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? Colors.black : Colors.grey.shade400,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                name,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-            ),
-            flagWidget,
-          ],
-        ),
-      ),
-    );
   }
 
   void _showLogoutDialog() {

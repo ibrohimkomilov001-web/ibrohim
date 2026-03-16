@@ -165,51 +165,65 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
+      value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F6FE),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(),
-              Expanded(
-                child: Consumer<LuckyWheelProvider>(
-                  builder: (context, provider, _) {
-                    if (provider.isLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFF8C00),
-                        ),
-                      );
-                    }
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFF6127), // Top orange-red
+                Color(0xFFFF7131), // Middle orange
+                Color(0xFFFF813B), // Bottom orange
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(),
+                Expanded(
+                  child: Consumer<LuckyWheelProvider>(
+                    builder: (context, provider, _) {
+                      if (provider.isLoading) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
+                        );
+                      }
 
-                    if (provider.prizes.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.casino,
-                                size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text(
-                              'G\'ildirak hozircha ishlamayapti',
-                              style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                      if (provider.prizes.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.casino,
+                                  size: 64, color: Colors.white70),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'G\'ildirak hozircha ishlamayapti',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                    return _buildBody(provider);
-                  },
+                      return _buildBody(provider);
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -228,12 +242,12 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.white.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.chevron_left_rounded,
-                color: Color(0xFF1A1A2E),
+                color: Colors.white,
                 size: 26,
               ),
             ),
@@ -243,7 +257,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
               'Omad G\'ildiragi',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFF1A1A2E),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 19,
                 letterSpacing: 0.3,
@@ -259,11 +273,11 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Iconsax.medal_star,
-                    color: Color(0xFFFF8C00), size: 18),
+                    color: Colors.white, size: 18),
               ),
             ),
           ),
@@ -277,11 +291,10 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Iconsax.clock,
-                    color: Color(0xFFFF8C00), size: 18),
+                child: const Icon(Iconsax.clock, color: Colors.white, size: 18),
               ),
             ),
           ),
