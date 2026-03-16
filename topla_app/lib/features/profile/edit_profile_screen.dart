@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
-import '../../core/services/api_client.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 
@@ -17,14 +14,16 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _fullNameController;
+  late TextEditingController _firstNameController;
+  late TextEditingController _lastNameController;
   late TextEditingController _emailController;
-  late TextEditingController _phoneController;
+
   bool _isLoading = false;
   bool _hasPhone = false;
 
   // Track changes
-  String _initialFullName = '';
+  String _initialFirstName = '';
+  String _initialLastName = '';
   String _initialEmail = '';
   String _initialPhone = '';
   bool _isChanged = false;
@@ -38,32 +37,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         !phone.contains('XX') &&
         !phone.startsWith('google_');
 
-    // Ism va familiyani birlashtirib bitta maydon
-    final firstName = widget.profile?['first_name'] ?? '';
-    final lastName = widget.profile?['last_name'] ?? '';
-    final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
-
-    _initialFullName = fullName;
+    _initialFirstName = widget.profile?['first_name'] ?? '';
+    _initialLastName = widget.profile?['last_name'] ?? '';
     _initialEmail = widget.profile?['email'] ?? '';
     _initialPhone = _hasPhone ? phone : '';
 
-    _fullNameController = TextEditingController(text: fullName);
+    _firstNameController = TextEditingController(text: _initialFirstName);
+    _lastNameController = TextEditingController(text: _initialLastName);
     _emailController = TextEditingController(text: _initialEmail);
-    _phoneController = TextEditingController(text: _initialPhone);
 
-    _fullNameController.addListener(_checkForChanges);
+    _firstNameController.addListener(_checkForChanges);
+    _lastNameController.addListener(_checkForChanges);
     _emailController.addListener(_checkForChanges);
-    _phoneController.addListener(_checkForChanges);
   }
 
   void _checkForChanges() {
-    final fullName = _fullNameController.text;
-    final email = _emailController.text;
-    final phone = _phoneController.text;
-
-    final hasChanges = fullName != _initialFullName ||
-        email != _initialEmail ||
-        phone != _initialPhone;
+    final hasChanges = _firstNameController.text != _initialFirstName ||
+        _lastNameController.text != _initialLastName ||
+        _emailController.text != _initialEmail;
 
     if (hasChanges != _isChanged) {
       setState(() => _isChanged = hasChanges);
@@ -72,85 +63,57 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF2F2F7), // iOS style background
       appBar: AppBar(
         title: const Text(
           'Profilni tahrirlash',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF2F2F7),
         elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Avatar Section
-                  _buildAvatarSection(),
-
-                  const SizedBox(height: 24),
-
-                  // Form
-                  _buildForm(),
-
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ),
-          // Save Button — only visible when changes are made
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
           if (_isChanged)
-            Container(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: MediaQuery.of(context).padding.bottom + 12,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Saqlash',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
+            IconButton(
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check, color: AppColors.primary),
+              onPressed: _isLoading ? null : _saveProfile,
             ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        children: [
+          // Avatar Section
+          _buildAvatarSection(),
+
+          const SizedBox(height: 32),
+
+          // Form Section
+          _buildForm(),
+
+          const SizedBox(height: 8),
+
+          // Boshqa hisob qoshish tugmasi
+          _buildAddAccountButton(),
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -159,268 +122,180 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildAvatarSection() {
     final initials = _getInitials();
 
-    return Center(
-      child: Stack(
-        children: [
-          Container(
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: _pickImage,
+          child: Container(
             width: 90,
             height: 90,
             decoration: const BoxDecoration(
-              color: Color(0xFFEEF2FF), // User requested background
+              color: Color(0xFFEEF2FF),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: Color(0xFF2855C5), // User requested text color
+                  color: Color(0xFF2855C5),
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Iconsax.camera_copy,
-                  color: AppColors.primary,
-                  size: 16,
-                ),
-              ),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _pickImage,
+          child: const Text(
+            'Yangi rasm belgilash',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildForm() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: Colors.grey.shade100), // Light border instead of shadow
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Full Name (To'liq ism)
-          _buildTextField(
-            controller: _fullNameController,
-            label: 'Ism va familiya',
-            hint: 'To\'liq ismingizni kiriting',
-            icon: Iconsax.user_copy,
-          ),
+    final isGoogle =
+        widget.profile?['is_google'] == true || _initialEmail.isNotEmpty;
 
-          const SizedBox(height: 16),
-
-          // Email
-          _buildTextField(
-            controller: _emailController,
-            label: 'Email (ixtiyoriy)',
-            hint: 'Email manzilingiz',
-            icon: Iconsax.sms_copy,
-            keyboardType: TextInputType.emailAddress,
-          ),
-
-          const SizedBox(height: 16),
-
-          // Phone - editable if no phone, read-only if has phone
-          if (_hasPhone)
-            _buildReadOnlyField(
-              label: 'Telefon raqam',
-              value: widget.profile?['phone'] ?? '',
-              icon: Iconsax.call_copy,
-            )
-          else
-            _buildPhoneField(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhoneField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Telefon raqam',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              TextField(
+                controller: _firstNameController,
+                decoration: const InputDecoration(
+                  hintText: 'Ism',
+                  hintStyle: TextStyle(color: Color(0xFFC4C4C6), fontSize: 16),
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                style: const TextStyle(fontSize: 16),
+              ),
+              const Divider(height: 1, indent: 16, color: Color(0xFFE5E5EA)),
+              TextField(
+                controller: _lastNameController,
+                decoration: const InputDecoration(
+                  hintText: 'Familiya',
+                  hintStyle: TextStyle(color: Color(0xFFC4C4C6), fontSize: 16),
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [
-            _ProfilePhoneFormatter(),
-          ],
-          decoration: InputDecoration(
-            hintText: '90 123 45 67',
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            prefixIcon: Container(
-              padding: const EdgeInsets.only(left: 16, right: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+        const Padding(
+          padding: EdgeInsets.only(left: 16, top: 8, bottom: 24),
+          child: Text(
+            "Ismingizni kiriting va ixtiyoriy profil rasmi yoki video qo'shing.",
+            style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13),
+          ),
+        ),
+
+        if (isGoogle) ...[
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: TextField(
+              controller: _emailController,
+              readOnly: true,
+              decoration: const InputDecoration(
+                hintText: 'Email',
+                border: InputBorder.none,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              style: const TextStyle(fontSize: 16, color: Colors.black87),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 16, top: 8, bottom: 24),
+            child: Text(
+              "Sizning Google hisobingiz pochtasi.",
+              style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13),
+            ),
+          ),
+        ],
+
+        // Birthday Section
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Tug'ilgan kun", style: TextStyle(fontSize: 16)),
+              const Text("Qo'shish",
+                  style: TextStyle(fontSize: 16, color: Color(0xFFC4C4C6))),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 24),
+          child: RichText(
+            text: const TextSpan(
+              text:
+                  "Tug'ilgan kuningizni faqat kontaktlaringiz ko'rishi mumkin.\n",
+              style: TextStyle(
+                  color: Color(0xFF8E8E93), fontSize: 13, height: 1.4),
+              children: [
+                TextSpan(
+                  text: "O'zgartirish >",
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Phone Section
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Raqamni almashtirish",
+                  style: TextStyle(fontSize: 16)),
+              Row(
                 children: [
-                  Icon(Iconsax.call_copy,
-                      color: Colors.grey.shade500, size: 20),
-                  const SizedBox(width: 8),
                   Text(
-                    '+998',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    _hasPhone ? _initialPhone : "Qo'shish",
+                    style:
+                        const TextStyle(fontSize: 16, color: Color(0xFF8E8E93)),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: Colors.grey.shade300,
-                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right,
+                      color: Color(0xFFC4C4C6), size: 20),
                 ],
               ),
-            ),
-            prefixIconConstraints:
-                const BoxConstraints(minWidth: 0, minHeight: 0),
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 20),
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReadOnlyField({
-    required String label,
-    required String value,
-    required IconData icon,
-  }) {
-    final hasValue = value.isNotEmpty && !value.contains('XX');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: Colors.grey.shade500, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 15,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (hasValue)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Tasdiqlangan',
-                    style: TextStyle(
-                      color: AppColors.success,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -428,117 +303,76 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  Widget _buildAddAccountButton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(context.l10n.translate('coming_soon')),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              "Boshqa hisob qo'shish",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(left: 16, top: 8),
+          child: Text(
+            "Turli telefon raqamlari bilan to'rttagacha hisob kiritishingiz mumkin.",
+            style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
   String _getInitials() {
-    final fullName = _fullNameController.text.trim();
+    final first = _firstNameController.text.trim();
+    final last = _lastNameController.text.trim();
 
-    if (fullName.isEmpty) return 'U';
+    if (first.isEmpty && last.isEmpty) return 'U';
 
-    final parts = fullName.split(RegExp(r'\s+'));
     String initials = '';
-    if (parts.isNotEmpty) initials += parts[0][0].toUpperCase();
-    if (parts.length > 1) initials += parts[1][0].toUpperCase();
+    if (first.isNotEmpty) initials += first[0].toUpperCase();
+    if (last.isNotEmpty) {
+      if (initials.isEmpty) {
+        initials += last[0].toUpperCase();
+      } else {
+        // Just take the first characters of name + surname
+        initials += last[0].toUpperCase();
+      }
+    }
 
     return initials.isEmpty ? 'U' : initials;
   }
 
   void _pickImage() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Rasm tanlash',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildImageOption(
-                      icon: Iconsax.camera_copy,
-                      label: 'Kamera',
-                      onTap: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                context.l10n.translate('camera_coming_soon')),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildImageOption(
-                      icon: Iconsax.gallery_copy,
-                      label: 'Galereya',
-                      onTap: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                context.l10n.translate('gallery_coming_soon')),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImageOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.translate('camera_coming_soon')),
       ),
     );
   }
 
   Future<void> _saveProfile() async {
-    if (_fullNameController.text.trim().isEmpty) {
+    if (_firstNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.l10n.translate('enter_full_name')),
@@ -548,36 +382,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    // Telefon raqam kiritilgan bo'lsa — avval OTP orqali tasdiqlash
-    String? phone;
-    if (!_hasPhone && _phoneController.text.trim().isNotEmpty) {
-      final phoneDigits =
-          _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      if (phoneDigits.length >= 9) {
-        phone = '+998$phoneDigits';
-        // OTP tasdiqlash dialog
-        final verified = await _verifyPhoneWithOtp(phone);
-        if (!verified) return; // OTP tasdiqlanmasa saqlashni to'xtatish
-      }
-    }
-
     setState(() => _isLoading = true);
 
     try {
-      // To'liq ismni bo'laklarga ajratish
-      final fullName = _fullNameController.text.trim();
-      final parts = fullName.split(RegExp(r'\s+'));
-      final firstName = parts.isNotEmpty ? parts.first : '';
-      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
 
-      // Save using AuthProvider
       await context.read<AuthProvider>().updateProfile(
             firstName: firstName,
             lastName: lastName,
             email: _emailController.text.trim().isEmpty
                 ? null
                 : _emailController.text.trim(),
-            phone: phone,
+            phone: widget.profile?['phone'],
           );
 
       if (mounted) {
@@ -603,192 +420,5 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  /// Telefon raqamni OTP orqali tasdiqlash
-  Future<bool> _verifyPhoneWithOtp(String phone) async {
-    final api = ApiClient();
-
-    // 1. OTP yuborish
-    try {
-      await api.post('/auth/send-otp',
-          body: {
-            'phone': phone,
-            'channel': 'sms',
-          },
-          auth: false);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${context.l10n.translate('sms_send_error')}: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-      return false;
-    }
-
-    // 2. OTP kiritish dialog
-    if (!mounted) return false;
-    final otpCode = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _OtpVerifySheet(phone: phone),
-    );
-
-    if (otpCode == null || otpCode.isEmpty) return false;
-
-    // 3. OTP tekshirish
-    try {
-      await api.post('/auth/verify-phone',
-          body: {
-            'phone': phone,
-            'code': otpCode,
-          },
-          auth: true);
-      return true;
-    } catch (e) {
-      // Fallback — verify-phone endpoint yo'q bo'lsa, to'g'ridan-to'g'ri saqlash
-      return true;
-    }
-  }
-}
-
-/// OTP kiritish bottom sheet
-class _OtpVerifySheet extends StatefulWidget {
-  final String phone;
-  const _OtpVerifySheet({required this.phone});
-
-  @override
-  State<_OtpVerifySheet> createState() => _OtpVerifySheetState();
-}
-
-class _OtpVerifySheetState extends State<_OtpVerifySheet> {
-  final _otpController = TextEditingController();
-  final bool _isVerifying = false;
-
-  @override
-  void dispose() {
-    _otpController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Icon(Icons.sms_outlined, size: 48, color: AppColors.primary),
-            const SizedBox(height: 16),
-            const Text(
-              'Telefon raqamni tasdiqlash',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${widget.phone} raqamiga SMS kod yuborildi',
-              style: TextStyle(color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _otpController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 8,
-              ),
-              decoration: InputDecoration(
-                hintText: '------',
-                counterText: '',
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isVerifying
-                    ? null
-                    : () {
-                        if (_otpController.text.trim().length >= 4) {
-                          Navigator.pop(context, _otpController.text.trim());
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Tasdiqlash',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Telefon raqam formatlash (XX XXX XX XX)
-class _ProfilePhoneFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length > 9) return oldValue;
-
-    final buffer = StringBuffer();
-    for (int i = 0; i < digits.length; i++) {
-      if (i == 2 || i == 5 || i == 7) buffer.write(' ');
-      buffer.write(digits[i]);
-    }
-    final result = buffer.toString();
-    return TextEditingValue(
-      text: result,
-      selection: TextSelection.collapsed(offset: result.length),
-    );
   }
 }
