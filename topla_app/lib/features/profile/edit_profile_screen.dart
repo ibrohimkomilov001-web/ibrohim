@@ -178,8 +178,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(28),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               TextField(
