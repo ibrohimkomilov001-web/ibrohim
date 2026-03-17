@@ -843,16 +843,16 @@ Qidiruv natijasi bo'sh bo'lganda:
 
 ## 7. BAJARISH REJASI — FAZALAR BO'YICHA
 
-### FAZA 1: KRITIK TUZATISHLAR (1-2 hafta)
+### FAZA 1: KRITIK TUZATISHLAR (1-2 hafta) ✅ BAJARILDI (2025-03-17)
 
 | # | Ish | Masul | Muddat |
 |---|-----|-------|--------|
-| [ ] | **O-FIX-01**: Web checkout → `POST /orders` API call qo'shish | Web | 1 kun |
-| [ ] | **B-01**: `$queryRawUnsafe` → `$queryRaw` template literal | Backend | 0.5 kun |
-| [ ] | **O-02/F-02**: Cart selected items → checkout | Flutter + Backend | 1 kun |
-| [ ] | **P-01/B-02**: Backend product create/update → attributeValues saqlash | Backend | 1 kun |
-| [ ] | **O-04**: Multi-shop order splitting | Backend | 2 kun |
-| [ ] | **B-03**: OrderItem variantLabel to'ldirish | Backend | 0.5 kun |
+| [x] | **O-FIX-01**: Web checkout → `POST /orders` API call qo'shish | Web | 1 kun |
+| [x] | **B-01**: `$queryRawUnsafe` → `$queryRaw` template literal | Backend | 0.5 kun |
+| [x] | **O-02/F-02**: Cart selected items → checkout | Flutter + Backend | 1 kun |
+| [x] | **P-01/B-02**: Backend product create/update → attributeValues saqlash | Backend | 1 kun |
+| [x] | **O-04**: Multi-shop order splitting | Backend | 2 kun |
+| [x] | **B-03**: OrderItem variantLabel to'ldirish | Backend | 0.5 kun |
 
 ### FAZA 2: MAHSULOT TIZIMI KUCHAYTIRISH (2-3 hafta)
 
