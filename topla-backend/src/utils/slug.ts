@@ -61,3 +61,25 @@ export async function generateUniqueSlug(shopName: string): Promise<string> {
   // Juda ko'p takrorlanish bo'lsa random qo'shish
   return `${base}-${Date.now().toString(36)}`;
 }
+
+/**
+ * Mahsulot uchun unikal slug yaratish
+ * "iPhone 15 Pro Max" => "iphone-15-pro-max"
+ * Agar band bo'lsa => "iphone-15-pro-max-2"
+ */
+export async function generateProductSlug(productName: string): Promise<string> {
+  const base = generateSlugBase(productName);
+  
+  const existing = await prisma.product.findUnique({ where: { slug: base } });
+  if (!existing) return base;
+  
+  let counter = 2;
+  while (counter < 100) {
+    const candidate = `${base}-${counter}`;
+    const found = await prisma.product.findUnique({ where: { slug: candidate } });
+    if (!found) return candidate;
+    counter++;
+  }
+  
+  return `${base}-${Date.now().toString(36)}`;
+}

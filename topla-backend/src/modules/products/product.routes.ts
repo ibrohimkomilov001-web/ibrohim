@@ -8,6 +8,7 @@ import { indexProduct, removeProductFromIndex, searchProducts } from '../../serv
 import { enqueueSearchIndex } from '../../services/queue.service.js';
 import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js';
 import { CacheKeys } from '../../utils/constants.js';
+import { generateProductSlug } from '../../utils/slug.js';
 
 // ============================================
 // Validation Schemas
@@ -31,8 +32,20 @@ const createProductSchema = z.object({
   unit: z.enum(['dona', 'kg', 'litr', 'metr', 'paket', 'quti']).default('dona'),
   minOrder: z.number().int().min(1).default(1),
   sku: z.string().optional(),
+  barcode: z.string().optional(),
   weight: z.number().optional(),
   warranty: z.string().optional(), // kafolat muddati
+  // Dimensions (cm)
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+  length: z.number().positive().optional(),
+  // Video
+  videoUrl: z.string().url().optional().nullable(),
+  // Tags
+  tags: z.array(z.string().max(50)).max(20).default([]),
+  // SEO
+  metaTitle: z.string().max(120).optional(),
+  metaDescription: z.string().max(320).optional(),
   // Variant support
   hasVariants: z.boolean().optional(),
   variants: z.array(z.object({
@@ -1316,11 +1329,15 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Determine status based on validation
       const status = validation.isValid ? 'active' : 'has_errors';
 
-      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, ...restBody } = body;
+      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, tags, metaTitle, metaDescription, videoUrl, width, height, length: lengthCm, barcode, ...restBody } = body;
+
+      // Auto-generate slug from product name
+      const slug = await generateProductSlug(body.nameUz || body.name);
 
       const product = await prisma.product.create({
         data: {
           ...restBody,
+          slug,
           nameUz: body.nameUz || body.name,
           nameRu: body.nameRu || body.name,
           descriptionUz: body.descriptionUz || body.description || null,
@@ -1331,6 +1348,14 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           validationErrors: validation.isValid ? [] : validation.errors.map(e => e.message),
           thumbnailUrl: body.images?.[0] || null,
           moderatedAt: new Date(),
+          videoUrl: videoUrl || null,
+          barcode: barcode || null,
+          tags: tags || [],
+          metaTitle: metaTitle || null,
+          metaDescription: metaDescription || null,
+          width: width || null,
+          height: height || null,
+          length: lengthCm || null,
           shop: { connect: { id: shop.id } },
           ...(categoryId && { category: { connect: { id: categoryId } } }),
           ...(brandId && { brand: { connect: { id: brandId } } }),
@@ -1464,12 +1489,19 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const status = validation.isValid ? 'active' : 'has_errors';
 
       // Extract variant data and relation IDs from body
-      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, ...updateFields } = body;
+      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, tags, metaTitle, metaDescription, videoUrl, width, height, length: lengthCm, barcode, ...updateFields } = body;
+
+      // Auto-generate slug if name changed and no slug yet
+      let slugUpdate: string | undefined;
+      if ((body.nameUz || body.name) && !(product as any).slug) {
+        slugUpdate = await generateProductSlug(body.nameUz || body.name || product.name);
+      }
 
       const updated = await prisma.product.update({
         where: { id },
         data: {
           ...updateFields,
+          ...(slugUpdate && { slug: slugUpdate }),
           nameUz: merged.nameUz,
           nameRu: merged.nameRu,
           descriptionUz: merged.descriptionUz || null,
@@ -1480,6 +1512,14 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           validationErrors: validation.isValid ? [] : validation.errors.map(e => e.message),
           thumbnailUrl: merged.images?.[0] || (product as any).thumbnailUrl,
           moderatedAt: new Date(),
+          ...(videoUrl !== undefined && { videoUrl: videoUrl || null }),
+          ...(barcode !== undefined && { barcode: barcode || null }),
+          ...(tags !== undefined && { tags }),
+          ...(metaTitle !== undefined && { metaTitle: metaTitle || null }),
+          ...(metaDescription !== undefined && { metaDescription: metaDescription || null }),
+          ...(width !== undefined && { width: width || null }),
+          ...(height !== undefined && { height: height || null }),
+          ...(lengthCm !== undefined && { length: lengthCm || null }),
           ...(bodyCategoryId !== undefined && {
             category: bodyCategoryId ? { connect: { id: bodyCategoryId } } : { disconnect: true },
           }),
@@ -1636,6 +1676,233 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
       // Invalidate caches
       invalidateProductCaches(id).catch(() => {});
+
+      return reply.send({ success: true });
+    },
+  );
+
+  /**
+   * POST /vendor/products/:id/clone — Mahsulotni nusxalash (P-09)
+   */
+  app.post(
+    '/vendor/products/:id/clone',
+    { preHandler: [authMiddleware, requireRole('vendor', 'admin')] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const shop = await prisma.shop.findUnique({
+        where: { ownerId: request.user!.userId },
+      });
+      if (!shop) throw new AppError('Do\'kon topilmadi');
+
+      const original = await prisma.product.findFirst({
+        where: { id, shopId: shop.id },
+        include: {
+          variants: true,
+          attributeValues: true,
+        },
+      });
+      if (!original) throw new NotFoundError('Mahsulot');
+
+      const slug = await generateProductSlug(`${original.nameUz || original.name} nusxa`);
+
+      const cloned = await prisma.product.create({
+        data: {
+          shopId: shop.id,
+          categoryId: original.categoryId,
+          brandId: original.brandId,
+          colorId: original.colorId,
+          nameUz: `${(original as any).nameUz || original.name} (nusxa)`,
+          nameRu: (original as any).nameRu ? `${(original as any).nameRu} (копия)` : null,
+          name: `${original.name} (nusxa)`,
+          description: original.description,
+          descriptionUz: (original as any).descriptionUz,
+          descriptionRu: (original as any).descriptionRu,
+          price: original.price,
+          originalPrice: original.originalPrice,
+          discountPercent: original.discountPercent,
+          images: original.images as string[],
+          thumbnailUrl: (original as any).thumbnailUrl,
+          videoUrl: (original as any).videoUrl,
+          stock: 0, // Stok 0 dan boshlanadi
+          unit: (original as any).unit || 'dona',
+          minOrder: (original as any).minOrder || 1,
+          sku: null, // SKU unikal bo'lishi kerak
+          barcode: null,
+          weight: (original as any).weight,
+          width: (original as any).width,
+          height: (original as any).height,
+          length: (original as any).length,
+          warranty: (original as any).warranty,
+          tags: (original as any).tags || [],
+          metaTitle: null, // SEO unikal bo'lishi kerak
+          metaDescription: null,
+          slug,
+          status: 'draft',
+          qualityScore: 0,
+          hasVariants: original.hasVariants,
+        },
+        include: {
+          category: { select: { id: true, nameUz: true, nameRu: true } },
+          shop: { select: { id: true, name: true } },
+        },
+      });
+
+      // Clone variants
+      if (original.variants.length > 0) {
+        await prisma.productVariant.createMany({
+          data: original.variants.map((v) => ({
+            productId: cloned.id,
+            colorId: v.colorId,
+            sizeId: v.sizeId,
+            price: v.price,
+            compareAtPrice: v.compareAtPrice,
+            stock: 0,
+            sku: null,
+            images: v.images as string[],
+            isActive: v.isActive,
+            sortOrder: v.sortOrder,
+          })),
+        });
+      }
+
+      // Clone attribute values
+      if (original.attributeValues.length > 0) {
+        await prisma.productAttributeValue.createMany({
+          data: original.attributeValues.map((av) => ({
+            productId: cloned.id,
+            attributeId: av.attributeId,
+            value: av.value,
+          })),
+        });
+      }
+
+      return reply.status(201).send({
+        success: true,
+        data: cloned,
+      });
+    },
+  );
+
+  /**
+   * GET /categories/:categoryId/attributes — Kategoriya atributlarini olish (P-FIX-01)
+   */
+  app.get('/categories/:categoryId/attributes', async (request, reply) => {
+    const { categoryId } = request.params as { categoryId: string };
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category) throw new NotFoundError('Kategoriya');
+
+    const attributes = await prisma.categoryAttribute.findMany({
+      where: { categoryId, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return reply.send({ success: true, data: attributes });
+  });
+
+  /**
+   * GET /products/:id/attributes — Mahsulot atribut qiymatlari (P-FIX-01)
+   */
+  app.get('/products/:id/attributes', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const values = await prisma.productAttributeValue.findMany({
+      where: { productId: id },
+      include: {
+        attribute: {
+          select: {
+            id: true, nameUz: true, nameRu: true, key: true,
+            type: true, unit: true, options: true, isRequired: true,
+            rangeMin: true, rangeMax: true,
+          },
+        },
+      },
+    });
+
+    return reply.send({ success: true, data: values });
+  });
+
+  /**
+   * POST /admin/categories/:categoryId/attributes — Atribut yaratish (Admin) (P-FIX-01)
+   */
+  const createAttributeSchema = z.object({
+    nameUz: z.string().min(1).max(100),
+    nameRu: z.string().min(1).max(100),
+    key: z.string().min(1).max(50).regex(/^[a-z_][a-z0-9_]*$/),
+    type: z.enum(['chips', 'range', 'toggle', 'color', 'radio']).default('chips'),
+    unit: z.string().max(20).optional(),
+    options: z.any().optional(),
+    rangeMin: z.number().optional(),
+    rangeMax: z.number().optional(),
+    isRequired: z.boolean().default(false),
+    sortOrder: z.number().int().default(0),
+  });
+
+  app.post(
+    '/admin/categories/:categoryId/attributes',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const { categoryId } = request.params as { categoryId: string };
+      const body = createAttributeSchema.parse(request.body);
+
+      const category = await prisma.category.findUnique({ where: { id: categoryId } });
+      if (!category) throw new NotFoundError('Kategoriya');
+
+      // Check key uniqueness within category
+      const existing = await prisma.categoryAttribute.findUnique({
+        where: { categoryId_key: { categoryId, key: body.key } },
+      });
+      if (existing) throw new AppError(`"${body.key}" kaliti bu kategoriyada mavjud`, 409);
+
+      const attribute = await prisma.categoryAttribute.create({
+        data: { ...body, categoryId },
+      });
+
+      return reply.status(201).send({ success: true, data: attribute });
+    },
+  );
+
+  /**
+   * PUT /admin/categories/:categoryId/attributes/:attributeId — Atribut tahrirlash (P-FIX-01)
+   */
+  app.put(
+    '/admin/categories/:categoryId/attributes/:attributeId',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const { categoryId, attributeId } = request.params as { categoryId: string; attributeId: string };
+      const body = createAttributeSchema.partial().parse(request.body);
+
+      const attribute = await prisma.categoryAttribute.findFirst({
+        where: { id: attributeId, categoryId },
+      });
+      if (!attribute) throw new NotFoundError('Atribut');
+
+      const updated = await prisma.categoryAttribute.update({
+        where: { id: attributeId },
+        data: body,
+      });
+
+      return reply.send({ success: true, data: updated });
+    },
+  );
+
+  /**
+   * DELETE /admin/categories/:categoryId/attributes/:attributeId — Atribut o'chirish (P-FIX-01)
+   */
+  app.delete(
+    '/admin/categories/:categoryId/attributes/:attributeId',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const { categoryId, attributeId } = request.params as { categoryId: string; attributeId: string };
+
+      const deleted = await prisma.categoryAttribute.deleteMany({
+        where: { id: attributeId, categoryId },
+      });
+
+      if (deleted.count === 0) throw new NotFoundError('Atribut');
 
       return reply.send({ success: true });
     },

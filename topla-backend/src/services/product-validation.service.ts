@@ -30,6 +30,14 @@ interface ProductData {
   sku?: string | null;
   weight?: number | null;
   unit?: string | null;
+  barcode?: string | null;
+  videoUrl?: string | null;
+  tags?: string[] | null;
+  width?: number | null;
+  height?: number | null;
+  length?: number | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
 }
 
 // ============================================
@@ -224,6 +232,28 @@ export function calculateQualityScore(data: ProductData): number {
   // 12. Stock specified (max 4 points)
   if (data.stock !== null && data.stock !== undefined && data.stock > 0) {
     score += 4;
+  }
+
+  // 13. Barcode (max 2 points)
+  if (data.barcode && data.barcode.trim().length > 0) {
+    score += 2;
+  }
+
+  // 14. Video (max 3 points)
+  if (data.videoUrl && data.videoUrl.trim().length > 0) {
+    score += 3;
+  }
+
+  // 15. Tags (max 3 points)
+  if (data.tags && data.tags.length >= 3) {
+    score += 3;
+  } else if (data.tags && data.tags.length >= 1) {
+    score += 1;
+  }
+
+  // 16. Dimensions (max 2 points)
+  if (data.width && data.height && data.length) {
+    score += 2;
   }
 
   return Math.min(score, 100);

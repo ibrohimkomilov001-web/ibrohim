@@ -483,17 +483,32 @@ model Product {
   originalPrice   Decimal? @map("original_price") @db.Decimal(12, 2)
   discountPercent Int?     @map("discount_percent")
 
+  // SEO & URL
+  slug          String?  @unique
+  metaTitle     String?  @map("meta_title")
+  metaDescription String? @map("meta_description")
+
   // Media
   images       String[]
   thumbnailUrl String?  @map("thumbnail_url")
+  videoUrl     String?  @map("video_url")
 
   // Inventory
   stock    Int      @default(0)
   unit     ProductUnit @default(dona) // dona, kg, litr, metr
   minOrder Int      @default(1) @map("min_order")
   sku      String? // vendor internal product code
+  barcode  String?  // EAN/UPC/ISBN code
   weight   Decimal? @db.Decimal(8, 2) // kg
   warranty String?  // kafolat muddati: "1 oy", "6 oy", "1 yil" va h.k.
+
+  // Dimensions (cm)
+  width    Decimal? @db.Decimal(8, 2)
+  height   Decimal? @db.Decimal(8, 2)
+  length   Decimal? @db.Decimal(8, 2)
+
+  // Tags
+  tags     String[]  @default([])
 
   // Moderation (Yandex Market style)
   status           ProductStatus @default(draft)
@@ -544,6 +559,8 @@ model Product {
   @@index([isFlashSale, flashSaleEnd])
   @@index([brandId])
   @@index([shopId, status])
+  @@index([slug])
+  @@index([barcode])
   @@map("products")
 }
 

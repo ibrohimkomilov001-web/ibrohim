@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import {
   Select,
   SelectContent,
@@ -16,10 +17,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { vendorApi, type ProductVariant } from '@/lib/api/vendor';
+import { vendorApi, type ProductVariant, type CategoryAttribute } from '@/lib/api/vendor';
 import { uploadApi } from '@/lib/api/upload';
 import { toast } from 'sonner';
-import { ArrowLeft, Upload, X, Loader2, ImageIcon, Save, Palette, Package, DollarSign, Info } from 'lucide-react';
+import { ArrowLeft, Upload, X, Loader2, ImageIcon, Save, Palette, Package, DollarSign, Info, Video, Tag, Ruler, Search, Barcode, Plus } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/store/locale-store';
@@ -50,6 +51,20 @@ export default function EditProductPage() {
   const [images, setImages] = useState<string[]>([]);
   const [colorId, setColorId] = useState('');
   const [brandId, setBrandId] = useState('');
+
+  // Extended fields (P-FIX-04, P-06, P-11)
+  const [barcode, setBarcode] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [widthCm, setWidthCm] = useState('');
+  const [heightCm, setHeightCm] = useState('');
+  const [lengthCm, setLengthCm] = useState('');
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+
+  // Dynamic category attributes (P-FIX-02)
+  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
 
   // Variant state
   interface VariantRow {
@@ -100,6 +115,28 @@ export default function EditProductPage() {
     queryFn: () => vendorApi.getSizes(),
   });
   const sizes = (sizesRes as any)?.data || sizesRes || [];
+
+  // Fetch category attributes dynamically (P-FIX-02)
+  const effectiveCategoryId = subcategoryId || categoryId;
+  const { data: categoryAttrsRes } = useQuery({
+    queryKey: ['category-attributes', effectiveCategoryId],
+    queryFn: () => vendorApi.getCategoryAttributes(effectiveCategoryId),
+    enabled: !!effectiveCategoryId,
+  });
+  const categoryAttributes: CategoryAttribute[] = (categoryAttrsRes as any)?.data || categoryAttrsRes || [];
+
+  // Tag helpers
+  const addTag = () => {
+    const tag = tagInput.trim();
+    if (tag && !tags.includes(tag) && tags.length < 20) {
+      setTags(prev => [...prev, tag]);
+      setTagInput('');
+    }
+  };
+  const removeTag = (idx: number) => setTags(prev => prev.filter((_, i) => i !== idx));
+  const handleTagKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); }
+  };
 
   // Tanlangan kategoriyaning subkategoriyalari
   const selectedCategory = categories?.find((c: any) => c.id === categoryId);
@@ -164,6 +201,25 @@ export default function EditProductPage() {
       setColorId((product as any).colorId || '');
       setBrandId((product as any).brandId || '');
 
+      // Load extended fields
+      setBarcode((product as any).barcode || '');
+      setVideoUrl((product as any).videoUrl || '');
+      setTags((product as any).tags || []);
+      setWidthCm(String((product as any).width || ''));
+      setHeightCm(String((product as any).height || ''));
+      setLengthCm(String((product as any).length || ''));
+      setMetaTitle((product as any).metaTitle || '');
+      setMetaDescription((product as any).metaDescription || '');
+
+      // Load attribute values
+      if ((product as any).attributeValues) {
+        const vals: Record<string, string> = {};
+        for (const av of (product as any).attributeValues) {
+          vals[av.attributeId || av.attribute?.id] = av.value;
+        }
+        setAttributeValues(vals);
+      }
+
       // Load existing variants
       const variants = (product as any).variants as ProductVariant[] | undefined;
       if ((product as any).hasVariants && variants && variants.length > 0) {
@@ -226,6 +282,26 @@ export default function EditProductPage() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Variant image upload (P-FIX-03)
+  const handleVariantImageUpload = async (variantKey: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      for (const file of Array.from(files)) {
+        const result = await uploadApi.uploadImage(file);
+        updateVariantRow(variantKey, 'images', [
+          ...(variantRows[variantKey]?.images || []),
+          result.url,
+        ]);
+      }
+      toast.success(t('imageUploaded'));
+    } catch {
+      toast.error(t('imageUploadError'));
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   const handleSubmit = () => {
     if (!nameUz) {
       toast.error(t('nameRequired'));
@@ -275,6 +351,23 @@ export default function EditProductPage() {
       images,
       hasVariants: !!hasVariants,
       variants: variantsPayload,
+      // Extended fields (P-FIX-04, P-06, P-11)
+      barcode: barcode.trim() || undefined,
+      videoUrl: videoUrl.trim() || undefined,
+      tags: tags.length > 0 ? tags : undefined,
+      width: widthCm ? Number(widthCm) : undefined,
+      height: heightCm ? Number(heightCm) : undefined,
+      length: lengthCm ? Number(lengthCm) : undefined,
+      metaTitle: metaTitle.trim() || undefined,
+      metaDescription: metaDescription.trim() || undefined,
+      // Dynamic attributes
+      ...(Object.keys(attributeValues).length > 0
+        ? {
+            attributeValues: Object.entries(attributeValues)
+              .filter(([, v]) => v.trim())
+              .map(([attributeId, value]) => ({ attributeId, value })),
+          }
+        : {}),
     });
   };
 
@@ -344,12 +437,10 @@ export default function EditProductPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="descriptionUz">{t('descriptionUz')}</Label>
-                    <Textarea
-                      id="descriptionUz"
-                      placeholder={`${t('productDescription')}...`}
+                    <RichTextEditor
                       value={descriptionUz}
-                      onChange={(e) => { setDescriptionUz(e.target.value); if (!description) setDescription(e.target.value); }}
-                      rows={5}
+                      onChange={(val) => { setDescriptionUz(val); if (!description) setDescription(val); }}
+                      placeholder="Mahsulot haqida batafsil..."
                     />
                     <p className="text-xs text-muted-foreground">
                       {t('minChars')}
@@ -369,12 +460,10 @@ export default function EditProductPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="descriptionRu">{t('descriptionRu')}</Label>
-                    <Textarea
-                      id="descriptionRu"
-                      placeholder="Подробное описание товара..."
+                    <RichTextEditor
                       value={descriptionRu}
-                      onChange={(e) => setDescriptionRu(e.target.value)}
-                      rows={5}
+                      onChange={(val) => setDescriptionRu(val)}
+                      placeholder="Подробное описание товара..."
                     />
                   </div>
                 </>
@@ -582,6 +671,7 @@ export default function EditProductPage() {
                               <th className="text-left px-3 py-2 font-medium">{t('originalPrice')}</th>
                               <th className="text-left px-3 py-2 font-medium">{t('quantity')}</th>
                               <th className="text-left px-3 py-2 font-medium">{t('sku')}</th>
+                              <th className="text-left px-3 py-2 font-medium">{t('images')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -616,6 +706,32 @@ export default function EditProductPage() {
                                   <td className="px-3 py-1">
                                     <Input placeholder="" value={row.sku} onChange={e => updateVariantRow(vk.key, 'sku', e.target.value)} className="h-8 w-28" />
                                   </td>
+                                  <td className="px-3 py-1">
+                                    <div className="flex items-center gap-1">
+                                      {row.images?.length > 0 && (
+                                        <div className="flex -space-x-1">
+                                          {row.images.slice(0, 2).map((img, imgIdx) => (
+                                            <div key={imgIdx} className="relative w-7 h-7 rounded border overflow-hidden">
+                                              <Image src={img} alt="" fill className="object-cover" />
+                                            </div>
+                                          ))}
+                                          {row.images.length > 2 && (
+                                            <span className="text-[10px] text-muted-foreground ml-1">+{row.images.length - 2}</span>
+                                          )}
+                                        </div>
+                                      )}
+                                      <label className="h-7 w-7 rounded border border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors flex-shrink-0">
+                                        <Upload className="h-3 w-3 text-muted-foreground" />
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          multiple
+                                          className="hidden"
+                                          onChange={(e) => handleVariantImageUpload(vk.key, e)}
+                                        />
+                                      </label>
+                                    </div>
+                                  </td>
                                 </tr>
                               );
                             })}
@@ -637,10 +753,206 @@ export default function EditProductPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dynamic Category Attributes (P-FIX-02) */}
+          {categoryAttributes.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Search className="h-5 w-5 text-primary" />
+                  Xususiyatlar
+                </CardTitle>
+                <CardDescription>
+                  Tanlangan kategoriya bo&apos;yicha mahsulot xususiyatlari
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {categoryAttributes.map((attr) => (
+                  <div key={attr.id} className="space-y-2">
+                    <Label>
+                      {attr.nameUz}
+                      {attr.isRequired && <span className="text-red-500 ml-1">*</span>}
+                      {attr.unit && <span className="text-muted-foreground ml-1">({attr.unit})</span>}
+                    </Label>
+                    {attr.type === 'select' || attr.type === 'multiselect' ? (
+                      <Select
+                        value={attributeValues[attr.id] || ''}
+                        onValueChange={(val) =>
+                          setAttributeValues(prev => ({ ...prev, [attr.id]: val }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={`${attr.nameUz} tanlang`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {attr.options?.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : attr.type === 'boolean' ? (
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={attributeValues[attr.id] === 'true'}
+                          onCheckedChange={(checked) =>
+                            setAttributeValues(prev => ({ ...prev, [attr.id]: String(checked) }))
+                          }
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {attributeValues[attr.id] === 'true' ? 'Ha' : "Yo'q"}
+                        </span>
+                      </div>
+                    ) : (
+                      <Input
+                        type={attr.type === 'number' ? 'number' : 'text'}
+                        placeholder={attr.nameUz}
+                        value={attributeValues[attr.id] || ''}
+                        onChange={(e) =>
+                          setAttributeValues(prev => ({ ...prev, [attr.id]: e.target.value }))
+                        }
+                      />
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tags & Video (P-11) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Tag className="h-5 w-5 text-primary" />
+                Teglar va Video
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Teglar (max 20)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Teg kiriting va Enter bosing"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={addTag} disabled={tags.length >= 20}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {tags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          className="hover:text-red-500 transition-colors"
+                          onClick={() => removeTag(idx)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Teglar mahsulotni topishda yordam beradi (+3 ball)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="videoUrl" className="flex items-center gap-1.5">
+                  <Video className="h-4 w-4" />
+                  Video havolasi
+                </Label>
+                <Input
+                  id="videoUrl"
+                  type="url"
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  YouTube yoki boshqa video havola (+3 ball)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="barcode" className="flex items-center gap-1.5">
+                  <Barcode className="h-4 w-4" />
+                  Shtrix-kod (EAN/UPC)
+                </Label>
+                <Input
+                  id="barcode"
+                  placeholder="4607000000000"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Shtrix-kod qo&apos;shish (+2 ball)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dimensions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Ruler className="h-5 w-5 text-primary" />
+                O&apos;lchamlari
+              </CardTitle>
+              <CardDescription>
+                Mahsulot yetkazish narxini hisoblashga yordam beradi (+2 ball)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="widthCm">Kengligi (sm)</Label>
+                  <Input
+                    id="widthCm"
+                    type="number"
+                    placeholder="0"
+                    value={widthCm}
+                    onChange={(e) => setWidthCm(e.target.value)}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="heightCm">Balandligi (sm)</Label>
+                  <Input
+                    id="heightCm"
+                    type="number"
+                    placeholder="0"
+                    value={heightCm}
+                    onChange={(e) => setHeightCm(e.target.value)}
+                    min={0}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lengthCm">Uzunligi (sm)</Label>
+                  <Input
+                    id="lengthCm"
+                    type="number"
+                    placeholder="0"
+                    value={lengthCm}
+                    onChange={(e) => setLengthCm(e.target.value)}
+                    min={0}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Right Column - Price & Settings */}
-        <div className="space-y-6">
+        {/* Right Column - Price & Settings */}        <div className="space-y-6">
           {/* Pricing */}
           <Card>
             <CardHeader>
@@ -719,7 +1031,47 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          {/* Auto-moderation info */}
+          {/* SEO (P-06) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Search className="h-5 w-5 text-primary" />
+                SEO
+              </CardTitle>
+              <CardDescription>Qidiruv tizimlari uchun</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="metaTitle">Meta sarlavha</Label>
+                <Input
+                  id="metaTitle"
+                  placeholder="SEO sarlavha (max 120)"
+                  value={metaTitle}
+                  onChange={(e) => setMetaTitle(e.target.value)}
+                  maxLength={120}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {metaTitle.length}/120 belgi
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="metaDescription">Meta tavsif</Label>
+                <Textarea
+                  id="metaDescription"
+                  placeholder="SEO tavsifi (max 320)"
+                  value={metaDescription}
+                  onChange={(e) => setMetaDescription(e.target.value)}
+                  maxLength={320}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {metaDescription.length}/320 belgi
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Auto-moderation info */
           <Card className="border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20">
             <CardContent className="pt-4">
               <div className="flex items-start gap-3">
@@ -735,7 +1087,11 @@ export default function EditProductPage() {
                     <li>✅ Tavsif UZ (20+ belgi)</li>
                     <li>✅ Kamida 1 ta rasm</li>
                     <li>✅ Narx va kategoriya</li>
-                    <li>✅ Rang (+3 ball) va brend (+5 ball)</li>
+                    <li>✅ Rang (+3) va brend (+5)</li>
+                    <li>✅ Shtrix-kod (+2)</li>
+                    <li>✅ Video (+3)</li>
+                    <li>✅ Teglar (+3)</li>
+                    <li>✅ O&apos;lchamlari (+2)</li>
                   </ul>
                 </div>
               </div>

@@ -62,6 +62,18 @@ export interface Product {
   hasVariants?: boolean;
   colors?: { id: string; name: string; hexCode: string }[];
   variants?: ProductVariant[];
+  // Extended fields (P-FIX-04, P-06, P-11)
+  slug?: string;
+  barcode?: string;
+  videoUrl?: string;
+  tags?: string[];
+  width?: number;
+  height?: number;
+  length?: number;
+  metaTitle?: string;
+  metaDescription?: string;
+  warranty?: string;
+  attributeValues?: { attributeId: string; value: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -221,6 +233,19 @@ export interface Category {
   }[];
 }
 
+export interface CategoryAttribute {
+  id: string;
+  nameUz: string;
+  nameRu?: string;
+  key: string;
+  type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean';
+  unit?: string;
+  options?: string[];
+  isRequired: boolean;
+  isFilterable: boolean;
+  sortOrder: number;
+}
+
 export interface VendorDocument {
   id: string;
   type: 'license' | 'certificate' | 'passport' | 'inn';
@@ -375,6 +400,10 @@ export const vendorApi = {
 
   // --- Categories ---
   getCategories: () => api.get<Category[]>('/categories'),
+  getCategoryAttributes: (categoryId: string) =>
+    api.get<CategoryAttribute[]>(`/categories/${categoryId}/attributes`),
+  cloneProduct: (id: string) =>
+    api.post<Product>(`/vendor/products/${id}/clone`, {}),
 
   // --- Colors & Brands ---
   getColors: () => api.get<ColorOption[]>('/colors'),
