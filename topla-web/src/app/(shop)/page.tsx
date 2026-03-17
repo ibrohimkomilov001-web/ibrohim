@@ -120,23 +120,28 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
   ];
 
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-      {filters.map((f) => {
-        const isActive = selected === f.key;
-        return (
-          <button
-            key={f.key}
-            onClick={() => onSelect(f.key)}
-            className={`whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-              isActive
-                ? 'bg-gray-700 text-white'
-                : 'bg-transparent border border-gray-300 text-gray-600 hover:border-gray-400'
-            }`}
-          >
-            {f.label}
-          </button>
-        );
-      })}
+    <div className="overflow-x-auto no-scrollbar py-2">
+      <div className="inline-flex items-center gap-1 bg-white rounded-2xl p-0.5 shadow-sm">
+        {filters.map((f) => {
+          const isActive = selected === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => onSelect(f.key)}
+              className={`relative whitespace-nowrap px-4 py-2 text-sm transition-all ${
+                isActive
+                  ? 'text-black font-semibold'
+                  : 'text-gray-500 font-normal hover:text-gray-800'
+              }`}
+            >
+              {f.label}
+              {isActive && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-0.5 bg-black rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -146,9 +151,9 @@ function HomeSkeleton() {
   return (
     <div className="site-container space-y-4 pt-1 animate-pulse">
       <div className="h-36 sm:h-48 skeleton rounded-xl" />
-      <div className="flex gap-2">
+      <div className="flex gap-0.5 bg-white rounded-2xl p-0.5 shadow-sm w-fit">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-7 w-20 skeleton rounded-full" />
+          <div key={i} className="h-8 w-20 skeleton rounded-[14px]" />
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2">
