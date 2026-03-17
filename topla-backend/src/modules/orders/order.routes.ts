@@ -490,7 +490,9 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
 
       // Har bir do'kon uchun alohida buyurtma yaratish
       for (let i = 0; i < shopEntries.length; i++) {
-        const { items: shopItems, shopSubtotal } = shopEntries[i];
+        const entry = shopEntries[i]!;
+        const shopItems = entry.items;
+        const shopSubtotal = entry.shopSubtotal;
         // Promo code faqat birinchi (eng katta) orderga qo'llaniladi
         const orderDiscount = i === 0 ? discount : 0;
         const orderTotal = Math.max(0, shopSubtotal - orderDiscount + deliveryFeePerOrder);
@@ -522,7 +524,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
 
         // Order items yaratish (B-03: variantLabel to'ldirish)
         await tx.orderItem.createMany({
-          data: shopItems.map((item) => {
+          data: shopItems.map((item: typeof shopItems[number]) => {
             // Variant label yasash (rang / o'lcham)
             const variant = (item as any).variant;
             let variantLabel: string | null = null;
