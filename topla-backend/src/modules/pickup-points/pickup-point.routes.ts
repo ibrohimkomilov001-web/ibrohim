@@ -8,6 +8,7 @@ import { AppError, NotFoundError } from '../../middleware/error.js';
 import { notifyOrderStatusChange } from '../notifications/notification.service.js';
 import { emitOrderStatusUpdate, emitToAdminDashboard } from '../../websocket/socket.js';
 import { generateToken, JwtPayload } from '../../utils/jwt.js';
+import { setAuthCookies } from '../../utils/cookie.js';
 
 // ============================================
 // Validation Schemas
@@ -269,6 +270,9 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
       role: 'pickup_staff',
       pickupPointId: point.id,
     });
+
+    // httpOnly cookie o'rnatish
+    setAuthCookies(reply, token, token);
 
     return reply.send({
       success: true,

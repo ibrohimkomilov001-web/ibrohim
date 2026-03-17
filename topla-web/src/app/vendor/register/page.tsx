@@ -292,7 +292,7 @@ export default function VendorRegisterPage() {
   const currentStep = stepInfo[step - 1];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       <div className="max-w-xl mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
         <div className="text-center mb-8">
@@ -317,7 +317,7 @@ export default function VendorRegisterPage() {
                         ? "bg-gradient-to-br from-emerald-400 to-green-500 text-white shadow-md shadow-emerald-500/30"
                         : step === s.num
                         ? "bg-gradient-to-br from-primary to-primary/90 text-white shadow-lg shadow-primary/30 ring-4 ring-primary/10"
-                        : "bg-slate-100 text-slate-400"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
                     }`}
                   >
                     {step > s.num ? <CheckCircle className="h-5 w-5" /> : <s.icon className="h-4 w-4" />}
@@ -328,7 +328,7 @@ export default function VendorRegisterPage() {
                 </div>
                 {i < 2 && (
                   <div className="w-16 sm:w-24 mx-1 mt-[-18px]">
-                    <div className="h-[3px] rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-[3px] rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                       <motion.div
                         initial={false}
                         animate={{ width: step > s.num ? "100%" : "0%" }}
@@ -369,27 +369,27 @@ export default function VendorRegisterPage() {
                       <Label htmlFor="fullName" className="text-sm font-medium">
                         Ism-familiya <span className="text-red-500">*</span>
                       </Label>
-                      <Input id="fullName" placeholder="Abdullayev Jasur" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]" required />
+                      <Input id="fullName" placeholder="Abdullayev Jasur" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]" required />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="phone" className="text-sm font-medium">
                         Telefon raqam <span className="text-red-500">*</span>
                       </Label>
-                      <Input id="phone" type="tel" placeholder="+998 90 123 45 67" value={phone} onChange={handlePhoneChange} className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]" required />
+                      <Input id="phone" type="tel" placeholder="+998 90 123 45 67" value={phone} onChange={handlePhoneChange} className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]" required />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="email" className="text-sm font-medium">
                         Email <span className="text-red-500">*</span>
                       </Label>
-                      <Input id="email" type="email" placeholder="jasur@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]" required />
+                      <Input id="email" type="email" placeholder="jasur@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]" required />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="password" className="text-sm font-medium">
                         Parol <span className="text-red-500">*</span>
                       </Label>
                       <div className="relative">
-                        <Input id="password" type={showPassword ? "text" : "password"} placeholder="Kamida 6 belgi" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 pr-11 text-[16px]" required />
-                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" onClick={() => setShowPassword(!showPassword)}>
+                        <Input id="password" type={showPassword ? "text" : "password"} placeholder="Kamida 6 belgi" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 pr-11 text-[16px]" required />
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" onClick={() => setShowPassword(!showPassword)}>
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
@@ -405,16 +405,16 @@ export default function VendorRegisterPage() {
                       <Label htmlFor="shopName" className="text-sm font-medium">
                         Do&apos;kon nomi <span className="text-red-500">*</span>
                       </Label>
-                      <Input id="shopName" placeholder="Masalan: TechStore" value={shopName} onChange={(e) => setShopName(e.target.value)} className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]" required />
+                      <Input id="shopName" placeholder="Masalan: TechStore" value={shopName} onChange={(e) => setShopName(e.target.value)} className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]" required />
                       {/* Slug preview */}
                       {shopName.trim().length >= 2 && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
-                          className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg mt-1.5"
+                          className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg mt-1.5"
                         >
-                          <Globe className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <p className="text-xs text-slate-500">
+                          <Globe className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             topla.uz/shop/<span className="font-semibold text-primary">{slugPreview}</span>
                           </p>
                         </motion.div>
@@ -424,7 +424,7 @@ export default function VendorRegisterPage() {
                       <Label htmlFor="shopDescription" className="text-sm font-medium">
                         Tavsif <span className="text-xs text-muted-foreground font-normal">(ixtiyoriy)</span>
                       </Label>
-                      <Textarea id="shopDescription" placeholder="Do'koningiz haqida qisqacha..." value={shopDescription} onChange={(e) => setShopDescription(e.target.value)} rows={3} className="rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 resize-none text-[16px]" />
+                      <Textarea id="shopDescription" placeholder="Do'koningiz haqida qisqacha..." value={shopDescription} onChange={(e) => setShopDescription(e.target.value)} rows={3} className="rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 resize-none text-[16px]" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -432,7 +432,7 @@ export default function VendorRegisterPage() {
                           Kategoriya <span className="text-red-500">*</span>
                         </Label>
                         <Select value={category} onValueChange={setCategory}>
-                          <SelectTrigger className="h-11 rounded-xl border-slate-200 text-[16px]">
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-700 text-[16px]">
                             <SelectValue placeholder="Tanlang" />
                           </SelectTrigger>
                           <SelectContent>
@@ -447,7 +447,7 @@ export default function VendorRegisterPage() {
                           Shahar <span className="text-red-500">*</span>
                         </Label>
                         <Select value={city} onValueChange={setCity}>
-                          <SelectTrigger className="h-11 rounded-xl border-slate-200 text-[16px]">
+                          <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-700 text-[16px]">
                             <SelectValue placeholder="Tanlang" />
                           </SelectTrigger>
                           <SelectContent>
@@ -462,7 +462,7 @@ export default function VendorRegisterPage() {
                       <Label htmlFor="address" className="text-sm font-medium">
                         Manzil <span className="text-xs text-muted-foreground font-normal">(ixtiyoriy)</span>
                       </Label>
-                      <Input id="address" placeholder="To'liq manzil" value={address} onChange={(e) => setAddress(e.target.value)} className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]" />
+                      <Input id="address" placeholder="To'liq manzil" value={address} onChange={(e) => setAddress(e.target.value)} className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]" />
                     </div>
                   </motion.div>
                 )}
@@ -473,7 +473,7 @@ export default function VendorRegisterPage() {
                     <div className="space-y-1.5">
                       <Label className="text-sm font-medium">Biznes turi</Label>
                       <Select value={businessType} onValueChange={setBusinessType}>
-                        <SelectTrigger className="h-11 rounded-xl border-slate-200 text-[16px]">
+                        <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-700 text-[16px]">
                           <SelectValue placeholder="Tanlang" />
                         </SelectTrigger>
                         <SelectContent>
@@ -493,17 +493,17 @@ export default function VendorRegisterPage() {
                         placeholder="123456789"
                         value={inn}
                         onChange={(e) => setInn(formatInn(e.target.value))}
-                        className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
+                        className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]"
                         inputMode="numeric"
                       />
                       <p className="text-xs text-muted-foreground">9 yoki 12 ta raqam</p>
                     </div>
 
                     {/* Bank rekvizitlari */}
-                    <div className="pt-3 border-t border-slate-100">
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2 mb-4">
-                        <Landmark className="h-4 w-4 text-slate-500" />
-                        <span className="text-sm font-semibold text-slate-700">Bank rekvizitlari</span>
+                        <Landmark className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Bank rekvizitlari</span>
                         <span className="text-xs text-muted-foreground font-normal">(ixtiyoriy)</span>
                       </div>
 
@@ -515,7 +515,7 @@ export default function VendorRegisterPage() {
                             placeholder="Masalan: Kapitalbank"
                             value={bankName}
                             onChange={(e) => setBankName(e.target.value)}
-                            className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px]"
+                            className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px]"
                           />
                         </div>
 
@@ -528,7 +528,7 @@ export default function VendorRegisterPage() {
                             placeholder="2020 8000 1234 5678 9012"
                             value={bankAccount}
                             onChange={(e) => setBankAccount(formatBankAccount(e.target.value))}
-                            className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px] font-mono"
+                            className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px] font-mono"
                             inputMode="numeric"
                           />
                           <p className="text-xs text-muted-foreground">20 ta raqam</p>
@@ -541,7 +541,7 @@ export default function VendorRegisterPage() {
                             placeholder="00084"
                             value={mfo}
                             onChange={(e) => setMfo(formatMfo(e.target.value))}
-                            className="h-11 rounded-xl border-slate-200 focus:border-primary focus:ring-primary/20 text-[16px] font-mono"
+                            className="h-11 rounded-xl border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20 text-[16px] font-mono"
                             inputMode="numeric"
                           />
                           <p className="text-xs text-muted-foreground">5 ta raqam</p>
@@ -571,7 +571,7 @@ export default function VendorRegisterPage() {
               </AnimatePresence>
 
               {/* Actions */}
-              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
                 {step > 1 ? (
                   <Button type="button" variant="ghost" onClick={handleBack} className="h-11 px-5 rounded-xl text-muted-foreground hover:text-foreground">
                     <ArrowLeft className="mr-2 h-4 w-4" />

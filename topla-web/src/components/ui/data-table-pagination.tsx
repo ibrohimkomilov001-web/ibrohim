@@ -48,6 +48,7 @@ export function DataTablePagination({ pagination, onPageChange }: DataTablePagin
           className="h-8 w-8"
           disabled={page <= 1}
           onClick={() => onPageChange(1)}
+          aria-label="Birinchi sahifa"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -57,6 +58,7 @@ export function DataTablePagination({ pagination, onPageChange }: DataTablePagin
           className="h-8 w-8"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
+          aria-label="Oldingi sahifa"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -83,6 +85,7 @@ export function DataTablePagination({ pagination, onPageChange }: DataTablePagin
           className="h-8 w-8"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
+          aria-label="Keyingi sahifa"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -92,6 +95,7 @@ export function DataTablePagination({ pagination, onPageChange }: DataTablePagin
           className="h-8 w-8"
           disabled={page >= totalPages}
           onClick={() => onPageChange(totalPages)}
+          aria-label="Oxirgi sahifa"
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>

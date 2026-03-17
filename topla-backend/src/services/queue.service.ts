@@ -4,12 +4,13 @@
 // ============================================
 
 import { Queue, Worker, Job, type ConnectionOptions } from 'bullmq';
+import { env } from '../config/env.js';
 
 // ============================================
 // Redis Connection config for BullMQ
 // ============================================
 function getConnectionOpts(): ConnectionOptions {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = env.REDIS_URL || 'redis://localhost:6379';
   const url = new URL(redisUrl);
   return {
     host: url.hostname || 'localhost',
@@ -238,12 +239,52 @@ export async function startWorkers(): Promise<void> {
     { connection: conn, concurrency: 2 },
   );
 
-  // ---- Courier Assignment Worker ----
+  // ---- Kuryer Tayinlash Worker ----
+  // 60 soniya kechikishdan keyin ishga tushadi:
+  //   1. Assignment hali "pending" bo'lsa → "expired" qilish
+  //   2. Keyingi kuryerga yuborish (exclude list bilan)
   const courierWorker = new Worker(
     'courier',
     async (job: Job<CourierAssignJobData>) => {
+      const { prisma } = await import('../config/database.js');
       const { findAndAssignCourier } = await import('../modules/courier/courier.service.js');
       const { data } = job;
+
+      // Avval: bu buyurtma uchun pending assignment larni tekshirish
+      const pendingAssignment = await prisma.deliveryAssignment.findFirst({
+        where: {
+          orderId: data.orderId,
+          status: 'pending',
+        },
+      });
+
+      if (pendingAssignment) {
+        // Muddat tugadi — "expired" qilish
+        await prisma.deliveryAssignment.update({
+          where: { id: pendingAssignment.id },
+          data: { status: 'expired' },
+        });
+        console.log(`[Courier Queue] Assignment ${pendingAssignment.id} expired, keyingi kuryerga o'tilmoqda...`);
+      }
+
+      // Buyurtma hali kuryer tayinlanmaganligini tekshirish
+      const order = await prisma.order.findUnique({
+        where: { id: data.orderId },
+        select: { status: true, courierId: true },
+      });
+
+      // Agar buyurtma bekor qilingan yoki allaqachon kuryer tayinlangan bo'lsa — to'xtatish
+      if (!order || order.courierId || order.status === 'cancelled' || order.status === 'delivered') {
+        return;
+      }
+
+      // Urinishlar limitini tekshirish
+      if (data.attempt >= data.maxAttempts) {
+        console.warn(`[Courier Queue] Buyurtma ${data.orderId}: ${data.maxAttempts} ta urinish tugadi`);
+        return;
+      }
+
+      // Keyingi kuryerga tayinlash
       await findAndAssignCourier(data.orderId, data.excludeCourierIds);
     },
     { connection: conn, concurrency: 1 },

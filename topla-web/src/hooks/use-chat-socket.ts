@@ -15,8 +15,8 @@ export interface ChatMessage {
 }
 
 interface UseChatSocketOptions {
-  /** JWT token for authentication */
-  token: string | null;
+  /** JWT token for authentication (optional — httpOnly cookies preferred) */
+  token?: string | null;
   /** Callback when a new message arrives */
   onNewMessage?: (msg: ChatMessage) => void;
 }

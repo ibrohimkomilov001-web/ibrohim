@@ -133,7 +133,7 @@ export default function ProductsPage() {
               />
             </div>
             <Select value={status} onValueChange={(v) => setFilters({ status: v, page: '1' })}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder={t('status')} />
               </SelectTrigger>

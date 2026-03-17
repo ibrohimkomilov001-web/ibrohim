@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database.js';
 import { verifyFirebaseToken } from '../../config/firebase.js';
 import { generateToken, generateRefreshToken, verifyRefreshToken, blacklistToken } from '../../utils/jwt.js';
+import { setAuthCookies, clearAuthCookies, extractToken, extractRefreshToken } from '../../utils/cookie.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error.js';
 import { env } from '../../config/env.js';
@@ -300,6 +301,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
+    // httpOnly cookie o'rnatish (web uchun xavfsiz)
+    setAuthCookies(reply, accessToken, refreshToken);
+
     return reply.send({
       success: true,
       data: {
@@ -406,6 +410,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
+    // httpOnly cookie o'rnatish (web uchun xavfsiz)
+    setAuthCookies(reply, accessToken, refreshToken);
+
     return reply.send({
       success: true,
       data: {
@@ -430,13 +437,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    * Token yangilash
    */
   app.post('/auth/refresh', async (request, reply) => {
-    const body = refreshTokenSchema.parse(request.body);
+    // Refresh tokenni cookie yoki body dan olish
+    const bodyData = refreshTokenSchema.parse(request.body || {});
+    const refreshTokenValue = extractRefreshToken(request, bodyData.refreshToken);
+
+    if (!refreshTokenValue) {
+      throw new AppError('Refresh token topilmadi', 401);
+    }
 
     try {
-      const payload = verifyRefreshToken(body.refreshToken);
+      const payload = verifyRefreshToken(refreshTokenValue);
 
       // Eski refresh tokenni blacklist ga qo'shish (token rotation)
-      await blacklistToken(body.refreshToken);
+      await blacklistToken(refreshTokenValue);
 
       // Profil hali ham borligini tekshirish
       const profile = await prisma.profile.findUnique({
@@ -453,11 +466,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         phone: profile.phone,
       };
 
+      const newAccessToken = generateToken(newPayload);
+      const newRefreshToken = generateRefreshToken(newPayload);
+
+      // httpOnly cookie yangilash
+      setAuthCookies(reply, newAccessToken, newRefreshToken);
+
       return reply.send({
         success: true,
         data: {
-          accessToken: generateToken(newPayload),
-          refreshToken: generateRefreshToken(newPayload),
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
         },
       });
     } catch {
@@ -594,17 +613,20 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/auth/logout', { preHandler: authMiddleware }, async (request, reply) => {
     const { fcmToken, refreshToken } = logoutSchema.parse(request.body || {});
 
-    // Access token ni blacklist ga qo'shish
-    const authHeader = request.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      const accessToken = authHeader.substring(7);
+    // Access token ni blacklist ga qo'shish (header yoki cookie dan)
+    const accessToken = extractToken(request);
+    if (accessToken) {
       await blacklistToken(accessToken);
     }
 
-    // Refresh token ni ham blacklist ga qo'shish
-    if (refreshToken) {
-      await blacklistToken(refreshToken);
+    // Refresh token ni ham blacklist ga qo'shish (body yoki cookie dan)
+    const refreshTokenValue = extractRefreshToken(request, refreshToken);
+    if (refreshTokenValue) {
+      await blacklistToken(refreshTokenValue);
     }
+
+    // Cookie larni tozalash
+    clearAuthCookies(reply);
 
     const updates: Promise<any>[] = [
       prisma.profile.update({
@@ -770,6 +792,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
+    // httpOnly cookie o'rnatish
+    setAuthCookies(reply, accessToken, refreshToken);
+
     return reply.status(201).send({
       success: true,
       data: {
@@ -847,6 +872,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
+
+    // httpOnly cookie o'rnatish
+    setAuthCookies(reply, accessToken, refreshToken);
 
     return reply.send({
       success: true,

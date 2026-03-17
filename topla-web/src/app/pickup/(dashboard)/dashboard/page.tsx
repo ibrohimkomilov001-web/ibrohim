@@ -65,28 +65,28 @@ export default function PickupDashboardPage() {
       value: stats?.todayDelivered ?? 0,
       icon: CheckCircle2,
       color: "text-green-600",
-      bg: "bg-green-100",
+      bg: "bg-green-100 dark:bg-green-900/30",
     },
     {
       label: "Hozir kutmoqda",
       value: stats?.todayWaiting ?? 0,
       icon: Clock,
       color: "text-orange-600",
-      bg: "bg-orange-100",
+      bg: "bg-orange-100 dark:bg-orange-900/30",
     },
     {
       label: "Jami topshirilgan",
       value: stats?.totalDelivered ?? 0,
       icon: TrendingUp,
       color: "text-blue-600",
-      bg: "bg-blue-100",
+      bg: "bg-blue-100 dark:bg-blue-900/30",
     },
     {
       label: "Jami buyurtmalar",
       value: stats?.totalOrders ?? 0,
       icon: Package,
       color: "text-purple-600",
-      bg: "bg-purple-100",
+      bg: "bg-purple-100 dark:bg-purple-900/30",
     },
   ];
 
@@ -133,7 +133,7 @@ export default function PickupDashboardPage() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link href="/pickup/scanner">
-          <Card className="border-orange-200 hover:shadow-md transition-shadow cursor-pointer group">
+          <Card className="border-orange-200 dark:border-orange-800 hover:shadow-md transition-shadow cursor-pointer group">
             <CardContent className="pt-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center">
@@ -149,7 +149,7 @@ export default function PickupDashboardPage() {
           </Card>
         </Link>
         <Link href="/pickup/orders">
-          <Card className="border-blue-200 hover:shadow-md transition-shadow cursor-pointer group">
+          <Card className="border-blue-200 dark:border-blue-800 hover:shadow-md transition-shadow cursor-pointer group">
             <CardContent className="pt-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-xl bg-blue-500 flex items-center justify-center">
@@ -183,7 +183,7 @@ export default function PickupDashboardPage() {
                 <div key={order.id} className="flex items-center justify-between py-3">
                   <div className="flex items-center gap-3">
                     <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                      order.status === "delivered" ? "bg-green-100" : "bg-orange-100"
+                      order.status === "delivered" ? "bg-green-100 dark:bg-green-900/30" : "bg-orange-100 dark:bg-orange-900/30"
                     }`}>
                       {order.status === "delivered" ? (
                         <CheckCircle2 className="h-4 w-4 text-green-600" />

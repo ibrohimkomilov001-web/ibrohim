@@ -1,12 +1,16 @@
 // ============================================
-// Pickup Point Staff API Client
+// Pickup Point Staff API Client — base-client factory orqali
 // ============================================
+
+import { createRequest, createTokenHelpers, withCsrfHeaders } from './base-client';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 function getApiBase(): string {
   if (typeof window !== 'undefined') {
     return '/api/v1';
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+  return API_BASE_URL;
 }
 
 export const API_BASE = getApiBase();
@@ -27,8 +31,9 @@ export async function submitPickupApplication(data: {
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(data),
+      credentials: 'include',
     });
   } catch {
     throw new Error('Serverga ulanib bo\'lmadi');
@@ -41,24 +46,22 @@ export async function submitPickupApplication(data: {
   return json.data;
 }
 
-function getPickupToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('pickup_token');
-}
+// Token helpers — base-client factory orqali
+const tokenHelpers = createTokenHelpers('pickup');
 
-export function setPickupToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('pickup_token', token);
+export function setPickupToken(_token: string): void {
+  tokenHelpers.setToken(_token);
 }
 
 export function removePickupToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('pickup_token');
-  localStorage.removeItem('pickup_point_name');
+  tokenHelpers.removeToken();
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('pickup_point_name');
+  }
 }
 
 export function isPickupAuthenticated(): boolean {
-  return !!getPickupToken();
+  return tokenHelpers.isAuthenticated();
 }
 
 export function getPickupPointName(): string {
@@ -66,47 +69,12 @@ export function getPickupPointName(): string {
   return localStorage.getItem('pickup_point_name') || 'Topshirish punkti';
 }
 
-async function pickupRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getPickupToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const url = `${API_BASE}${endpoint}`;
-
-  let response: Response;
-  try {
-    response = await fetch(url, { ...options, headers });
-  } catch {
-    throw new Error('Serverga ulanib bo\'lmadi');
-  }
-
-  if (!response.ok) {
-    let errorData: any;
-    try { errorData = await response.json(); } catch { /* ignore */ }
-
-    if (response.status === 401) {
-      removePickupToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/pickup/login';
-      }
-    }
-
-    throw new Error(errorData?.message || `HTTP ${response.status}`);
-  }
-
-  const text = await response.text();
-  if (!text) return {} as T;
-  const json = JSON.parse(text);
-  // Backend wraps responses in { success, data } format — unwrap it
-  if (json.data !== undefined) return json.data as T;
-  return json as T;
-}
+// Request function — base-client factory orqali
+const pickupRequest = createRequest({
+  tokenKey: 'pickup',
+  loginRedirect: '/pickup/login',
+  useRelativeUrl: true,
+});
 
 // ============================================
 // Auth

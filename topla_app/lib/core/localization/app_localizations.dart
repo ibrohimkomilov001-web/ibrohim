@@ -2043,6 +2043,7 @@ class AppLocalizations {
   String get recommended => translate('recommended');
 
   // Product
+  String get currency => translate('currency');
   String get addToCart => translate('add_to_cart');
   String get buyNow => translate('buy_now');
   String get description => translate('description');

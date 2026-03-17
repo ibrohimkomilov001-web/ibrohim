@@ -5,6 +5,7 @@ import {
   emitDeliveryOfferToCourier,
   emitToAdminDashboard,
 } from '../../websocket/socket.js';
+import { enqueueCourierAssignment } from '../../services/queue.service.js';
 
 // ============================================
 // Courier Service - Yandex Go style
@@ -146,26 +147,16 @@ export async function findAndAssignCourier(orderId: string, excludedCourierIds: 
     `Order ${order.orderNumber}: Kuryer ${nearest.profile.fullName}ga yuborildi (${nearest.distanceToShop.toFixed(1)} km)`,
   );
 
-  // 60 soniyadan keyin tekshirish — qabul qildilarmi?
-  setTimeout(async () => {
-    const updated = await prisma.deliveryAssignment.findUnique({
-      where: { id: assignment.id },
-    });
-
-    if (updated?.status === 'pending') {
-      // Muddat tugadi — "expired" qilish
-      await prisma.deliveryAssignment.update({
-        where: { id: assignment.id },
-        data: { status: 'expired' },
-      });
-
-      // Keyingi kuryerga yuborish
-      console.log(`Order ${order.orderNumber}: Kuryer javob bermadi, keyingisiga yuborish...`);
-      
-      // Recursive — keyingi kuryerga (bu kuryerni exclude qilish)
-      findAndAssignCourier(orderId, [...excludedCourierIds, nearest.id]);
-    }
-  }, 60 * 1000);
+  // 60 soniyadan keyin tekshirish — BullMQ job queue orqali (server restart da ham saqlanadi)
+  await enqueueCourierAssignment(
+    {
+      orderId,
+      attempt: excludedCourierIds.length + 1,
+      maxAttempts: MAX_COURIER_ATTEMPTS,
+      excludeCourierIds: [...excludedCourierIds, nearest.id],
+    },
+    60 * 1000, // 60 soniya kechikish
+  );
 }
 
 /**
@@ -235,6 +226,13 @@ export async function courierAcceptOrder(
     courierId,
     courierName: courier?.profile?.fullName,
   });
+
+  // Real-time: Admin dashboardga kuryer tayinlangani haqida
+  emitToAdminDashboard('order:courier-assigned', {
+    orderId,
+    courierId,
+    courierName: courier?.profile?.fullName,
+  });
 }
 
 /**
@@ -297,6 +295,9 @@ export async function courierPickedUp(
 
   // Real-time: Buyurtma kuzatuvchilariga
   emitOrderStatusUpdate(orderId, 'courier_picked_up');
+
+  // Real-time: Admin dashboardga
+  emitToAdminDashboard('order:picked-up', { orderId });
 }
 
 /**
@@ -332,6 +333,9 @@ export async function courierStartDelivery(
 
   // Real-time: Buyurtma kuzatuvchilariga
   emitOrderStatusUpdate(orderId, 'shipping');
+
+  // Real-time: Admin dashboardga
+  emitToAdminDashboard('order:shipping', { orderId, courierId });
 }
 
 /**
@@ -346,13 +350,25 @@ export async function courierDelivered(
   });
 
   await prisma.$transaction(async (tx) => {
+    // Avval buyurtmani olish — to'lov usulini tekshirish uchun
+    const existingOrder = await tx.order.findUniqueOrThrow({
+      where: { id: orderId, courierId },
+      select: { paymentMethod: true, paymentStatus: true },
+    });
+
+    // BL1 FIX: Naqd to'lovda 'paid' qilmaslik — vendor tasdiqlashi kerak
+    // Faqat allaqachon to'langan (karta/online) buyurtmalar 'paid' bo'ladi
+    const isCashPayment = existingOrder.paymentMethod === 'cash';
+    const newPaymentStatus = isCashPayment
+      ? existingOrder.paymentStatus // Naqd — payment statusni o'zgartirmaslik
+      : 'paid'; // Karta/online — allaqachon to'langan, 'paid' qilish
+
     const order = await tx.order.update({
       where: { id: orderId, courierId },
       data: {
         status: 'delivered',
         deliveredAt: new Date(),
-        // Faqat naqd emas bo'lsa 'paid' qilish; naqd to'lovda mijoz to'lagan bo'lsa vendor tasdiqlaydi
-        paymentStatus: 'paid',
+        paymentStatus: newPaymentStatus,
       },
       include: {
         items: {

@@ -17,7 +17,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       {showHeader && <Header />}
 
       {/* Main content */}
-      <main className="relative z-10 flex-1">
+      <main id="main-content" className="relative z-10 flex-1">
         {children}
       </main>
 

@@ -47,6 +47,8 @@ const courierLocationSchema = z.object({
   heading: z.number().min(0).max(360).optional(),
 });
 
+const uuidSchema = z.string().uuid();
+
 // ============================================
 // Active connections tracking
 // ============================================
@@ -80,7 +82,16 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
   // Authentication middleware
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    let token = socket.handshake.auth?.token || socket.handshake.query?.token;
+
+    // Fallback: httpOnly cookie dan token o'qish (web uchun)
+    if (!token) {
+      const cookieHeader = socket.handshake.headers.cookie;
+      if (cookieHeader) {
+        const match = cookieHeader.match(/topla_at=([^;]+)/);
+        if (match) token = match[1];
+      }
+    }
 
     if (!token) {
       return next(new Error('Token kerak'));
@@ -127,11 +138,13 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     // Mijoz buyurtmani kuzata boshlaydi (ownership check bilan)
     socket.on('track:order', async (orderId: string) => {
       try {
-      // Input validation
-      if (!orderId || typeof orderId !== 'string') {
-        socket.emit('error', { message: 'orderId kerak' });
+      // Input validation — UUID format tekshirish
+      const parsed = uuidSchema.safeParse(orderId);
+      if (!parsed.success) {
+        socket.emit('error', { message: 'Noto\'g\'ri orderId formati' });
         return;
       }
+      orderId = parsed.data;
 
       // Rate limit: 30 track requests per minute
       if (!wsRateLimit(socket.id, 'track:order', 30)) {
@@ -164,8 +177,10 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Mijoz kuzatishni to'xtatdi
     socket.on('track:stop', (orderId: string) => {
-      orderWatchers.get(orderId)?.delete(socket.id);
-      socket.leave(`order:${orderId}`);
+      const parsed = uuidSchema.safeParse(orderId);
+      if (!parsed.success) return;
+      orderWatchers.get(parsed.data)?.delete(socket.id);
+      socket.leave(`order:${parsed.data}`);
     });
 
     // ============================================
@@ -250,8 +265,9 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Chat roomdan chiqish
     socket.on('chat:leave', (roomId: string) => {
-      if (!roomId) return;
-      socket.leave(`chat:${roomId}`);
+      const parsed = uuidSchema.safeParse(roomId);
+      if (!parsed.success) return;
+      socket.leave(`chat:${parsed.data}`);
     });
 
     // Xabar yuborish (real-time)
@@ -331,20 +347,22 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     // Typing indicator
     socket.on('chat:typing', (roomId: string) => {
-      if (!roomId || typeof roomId !== 'string') return;
+      const parsed = uuidSchema.safeParse(roomId);
+      if (!parsed.success) return;
       if (!wsRateLimit(socket.id, 'chat:typing', 20)) return;
-      socket.to(`chat:${roomId}`).emit('chat:typing', {
+      socket.to(`chat:${parsed.data}`).emit('chat:typing', {
         userId: user.userId,
-        roomId,
+        roomId: parsed.data,
       });
     });
 
     // Stop typing indicator
     socket.on('chat:stop-typing', (roomId: string) => {
-      if (!roomId) return;
-      socket.to(`chat:${roomId}`).emit('chat:stop-typing', {
+      const parsed = uuidSchema.safeParse(roomId);
+      if (!parsed.success) return;
+      socket.to(`chat:${parsed.data}`).emit('chat:stop-typing', {
         userId: user.userId,
-        roomId,
+        roomId: parsed.data,
       });
     });
 

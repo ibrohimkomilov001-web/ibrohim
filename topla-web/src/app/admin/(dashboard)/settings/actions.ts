@@ -1,4 +1,5 @@
-import { fetchSettings, updateSettings as apiUpdateSettings, fetchUsers, updateUserRole, API_BASE } from "@/lib/api/admin";
+import { fetchSettings, updateSettings as apiUpdateSettings, fetchUsers, updateUserRole } from "@/lib/api/admin";
+import { createRequest } from "@/lib/api/base-client";
 
 export type PlatformSettings = {
   [key: string]: any;
@@ -23,30 +24,13 @@ export type Session = {
   isCurrent: boolean;
 };
 
-// Helper: auth requests (uses admin JWT but calls /auth/* endpoints)
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('admin_token');
-}
-
-async function authRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
-  };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-  if (!response.ok) {
-    let errorData: any;
-    try { errorData = await response.json(); } catch { /* ignore */ }
-    throw new Error(errorData?.message || `HTTP ${response.status}`);
-  }
-  const text = await response.text();
-  if (!text) return {} as T;
-  return JSON.parse(text);
-}
+// base-client factory orqali yaratilgan request (autoUnwrap: false — eski logika saqlanadi)
+const authRequest = createRequest({
+  tokenKey: 'admin',
+  loginRedirect: '/admin/login',
+  useRelativeUrl: true,
+  autoUnwrap: false,
+});
 
 // Session Management
 export async function getSessions(): Promise<Session[]> {

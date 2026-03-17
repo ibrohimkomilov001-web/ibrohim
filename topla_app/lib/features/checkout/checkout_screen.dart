@@ -18,11 +18,13 @@ import 'pickup_points_screen.dart';
 class CheckoutScreen extends StatefulWidget {
   final double promoDiscount;
   final String? promoCodeId;
+  final List<String>? selectedProductIds;
 
   const CheckoutScreen({
     super.key,
     this.promoDiscount = 0,
     this.promoCodeId,
+    this.selectedProductIds,
   });
 
   @override
@@ -2409,8 +2411,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     HapticUtils.mediumImpact();
 
     try {
-      // Buyurtma ma'lumotlarini yig'ish
-      final orderItems = cartProvider.items
+      // Buyurtma ma'lumotlarini yig'ish — faqat tanlangan mahsulotlar
+      final selectedIds = widget.selectedProductIds;
+      final filteredItems = selectedIds != null && selectedIds.isNotEmpty
+          ? cartProvider.items.where((item) => selectedIds.contains(item.productId)).toList()
+          : cartProvider.items;
+      final orderItems = filteredItems
           .map((item) => {
                 'product_id': item.productId,
                 'name':
@@ -2421,8 +2427,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               })
           .toList();
 
+      // Tanlangan mahsulotlar jami narxi
+      final selectedSubtotal = filteredItems.fold(0.0, (sum, item) => sum + item.total);
       final totalAmount =
-          cartProvider.subtotal + cartProvider.deliveryFee - _promoDiscount;
+          selectedSubtotal + cartProvider.deliveryFee - _promoDiscount;
 
       // Summa tiyin formatida (1 so'm = 100 tiyin)
       final amountInTiyin = (totalAmount * 100).round();

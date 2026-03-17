@@ -56,7 +56,7 @@ export function Header() {
                   className="flex-1 bg-transparent border-none outline-none ml-2 text-[16px] sm:text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
                 />
                 {searchQuery && (
-                  <button type="button" onClick={() => setSearchQuery('')} className="p-2">
+                  <button type="button" onClick={() => setSearchQuery('')} className="p-2" aria-label="Qidiruvni tozalash">
                     <X className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 )}
@@ -66,6 +66,7 @@ export function Header() {
             {/* Cart */}
             <Link
               href="/cart"
+              aria-label={`${t('cart')}${cartCount > 0 ? ` (${cartCount})` : ''}`}
               className="relative flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
             >
               <ShoppingBag className="w-[18px] h-[18px] text-gray-500" />
@@ -79,6 +80,7 @@ export function Header() {
             {/* Profile */}
             <Link
               href="/profile"
+              aria-label={t('profile')}
               className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
             >
               <User className="w-[18px] h-[18px] text-gray-500" />

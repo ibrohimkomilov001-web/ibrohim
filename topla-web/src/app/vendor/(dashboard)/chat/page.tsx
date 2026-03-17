@@ -10,10 +10,7 @@ import api from '@/lib/api/client';
 import { useChatSocket, type ChatMessage as SocketMessage } from '@/hooks/use-chat-socket';
 import { useTranslation } from '@/store/locale-store';
 
-function getVendorToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-}
+// Token httpOnly cookie da — socket ham cookie orqali auth qiladi
 
 interface ChatRoom {
   id: string;
@@ -163,7 +160,7 @@ function ChatPanel({
     <div className="flex flex-col h-full">
       {/* Chat header */}
       <div className="border-b px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onBack} className="lg:hidden">
+        <button onClick={onBack} className="sm:hidden">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
@@ -234,7 +231,6 @@ function ChatPanel({
 export default function VendorChatPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [token] = useState(() => getVendorToken());
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
@@ -260,7 +256,6 @@ export default function VendorChatPage() {
   }, [queryClient]);
 
   const { connected, joinRoom, leaveRoom, sendMessage, startTyping, stopTyping, isRoomTyping } = useChatSocket({
-    token,
     onNewMessage: handleNewMessage,
   });
 
@@ -353,11 +348,11 @@ export default function VendorChatPage() {
   const currentRoom = rooms.find((r) => r.id === selectedRoom);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex rounded-xl border bg-card overflow-hidden">
+    <div className="h-[calc(100dvh-8rem)] flex rounded-xl border bg-card overflow-hidden">
       {/* Left panel — Room list */}
       <div className={cn(
-        "w-full lg:w-80 lg:border-r flex flex-col flex-shrink-0",
-        selectedRoom ? "hidden lg:flex" : "flex"
+        "w-full sm:w-80 sm:border-r flex flex-col flex-shrink-0",
+        selectedRoom ? "hidden sm:flex" : "flex"
       )}>
         <div className="px-5 py-4 border-b flex-shrink-0">
           <h1 className="text-lg font-bold flex items-center gap-2">
@@ -384,7 +379,7 @@ export default function VendorChatPage() {
       {/* Right panel — Chat */}
       <div className={cn(
         "flex-1 flex flex-col min-w-0",
-        !selectedRoom ? "hidden lg:flex" : "flex"
+        !selectedRoom ? "hidden sm:flex" : "flex"
       )}>
         <ChatPanel
           room={currentRoom}

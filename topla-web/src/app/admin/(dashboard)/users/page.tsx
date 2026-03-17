@@ -117,10 +117,10 @@ export default function AdminUsersPage() {
             </div>
             <Tabs value={activeTab} onValueChange={(v) => setFilters({ tab: v })}>
               <TabsList className="flex-wrap h-auto">
-                <TabsTrigger value="all">{t('all')}</TabsTrigger>
-                <TabsTrigger value="user">{t('users')}</TabsTrigger>
-                <TabsTrigger value="vendor">Vendorlar</TabsTrigger>
-                <TabsTrigger value="admin">{t('roles')}</TabsTrigger>
+                <TabsTrigger value="all" className="text-xs sm:text-sm">{t('all')}</TabsTrigger>
+                <TabsTrigger value="user" className="text-xs sm:text-sm">{t('users')}</TabsTrigger>
+                <TabsTrigger value="vendor" className="text-xs sm:text-sm">Vendorlar</TabsTrigger>
+                <TabsTrigger value="admin" className="text-xs sm:text-sm">{t('roles')}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

@@ -17,10 +17,7 @@ import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-t
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/store/locale-store'
 
-function getAdminToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('admin_token')
-}
+// Token httpOnly cookie da — socket ham cookie orqali auth qiladi
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
@@ -50,7 +47,6 @@ function formatDateDivider(dateStr: string): string {
 }
 
 export default function AdminChatPage() {
-  const [token] = useState(() => getAdminToken())
   const { t } = useTranslation()
 
   const queryClient = useQueryClient()
@@ -134,7 +130,6 @@ export default function AdminChatPage() {
   }, [activeRoomId, queryClient])
 
   const { connected, joinRoom, leaveRoom, isRoomTyping } = useChatSocket({
-    token,
     onNewMessage: handleNewMessage,
   })
 

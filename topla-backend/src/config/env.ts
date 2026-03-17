@@ -52,7 +52,13 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
 
+  COOKIE_SECRET: z.string().default('topla-dev-cookie-secret-change-in-prod'),
+
   LOG_LEVEL: z.string().default('info'),
+
+  // Error tracking (Sentry)
+  SENTRY_DSN: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  SENTRY_ENVIRONMENT: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
 });
 
 export const env = envSchema.parse(process.env);

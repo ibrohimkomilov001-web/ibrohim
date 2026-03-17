@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware } from '../../middleware/auth.js';
+import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import crypto from 'crypto';
 
 /**
@@ -153,12 +154,7 @@ export async function luckyWheelRoutes(app: FastifyInstance): Promise<void> {
   // ==========================================
   app.get('/lucky-wheel/history', { preHandler: authMiddleware }, async (request, reply) => {
     const userId = request.user!.userId;
-    const querySchema = z.object({
-      page: z.coerce.number().int().min(1).default(1),
-      limit: z.coerce.number().int().min(1).max(50).default(20),
-    });
-    const { page, limit } = querySchema.parse(request.query);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(request.query as { page?: string; limit?: string });
 
     const [spins, total] = await Promise.all([
       prisma.luckyWheelSpin.findMany({
@@ -186,12 +182,7 @@ export async function luckyWheelRoutes(app: FastifyInstance): Promise<void> {
       success: true,
       data: {
         spins,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        pagination: paginationMeta(page, limit, total),
       },
     });
   });

@@ -80,6 +80,12 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
+
+  // Auto-detect system theme on vendor pages
+  useEffect(() => {
+    setTheme('system');
+    return () => { setTheme('light'); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -188,6 +194,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
             size="icon"
             className="lg:hidden h-8 w-8"
             onClick={() => setMobileOpen(false)}
+            aria-label="Menyuni yopish"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -245,6 +252,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               size="icon"
               className="lg:hidden"
               onClick={() => setMobileOpen(true)}
+              aria-label="Menyuni ochish"
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -260,6 +268,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               size="icon"
               className="rounded-full"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={theme === 'dark' ? 'Yorug\' rejimga o\'tish' : 'Qorong\'u rejimga o\'tish'}
             >
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -271,7 +280,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Profil menyusi">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={resolveImageUrl(shop?.logoUrl || "")} />
                     <AvatarFallback className="bg-primary/10 text-primary">

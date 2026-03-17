@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
@@ -9,9 +10,11 @@ import { env } from './config/env.js';
 import { connectDatabase, disconnectDatabase, prisma } from './config/database.js';
 import { initFirebase } from './config/firebase.js';
 import { initStorage } from './config/storage.js';
+import { initSentry, flushSentry } from './config/sentry.js';
 import { initWebSocket } from './websocket/socket.js';
 import { errorHandler } from './middleware/error.js';
 import { registerRequestLogging } from './middleware/logging.js';
+import { ensureCsrfCookie, validateCsrf } from './middleware/csrf.js';
 
 // Route modules
 import { authRoutes } from './modules/auth/auth.routes.js';
@@ -77,6 +80,20 @@ await app.register(cors, {
   credentials: true,
 });
 
+await app.register(cookie, {
+  secret: env.COOKIE_SECRET,
+});
+
+// CSRF himoyasi — httpOnly cookie auth uchun majburiy
+// Har bir so'rovda CSRF cookie ni o'rnatish (non-httpOnly, JS o'qiy oladi)
+app.addHook('onRequest', async (request, reply) => {
+  ensureCsrfCookie(request, reply);
+});
+// State-changing so'rovlar uchun CSRF tokenni tekshirish
+app.addHook('onRequest', async (request, reply) => {
+  await validateCsrf(request, reply);
+});
+
 await app.register(helmet, {
   contentSecurityPolicy: false,
 });
@@ -120,11 +137,28 @@ await app.register(rateLimit, {
   keyGenerator: (req) => req.ip,
 });
 
-// Static files (uploaded images)
+// Static files (uploaded images) — xavfsizlik headerlari bilan
 await app.register(fastifyStatic, {
   root: path.join(process.cwd(), 'uploads'),
   prefix: '/uploads/',
   decorateReply: false,
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'");
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  },
+});
+
+// /uploads/documents/ — autentifikatsiya talab qiladi (shaxsiy hujjatlar)
+app.addHook('onRequest', async (request, reply) => {
+  if (request.url.startsWith('/uploads/documents/')) {
+    const authHeader = request.headers.authorization;
+    const cookieToken = (request.cookies as Record<string, string>)?.topla_at;
+    if (!authHeader && !cookieToken) {
+      return reply.status(401).send({ error: 'Autentifikatsiya zarur' });
+    }
+  }
 });
 
 // ============================================
@@ -165,6 +199,14 @@ app.get('/health', async (_request, reply) => {
     }
   } catch {
     checks.redis = 'error';
+  }
+
+  // Meilisearch check
+  try {
+    const meiliRes = await fetch(`${env.MEILISEARCH_URL}/health`);
+    checks.meilisearch = meiliRes.ok ? 'ok' : 'error';
+  } catch {
+    checks.meilisearch = 'unavailable';
   }
 
   const allOk = checks.database === 'ok';
@@ -216,6 +258,9 @@ await app.register(
 
 async function start(): Promise<void> {
   try {
+    // 0. Sentry error tracking (SENTRY_DSN mavjud bo'lsa)
+    initSentry();
+
     // 1. Database
     await connectDatabase();
 
@@ -274,6 +319,7 @@ async function start(): Promise<void> {
 
 async function shutdown(signal: string): Promise<void> {
   console.log(`\n${signal} received. Shutting down gracefully...`);
+  await flushSentry();
   await app.close();
   await closeQueues();
   await disconnectDatabase();

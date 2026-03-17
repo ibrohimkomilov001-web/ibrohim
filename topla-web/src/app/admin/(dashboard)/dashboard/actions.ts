@@ -30,6 +30,7 @@ export async function getAllDashboardData(): Promise<{
   stats: DashboardStats;
   recentOrders: RecentOrder[];
   pendingShops: PendingShop[];
+  error?: string;
 }> {
   try {
     const data = await fetchDashboardStats();
@@ -59,11 +60,13 @@ export async function getAllDashboardData(): Promise<{
         date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('uz-UZ') : undefined,
       })),
     };
-  } catch {
+  } catch (err) {
+    console.error('[Dashboard] Ma\'lumotlarni yuklashda xato:', err);
     return {
       stats: { revenue: 0, todayOrders: 0, pendingShops: 0, pendingProducts: 0 },
       recentOrders: [],
       pendingShops: [],
+      error: 'Backend bilan aloqa yo\'q. Sahifani yangilang.',
     };
   }
 }
@@ -79,7 +82,7 @@ export type DashboardChartData = {
   topCategories: CategoryStat[];
 };
 
-export async function getDashboardChartData(): Promise<DashboardChartData> {
+export async function getDashboardChartData(): Promise<DashboardChartData & { error?: string }> {
   try {
     const [revenueData, ordersData, categoriesData] = await Promise.all([
       fetchAnalyticsRevenue('7d').catch(() => null),
@@ -103,7 +106,8 @@ export async function getDashboardChartData(): Promise<DashboardChartData> {
         revenue: Number(d.revenue || 0),
       })),
     };
-  } catch {
-    return { revenueTrend: [], statusBreakdown: [], topCategories: [] };
+  } catch (err) {
+    console.error('[Dashboard] Grafik ma\'lumotlarni yuklashda xato:', err);
+    return { revenueTrend: [], statusBreakdown: [], topCategories: [], error: 'Grafik ma\'lumotlar yuklanmadi' };
   }
 }

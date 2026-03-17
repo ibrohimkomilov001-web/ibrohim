@@ -339,7 +339,7 @@ class _ProductCardState extends State<ProductCard>
                               children: [
                                 // Current price
                                 Text(
-                                  '${_formatPrice(widget.price)} ${AppStrings.currency}',
+                                  '${_formatPrice(widget.price)} ${context.l10n.currency}',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
@@ -351,7 +351,7 @@ class _ProductCardState extends State<ProductCard>
                                 // Old price
                                 if (widget.oldPrice != null)
                                   Text(
-                                    '${_formatPrice(widget.oldPrice!)} ${AppStrings.currency}',
+                                    '${_formatPrice(widget.oldPrice!)} ${context.l10n.currency}',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey.shade400,

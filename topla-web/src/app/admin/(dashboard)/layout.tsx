@@ -132,7 +132,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setForceUpdate((n) => n + 1);
       })
       .catch(() => {
-        setPermissionsLoaded(true);
+        // Backend bilan aloqa yo'q yoki token yaroqsiz — login ga qaytarish
+        removeAdminToken();
+        router.replace('/admin/login');
       });
   }, [router]);
 

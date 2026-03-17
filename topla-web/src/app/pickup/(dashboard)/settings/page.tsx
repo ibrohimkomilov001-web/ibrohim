@@ -81,7 +81,7 @@ export default function PickupSettingsPage() {
             )}
 
             {success && (
-              <Alert className="border-green-500 bg-green-50 text-green-800">
+              <Alert className="border-green-500 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-200">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 <AlertDescription>PIN kod muvaffaqiyatli o&apos;zgartirildi!</AlertDescription>
               </Alert>

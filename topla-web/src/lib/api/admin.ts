@@ -1,80 +1,31 @@
 // ============================================
-// Admin Panel API Client
-// Connects to topla-backend admin endpoints
+// Admin Panel API Client — base-client factory orqali
 // ============================================
 
-function getApiBase(): string {
-  // Brauzerda bo'lsa — relative URL ishlatamiz (cross-origin muammosi yo'q)
-  if (typeof window !== 'undefined') {
-    return '/api/v1';
-  }
-  // SSR da — to'liq URL kerak
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-}
+import { createRequest, createTokenHelpers } from './base-client';
 
-export const API_BASE = getApiBase();
+// Admin da relative URL ishlatamiz (cross-origin muammosi yo'q)
+// autoUnwrap: false — admin funksiyalar o'zi res.data qiladi
+const tokenHelpers = createTokenHelpers('admin');
 
-function getAdminToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('admin_token');
-}
+const adminRequest = createRequest({
+  tokenKey: 'admin',
+  loginRedirect: '/admin/login',
+  useRelativeUrl: true,
+  autoUnwrap: false,
+});
 
-export function setAdminToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('admin_token', token);
+export function setAdminToken(_token: string): void {
+  tokenHelpers.setToken(_token);
 }
 
 export function removeAdminToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('admin_token');
+  tokenHelpers.removeToken();
   clearAdminPermissions();
 }
 
 export function isAdminAuthenticated(): boolean {
-  return !!getAdminToken();
-}
-
-async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAdminToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  if (options.body instanceof FormData) {
-    delete headers['Content-Type'];
-  }
-
-  const url = `${API_BASE}${endpoint}`;
-
-  let response: Response;
-  try {
-    response = await fetch(url, { ...options, headers });
-  } catch {
-    throw new Error('Serverga ulanib bo\'lmadi');
-  }
-
-  if (!response.ok) {
-    let errorData: any;
-    try { errorData = await response.json(); } catch { /* ignore */ }
-
-    if (response.status === 401) {
-      removeAdminToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/admin/login';
-      }
-    }
-
-    throw new Error(errorData?.message || `HTTP ${response.status}`);
-  }
-
-  const text = await response.text();
-  if (!text) return {} as T;
-  return JSON.parse(text);
+  return tokenHelpers.isAuthenticated();
 }
 
 // ============================================
@@ -82,29 +33,19 @@ async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Pro
 // ============================================
 export async function adminLogin(email: string, password: string) {
   try {
-    const url = `${API_BASE}/auth/admin/login`;
-    const response = await fetch(url, {
+    // Login so'rovi — adminRequest auto-unwrap qiladi
+    const data = await adminRequest<{ token?: string; adminRole?: AdminPermissions }>('/auth/admin/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData?.message || `HTTP ${response.status}`);
+    if (data?.token) {
+      setAdminToken(data.token);
     }
-
-    const res = await response.json();
-    if (res.data?.token) {
-      setAdminToken(res.data.token);
+    if (data?.adminRole) {
+      setAdminPermissions(data.adminRole);
     }
-    // Store RBAC permissions from login response
-    if (res.data?.adminRole) {
-      setAdminPermissions(res.data.adminRole);
-    }
-    return res.data;
+    return data;
   } catch (err: any) {
-    // Backend ishlamayotgan bo'lsa — xato qaytarish
     throw new Error(err.message || 'Serverga ulanib bo\'lmadi. Qayta urinib ko\'ring.');
   }
 }

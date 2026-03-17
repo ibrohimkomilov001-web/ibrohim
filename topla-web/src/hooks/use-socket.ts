@@ -5,15 +5,15 @@ import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
 
 interface UseSocketOptions {
-  /** JWT token for authentication */
-  token: string | null;
+  /** JWT token for authentication (optional — httpOnly cookies used by default) */
+  token?: string | null;
   /** Auto-connect on mount (default: true) */
   autoConnect?: boolean;
 }
 
 /**
  * Hook to manage Socket.IO connection lifecycle.
- * Connects on mount (when token is available), disconnects on unmount.
+ * Connects on mount (auth via httpOnly cookies), disconnects on unmount.
  */
 export function useSocket(options: UseSocketOptions) {
   const { token, autoConnect = true } = options;
@@ -21,7 +21,7 @@ export function useSocket(options: UseSocketOptions) {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    if (!autoConnect || !token) return;
+    if (!autoConnect) return;
 
     const socket = connectSocket(token);
     socketRef.current = socket;

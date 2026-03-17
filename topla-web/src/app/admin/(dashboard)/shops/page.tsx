@@ -220,9 +220,9 @@ export default function AdminShopsPage() {
                           {statusConfig[shop.status]?.label || shop.status}
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-muted/50 rounded-lg p-2">
-                          <div className="font-semibold text-sm">{formatPrice(shop.balance)}</div>
+                      <div className="grid grid-cols-3 gap-1.5 text-center">
+                        <div className="bg-muted/50 rounded-lg p-2 min-w-0">
+                          <div className="font-semibold text-xs sm:text-sm truncate">{formatPrice(shop.balance)}</div>
                           <div className="text-xs text-muted-foreground">{t('balance')}</div>
                         </div>
                         <div className="bg-muted/50 rounded-lg p-2">

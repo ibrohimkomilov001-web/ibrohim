@@ -89,7 +89,7 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
   app.put('/cart/:productId', { preHandler: authMiddleware }, async (request, reply) => {
     const { productId } = productIdParamSchema.parse(request.params);
     const bodySchema = z.object({
-      quantity: z.coerce.number().int().min(0, 'Miqdor 0 dan kam bo\'lmasligi kerak'),
+      quantity: z.coerce.number().int().min(0, 'Miqdor 0 dan kam bo\'lmasligi kerak').max(999, 'Miqdor 999 dan oshmasligi kerak'),
     });
     const { quantity } = bodySchema.parse(request.body);
 
@@ -101,7 +101,10 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (product && product.stock < quantity) {
+    if (!product || !product.isActive) {
+      throw new NotFoundError('Mahsulot');
+    }
+    if (product.stock < quantity) {
       throw new AppError(`Faqat ${product.stock} dona mavjud`, 400);
     }
 

@@ -12,6 +12,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, requireRole, requirePermission } from '../../middleware/auth.js';
 import { generateToken, generateRefreshToken } from '../../utils/jwt.js';
+import { setAuthCookies } from '../../utils/cookie.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { checkRateLimit, cacheDelete } from '../../config/redis.js';
@@ -103,6 +104,9 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const token = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
+
+    // httpOnly cookie o'rnatish
+    setAuthCookies(reply, token, refreshToken);
 
     // Log activity
     await prisma.activityLog.create({
@@ -3628,7 +3632,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const body = z.object({
       name: z.string().min(2),
       description: z.string().optional(),
-      testType: z.string(),
+      testType: z.enum(['price', 'image', 'title', 'layout']),
       variants: z.any(),
       targetPercent: z.number().min(1).max(100).default(50),
       startDate: z.string().datetime().optional(),
@@ -3885,7 +3889,7 @@ export async function adminRoutes(app: FastifyInstance) {
       question: z.string().min(5),
       answer: z.string().min(5),
       keywords: z.array(z.string()).default([]),
-      category: z.string().optional(),
+      category: z.enum(['shipping', 'payment', 'returns', 'general']).optional(),
       sortOrder: z.number().int().default(0),
     }).parse(request.body);
 
@@ -3901,7 +3905,7 @@ export async function adminRoutes(app: FastifyInstance) {
       question: z.string().min(5).optional(),
       answer: z.string().min(5).optional(),
       keywords: z.array(z.string()).optional(),
-      category: z.string().optional(),
+      category: z.enum(['shipping', 'payment', 'returns', 'general']).optional(),
       sortOrder: z.number().int().optional(),
       isActive: z.boolean().optional(),
     }).parse(request.body);

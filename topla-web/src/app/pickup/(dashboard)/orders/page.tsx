@@ -193,7 +193,7 @@ export default function PickupOrdersPage() {
                 className={`px-3 py-2 text-sm font-medium transition-colors ${
                   statusFilter === btn.value
                     ? "bg-orange-500 text-white"
-                    : "bg-white hover:bg-muted text-foreground"
+                    : "bg-card hover:bg-muted text-foreground"
                 }`}
               >
                 {btn.label}
@@ -204,7 +204,7 @@ export default function PickupOrdersPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+        <div className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">{error}</div>
       )}
 
       {isLoading && orders.length === 0 ? (
@@ -221,13 +221,13 @@ export default function PickupOrdersPage() {
                 Kutmoqda ({waitingOrders.length})
               </h2>
               {waitingOrders.map((order) => (
-                <Card key={order.id} className="border-orange-200 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedOrder(order)}>
+                <Card key={order.id} className="border-orange-200 dark:border-orange-800 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedOrder(order)}>
                   <CardContent className="py-4">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold">#{order.orderNumber}</span>
-                          <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50">Kutmoqda</Badge>
+                          <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700">Kutmoqda</Badge>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -277,13 +277,13 @@ export default function PickupOrdersPage() {
                 Topshirilgan ({deliveredOrders.length})
               </h2>
               {deliveredOrders.map((order) => (
-                <Card key={order.id} className="border-green-100 bg-green-50/30 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedOrder(order)}>
+                <Card key={order.id} className="border-green-100 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedOrder(order)}>
                   <CardContent className="py-4">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold">#{order.orderNumber}</span>
-                          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">Topshirildi</Badge>
+                          <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700">Topshirildi</Badge>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -323,11 +323,11 @@ export default function PickupOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedOrder(null)}>
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <div className="bg-card rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-card border-b px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
               <div>
                 <h3 className="font-bold text-lg">Buyurtma #{selectedOrder.orderNumber}</h3>
-                <Badge variant="outline" className={selectedOrder.status === "at_pickup_point" ? "text-orange-600 border-orange-300 bg-orange-50" : "text-green-600 border-green-300 bg-green-50"}>
+                <Badge variant="outline" className={selectedOrder.status === "at_pickup_point" ? "text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700" : "text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700"}>
                   {selectedOrder.status === "at_pickup_point" ? "Kutmoqda" : "Topshirildi"}
                 </Badge>
               </div>
@@ -339,13 +339,13 @@ export default function PickupOrdersPage() {
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Mijoz</h4>
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                     <User className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
                     <p className="font-medium">{selectedOrder.user?.fullName || "Noma'lum"}</p>
                     {selectedOrder.user?.phone && (
-                      <a href={`tel:${selectedOrder.user.phone}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                      <a href={`tel:${selectedOrder.user.phone}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
                         <Phone className="h-3.5 w-3.5" />{selectedOrder.user.phone}
                       </a>
                     )}
@@ -354,9 +354,9 @@ export default function PickupOrdersPage() {
               </div>
 
               {/* Pickup Code */}
-              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+              <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-700 rounded-xl p-4 text-center">
                 <p className="text-xs text-orange-600 mb-1">Topshirish kodi</p>
-                <p className="font-mono text-3xl font-bold tracking-widest text-orange-700">{selectedOrder.pickupCode}</p>
+                <p className="font-mono text-3xl font-bold tracking-widest text-orange-700 dark:text-orange-300">{selectedOrder.pickupCode}</p>
               </div>
 
               {/* Items */}
@@ -388,7 +388,7 @@ export default function PickupOrdersPage() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex gap-3 rounded-b-2xl">
+            <div className="sticky bottom-0 bg-card border-t px-6 py-4 flex gap-3 rounded-b-2xl">
               {selectedOrder.status === "at_pickup_point" && (
                 <Button onClick={() => handleVerify(selectedOrder)} disabled={verifyingId === selectedOrder.id} className="flex-1 bg-green-600 hover:bg-green-700">
                   {verifyingId === selectedOrder.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}

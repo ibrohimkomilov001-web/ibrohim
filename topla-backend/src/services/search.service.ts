@@ -3,10 +3,12 @@
 // Product search with fuzzy matching
 // ============================================
 
-const MEILI_URL = process.env.MEILISEARCH_URL || 'http://localhost:7700';
+import { env } from '../config/env.js';
+
+const MEILI_URL = env.MEILISEARCH_URL;
 const MEILI_KEY = (() => {
-  const key = process.env.MEILISEARCH_API_KEY || '';
-  if (!key && process.env.NODE_ENV === 'production') {
+  const key = env.MEILISEARCH_API_KEY;
+  if (!key && env.NODE_ENV === 'production') {
     console.error('❌ MEILISEARCH_API_KEY production muhitda majburiy! Xavfsizlik xavfi.');
   }
   return key;
@@ -37,6 +39,7 @@ interface MeiliProduct {
   qualityScore: number;
   stock: number;
   discountPercent: number;
+  isFlashSale: boolean;
   status: string;
   createdAt: string;
 }
@@ -99,10 +102,12 @@ export async function initMeilisearch(): Promise<void> {
         'shopId',
         'status',
         'price',
+        'originalPrice',
         'rating',
         'qualityScore',
         'stock',
         'discountPercent',
+        'isFlashSale',
       ],
       sortableAttributes: [
         'price',
@@ -243,6 +248,7 @@ export function buildMeiliDocument(product: any): MeiliProduct {
     qualityScore: product.qualityScore || 0,
     stock: product.stock || 0,
     discountPercent: product.discountPercent || 0,
+    isFlashSale: product.isFlashSale || false,
     status: product.status || 'active',
     createdAt: product.createdAt?.toISOString?.() || new Date().toISOString(),
   };

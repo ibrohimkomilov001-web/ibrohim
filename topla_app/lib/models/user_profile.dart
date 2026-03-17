@@ -48,7 +48,7 @@ class UserProfile {
     if ((firstName == null || firstName.isEmpty) &&
         fullName != null &&
         fullName.isNotEmpty) {
-      final parts = fullName.trim().split(RegExp(r'\\s+'));
+      final parts = fullName.trim().split(RegExp(r'\s+'));
       firstName = parts.first;
       if (parts.length > 1) {
         lastName = parts.sublist(1).join(' ');

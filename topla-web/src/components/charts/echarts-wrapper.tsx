@@ -5,14 +5,19 @@ import { useTheme } from "next-themes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOPLA_THEME_LIGHT, TOPLA_THEME_DARK } from "./chart-theme";
 
-// Dynamic import to avoid SSR issues with echarts
-let echarts: typeof import("echarts") | null = null;
+// Lazy import — echarts ~1MB, faqat kerak bo'lganda yuklanadi
+let echartsModule: typeof import("echarts") | null = null;
+let echartsPromise: Promise<typeof import("echarts")> | null = null;
 
-function getEcharts() {
-  if (!echarts) {
-    echarts = require("echarts");
+function loadEcharts(): Promise<typeof import("echarts")> {
+  if (echartsModule) return Promise.resolve(echartsModule);
+  if (!echartsPromise) {
+    echartsPromise = import("echarts").then((mod) => {
+      echartsModule = mod;
+      return mod;
+    });
   }
-  return echarts!;
+  return echartsPromise;
 }
 
 export interface EChartsWrapperProps {
@@ -38,11 +43,13 @@ function EChartsWrapperInner({
   const chartRef = useRef<ReturnType<typeof import("echarts")["init"]> | null>(null);
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [echartsReady, setEchartsReady] = useState(!!echartsModule);
   const isDark = resolvedTheme === "dark";
 
-  // Mount guard for SSR
+  // Mount + echarts lazy yuklash
   useEffect(() => {
     setMounted(true);
+    loadEcharts().then(() => setEchartsReady(true));
     return () => {
       if (chartRef.current) {
         chartRef.current.dispose();
@@ -51,11 +58,11 @@ function EChartsWrapperInner({
     };
   }, []);
 
-  // Initialize chart
+  // Chartni yaratish — faqat echarts yuklangandan keyin
   useEffect(() => {
-    if (!mounted || !containerRef.current) return;
+    if (!mounted || !echartsReady || !containerRef.current || !echartsModule) return;
 
-    const ec = getEcharts();
+    const ec = echartsModule;
     const theme = isDark ? TOPLA_THEME_DARK : TOPLA_THEME_LIGHT;
 
     // Register custom themes
@@ -96,7 +103,7 @@ function EChartsWrapperInner({
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, isDark]);
+  }, [mounted, echartsReady, isDark]);
 
   // Update option when it changes (not on init)
   useEffect(() => {
@@ -116,7 +123,7 @@ function EChartsWrapperInner({
     return () => ro.disconnect();
   }, [mounted]);
 
-  if (!mounted || loading) {
+  if (!mounted || !echartsReady || loading) {
     return (
       <Skeleton
         className={className}

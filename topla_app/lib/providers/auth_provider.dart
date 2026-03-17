@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
 import '../models/models.dart';
@@ -46,6 +47,14 @@ class AuthProvider extends ChangeNotifier {
       if (_profile == null && currentUserId != null) {
         debugPrint('Profil topilmadi, qayta yuklash...');
         _profile = await _authRepo.getProfile();
+      }
+
+      // Crashlytics'da user identifikatsiya qilish
+      if (_profile != null && !kIsWeb && !kDebugMode) {
+        FirebaseCrashlytics.instance
+            .setUserIdentifier(currentUserId ?? 'unknown');
+        FirebaseCrashlytics.instance
+            .setCustomKey('user_role', _profile!.role.name);
       }
     } catch (e) {
       _error = e.toString();
@@ -118,6 +127,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _authRepo.signOut();
       _profile = null;
+
+      // Crashlytics user identifikatsiyani tozalash
+      if (!kIsWeb && !kDebugMode) {
+        FirebaseCrashlytics.instance.setUserIdentifier('');
+      }
     } catch (e) {
       _error = e.toString();
       rethrow;

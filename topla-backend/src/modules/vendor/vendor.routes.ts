@@ -5,6 +5,7 @@ import { authMiddleware, requireRole, requireActiveShop } from '../../middleware
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { getVendorShop } from '../../utils/shop.js';
+import { cacheGet, cacheSet } from '../../config/redis.js';
 
 // ============================================
 // Validation Schemas
@@ -192,6 +193,13 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vendor/stats', { preHandler: vendorAuth }, async (request, reply) => {
     const shop = await getVendorShop(request.user!.userId);
 
+    // Redis cache — 60 soniya (stats tez-tez o'zgarmaydi)
+    const cacheKey = `vendor_stats:${shop.id}`;
+    const cached = await cacheGet<any>(cacheKey);
+    if (cached) {
+      return reply.send({ success: true, data: cached });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -199,76 +207,110 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const shopFilter = { items: { some: { shopId: shop.id } } };
+    // 12 ta so'rov o'rniga 4 ta — optimallashtirilgan
+    const [orderStats, productStats, revenueStats] = await Promise.all([
+      // 1. Buyurtma statistikasi — bitta groupBy bilan 6 ta count o'rniga
+      prisma.$queryRaw<Array<{
+        status: string;
+        total: bigint;
+        today_count: bigint;
+        month_count: bigint;
+      }>>`
+        SELECT 
+          o.status,
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE o.created_at >= ${today}) as today_count,
+          COUNT(*) FILTER (WHERE o.created_at >= ${monthStart}) as month_count
+        FROM orders o
+        JOIN order_items oi ON oi.order_id = o.id
+        WHERE oi.shop_id = ${shop.id}::uuid
+        GROUP BY o.status
+      `,
 
-    const [
-      totalOrders,
-      todayOrders,
-      monthOrders,
-      pendingOrders,
-      deliveredOrders,
-      cancelledOrders,
-      productsCount,
-      activeProducts,
-      totalRevenue,
-      monthRevenue,
-      todayRevenue,
-      totalCommission,
-    ] = await Promise.all([
-      prisma.order.count({ where: shopFilter }),
-      prisma.order.count({ where: { ...shopFilter, createdAt: { gte: today } } }),
-      prisma.order.count({ where: { ...shopFilter, createdAt: { gte: monthStart } } }),
-      prisma.order.count({ where: { ...shopFilter, status: 'pending' } }),
-      prisma.order.count({ where: { ...shopFilter, status: 'delivered' } }),
-      prisma.order.count({ where: { ...shopFilter, status: 'cancelled' } }),
-      prisma.product.count({ where: { shopId: shop.id } }),
-      prisma.product.count({ where: { shopId: shop.id, isActive: true } }),
-      prisma.vendorTransaction.aggregate({
-        where: { shopId: shop.id, type: 'sale' },
-        _sum: { netAmount: true },
+      // 2. Mahsulot statistikasi — bitta so'rov bilan 2 ta count o'rniga
+      prisma.product.groupBy({
+        by: ['isActive'],
+        where: { shopId: shop.id },
+        _count: true,
       }),
-      prisma.vendorTransaction.aggregate({
-        where: { shopId: shop.id, type: 'sale', createdAt: { gte: monthStart } },
-        _sum: { netAmount: true },
-      }),
-      prisma.vendorTransaction.aggregate({
-        where: { shopId: shop.id, type: 'sale', createdAt: { gte: today } },
-        _sum: { netAmount: true },
-      }),
-      prisma.vendorTransaction.aggregate({
-        where: { shopId: shop.id, type: 'sale' },
-        _sum: { commission: true },
-      }),
+
+      // 3. Daromad statistikasi — bitta so'rov bilan 4 ta aggregate o'rniga
+      prisma.$queryRaw<Array<{
+        total_revenue: string | null;
+        month_revenue: string | null;
+        today_revenue: string | null;
+        total_commission: string | null;
+      }>>`
+        SELECT 
+          SUM(net_amount) as total_revenue,
+          SUM(net_amount) FILTER (WHERE created_at >= ${monthStart}) as month_revenue,
+          SUM(net_amount) FILTER (WHERE created_at >= ${today}) as today_revenue,
+          SUM(commission) as total_commission
+        FROM vendor_transactions
+        WHERE shop_id = ${shop.id}::uuid AND type = 'sale'
+      `,
     ]);
 
-    return reply.send({
-      success: true,
-      data: {
-        balance: Number(shop.balance),
-        rating: shop.rating,
-        reviewCount: shop.reviewCount,
-        commissionRate: Number(shop.commissionRate),
-        orders: {
-          total: totalOrders,
-          today: todayOrders,
-          month: monthOrders,
-          pending: pendingOrders,
-          delivered: deliveredOrders,
-          cancelled: cancelledOrders,
-        },
-        products: {
-          total: productsCount,
-          active: activeProducts,
-          inactive: productsCount - activeProducts,
-        },
-        revenue: {
-          total: Number(totalRevenue._sum.netAmount || 0),
-          month: Number(monthRevenue._sum.netAmount || 0),
-          today: Number(todayRevenue._sum.netAmount || 0),
-        },
-        totalCommission: Number(totalCommission._sum.commission || 0),
+    // Buyurtma natijalarini o'qish
+    let totalOrders = 0, todayOrders = 0, monthOrders = 0;
+    let pendingOrders = 0, deliveredOrders = 0, cancelledOrders = 0;
+    for (const row of orderStats) {
+      const total = Number(row.total);
+      const todayCount = Number(row.today_count);
+      const monthCount = Number(row.month_count);
+      totalOrders += total;
+      todayOrders += todayCount;
+      monthOrders += monthCount;
+      if (row.status === 'pending') pendingOrders = total;
+      if (row.status === 'delivered') deliveredOrders = total;
+      if (row.status === 'cancelled') cancelledOrders = total;
+    }
+
+    // Mahsulot natijalarini o'qish
+    let productsTotal = 0, activeProducts = 0;
+    for (const row of productStats) {
+      const count = (row as any)._count;
+      productsTotal += count;
+      if (row.isActive) activeProducts = count;
+    }
+
+    // Daromad natijalarini o'qish
+    const rev = revenueStats[0];
+    const totalRevenue = Number(rev?.total_revenue || 0);
+    const monthRevenue = Number(rev?.month_revenue || 0);
+    const todayRevenue = Number(rev?.today_revenue || 0);
+    const totalCommission = Number(rev?.total_commission || 0);
+
+    const statsData = {
+      balance: Number(shop.balance),
+      rating: shop.rating,
+      reviewCount: shop.reviewCount,
+      commissionRate: Number(shop.commissionRate),
+      orders: {
+        total: totalOrders,
+        today: todayOrders,
+        month: monthOrders,
+        pending: pendingOrders,
+        delivered: deliveredOrders,
+        cancelled: cancelledOrders,
       },
-    });
+      products: {
+        total: productsTotal,
+        active: activeProducts,
+        inactive: productsTotal - activeProducts,
+      },
+      revenue: {
+        total: totalRevenue,
+        month: monthRevenue,
+        today: todayRevenue,
+      },
+      totalCommission,
+    };
+
+    // Redis ga 60 soniyaga saqlash
+    await cacheSet(cacheKey, statsData, 60);
+
+    return reply.send({ success: true, data: statsData });
   });
 
   // ============================================

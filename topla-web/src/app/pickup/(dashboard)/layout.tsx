@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import { isPickupAuthenticated, removePickupToken, getPickupPointName } from "@/lib/api/pickup";
 import { Package, ScanBarcode, List, LogOut, LayoutDashboard, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,14 @@ export default function PickupDashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { setTheme } = useTheme();
   const [pointName, setPointName] = useState("");
+
+  // Auto-detect system theme on pickup pages
+  useEffect(() => {
+    setTheme('system');
+    return () => { setTheme('light'); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isPickupAuthenticated()) {
@@ -39,7 +47,7 @@ export default function PickupDashboardLayout({
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
+      <header className="bg-card border-b sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/pickup/dashboard">

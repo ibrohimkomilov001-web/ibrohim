@@ -46,6 +46,10 @@ services:
       - CORS_ORIGINS=https://topla.uz,https://manage.topla.uz,https://vendor.topla.uz,https://pickup.topla.uz
       - MEILISEARCH_URL=http://meilisearch:7700
       - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_ENVIRONMENT=production
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,6 +91,7 @@ services:
       - NEXT_PUBLIC_API_URL=https://api.topla.uz/api/v1
       - NEXT_PUBLIC_WS_URL=wss://api.topla.uz
       - NEXT_PUBLIC_STORAGE_URL=https://storage.yandexcloud.net/topla-products
+      - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
     depends_on:
       - api
     networks:
@@ -147,7 +152,7 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s

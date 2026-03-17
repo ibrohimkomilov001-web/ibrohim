@@ -28,7 +28,7 @@ const createProductSchema = z.object({
   discountPercent: z.number().min(0).max(100).optional(),
   images: z.array(z.string()).default([]),
   stock: z.number().int().min(0).default(0),
-  unit: z.string().default('dona'),
+  unit: z.enum(['dona', 'kg', 'litr', 'metr', 'paket', 'quti']).default('dona'),
   minOrder: z.number().int().min(1).default(1),
   sku: z.string().optional(),
   weight: z.number().optional(),
@@ -45,6 +45,11 @@ const createProductSchema = z.object({
     images: z.array(z.string()).default([]),
     isActive: z.boolean().default(true),
     sortOrder: z.number().int().default(0),
+  })).optional(),
+  // Category attribute values (P-01/B-02 fix)
+  attributeValues: z.array(z.object({
+    attributeId: z.string().uuid(),
+    value: z.string(),
   })).optional(),
 });
 
@@ -378,29 +383,45 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         }
       }
       for (const [key, range] of Object.entries(rangeFilters)) {
-        // C3 fix: raqamli range comparison uchun raw SQL ishlatamiz
+        // C3 fix: raqamli range comparison uchun parameterized raw SQL
         const attr = await prisma.categoryAttribute.findFirst({
           where: { key },
           select: { id: true },
         });
         if (!attr) continue;
 
-        const conditions: string[] = [];
-        if (range.min !== undefined && !isNaN(range.min)) {
-          conditions.push(`CAST(pav.value AS DECIMAL) >= ${range.min}`);
-        }
-        if (range.max !== undefined && !isNaN(range.max)) {
-          conditions.push(`CAST(pav.value AS DECIMAL) <= ${range.max}`);
-        }
+        const hasMin = range.min !== undefined && !isNaN(range.min);
+        const hasMax = range.max !== undefined && !isNaN(range.max);
 
-        if (conditions.length > 0) {
-          const matchingProducts: Array<{ product_id: string }> = await prisma.$queryRawUnsafe(`
-            SELECT DISTINCT pav.product_id
-            FROM product_attribute_values pav
-            WHERE pav.attribute_id = '${attr.id}'
-              AND pav.value ~ '^[0-9]+(\\.[0-9]+)?$'
-              AND ${conditions.join(' AND ')}
-          `);
+        if (hasMin || hasMax) {
+          let matchingProducts: Array<{ product_id: string }>;
+
+          if (hasMin && hasMax) {
+            matchingProducts = await prisma.$queryRaw`
+              SELECT DISTINCT pav.product_id
+              FROM product_attribute_values pav
+              WHERE pav.attribute_id = ${attr.id}::uuid
+                AND pav.value ~ '^[0-9]+(\.[0-9]+)?$'
+                AND CAST(pav.value AS DECIMAL) >= ${range.min!}::decimal
+                AND CAST(pav.value AS DECIMAL) <= ${range.max!}::decimal
+            `;
+          } else if (hasMin) {
+            matchingProducts = await prisma.$queryRaw`
+              SELECT DISTINCT pav.product_id
+              FROM product_attribute_values pav
+              WHERE pav.attribute_id = ${attr.id}::uuid
+                AND pav.value ~ '^[0-9]+(\.[0-9]+)?$'
+                AND CAST(pav.value AS DECIMAL) >= ${range.min!}::decimal
+            `;
+          } else {
+            matchingProducts = await prisma.$queryRaw`
+              SELECT DISTINCT pav.product_id
+              FROM product_attribute_values pav
+              WHERE pav.attribute_id = ${attr.id}::uuid
+                AND pav.value ~ '^[0-9]+(\.[0-9]+)?$'
+                AND CAST(pav.value AS DECIMAL) <= ${range.max!}::decimal
+            `;
+          }
 
           if (matchingProducts.length > 0) {
             attrConditions.push({
@@ -593,41 +614,52 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Range: product attribute value must be between min and max
-      // value saqlanishi String sifatida, shuning uchun raw SQL CAST ishlatamiz (C3 fix)
+      // Parameterized raw SQL — SQL injection himoyasi (B-01 fix)
       for (const [attrKey, range] of Object.entries(rangeFilters)) {
-        // Find attribute id for this key
         const attr = await prisma.categoryAttribute.findFirst({
           where: { key: attrKey },
           select: { id: true },
         });
         if (!attr) continue;
 
-        const conditions: string[] = [];
-        const params: any[] = [attr.id];
+        const hasMin = range.min !== undefined && !isNaN(range.min);
+        const hasMax = range.max !== undefined && !isNaN(range.max);
 
-        if (range.min !== undefined) {
-          conditions.push(`CAST(pav.value AS DECIMAL) >= ${range.min}`);
-        }
-        if (range.max !== undefined) {
-          conditions.push(`CAST(pav.value AS DECIMAL) <= ${range.max}`);
-        }
+        if (hasMin || hasMax) {
+          let matchingProducts: Array<{ product_id: string }>;
 
-        if (conditions.length > 0) {
-          // Use raw subquery to find product IDs matching numeric range
-          const matchingProducts: Array<{ product_id: string }> = await prisma.$queryRawUnsafe(`
-            SELECT DISTINCT pav.product_id
-            FROM product_attribute_values pav
-            WHERE pav.attribute_id = '${attr.id}'
-              AND pav.value ~ '^[0-9]+(\\.[0-9]+)?$'
-              AND ${conditions.join(' AND ')}
-          `);
+          if (hasMin && hasMax) {
+            matchingProducts = await prisma.$queryRaw`
+              SELECT DISTINCT pav.product_id
+              FROM product_attribute_values pav
+              WHERE pav.attribute_id = ${attr.id}::uuid
+                AND pav.value ~ '^[0-9]+(\.[0-9]+)?$'
+                AND CAST(pav.value AS DECIMAL) >= ${range.min!}::decimal
+                AND CAST(pav.value AS DECIMAL) <= ${range.max!}::decimal
+            `;
+          } else if (hasMin) {
+            matchingProducts = await prisma.$queryRaw`
+              SELECT DISTINCT pav.product_id
+              FROM product_attribute_values pav
+              WHERE pav.attribute_id = ${attr.id}::uuid
+                AND pav.value ~ '^[0-9]+(\.[0-9]+)?$'
+                AND CAST(pav.value AS DECIMAL) >= ${range.min!}::decimal
+            `;
+          } else {
+            matchingProducts = await prisma.$queryRaw`
+              SELECT DISTINCT pav.product_id
+              FROM product_attribute_values pav
+              WHERE pav.attribute_id = ${attr.id}::uuid
+                AND pav.value ~ '^[0-9]+(\.[0-9]+)?$'
+                AND CAST(pav.value AS DECIMAL) <= ${range.max!}::decimal
+            `;
+          }
 
           if (matchingProducts.length > 0) {
             attrConditions.push({
               id: { in: matchingProducts.map(p => p.product_id) },
             });
           } else {
-            // No products match this range, add impossible condition
             attrConditions.push({ id: 'no-match' });
           }
         }
@@ -1284,7 +1316,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Determine status based on validation
       const status = validation.isValid ? 'active' : 'has_errors';
 
-      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, ...restBody } = body;
+      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, ...restBody } = body;
 
       const product = await prisma.product.create({
         data: {
@@ -1335,6 +1367,17 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
             })
           )
         );
+      }
+
+      // Create attribute values if provided (P-01/B-02 fix)
+      if (attributeValues && attributeValues.length > 0) {
+        await prisma.productAttributeValue.createMany({
+          data: attributeValues.map((av) => ({
+            productId: product.id,
+            attributeId: av.attributeId,
+            value: av.value,
+          })),
+        });
       }
 
       // Index in Meilisearch if active (via BullMQ — non-blocking)
@@ -1421,7 +1464,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const status = validation.isValid ? 'active' : 'has_errors';
 
       // Extract variant data and relation IDs from body
-      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, ...updateFields } = body;
+      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, ...updateFields } = body;
 
       const updated = await prisma.product.update({
         where: { id },
@@ -1496,6 +1539,23 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      // Update attribute values if provided (replace all strategy) — P-01/B-02 fix
+      if (attributeValues !== undefined) {
+        // Delete existing attribute values
+        await prisma.productAttributeValue.deleteMany({ where: { productId: id } });
+
+        // Create new attribute values
+        if (attributeValues && attributeValues.length > 0) {
+          await prisma.productAttributeValue.createMany({
+            data: attributeValues.map((av) => ({
+              productId: id,
+              attributeId: av.attributeId,
+              value: av.value,
+            })),
+          });
+        }
+      }
+
       // Update Meilisearch index (via BullMQ — non-blocking)
       if (status === 'active') {
         enqueueSearchIndex({ type: 'index_product', product: updated }).catch(() => {});
@@ -1542,6 +1602,26 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       });
 
       if (!shop) throw new AppError('Do\'kon topilmadi');
+
+      // Faol buyurtmalarda ishlatilayotgan mahsulotni o'chirish mumkin emas
+      const activeOrderCount = await prisma.orderItem.count({
+        where: {
+          productId: id,
+          shopId: shop.id,
+          order: {
+            status: {
+              notIn: ['delivered', 'cancelled'],
+            },
+          },
+        },
+      });
+
+      if (activeOrderCount > 0) {
+        throw new AppError(
+          `Bu mahsulot ${activeOrderCount} ta faol buyurtmada mavjud. Buyurtmalar yakunlanguncha o'chirish mumkin emas.`,
+          409,
+        );
+      }
 
       const deleteResult = await prisma.product.deleteMany({
         where: { id, shopId: shop.id },
@@ -2057,7 +2137,9 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const { category, q } = request.query as { category?: string; q?: string };
 
     const where: any = { isActive: true };
-    if (category) where.category = category;
+    if (category && ['shipping', 'payment', 'returns', 'general'].includes(category)) {
+      where.category = category;
+    }
 
     let entries = await prisma.faqEntry.findMany({
       where,

@@ -3,7 +3,6 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
-import '../notifications/notifications_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -29,21 +28,6 @@ class SettingsScreen extends StatelessWidget {
           children: [
             _buildGroupCard(
               children: [
-                if (isLoggedIn) ...[
-                  _buildMenuItem(
-                    context: context,
-                    icon: Iconsax.notification_copy,
-                    label: 'Bildirishnomalar',
-                    iconColor: const Color(0xFF8B5CF6),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NotificationsScreen(),
-                      ),
-                    ),
-                  ),
-                  _divider(),
-                ],
                 Consumer<SettingsProvider>(
                   builder: (context, settings, _) => _buildMenuItem(
                     context: context,
@@ -58,17 +42,6 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => _showLanguageBottomSheet(context),
                   ),
                 ),
-                if (isLoggedIn) ...[
-                  _divider(),
-                  _buildMenuItem(
-                    context: context,
-                    icon: Iconsax.mobile_copy,
-                    label: context.l10n.translate('devices'),
-                    subtitle: context.l10n.translate('manage_devices'),
-                    iconColor: Colors.cyan,
-                    onTap: () => Navigator.pushNamed(context, '/devices'),
-                  ),
-                ],
                 _divider(),
                 _buildMenuItem(
                   context: context,

@@ -55,6 +55,12 @@ class ProductsProvider extends ChangeNotifier {
   bool _bannersLoaded = false;
   bool _favoritesLoaded = false;
 
+  // Pagination uchun
+  static const int _pageSize = 20;
+  int _featuredOffset = 0;
+  bool _featuredHasMore = true;
+  bool _isFeaturedLoadingMore = false;
+
   // Getters
   List<CategoryModel> get categories => _categories;
   List<ProductModel> get featuredProducts => _featuredProducts;
@@ -68,6 +74,8 @@ class ProductsProvider extends ChangeNotifier {
   bool get isBannersLoading => _isBannersLoading;
   bool get isFavoritesLoading => _isFavoritesLoading;
   bool get isFilteredLoading => _isFilteredLoading;
+  bool get isFeaturedLoadingMore => _isFeaturedLoadingMore;
+  bool get featuredHasMore => _featuredHasMore;
   String? get error => _error;
 
   /// Boshlang'ich kerakli ma'lumotlarni yuklash (faqat kategoriyalar)
@@ -89,6 +97,8 @@ class ProductsProvider extends ChangeNotifier {
       _featuredLoaded = false;
       _bannersLoaded = false;
       _favoritesLoaded = false;
+      _featuredOffset = 0;
+      _featuredHasMore = true;
     }
 
     await Future.wait([
@@ -161,16 +171,20 @@ class ProductsProvider extends ChangeNotifier {
     if (_featuredLoaded && _featuredProducts.isNotEmpty) return;
 
     _isFeaturedLoading = true;
+    _featuredOffset = 0;
+    _featuredHasMore = true;
     notifyListeners();
 
     try {
-      _featuredProducts = await _productRepo.getFeaturedProducts();
+      _featuredProducts = await _productRepo.getFeaturedProducts(limit: _pageSize);
       // Agar featured bo'sh bo'lsa — barcha mahsulotlarni ko'rsatish
       if (_featuredProducts.isEmpty) {
-        _featuredProducts = await _productRepo.getProducts(limit: 20);
+        _featuredProducts = await _productRepo.getProducts(limit: _pageSize, offset: 0);
         AppLogger.d(_tag,
             'No featured products, loaded all: ${_featuredProducts.length}');
       }
+      _featuredOffset = _featuredProducts.length;
+      _featuredHasMore = _featuredProducts.length >= _pageSize;
       _featuredLoaded = true;
       AppLogger.d(
           _tag, 'Featured products loaded: ${_featuredProducts.length}');
@@ -180,6 +194,41 @@ class ProductsProvider extends ChangeNotifier {
     }
 
     _isFeaturedLoading = false;
+    notifyListeners();
+  }
+
+  /// Keyingi sahifadagi mahsulotlarni yuklash (infinite scroll)
+  Future<void> loadMoreFeaturedProducts() async {
+    if (_isFeaturedLoadingMore || !_featuredHasMore) return;
+
+    _isFeaturedLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final moreProducts = await _productRepo.getProducts(
+        limit: _pageSize,
+        offset: _featuredOffset,
+      );
+
+      if (moreProducts.isEmpty) {
+        _featuredHasMore = false;
+      } else {
+        // Dublikatlarni oldini olish
+        final existingIds = _featuredProducts.map((p) => p.id).toSet();
+        final newProducts =
+            moreProducts.where((p) => !existingIds.contains(p.id)).toList();
+        _featuredProducts = [..._featuredProducts, ...newProducts];
+        _featuredOffset += moreProducts.length;
+        _featuredHasMore = moreProducts.length >= _pageSize;
+        AppLogger.d(_tag,
+            'Loaded more products: +${newProducts.length}, total: ${_featuredProducts.length}');
+      }
+    } catch (e) {
+      AppLogger.e(_tag, 'loadMoreFeaturedProducts error', e);
+      _error = e.toString();
+    }
+
+    _isFeaturedLoadingMore = false;
     notifyListeners();
   }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { userAuthApi, getUserToken, setUserTokens, removeUserTokens } from '@/lib/api/user-auth';
+import { userAuthApi, isUserAuthenticated, setUserTokens, removeUserTokens } from '@/lib/api/user-auth';
 import type { UserProfile } from '@/lib/api/user-auth';
 
 interface AuthStore {
@@ -63,8 +63,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       checkAuth: async () => {
-        const token = getUserToken();
-        if (!token) {
+        if (!isUserAuthenticated()) {
           set({ user: null, isAuthenticated: false });
           return;
         }

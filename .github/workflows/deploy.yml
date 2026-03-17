@@ -73,11 +73,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/topla
-            docker compose -f docker-compose.prod.yml build --no-cache
-            docker compose -f docker-compose.prod.yml up -d
+            # Docker layer caching bilan build (tezroq)
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.prod.yml ps
-            # Wait for health check
-            sleep 10
-            curl -sf http://localhost:3001/health || echo "WARNING: Health check failed"
-            # Clean up old images
+            # Health check — kutish va qayta urinish
+            echo "Waiting for services to start..."
+            for i in 1 2 3 4 5; do
+              sleep 5
+              if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+                echo "✅ Health check passed!"
+                break
+              fi
+              echo "⏳ Attempt $i/5 — waiting..."
+            done
+            curl -sf http://localhost:3001/health || echo "⚠️ WARNING: Health check failed after 25s"
+            # Eski imagelarni tozalash
             docker image prune -f

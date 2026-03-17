@@ -46,19 +46,31 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // --dart-define orqali berilgan kalitlar, fallback: dev config
+  // --dart-define orqali berilgan kalitlar (MAJBURIY)
+  // Build: flutter build apk --dart-define=FIREBASE_WEB_API_KEY=xxx ...
+  // Konfiguratsiya yo'q bo'lsa assert xato beradi
   static const String _webApiKey = String.fromEnvironment(
     'FIREBASE_WEB_API_KEY',
-    defaultValue: 'AIzaSyBuXP_98aKQ_Vjr6Zvxo_NjWCAuG-_yaGM',
   );
   static const String _androidApiKey = String.fromEnvironment(
     'FIREBASE_ANDROID_API_KEY',
-    defaultValue: 'AIzaSyC1SzjfYUHr1AkKNXVX6PmigFLAHclHVdQ',
   );
   static const String _iosApiKey = String.fromEnvironment(
     'FIREBASE_IOS_API_KEY',
-    defaultValue: 'AIzaSyALAkewwmN3N5cGjN16MIgZFCyHLFp4tBE',
   );
+
+  /// Build vaqtida Firebase kalitlari berilganligini tekshirish
+  static void validateKeys() {
+    if (_webApiKey.isEmpty || _androidApiKey.isEmpty || _iosApiKey.isEmpty) {
+      throw StateError(
+        'Firebase API kalitlari berilmagan!\n'
+        'Build qilishda --dart-define parametrlarini bering:\n'
+        '  --dart-define=FIREBASE_WEB_API_KEY=xxx\n'
+        '  --dart-define=FIREBASE_ANDROID_API_KEY=xxx\n'
+        '  --dart-define=FIREBASE_IOS_API_KEY=xxx',
+      );
+    }
+  }
 
   static const String _projectId = 'topla-app-ef946';
   static const String _messagingSenderId = '541689366619';

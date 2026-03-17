@@ -14,12 +14,11 @@ export function getSocket(): Socket | null {
 }
 
 /**
- * Connect to Socket.IO server with JWT auth token.
+ * Connect to Socket.IO server.
+ * Auth: httpOnly cookie (web) yoki JWT token (legacy/mobile).
  * Reuses existing connection if already connected.
- * For admin: uses admin_token from localStorage.
- * For vendor: uses vendor/user token.
  */
-export function connectSocket(token: string): Socket {
+export function connectSocket(token?: string | null): Socket {
   if (socketInstance?.connected) return socketInstance;
 
   // Disconnect old instance if exists
@@ -34,7 +33,8 @@ export function connectSocket(token: string): Socket {
     : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1$/, '') || 'http://localhost:3001');
 
   socketInstance = io(wsUrl, {
-    auth: { token },
+    auth: token ? { token } : undefined,
+    withCredentials: true, // httpOnly cookie orqali auth (XSS himoyasi)
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,

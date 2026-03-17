@@ -1,3 +1,5 @@
+import { withSentryConfig } from '@sentry/nextjs';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -47,10 +49,33 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com",
+              "img-src 'self' data: blob: https://storage.yandexcloud.net https://images.unsplash.com https://*.topla.uz",
+              "connect-src 'self' https://api.topla.uz wss://api.topla.uz http://localhost:* ws://localhost:*",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+            ].join('; '),
+          },
         ],
       },
     ];
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Source map'larni Sentry'ga yuklash (SENTRY_AUTH_TOKEN kerak)
+  silent: true,
+  // Org va project — Sentry dashboard'da ko'rinadi
+  org: process.env.SENTRY_ORG || '',
+  project: process.env.SENTRY_PROJECT || '',
+  // SENTRY_DSN yo'q bo'lsa, hech narsa qilmaydi
+  disableServerWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
+  disableClientWebpackPlugin: !process.env.NEXT_PUBLIC_SENTRY_DSN,
+});

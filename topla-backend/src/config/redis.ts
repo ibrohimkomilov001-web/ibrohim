@@ -4,12 +4,13 @@
 // ============================================
 
 import { createClient, type RedisClientType } from 'redis';
+import { env } from './env.js';
 
 let redisClient: RedisClientType | null = null;
 let isConnected = false;
 
 export async function initRedis(): Promise<void> {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = env.REDIS_URL || 'redis://localhost:6379';
 
   try {
     redisClient = createClient({ url: redisUrl });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../core/constants/constants.dart';
+import '../core/localization/app_localizations.dart';
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -39,7 +40,7 @@ class SectionHeader extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    AppStrings.seeAll,
+                    context.l10n.seeAll,
                     style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 14,

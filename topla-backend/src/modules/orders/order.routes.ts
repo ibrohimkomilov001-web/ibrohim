@@ -13,6 +13,7 @@ import {
   emitOrderStatusUpdate,
   emitNewOrderToVendor,
   emitToAdminDashboard,
+  emitToCourier,
 } from '../../websocket/socket.js';
 
 // ============================================
@@ -277,6 +278,12 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           product: {
             include: { shop: true },
           },
+          variant: {
+            include: {
+              color: { select: { nameUz: true, nameRu: true } },
+              size: { select: { nameUz: true, nameRu: true } },
+            },
+          },
         },
       });
 
@@ -294,6 +301,12 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         include: {
           product: {
             include: { shop: true },
+          },
+          variant: {
+            include: {
+              color: { select: { nameUz: true, nameRu: true } },
+              size: { select: { nameUz: true, nameRu: true } },
+            },
           },
         },
       });
@@ -407,13 +420,55 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    const deliveryFee = body.deliveryMethod === 'courier'
+    const deliveryFeePerOrder = body.deliveryMethod === 'courier'
       ? await getDeliveryFee()
       : 0;
-    const total = Math.max(0, subtotal - discount + deliveryFee);
 
-    // 5. Transaction ichida buyurtma yaratish (stock check + decrement atomik)
-    const order = await prisma.$transaction(async (tx) => {
+    // 4.5 Multi-shop order splitting (O-04 fix)
+    // Cart items'ni shopId bo'yicha gruppalash
+    const shopGroups = new Map<string, typeof cartItems>();
+    for (const item of cartItems) {
+      const shopId = item.product.shopId;
+      if (!shopGroups.has(shopId)) {
+        shopGroups.set(shopId, []);
+      }
+      shopGroups.get(shopId)!.push(item);
+    }
+
+    // Promo code'ni eng katta orderni aniqlash uchun
+    const shopEntries = Array.from(shopGroups.entries()).map(([shopId, items]) => {
+      const shopSubtotal = items.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
+      return { shopId, items, shopSubtotal };
+    });
+    // Eng katta shop birinchi bo'lsin (promo code shu orderga qo'llaniladi)
+    shopEntries.sort((a, b) => b.shopSubtotal - a.shopSubtotal);
+
+    // 5. Transaction ichida buyurtmalarni yaratish (stock check + decrement atomik)
+    const orders = await prisma.$transaction(async (tx) => {
+      // Promo code — transaction ichida qayta tekshirish (race condition himoyasi)
+      if (promoId && body.promoCode) {
+        const freshPromo = await tx.promoCode.findFirst({
+          where: {
+            id: promoId,
+            isActive: true,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          },
+        });
+        if (!freshPromo || (freshPromo.maxUses && freshPromo.currentUses >= freshPromo.maxUses)) {
+          throw new AppError('Promo kod limiti tugagan');
+        }
+        const usedAlready = await tx.promoCodeUsage.findFirst({
+          where: { promoId, userId },
+        });
+        if (usedAlready) {
+          throw new AppError('Siz bu promo kodni oldin ishlatgansiz');
+        }
+        // Yangi discount hisoblash
+        discount = freshPromo.discountType === 'percentage'
+          ? (subtotal * Number(freshPromo.discountValue)) / 100
+          : Number(freshPromo.discountValue);
+      }
+
       // Stock tekshirish - TRANSACTION ICHIDA (race condition oldini oladi)
       for (const item of cartItems) {
         const currentProduct = await tx.product.findUnique({
@@ -430,49 +485,81 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      // Buyurtma yaratish (darhol processing — do'kon tayyorlaydi)
-      // Pickup buyurtmalar uchun darhol QR kod generatsiya (Yandex Market uslubida)
       const isPickup = body.deliveryMethod === 'pickup';
-      const newOrder = await tx.order.create({
-        data: {
-          orderNumber: generateOrderNumber(),
-          userId,
-          addressId: body.addressId || null,
-          status: 'processing',
-          paymentStatus: body.paymentMethod === 'cash' ? 'pending' : 'pending',
-          paymentMethod: body.paymentMethod,
-          deliveryMethod: body.deliveryMethod,
-          pickupPointId: isPickup ? body.pickupPointId : null,
-          // Pickup: darhol PIN kod va QR token yaratish
-          pickupCode: isPickup ? randomInt(100000, 999999).toString() : null,
-          pickupToken: isPickup ? randomUUID() : null,
-          subtotal,
-          deliveryFee,
-          discount,
-          total,
-          recipientName: body.recipientName,
-          recipientPhone: body.recipientPhone,
-          deliveryDate: body.deliveryDate ? new Date(body.deliveryDate) : null,
-          deliveryTimeSlot: body.deliveryTimeSlot,
-          promoCode: body.promoCode?.toUpperCase(),
-          note: body.note,
-        },
-      });
+      const createdOrders = [];
 
-      // Order items yaratish
-      await tx.orderItem.createMany({
-        data: cartItems.map((item) => ({
-          orderId: newOrder.id,
-          productId: item.productId,
-          shopId: item.product.shopId,
-          name: item.product.name,
-          price: item.product.price,
-          quantity: item.quantity,
-          imageUrl: item.product.images?.[0] || null,
-        })),
-      });
+      // Har bir do'kon uchun alohida buyurtma yaratish
+      for (let i = 0; i < shopEntries.length; i++) {
+        const { items: shopItems, shopSubtotal } = shopEntries[i];
+        // Promo code faqat birinchi (eng katta) orderga qo'llaniladi
+        const orderDiscount = i === 0 ? discount : 0;
+        const orderTotal = Math.max(0, shopSubtotal - orderDiscount + deliveryFeePerOrder);
 
-      // Stokni kamaytirish
+        const newOrder = await tx.order.create({
+          data: {
+            orderNumber: generateOrderNumber(),
+            userId,
+            addressId: body.addressId || null,
+            status: 'processing',
+            paymentStatus: body.paymentMethod === 'cash' ? 'pending' : 'pending',
+            paymentMethod: body.paymentMethod,
+            deliveryMethod: body.deliveryMethod,
+            pickupPointId: isPickup ? body.pickupPointId : null,
+            pickupCode: isPickup ? randomInt(100000, 999999).toString() : null,
+            pickupToken: isPickup ? randomUUID() : null,
+            subtotal: shopSubtotal,
+            deliveryFee: deliveryFeePerOrder,
+            discount: orderDiscount,
+            total: orderTotal,
+            recipientName: body.recipientName,
+            recipientPhone: body.recipientPhone,
+            deliveryDate: body.deliveryDate ? new Date(body.deliveryDate) : null,
+            deliveryTimeSlot: body.deliveryTimeSlot,
+            promoCode: i === 0 ? body.promoCode?.toUpperCase() : null,
+            note: body.note,
+          },
+        });
+
+        // Order items yaratish (B-03: variantLabel to'ldirish)
+        await tx.orderItem.createMany({
+          data: shopItems.map((item) => {
+            // Variant label yasash (rang / o'lcham)
+            const variant = (item as any).variant;
+            let variantLabel: string | null = null;
+            if (variant) {
+              const parts: string[] = [];
+              if (variant.color?.nameUz) parts.push(variant.color.nameUz);
+              if (variant.size?.nameUz) parts.push(variant.size.nameUz);
+              if (parts.length > 0) variantLabel = parts.join(' / ');
+            }
+            return {
+              orderId: newOrder.id,
+              productId: item.productId,
+              variantId: item.variantId || null,
+              shopId: item.product.shopId,
+              name: item.product.name,
+              variantLabel,
+              price: variant?.price || item.product.price,
+              quantity: item.quantity,
+              imageUrl: (variant?.images?.[0]) || item.product.images?.[0] || null,
+            };
+          }),
+        });
+
+        // Status history
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: newOrder.id,
+            status: 'processing',
+            changedBy: userId,
+            note: 'Do\'kon tayyorlayapti',
+          },
+        });
+
+        createdOrders.push(newOrder);
+      }
+
+      // Stokni kamaytirish (barcha items uchun)
       for (const item of cartItems) {
         await tx.product.update({
           where: { id: item.productId },
@@ -489,19 +576,8 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Status history (processing — auto)
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: newOrder.id,
-          status: 'processing',
-          changedBy: userId,
-          note: 'Do\'kon tayyorlayapti',
-        },
-      });
-
-      // Promo usage — atomik tekshiruv va yangilash (race condition oldini oladi)
+      // Promo usage — atomik tekshiruv va yangilash
       if (promoId) {
-        // Atomik: faqat limit tugamagan bo'lsa increment qilish
         const updated = await tx.$executeRaw`
           UPDATE promo_codes 
           SET current_uses = current_uses + 1
@@ -517,17 +593,17 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      return newOrder;
+      return createdOrders;
     });
 
     // 6. Bildirishnomalar (BullMQ orqali non-blocking)
-    // Vendorga: "Yangi buyurtma!"
-    // Adminga: "Yangi buyurtma tushdi"
-    enqueueNotification({ type: 'order_status', orderId: order.id, newStatus: 'order_new' }).catch(() => {});
+    for (const order of orders) {
+      enqueueNotification({ type: 'order_status', orderId: order.id, newStatus: 'order_new' }).catch(() => {});
+    }
 
-    // 7. Javob
-    const fullOrder = await prisma.order.findUnique({
-      where: { id: order.id },
+    // 7. Javob — bitta yoki ko'p order
+    const fullOrders = await prisma.order.findMany({
+      where: { id: { in: orders.map(o => o.id) } },
       include: {
         items: true,
         address: true,
@@ -535,7 +611,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     });
 
     // 7.5 Real-time: Vendorlarga yangi buyurtma + Admin dashboard
-    if (fullOrder) {
+    for (const fullOrder of fullOrders) {
       const shopIds = [...new Set(fullOrder.items.map((i) => i.shopId))];
       for (const shopId of shopIds) {
         emitNewOrderToVendor(shopId, fullOrder);
@@ -543,9 +619,18 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       emitToAdminDashboard('order:new', { order: fullOrder });
     }
 
+    // Backward compatible: agar bitta order bo'lsa, data: order; aks holda data: orders[]
+    if (fullOrders.length === 1) {
+      return reply.status(201).send({
+        success: true,
+        data: fullOrders[0],
+      });
+    }
+
     return reply.status(201).send({
       success: true,
-      data: fullOrder,
+      data: fullOrders,
+      meta: { orderCount: fullOrders.length },
     });
   });
 
@@ -926,9 +1011,24 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
               where: { id: order.courierId },
               data: { status: 'online' },
             });
+
+            // Kutilayotgan assignment larni bekor qilish
+            await tx.deliveryAssignment.updateMany({
+              where: { orderId: id, status: 'pending' },
+              data: { status: 'cancelled' as any },
+            });
           }
         }
       });
+
+      // BL2 + W4: Kuryerga buyurtma bekor qilindi deb xabar berish
+      if (body.status === 'cancelled' && order.courierId) {
+        emitToCourier(order.courierId, 'order:cancelled', {
+          orderId: id,
+          orderNumber: order.orderNumber,
+          reason: body.cancelReason || 'Vendor tomonidan bekor qilindi',
+        });
+      }
 
       // Bildirishnomalar (BullMQ — non-blocking)
       enqueueNotification({

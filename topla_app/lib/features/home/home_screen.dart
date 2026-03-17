@@ -59,48 +59,84 @@ class _HomeScreenState extends State<HomeScreen>
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      body: Builder(
-        builder: (context) {
-          return CustomScrollView(
-            slivers: [
-              // Status bar uchun padding
-              SliverToBoxAdapter(
-                child: SizedBox(height: statusBarHeight),
-              ),
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollEndNotification &&
+              notification.metrics.extentAfter < 300) {
+            // Scroll pastga tushganda keyingi sahifani yuklash
+            final provider = context.read<ProductsProvider>();
+            if (_selectedFilter == 'for_you' &&
+                !provider.isFeaturedLoadingMore &&
+                provider.featuredHasMore) {
+              provider.loadMoreFeaturedProducts();
+            }
+          }
+          return false;
+        },
+        child: Builder(
+          builder: (context) {
+            return CustomScrollView(
+              slivers: [
+                // Status bar uchun padding
+                SliverToBoxAdapter(
+                  child: SizedBox(height: statusBarHeight),
+                ),
 
-              // App Bar with Search
-              SliverToBoxAdapter(
-                child: _buildSearchHeader(),
-              ),
+                // App Bar with Search
+                SliverToBoxAdapter(
+                  child: _buildSearchHeader(),
+                ),
 
-              // Banner Carousel
-              SliverToBoxAdapter(
-                child: Consumer<ProductsProvider>(
+                // Banner Carousel
+                SliverToBoxAdapter(
+                  child: Consumer<ProductsProvider>(
+                    builder: (context, productsProvider, _) {
+                      return _buildBannerCarousel(productsProvider);
+                    },
+                  ),
+                ),
+
+                // Filter chips - Consumer tashqarisida, faqat setState bilan boshqariladi
+                SliverToBoxAdapter(
+                  child: _buildFilterChips(),
+                ),
+
+                // Featured products grid - faqat shu qism provider bilan yangilanadi
+                Consumer<ProductsProvider>(
                   builder: (context, productsProvider, _) {
-                    return _buildBannerCarousel(productsProvider);
+                    return _buildFeaturedProductsGrid(productsProvider);
                   },
                 ),
-              ),
 
-              // Filter chips - Consumer tashqarisida, faqat setState bilan boshqariladi
-              SliverToBoxAdapter(
-                child: _buildFilterChips(),
-              ),
+                // Loading more indicator
+                Consumer<ProductsProvider>(
+                  builder: (context, productsProvider, _) {
+                    if (productsProvider.isFeaturedLoadingMore) {
+                      return const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(AppSizes.lg),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  },
+                ),
 
-              // Featured products grid - faqat shu qism provider bilan yangilanadi
-              Consumer<ProductsProvider>(
-                builder: (context, productsProvider, _) {
-                  return _buildFeaturedProductsGrid(productsProvider);
-                },
-              ),
-
-              // Bottom padding
-              const SliverToBoxAdapter(
-                child: SizedBox(height: AppSizes.xxl),
-              ),
-            ],
-          );
-        },
+                // Bottom padding
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSizes.xxl),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -797,7 +833,7 @@ class _HomeScreenState extends State<HomeScreen>
               onFavoriteToggle: () => _toggleFavorite(product.id),
             );
           },
-          childCount: products.length > 8 ? 8 : products.length,
+          childCount: products.length,
         ),
       ),
     );

@@ -250,7 +250,7 @@ export default function PickupScannerPage() {
           variant={result.type === "error" ? "destructive" : "default"}
           className={
             result.type === "success"
-              ? "border-green-500 bg-green-50 text-green-800"
+              ? "border-green-500 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-200"
               : ""
           }
         >
@@ -365,7 +365,7 @@ export default function PickupScannerPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
                 <ScanBarcode className="h-5 w-5 text-blue-600" />
               </div>
               <div>
@@ -380,7 +380,7 @@ export default function PickupScannerPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
                 <Camera className="h-5 w-5 text-green-600" />
               </div>
               <div>
@@ -395,7 +395,7 @@ export default function PickupScannerPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
                 <Keyboard className="h-5 w-5 text-orange-600" />
               </div>
               <div>

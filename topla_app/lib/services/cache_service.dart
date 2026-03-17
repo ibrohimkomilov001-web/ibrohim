@@ -194,9 +194,7 @@ class PersistentCache {
 
 /// Cache manager combining memory and persistent cache
 class CacheService {
-  static final CacheService _instance = CacheService._internal();
-  factory CacheService() => _instance;
-  CacheService._internal();
+  CacheService();
 
   final MemoryCache _memoryCache = MemoryCache();
 

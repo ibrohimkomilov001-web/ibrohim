@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import { captureError } from '../config/sentry.js';
 
 /**
  * Global error handler
@@ -96,6 +97,13 @@ export function errorHandler(
     url: request.url,
     userId: (request as any).user?.userId,
   }, 'Unhandled server error');
+
+  // Sentry'ga yuborish (faqat 500 xatoliklar)
+  captureError(error, {
+    method: request.method,
+    url: request.url,
+    userId: (request as any).user?.userId,
+  });
   
   reply.status(500).send({
     error: 'Internal Server Error',

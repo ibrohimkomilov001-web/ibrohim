@@ -110,8 +110,8 @@ export default function OrdersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">{t('vendorOrders')}</h1>
-        <p className="text-muted-foreground">Jami {data?.total || 0} ta buyurtma</p>
+        <h1 className="text-xl sm:text-2xl font-bold">{t('vendorOrders')}</h1>
+        <p className="text-sm text-muted-foreground">Jami {data?.total || 0} ta buyurtma</p>
       </div>
 
       {/* Filters */}
@@ -128,7 +128,7 @@ export default function OrdersPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={(v) => setFilters({ status: v, page: '1' })}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder={t('status')} />
               </SelectTrigger>

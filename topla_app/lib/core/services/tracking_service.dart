@@ -5,11 +5,9 @@ import '../services/api_client.dart';
 /// Yandex Go uslubida real-time kuryer kuzatish servisi
 /// Socket.IO o'rniga HTTP polling ishlatadi (qo'shimcha paket kerak emas)
 class TrackingService {
-  static final TrackingService _instance = TrackingService._();
-  factory TrackingService() => _instance;
-  TrackingService._();
+  final ApiClient _api;
 
-  final ApiClient _api = ApiClient();
+  TrackingService(this._api);
 
   // Tracking streams
   final _courierLocationController =

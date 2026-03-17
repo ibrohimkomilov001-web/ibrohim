@@ -7,14 +7,29 @@ import { useRouter } from 'next/navigation';
 import {
   MapPin, CreditCard, Truck, Check, ChevronRight,
   ShieldCheck, ArrowRight, ArrowLeft, LocateFixed, Package, Banknote,
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useTranslation } from '@/store/locale-store';
 import { useAuthStore } from '@/store/auth-store';
+import { createRequest } from '@/lib/api/base-client';
+
+// Authenticated request for shop customers (reuses user-auth token config)
+const userRequest = createRequest({
+  tokenKey: 'topla_user',
+  loginRedirect: null,
+});
 
 type Step = 'address' | 'delivery' | 'payment' | 'confirm';
+
+interface OrderResponse {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: number;
+}
 
 const steps: { key: Step; icon: typeof MapPin }[] = [
   { key: 'address', icon: MapPin },
@@ -27,9 +42,12 @@ export default function CheckoutPage() {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const { items, getTotal, getItemCount, clearCart } = useCartStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [currentStep, setCurrentStep] = useState<Step>('address');
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderNumber, setOrderNumber] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderError, setOrderError] = useState('');
 
   // Form state — auto-fill from auth
   const [address, setAddress] = useState({
@@ -83,9 +101,50 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePlaceOrder = () => {
-    setOrderPlaced(true);
-    clearCart();
+  const handlePlaceOrder = async () => {
+    if (!isAuthenticated) {
+      setOrderError(locale === 'ru' ? 'Войдите в аккаунт для оформления заказа' : 'Buyurtma berish uchun tizimga kiring');
+      return;
+    }
+
+    if (!address.fullName || !address.phone) {
+      setOrderError(locale === 'ru' ? 'Заполните имя и телефон' : 'Ism va telefonni to\'ldiring');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setOrderError('');
+
+    try {
+      const orderData = {
+        deliveryMethod,
+        paymentMethod,
+        recipientName: address.fullName,
+        recipientPhone: address.phone,
+        note: address.note || undefined,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      };
+
+      const result = await userRequest<OrderResponse>('/orders', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+      });
+
+      setOrderNumber(result.orderNumber || '');
+      setOrderPlaced(true);
+      clearCart();
+    } catch (error: any) {
+      const message = error?.data?.message || error?.message || '';
+      setOrderError(
+        message ||
+        (locale === 'ru' ? 'Ошибка при оформлении заказа' : 'Buyurtma berishda xatolik yuz berdi')
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Geolocation → reverse geocode
@@ -157,12 +216,20 @@ export default function CheckoutPage() {
           <h1 className="text-2xl sm:text-3xl font-bold mb-3">
             {locale === 'ru' ? 'Заказ оформлен!' : 'Buyurtma qabul qilindi!'}
           </h1>
+          {orderNumber && (
+            <p className="text-lg font-semibold text-primary mb-2">
+              {locale === 'ru' ? 'Номер заказа' : 'Buyurtma raqami'}: #{orderNumber}
+            </p>
+          )}
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
             {locale === 'ru'
               ? 'Мы свяжемся с вами для подтверждения заказа. Спасибо за покупку!'
               : 'Buyurtmangizni tasdiqlash uchun siz bilan bog\'lanamiz. Xaridingiz uchun rahmat!'}
           </p>
           <div className="flex items-center justify-center gap-4">
+            <Link href="/orders" className="btn-glass inline-flex items-center gap-2 px-6 py-3">
+              {locale === 'ru' ? 'Мои заказы' : 'Buyurtmalarim'}
+            </Link>
             <Link href="/" className="liquid-btn inline-flex items-center gap-2 px-6 py-3">
               {t('continueShopping')}
               <ArrowRight className="w-4 h-4" />
@@ -545,13 +612,28 @@ export default function CheckoutPage() {
             </button>
 
             {currentStep === 'confirm' ? (
-              <button
-                onClick={handlePlaceOrder}
-                className="liquid-btn px-8 py-3 text-base font-semibold flex items-center gap-2"
-              >
-                <ShieldCheck className="w-5 h-5" />
-                {t('checkout')}
-              </button>
+              <div className="flex flex-col items-end gap-2">
+                {orderError && (
+                  <p className="text-sm text-red-500 text-right max-w-sm">{orderError}</p>
+                )}
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={isSubmitting}
+                  className="liquid-btn px-8 py-3 text-base font-semibold flex items-center gap-2 disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {locale === 'ru' ? 'Оформление...' : 'Jo\'natilmoqda...'}
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-5 h-5" />
+                      {t('checkout')}
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               <button
                 onClick={goNext}

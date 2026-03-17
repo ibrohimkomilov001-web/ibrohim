@@ -94,13 +94,13 @@ export default function BalancePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{t('myAccount')}</h1>
-          <p className="text-muted-foreground">{t('balanceAndHistory')}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">{t('myAccount')}</h1>
+          <p className="text-sm text-muted-foreground">{t('balanceAndHistory')}</p>
         </div>
         <Button
-          className="rounded-full"
+          className="rounded-full w-full sm:w-auto"
           onClick={() => setPayoutDialogOpen(true)}
           disabled={balance <= 0}
         >
@@ -121,7 +121,7 @@ export default function BalancePage() {
               {statsLoading ? (
                 <Skeleton className="h-8 w-32 bg-primary-foreground/20" />
               ) : (
-                <div className="text-3xl font-bold">{formatPrice(balance)}</div>
+                <div className="text-2xl sm:text-3xl font-bold">{formatPrice(balance)}</div>
               )}
             </CardContent>
           </Card>
@@ -177,7 +177,7 @@ export default function BalancePage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
         {/* Transaction History */}
         <Card>
           <CardHeader>

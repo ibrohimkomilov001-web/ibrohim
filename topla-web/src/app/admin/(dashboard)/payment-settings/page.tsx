@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from '@/store/locale-store';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
 // Bank provayderlari
 const bankProviders = [
@@ -73,14 +73,16 @@ interface PaymentSettingsData {
 }
 
 async function fetchWithAuth(url: string, options?: RequestInit) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const { getCsrfToken } = await import('@/lib/api/base-client');
+  const csrf = getCsrfToken();
   const res = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(csrf ? { 'x-csrf-token': csrf } : {}),
       ...options?.headers,
     },
+    credentials: 'include', // httpOnly cookie orqali auth
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

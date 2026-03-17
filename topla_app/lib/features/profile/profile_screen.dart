@@ -10,7 +10,6 @@ import '../../models/user_role.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
 import 'edit_profile_screen.dart';
-import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -72,14 +71,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ],
                   _buildAccountSection(isLoggedIn),
                   const SizedBox(height: 8),
-                  _buildSettingsButton(),
+                  _buildSettingsSection(),
                   const SizedBox(height: 8),
                   _buildExternalLinksSection(isLoggedIn),
 
                   const SizedBox(height: 8),
-
-                  // Logout
-                  if (isLoggedIn) _buildLogoutButton(),
 
                   // App version
                   _buildAppVersion(),
@@ -263,6 +259,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       'last_name': profile?.lastName ?? '',
                       'phone': profile?.phone ?? '',
                       'email': profile?.email ?? '',
+                      'avatar_url': profile?.avatarUrl ?? '',
+                      'is_google': (profile?.email ?? '').isNotEmpty &&
+                          (profile?.phone ?? '').startsWith('google_'),
                     },
                   ),
                 ),
@@ -372,47 +371,185 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ===== Settings Button =====
-  Widget _buildSettingsButton() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+  // ===== Settings Section =====
+  Widget _buildSettingsSection() {
+    return _buildGroupCard(
+      children: [
+        Consumer<SettingsProvider>(
+          builder: (context, settings, _) => _buildMenuItem(
+            icon: Iconsax.global_copy,
+            label: context.l10n.language,
+            iconColor: Colors.blueGrey,
+            trailing: Text(
+              settings.language == 'uz' ? 'O\'zbek' : 'Русский',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+            onTap: () => _showLanguageBottomSheet(),
           ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
         ),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
+        _divider(),
+        _buildMenuItem(
+          icon: Iconsax.message_question_copy,
+          label: context.l10n.helpCenter,
+          iconColor: Colors.lightBlue,
+          onTap: () => Navigator.pushNamed(context, '/help'),
+        ),
+      ],
+    );
+  }
+
+  void _showLanguageBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Consumer<SettingsProvider>(
+        builder: (context, settings, _) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Iconsax.setting_2_copy,
-                  color: Colors.grey.shade700, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  context.l10n.translate('settings'),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                    color: Colors.grey.shade800,
-                  ),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 20),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 32),
+                  Text(
+                    context.l10n.translate('choose_language'),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.close,
+                        color: Colors.grey.shade400, size: 22),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildLanguageOption(
+                flagWidget: _buildUzbekistanFlag(),
+                name: context.l10n.translate('uzbek_lang'),
+                isSelected: settings.language == 'uz',
+                onTap: () {
+                  settings.setLanguage('uz');
+                  Navigator.pop(context);
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100),
+              _buildLanguageOption(
+                flagWidget: _buildRussiaFlag(),
+                name: context.l10n.translate('russian_lang'),
+                isSelected: settings.language == 'ru',
+                onTap: () {
+                  settings.setLanguage('ru');
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRussiaFlag() {
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: ClipOval(
+        child: Column(
+          children: [
+            Expanded(child: Container(color: Colors.white)),
+            Expanded(child: Container(color: const Color(0xFF0039A6))),
+            Expanded(child: Container(color: const Color(0xFFD52B1E))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUzbekistanFlag() {
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+      ),
+      child: ClipOval(
+        child: Column(
+          children: [
+            Expanded(flex: 2, child: Container(color: const Color(0xFF0099B5))),
+            Expanded(flex: 1, child: Container(color: const Color(0xFFCE1126))),
+            Expanded(flex: 1, child: Container(color: Colors.white)),
+            Expanded(flex: 2, child: Container(color: const Color(0xFF1EB53A))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageOption({
+    required Widget flagWidget,
+    required String name,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.black : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+            flagWidget,
+          ],
         ),
       ),
     );
@@ -554,34 +691,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         height: 1, color: Colors.grey.shade100, indent: 46, endIndent: 14);
   }
 
-  Widget _buildLogoutButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        width: double.infinity,
-        height: 42,
-        child: OutlinedButton.icon(
-          onPressed: () => _showLogoutDialog(),
-          icon: Icon(Iconsax.logout_copy, color: Colors.red.shade400, size: 17),
-          label: Text(
-            context.l10n.logout,
-            style: TextStyle(
-              color: Colors.red.shade400,
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: Colors.red.shade200),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildAppVersion() {
     return Padding(
       padding: const EdgeInsets.only(top: 16),
@@ -624,47 +733,5 @@ class _ProfileScreenState extends State<ProfileScreen>
         );
       }
     }
-  }
-
-  void _showLogoutDialog() {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: Text(
-          context.l10n.translate('logout_question'),
-          style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700),
-        ),
-        actions: [
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () async {
-              Navigator.pop(ctx);
-              context.read<OrdersProvider>().clearOnLogout();
-              context.read<CartProvider>().clearOnLogout();
-              context.read<ProductsProvider>().clearFavoritesOnLogout();
-              await context.read<AuthProvider>().signOut();
-            },
-            child: Text(
-              context.l10n.translate('logout_action'),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(
-            context.l10n.translate('cancel'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -39,5 +39,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1
 
-# Run migrations then start
-CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node dist/app.js"]
+# Run safe versioned migrations then start
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/app.js"]

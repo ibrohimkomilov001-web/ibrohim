@@ -105,8 +105,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold">{t('dashboard')}</h1>
-        <p className="text-muted-foreground">Bugungi holat va statistika</p>
+        <h1 className="text-xl sm:text-2xl font-bold">{t('dashboard')}</h1>
+        <p className="text-sm text-muted-foreground">Bugungi holat va statistika</p>
       </div>
 
       {/* Stats Grid */}
@@ -138,7 +138,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Actions & Recent Orders */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Recent Orders */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">

@@ -57,11 +57,11 @@ class _HelpScreenState extends State<HelpScreen> {
           children: [
             // ── Yordam chati section ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Yordam chati card
+                  // Savol berish pill button
                   InkWell(
                     onTap: () {
                       Navigator.push(
@@ -70,12 +70,15 @@ class _HelpScreenState extends State<HelpScreen> {
                             builder: (_) => const SupportChatScreen()),
                       );
                     },
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(28),
                     child: Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.05),
@@ -87,39 +90,26 @@ class _HelpScreenState extends State<HelpScreen> {
                       child: Row(
                         children: [
                           Container(
-                            width: 56,
-                            height: 56,
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
                               Iconsax.message_text,
                               color: AppColors.primary,
-                              size: 28,
+                              size: 20,
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Yordam chati',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Savollaringizga tez javob oling',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Savol berish',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                           Container(

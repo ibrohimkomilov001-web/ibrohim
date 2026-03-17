@@ -55,6 +55,10 @@ void main() async {
 
   // Firebase - platform-specific options bilan ishga tushirish
   try {
+    // API kalitlari berilganligini tekshirish (release buildda majburiy)
+    if (!kDebugMode) {
+      DefaultFirebaseOptions.validateKeys();
+    }
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -87,6 +91,16 @@ void main() async {
     try {
       await Firebase.initializeApp();
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+      // Fallback init da ham Crashlytics handler sozlash
+      if (!kIsWeb) {
+        FlutterError.onError =
+            FirebaseCrashlytics.instance.recordFlutterFatalError;
+        PlatformDispatcher.instance.onError = (error, stack) {
+          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+          return true;
+        };
+      }
     } catch (_) {
       debugPrint('Firebase fallback init also failed');
     }

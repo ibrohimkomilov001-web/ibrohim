@@ -176,13 +176,13 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{t('vendorSettingsTitle')}</h1>
-          <p className="text-muted-foreground">{t('manageShopInfo')}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">{t('vendorSettingsTitle')}</h1>
+          <p className="text-sm text-muted-foreground">{t('manageShopInfo')}</p>
         </div>
         <Button
-          className="rounded-full"
+          className="rounded-full hidden sm:inline-flex"
           onClick={handleSave}
           disabled={updateMutation.isPending}
         >

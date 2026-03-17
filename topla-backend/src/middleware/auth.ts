@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { verifyToken, isTokenBlacklisted, JwtPayload } from '../utils/jwt.js';
+import { extractToken } from '../utils/cookie.js';
 import { prisma } from '../config/database.js';
 import { AppError } from './error.js';
 
@@ -19,16 +20,15 @@ export async function authMiddleware(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
-  const authHeader = request.headers.authorization;
+  // Cookie dan yoki Authorization header dan token olish
+  const token = extractToken(request);
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     return reply.status(401).send({
       error: 'Unauthorized',
       message: 'Token topilmadi',
     });
   }
-
-  const token = authHeader.substring(7);
 
   try {
     // Blacklist tekshirish

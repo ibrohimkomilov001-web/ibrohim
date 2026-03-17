@@ -24,7 +24,7 @@ const periodMap: Record<string, string> = {
   year: '1y',
 };
 
-export async function getReportData(period: string): Promise<ReportData> {
+export async function getReportData(period: string): Promise<ReportData & { error?: string }> {
   const apiPeriod = periodMap[period] || '30d';
 
   try {
@@ -92,7 +92,8 @@ export async function getReportData(period: string): Promise<ReportData> {
       })),
       revenueByDay,
     };
-  } catch {
+  } catch (err) {
+    console.error('[Reports] Ma\'lumotlarni yuklashda xato:', err);
     return {
       salesOverview: { totalRevenue: 0, previousRevenue: 0, totalOrders: 0, previousOrders: 0, averageOrderValue: 0 },
       userStats: { totalUsers: 0, newUsersThisMonth: 0 },
@@ -100,6 +101,7 @@ export async function getReportData(period: string): Promise<ReportData> {
       topShops: [],
       topProducts: [],
       revenueByDay: [],
+      error: 'Backend bilan aloqa yo\'q. Sahifani yangilang.',
     };
   }
 }

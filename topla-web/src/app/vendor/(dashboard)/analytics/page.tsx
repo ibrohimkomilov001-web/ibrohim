@@ -156,7 +156,7 @@ export default function AnalyticsPage() {
                   <div key={step.label} className="flex items-center gap-2 flex-1">
                     <div className="flex-1 text-center p-3 rounded-xl bg-muted/50">
                       <step.icon className={`h-5 w-5 mx-auto mb-1 text-muted-foreground`} />
-                      <div className="text-2xl font-bold">{step.value.toLocaleString()}</div>
+                      <div className="text-lg sm:text-2xl font-bold">{step.value.toLocaleString()}</div>
                       <div className="text-xs text-muted-foreground">{step.label}</div>
                     </div>
                     {i < 3 && (
@@ -195,7 +195,7 @@ export default function AnalyticsPage() {
       </Card>
 
       {/* Charts */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
         {/* Revenue Chart */}
         <Card>
           <CardHeader>
@@ -247,7 +247,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
         {/* Status Donut */}
         <Card>
           <CardHeader>

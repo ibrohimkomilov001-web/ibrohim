@@ -11,6 +11,7 @@ import 'package:topla_app/data/repositories/repositories.dart';
 import 'package:topla_app/core/services/api_client.dart';
 import 'package:topla_app/core/services/tracking_service.dart';
 import 'package:topla_app/services/secure_storage_service.dart';
+import 'package:topla_app/services/cache_service.dart';
 
 // Providers
 import 'package:topla_app/providers/providers.dart';
@@ -30,81 +31,76 @@ Future<void> setupDependencies() async {
 
   // ==================== SERVICES ====================
 
-  // API Client (singleton)
-  getIt.registerLazySingleton<ApiClient>(
-    () => ApiClient(),
-  );
-
-  // Tracking service (real-time kuryer kuzatish)
+  // Tracking service (real-time kuryer kuzatish) - ApiClient() singleton inject qilinadi
   getIt.registerLazySingleton<TrackingService>(
-    () => TrackingService(),
+    () => TrackingService(ApiClient()),
   );
 
-  // Cache service
+  // Cache service - get_it singleton lifecycle boshqaradi
   getIt.registerLazySingleton<CacheService>(
     () => CacheService(),
   );
 
-  // Secure storage service
+  // Secure storage service - get_it singleton lifecycle boshqaradi
   getIt.registerLazySingleton<SecureStorageService>(
     () => SecureStorageService(),
   );
 
   // ==================== REPOSITORIES ====================
 
-  // Auth repository
+  // Auth repository — ApiClient() singleton direct ishlatiladi
   getIt.registerLazySingleton<IAuthRepository>(
-    () => ApiAuthRepositoryImpl(getIt<ApiClient>()),
+    () => ApiAuthRepositoryImpl(ApiClient()),
   );
 
   // Product repository
   getIt.registerLazySingleton<IProductRepository>(
-    () => ApiProductRepositoryImpl(getIt<ApiClient>()),
+    () => ApiProductRepositoryImpl(ApiClient()),
   );
 
   // Category repository
   getIt.registerLazySingleton<ICategoryRepository>(
-    () => ApiCategoryRepositoryImpl(getIt<ApiClient>()),
+    () => ApiCategoryRepositoryImpl(ApiClient()),
   );
 
   // Cart repository
   getIt.registerLazySingleton<ICartRepository>(
-    () => ApiCartRepositoryImpl(getIt<ApiClient>()),
+    () => ApiCartRepositoryImpl(ApiClient()),
   );
 
   // Order repository
   getIt.registerLazySingleton<IOrderRepository>(
-    () => ApiOrderRepositoryImpl(getIt<ApiClient>()),
+    () => ApiOrderRepositoryImpl(ApiClient()),
   );
 
   // Address repository
   getIt.registerLazySingleton<IAddressRepository>(
-    () => ApiAddressRepositoryImpl(getIt<ApiClient>()),
+    () => ApiAddressRepositoryImpl(ApiClient()),
   );
 
   // Favorites repository
   getIt.registerLazySingleton<IFavoritesRepository>(
-    () => ApiFavoritesRepositoryImpl(getIt<ApiClient>()),
+    () => ApiFavoritesRepositoryImpl(ApiClient()),
   );
 
   // Banner repository
   getIt.registerLazySingleton<IBannerRepository>(
-    () => ApiBannerRepositoryImpl(getIt<ApiClient>()),
+    () => ApiBannerRepositoryImpl(ApiClient()),
   );
 
   // Shop repository (public shop access)
   getIt.registerLazySingleton<IShopRepository>(
-    () => ApiShopRepositoryImpl(getIt<ApiClient>()),
+    () => ApiShopRepositoryImpl(ApiClient()),
   );
 
   // Courier repository (Yandex Go uslubi)
   getIt.registerLazySingleton<ICourierRepository>(
-    () => ApiCourierRepositoryImpl(getIt<ApiClient>()),
+    () => ApiCourierRepositoryImpl(ApiClient()),
   );
 
   // Lucky Wheel repository
   getIt.registerLazySingleton<ILuckyWheelRepository>(
-    () => ApiLuckyWheelRepositoryImpl(getIt<ApiClient>()),
+    () => ApiLuckyWheelRepositoryImpl(ApiClient()),
   );
 
   // ==================== PROVIDERS ====================

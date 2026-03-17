@@ -745,12 +745,18 @@ class _CartScreenState extends State<CartScreen>
             height: 44,
             child: ElevatedButton(
               onPressed: () {
+                // Tanlangan items'ning productId'larini CheckoutScreen'ga uzatamiz
+                final selectedProductIds = cart.items
+                    .where((item) => _selectedItems.contains(item.id))
+                    .map((item) => item.productId)
+                    .toList();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => CheckoutScreen(
                       promoDiscount: _discount,
                       promoCodeId: _promoCodeId,
+                      selectedProductIds: selectedProductIds,
                     ),
                   ),
                 );

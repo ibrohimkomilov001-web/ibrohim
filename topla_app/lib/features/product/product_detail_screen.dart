@@ -835,14 +835,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         children: [
           if (showDiscount)
             Text(
-              '${_formatPrice(oldPrice)} ${AppStrings.currency}',
+              '${_formatPrice(oldPrice)} ${context.l10n.currency}',
               style: TextStyle(
                   decoration: TextDecoration.lineThrough,
                   color: Colors.grey.shade500,
                   fontSize: 14),
             ),
           Text(
-            '${_formatPrice(price)} ${AppStrings.currency}',
+            '${_formatPrice(price)} ${context.l10n.currency}',
             style: const TextStyle(
                 fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
           ),

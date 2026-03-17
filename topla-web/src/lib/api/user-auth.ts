@@ -1,7 +1,9 @@
 /**
  * User Auth API — OTP-based authentication for shop customers
- * Separate from vendor auth (which uses email+password)
+ * base-client factory orqali yaratilgan
  */
+
+import { createRequest, createTokenHelpers } from './base-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -53,99 +55,46 @@ export interface OtpResponse {
   telegramAvailable: boolean;
 }
 
-// ============ TOKEN MANAGEMENT ============
+// ============ TOKEN MANAGEMENT (base-client factory) ============
 
-const TOKEN_KEY = 'topla_user_token';
-const REFRESH_KEY = 'topla_user_refresh';
+const tokenHelpers = createTokenHelpers('topla_user');
 
 export function getUserToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return tokenHelpers.getToken();
 }
 
-export function setUserTokens(access: string, refresh: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_KEY, refresh);
+/** Login muvaffaqiyatli — flag o'rnatish (tokenlar cookie da) */
+export function setUserTokens(_access: string, _refresh: string): void {
+  tokenHelpers.setToken(_access);
 }
 
 export function removeUserTokens(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
+  tokenHelpers.removeToken();
 }
 
-function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(REFRESH_KEY);
+/** Auth holatini tekshirish */
+export function isUserAuthenticated(): boolean {
+  return tokenHelpers.isAuthenticated();
 }
 
-// ============ FETCH HELPER ============
-
-async function userRequest<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const token = getUserToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, { ...options, headers });
-
-  if (response.status === 401) {
-    // Try refresh
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      headers['Authorization'] = `Bearer ${getUserToken()}`;
-      const retryResponse = await fetch(url, { ...options, headers });
-      if (retryResponse.ok) {
-        const json = await retryResponse.json();
-        return (json.data ?? json) as T;
-      }
-    }
-    removeUserTokens();
-    throw new Error('Unauthorized');
-  }
-
-  if (!response.ok) {
-    let msg = `HTTP ${response.status}`;
-    try {
-      const err = await response.json();
-      msg = err.message || msg;
-    } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-
-  const text = await response.text();
-  if (!text) return {} as T;
-  const json = JSON.parse(text);
-  return (json.data ?? json) as T;
-}
+// ============ REFRESH TOKEN LOGIC ============
 
 async function tryRefreshToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+  if (!isUserAuthenticated()) return false;
 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({}),
+      credentials: 'include',
     });
 
     if (!response.ok) return false;
 
     const json = await response.json();
     const data = json.data ?? json;
-    if (data.accessToken && data.refreshToken) {
-      setUserTokens(data.accessToken, data.refreshToken);
+    if (data.accessToken) {
       return true;
     }
     return false;
@@ -153,6 +102,14 @@ async function tryRefreshToken(): Promise<boolean> {
     return false;
   }
 }
+
+// ============ REQUEST (base-client factory + refresh) ============
+
+const userRequest = createRequest({
+  tokenKey: 'topla_user',
+  loginRedirect: null, // user auth da redirect yo'q — app o'zi boshqaradi
+  onUnauthorized: tryRefreshToken,
+});
 
 // ============ API ============
 

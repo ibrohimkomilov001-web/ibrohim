@@ -8,7 +8,7 @@ const poolTimeout = 30; // seconds
 
 // DATABASE_URL ga pool parametrlarini qo'shish
 function getDatabaseUrl(): string {
-  const baseUrl = process.env.DATABASE_URL || '';
+  const baseUrl = env.DATABASE_URL;
   const separator = baseUrl.includes('?') ? '&' : '?';
   // Agar allaqachon connection_limit bo'lsa, o'zgartirmaymiz
   if (baseUrl.includes('connection_limit')) return baseUrl;

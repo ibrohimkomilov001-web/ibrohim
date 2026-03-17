@@ -22,7 +22,7 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" title={current.label}>
+        <Button variant="ghost" size="icon" title={current.label} aria-label={`Til: ${current.label}`}>
           <span className="text-base">{current.flag}</span>
         </Button>
       </DropdownMenuTrigger>

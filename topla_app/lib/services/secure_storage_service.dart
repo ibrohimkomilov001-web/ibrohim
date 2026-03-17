@@ -7,10 +7,7 @@ import '../core/utils/app_logger.dart';
 class SecureStorageService {
   static const _tag = 'SecureStorage';
 
-  static final SecureStorageService _instance =
-      SecureStorageService._internal();
-  factory SecureStorageService() => _instance;
-  SecureStorageService._internal();
+  SecureStorageService();
 
   // Android uchun encrypted shared preferences
   // iOS uchun Keychain

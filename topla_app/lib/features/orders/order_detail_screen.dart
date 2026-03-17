@@ -466,7 +466,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ),
             Text(
-              '${_formatPrice(item.total.toInt())} ${AppStrings.currency}',
+              '${_formatPrice(item.total.toInt())} ${context.l10n.currency}',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -803,7 +803,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ),
               Text(
-                '${_formatPrice(order.total.toInt())} ${AppStrings.currency}',
+                '${_formatPrice(order.total.toInt())} ${context.l10n.currency}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -863,7 +863,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             style: TextStyle(color: Colors.grey.shade600),
           ),
           Text(
-            '${isNegative ? "-" : ""}${_formatPrice(amount.abs().toInt())} ${AppStrings.currency}',
+            '${isNegative ? "-" : ""}${_formatPrice(amount.abs().toInt())} ${context.l10n.currency}',
             style: TextStyle(
               color: isNegative ? AppColors.success : null,
             ),

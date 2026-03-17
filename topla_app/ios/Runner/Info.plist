@@ -45,12 +45,33 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Firebase Push Notifications -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<!-- URL Schemes for share_plus, url_launcher -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>sms</string>
+		<string>tg</string>
+	</array>
 	<!-- Camera (image_picker) -->
 	<key>NSCameraUsageDescription</key>
 	<string>TOPLA ilovasi profil rasmingizni o'zgartirish va mahsulot rasmlarini yuklash uchun kameradan foydalanadi.</string>
 	<!-- Photo Library (image_picker) -->
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>TOPLA ilovasi profil rasmingizni tanlash va mahsulot rasmlarini yuklash uchun gallereyadan foydalanadi.</string>
+	<!-- Microphone (not used, but Apple may require if camera grants video) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TOPLA ilovasi video yozish uchun mikrofondan foydalanishi mumkin.</string>
 	<!-- Location (geolocator, geocoding) -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>TOPLA ilovasi yetkazib berish manzilingizni aniqlash uchun joylashuvingizdan foydalanadi.</string>
@@ -61,5 +82,8 @@
 	<!-- Biometric Authentication (local_auth) -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>TOPLA ilovasi hisobingizga xavfsiz kirish uchun Face ID dan foydalanadi.</string>
+	<!-- User Notifications (flutter_local_notifications) -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>TOPLA ilovasi buyurtma holati va maxsus takliflar haqida xabar berish uchun bildirishnomalardan foydalanadi.</string>
 </dict>
 </plist>

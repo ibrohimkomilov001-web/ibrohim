@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../core/services/api_client.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -132,7 +133,7 @@ class _SplashScreenState extends State<SplashScreen>
                 const SizedBox(height: 24),
                 // App nomi
                 Text(
-                  AppStrings.appName,
+                  context.l10n.appName,
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
