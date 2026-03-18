@@ -854,21 +854,21 @@ Qidiruv natijasi bo'sh bo'lganda:
 | [x] | **O-04**: Multi-shop order splitting | Backend | 2 kun |
 | [x] | **B-03**: OrderItem variantLabel to'ldirish | Backend | 0.5 kun |
 
-### FAZA 2: MAHSULOT TIZIMI KUCHAYTIRISH (2-3 hafta)
+### FAZA 2: MAHSULOT TIZIMI KUCHAYTIRISH (2-3 hafta) — ✅ BAJARILDI
 
 | # | Ish | Masul | Muddat |
 |---|-----|-------|--------|
-| [ ] | **P-FIX-04**: Product schema kengaytirish (slug, barcode, video, dimensions, tags) | Backend | 1 kun |
-| [ ] | **P-FIX-01**: Backend atribut qiymatlarini to'liq CRUD | Backend | 1 kun |
-| [ ] | **P-FIX-02**: Web vendor form — dynamic attribute form (kategoriya asosida) | Web | 3 kun |
-| [ ] | **P-FIX-03**: Variant images upload UI | Web | 1 kun |
-| [ ] | **P-FIX-05**: 5-bosqichli vendor product wizard (to'liq qayta loyiha) | Web | 5 kun |
-| [ ] | **P-05**: Rasm sifati tekshiruvi (min 800×800, aspect ratio) | Backend | 1 kun |
-| [ ] | **P-06**: SEO fields (metaTitle, metaDesc, auto slug) | Backend + Web | 1 kun |
-| [ ] | **P-07**: Rich text editor (TipTap) integration | Web | 1 kun |
-| [ ] | **P-08**: Draft autosave (30 sek interval) | Web | 0.5 kun |
-| [ ] | **P-09**: Mahsulot clone/duplicate | Backend + Web | 0.5 kun |
-| [ ] | **P-11**: Video URL support | Backend + Web + Flutter | 1 kun |
+| [x] | **P-FIX-04**: Product schema kengaytirish (slug, barcode, video, dimensions, tags) | Backend | 1 kun |
+| [x] | **P-FIX-01**: Backend atribut qiymatlarini to'liq CRUD | Backend | 1 kun |
+| [x] | **P-FIX-02**: Web vendor form — dynamic attribute form (kategoriya asosida) | Web | 3 kun |
+| [x] | **P-FIX-03**: Variant images upload UI | Web | 1 kun |
+| [x] | **P-FIX-05**: 5-bosqichli vendor product wizard (to'liq qayta loyiha) | Web | 5 kun |
+| [x] | **P-05**: Rasm sifati tekshiruvi (min 800×800, aspect ratio) | Backend | 1 kun |
+| [x] | **P-06**: SEO fields (metaTitle, metaDesc, auto slug) | Backend + Web | 1 kun |
+| [x] | **P-07**: Rich text editor (TipTap) integration | Web | 1 kun |
+| [x] | **P-08**: Draft autosave (30 sek interval) | Web | 0.5 kun |
+| [x] | **P-09**: Mahsulot clone/duplicate | Backend + Web | 0.5 kun |
+| [x] | **P-11**: Video URL support | Backend + Web + Flutter | 1 kun |
 
 ### FAZA 3: QIDIRUV TIZIMI — ENG KUCHLI (2-3 hafta)
 
