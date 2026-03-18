@@ -2392,6 +2392,135 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   // ============================================
+  // Meilisearch: Synonym Management
+  // ============================================
+
+  /**
+   * GET /admin/search/synonyms
+   * Hozirgi sinonimlarni ko'rish
+   */
+  app.get('/admin/search/synonyms', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { getSynonyms } = await import('../../services/search.service.js');
+    const synonyms = await getSynonyms();
+    return reply.send({ success: true, data: synonyms || {} });
+  });
+
+  /**
+   * PUT /admin/search/synonyms
+   * Sinonimlarni yangilash
+   */
+  app.put('/admin/search/synonyms', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { updateSynonyms } = await import('../../services/search.service.js');
+    const body = request.body as Record<string, string[]>;
+    if (!body || typeof body !== 'object') {
+      return reply.status(400).send({ success: false, error: 'Body must be a synonyms object' });
+    }
+    const result = await updateSynonyms(body);
+    if (!result) {
+      return reply.status(500).send({ success: false, error: 'Meilisearch synonyms yangilanmadi' });
+    }
+    await prisma.activityLog.create({
+      data: {
+        userId: request.user!.userId,
+        action: 'search.synonyms_updated',
+        entityType: 'system',
+        entityId: 'meilisearch',
+        details: { synonymCount: Object.keys(body).length },
+        ipAddress: request.ip,
+      },
+    });
+    return reply.send({ success: true, data: { message: 'Sinonimlar yangilandi' } });
+  });
+
+  // ============================================
+  // Search Analytics Dashboard
+  // ============================================
+
+  /**
+   * GET /admin/search/analytics
+   * Qidiruv analitikasi: ommabop so'rovlar, CTR, no-results
+   */
+  app.get('/admin/search/analytics', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { days = '7' } = request.query as { days?: string };
+    const since = new Date();
+    since.setDate(since.getDate() - parseInt(days));
+
+    const [
+      topQueries,
+      noResultQueries,
+      totalSearches,
+      clickStats,
+      recentTrend,
+    ] = await Promise.all([
+      // Top 20 eng ko'p qidirilganlar
+      prisma.searchQuery.findMany({
+        orderBy: { count: 'desc' },
+        take: 20,
+      }),
+      // No-result qidiruvlar
+      prisma.searchAnalytics.groupBy({
+        by: ['query'],
+        where: { action: 'no_results', createdAt: { gte: since } },
+        _count: { _all: true },
+        orderBy: { _count: { query: 'desc' } },
+        take: 20,
+      }),
+      // Jami qidiruvlar soni
+      prisma.searchQuery.aggregate({ _sum: { count: true } }),
+      // Click analytics
+      prisma.searchAnalytics.groupBy({
+        by: ['action'],
+        where: { createdAt: { gte: since } },
+        _count: { _all: true },
+      }),
+      // Kunlik trend
+      prisma.$queryRaw`
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM search_analytics
+        WHERE created_at >= ${since}
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+        LIMIT 30
+      `,
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        topQueries,
+        noResultQueries: noResultQueries.map(q => ({
+          query: q.query,
+          count: q._count._all,
+        })),
+        totalSearches: totalSearches._sum.count || 0,
+        clickStats: clickStats.map(s => ({
+          action: s.action,
+          count: s._count._all,
+        })),
+        recentTrend,
+      },
+    });
+  });
+
+  /**
+   * GET /admin/search/stats
+   * Meilisearch index statistikasi
+   */
+  app.get('/admin/search/stats', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request, reply) => {
+    const { getIndexStats } = await import('../../services/search.service.js');
+    const stats = await getIndexStats();
+    return reply.send({ success: true, data: stats });
+  });
+
+  // ============================================
   // LUCKY WHEEL ADMIN
   // ============================================
 

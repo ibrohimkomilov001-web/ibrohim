@@ -19,6 +19,7 @@ import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
 import '../../widgets/product_filter_sheet.dart';
 import '../product/product_detail_screen.dart';
+import 'barcode_scanner_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -200,6 +201,23 @@ class _SearchScreenState extends State<SearchScreen>
   void _removeSuggestionOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+  }
+
+  /// Shtrix-kod skanerini ochish
+  Future<void> _openBarcodeScanner() async {
+    final barcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const BarcodeScannerScreen(),
+      ),
+    );
+    if (barcode != null && barcode.isNotEmpty && mounted) {
+      _searchController.text = barcode;
+      setState(() {
+        _showClearButton = true;
+      });
+      _performSearch(barcode);
+    }
   }
 
   Future<void> _performSearch(String query, {bool loadMore = false}) async {
@@ -522,8 +540,11 @@ class _SearchScreenState extends State<SearchScreen>
         decoration: InputDecoration(
           hintText: context.l10n.translate('search_hint'),
           prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _showClearButton
-              ? IconButton(
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_showClearButton)
+                IconButton(
                   onPressed: () {
                     _searchController.clear();
                     _removeSuggestionOverlay();
@@ -537,8 +558,14 @@ class _SearchScreenState extends State<SearchScreen>
                     _searchFocusNode.requestFocus();
                   },
                   icon: const Icon(Icons.close, size: 18),
-                )
-              : null,
+                ),
+              IconButton(
+                onPressed: _openBarcodeScanner,
+                icon: const Icon(Icons.qr_code_scanner, size: 20),
+                tooltip: _isUzbek ? 'Shtrix-kod skaneri' : 'Сканер штрих-кода',
+              ),
+            ],
+          ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           border: OutlineInputBorder(

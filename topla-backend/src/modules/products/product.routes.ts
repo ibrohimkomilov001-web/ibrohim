@@ -188,6 +188,42 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // ============================================
+  // PUBLIC: Search Analytics Tracking
+  // ============================================
+
+  /**
+   * POST /search/track
+   * Qidiruv natijasidagi click/add_to_cart/purchase hodisalarini qayd etish
+   */
+  app.post('/search/track', async (request, reply) => {
+    const trackSchema = z.object({
+      query: z.string().min(1).max(200),
+      productId: z.string().uuid().optional(),
+      action: z.enum(['click', 'add_to_cart', 'purchase', 'no_results']),
+      position: z.number().int().min(0).optional(),
+      engine: z.string().optional(),
+      sessionId: z.string().optional(),
+    });
+    const data = trackSchema.parse(request.body);
+    const userId = (request as any).user?.userId || null;
+
+    // Fire-and-forget — xatolik bo'lsa ham 200 qaytaradi
+    prisma.searchAnalytics.create({
+      data: {
+        query: data.query.toLowerCase().trim(),
+        productId: data.productId,
+        action: data.action,
+        position: data.position,
+        engine: data.engine,
+        userId,
+        sessionId: data.sessionId,
+      },
+    }).catch(() => {});
+
+    return reply.send({ success: true });
+  });
+
+  // ============================================
   // PUBLIC: Mahsulotlar
   // ============================================
 
@@ -284,6 +320,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       offset,
       filter: filters,
       sort,
+      facets: ['categoryId', 'brandId', 'colorId', 'shopId', 'tags'],
     });
 
     if (meiliResult) {
@@ -297,6 +334,8 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           totalPages: Math.ceil(meiliResult.totalHits / params.limit),
           query: meiliResult.query,
           engine: 'meilisearch',
+          processingTimeMs: meiliResult.processingTimeMs,
+          facets: meiliResult.facetDistribution,
         },
       };
       // Cache for 45 seconds

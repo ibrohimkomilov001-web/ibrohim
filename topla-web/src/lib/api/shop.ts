@@ -112,9 +112,9 @@ async function shopFetch<T>(endpoint: string): Promise<T> {
   return json.data ?? json;
 }
 
-async function clientFetch<T>(endpoint: string): Promise<T> {
+async function clientFetch<T>(endpoint: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const res = await fetch(url);
+  const res = await fetch(url, init);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   const json = await res.json();
   return json.data ?? json;
@@ -140,8 +140,26 @@ export const shopApi = {
 
   getProduct: (id: string) => clientFetch<ProductDetail>(`/products/${id}`),
 
-  searchProducts: (q: string, limit = 20) =>
-    clientFetch<PaginatedResponse<ProductItem>>(`/products?search=${encodeURIComponent(q)}&limit=${limit}`),
+  searchProducts: (q: string, params?: Record<string, string>) => {
+    const searchParams = new URLSearchParams({ q, limit: '20', ...params });
+    return clientFetch<any>(`/products/search?${searchParams.toString()}`);
+  },
+
+  // Search suggestions (autocomplete)
+  searchSuggest: (q: string) =>
+    clientFetch<any[]>(`/search/suggest?q=${encodeURIComponent(q)}`),
+
+  // Popular/trending searches
+  getPopularSearches: () =>
+    clientFetch<any[]>(`/search/popular`),
+
+  // Track search analytics
+  trackSearch: (data: { query: string; productId?: string; action: string; position?: number; engine?: string }) =>
+    clientFetch<any>(`/search/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).catch(() => {}),
 
   // Shops
   getShops: (params?: Record<string, string>) => {

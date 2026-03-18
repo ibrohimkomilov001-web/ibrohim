@@ -1341,6 +1341,27 @@ model UserSearchHistory {
 }
 
 // ============================================
+// 18.2 SEARCH ANALYTICS (Qidiruv analitikasi)
+// ============================================
+
+model SearchAnalytics {
+  id         String   @id @default(uuid()) @db.Uuid
+  query      String
+  productId  String?  @map("product_id") @db.Uuid
+  action     String   // "click", "add_to_cart", "purchase", "no_results"
+  position   Int?     // qidiruv natijasidagi pozitsiya
+  engine     String?  // "meilisearch" yoki "database"
+  userId     String?  @map("user_id") @db.Uuid
+  sessionId  String?  @map("session_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([query, action])
+  @@index([productId])
+  @@index([createdAt])
+  @@map("search_analytics")
+}
+
+// ============================================
 // 19. RETURNS (Qaytarishlar)
 // ============================================
 

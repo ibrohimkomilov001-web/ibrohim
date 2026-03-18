@@ -224,6 +224,12 @@ export async function startWorkers(): Promise<void> {
             include: {
               shop: { select: { id: true, name: true } },
               category: { select: { id: true, nameUz: true, nameRu: true } },
+              brand: { select: { id: true, name: true } },
+              attributeValues: {
+                include: {
+                  attribute: { select: { key: true } },
+                },
+              },
             },
           });
           // Batch in groups of 500
