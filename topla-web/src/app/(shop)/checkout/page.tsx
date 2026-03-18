@@ -96,9 +96,9 @@ export default function CheckoutPage() {
           deliveryMethod,
           subtotal: subtotal.toString(),
         });
-        const res = await userRequest.get(`/orders/delivery-info?${params}`);
-        if (res?.data) {
-          const d = res.data;
+        const res = await userRequest<{ deliveryFee: number; freeDeliveryThreshold: number; isFreeDelivery: boolean; deliveryEstimate?: { displayText?: string } }>(`/orders/delivery-info?${params}`);
+        if (res) {
+          const d = res;
           setDeliveryFee(d.isFreeDelivery ? 0 : (d.deliveryFee || 0));
           setFreeDeliveryThreshold(d.freeDeliveryThreshold || 0);
           setIsFreeDelivery(d.isFreeDelivery || false);
