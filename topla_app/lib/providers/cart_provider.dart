@@ -29,15 +29,66 @@ class CartProvider extends ChangeNotifier {
   int get totalQuantity => _items.fold(0, (sum, item) => sum + item.quantity);
 
   double get subtotal => _items.fold(0, (sum, item) => sum + item.total);
-  // TODO: yetkazish narxini backenddan olish (masofaga qarab)
+  // Dynamic delivery fee from backend (zone-based)
   double _deliveryFee = 0;
   double get deliveryFee => _deliveryFee;
   double get total => subtotal + deliveryFee;
+
+  // Delivery info from backend
+  String? _deliveryTimeDisplay;
+  String? get deliveryTimeDisplay => _deliveryTimeDisplay;
+  double _freeDeliveryThreshold = 0;
+  double get freeDeliveryThreshold => _freeDeliveryThreshold;
+  bool get isFreeDelivery =>
+      _freeDeliveryThreshold > 0 && subtotal >= _freeDeliveryThreshold;
 
   /// Yetkazish narxini yangilash (backend hisoblab beradi)
   void setDeliveryFee(double fee) {
     _deliveryFee = fee;
     notifyListeners();
+  }
+
+  /// Backend'dan yetkazish narxi va vaqtini olish (zone-based)
+  Future<void> fetchDeliveryInfo({
+    String? addressId,
+    String deliveryMethod = 'courier',
+    String? scheduledDate,
+    String? scheduledTimeSlot,
+  }) async {
+    try {
+      final params = <String, String>{
+        'deliveryMethod': deliveryMethod,
+        'subtotal': subtotal.toStringAsFixed(0),
+      };
+      if (addressId != null) params['addressId'] = addressId;
+      if (scheduledDate != null) params['scheduledDate'] = scheduledDate;
+      if (scheduledTimeSlot != null)
+        params['scheduledTimeSlot'] = scheduledTimeSlot;
+
+      final queryStr =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _api.get('/orders/delivery-info?$queryStr');
+
+      if (response != null && response['data'] != null) {
+        final data = response['data'];
+        final fee = (data['deliveryFee'] as num?)?.toDouble() ?? 0;
+        _freeDeliveryThreshold =
+            (data['freeDeliveryThreshold'] as num?)?.toDouble() ?? 0;
+        _deliveryTimeDisplay =
+            data['deliveryEstimate']?['displayText'] as String?;
+
+        // Free delivery threshold check
+        if (data['isFreeDelivery'] == true) {
+          _deliveryFee = 0;
+        } else {
+          _deliveryFee = fee;
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('fetchDeliveryInfo error: $e');
+      // Fallback — keep current fee
+    }
   }
 
   /// Foydalanuvchi tizimga kirganmi

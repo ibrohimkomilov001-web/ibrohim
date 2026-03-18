@@ -15,34 +15,26 @@ import {
   emitToAdminDashboard,
   emitToCourier,
 } from '../../websocket/socket.js';
+import {
+  calculateDeliveryFee,
+  estimateDeliveryTime,
+  reorderToCart,
+  cancelOrderItem,
+  buildVariantInfo,
+  getDeliveryInfo,
+} from '../../services/order.service.js';
 
 // ============================================
 // Validation Schemas
 // ============================================
 
-// ============================================
-// Helper: Dynamic delivery fee from AdminSetting
-// ============================================
-
-async function getDeliveryFee(): Promise<number> {
-  try {
-    const setting = await prisma.adminSetting.findUnique({
-      where: { key: 'delivery_fee' },
-    });
-    if (setting) {
-      return parseFloat(setting.value) || 15000;
-    }
-  } catch {
-    // fallback
-  }
-  return 15000; // default
-}
+// Helper: getDeliveryFee removed → now in order.service.ts (calculateDeliveryFee)
 
 const createOrderSchema = z.object({
   addressId: z.string().uuid().optional(),
   pickupPointId: z.string().uuid().optional(),
   deliveryMethod: z.enum(['courier', 'pickup']).default('courier'),
-  paymentMethod: z.enum(['cash', 'card']).default('cash'),
+  paymentMethod: z.enum(['cash', 'card', 'payme', 'click']).default('cash'),
   recipientName: z.string().optional(),
   recipientPhone: z.string().optional(),
   deliveryDate: z.string().optional(),
@@ -58,6 +50,7 @@ const createOrderSchema = z.object({
 
 const updateStatusSchema = z.object({
   status: z.enum([
+    'confirmed',
     'processing',
     'ready_for_pickup',
     'at_pickup_point',
@@ -86,7 +79,8 @@ function generateOrderNumber(): string {
 // ============================================
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending: ['processing', 'cancelled'],
+  pending: ['confirmed', 'processing', 'cancelled'],
+  confirmed: ['processing', 'cancelled'],
   processing: ['ready_for_pickup', 'cancelled'],
   ready_for_pickup: ['courier_assigned', 'at_pickup_point', 'cancelled'],
   at_pickup_point: ['delivered', 'cancelled'],
@@ -282,6 +276,9 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { nameUz: true, nameRu: true } },
               size: { select: { nameUz: true, nameRu: true } },
+              attributeValues: {
+                include: { attribute: { select: { key: true, nameUz: true } } },
+              },
             },
           },
         },
@@ -306,6 +303,9 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { nameUz: true, nameRu: true } },
               size: { select: { nameUz: true, nameRu: true } },
+              attributeValues: {
+                include: { attribute: { select: { key: true, nameUz: true } } },
+              },
             },
           },
         },
@@ -420,9 +420,25 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    const deliveryFeePerOrder = body.deliveryMethod === 'courier'
-      ? await getDeliveryFee()
-      : 0;
+    // Dynamic delivery fee (zone-based or AdminSetting fallback)
+    let deliveryFeePerOrder = 0;
+    let freeDeliveryThreshold = 0;
+    if (body.deliveryMethod === 'courier') {
+      const feeResult = await calculateDeliveryFee(body.addressId, body.deliveryMethod);
+      deliveryFeePerOrder = feeResult.fee;
+      freeDeliveryThreshold = feeResult.freeDeliveryThreshold;
+      // Free delivery if subtotal exceeds threshold
+      if (freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold) {
+        deliveryFeePerOrder = 0;
+      }
+    }
+
+    // Delivery time estimate
+    const deliveryEstimate = estimateDeliveryTime(
+      body.deliveryMethod,
+      body.deliveryDate,
+      body.deliveryTimeSlot,
+    );
 
     // 4.5 Multi-shop order splitting (O-04 fix)
     // Cart items'ni shopId bo'yicha gruppalash
@@ -502,7 +518,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             orderNumber: generateOrderNumber(),
             userId,
             addressId: body.addressId || null,
-            status: 'processing',
+            status: 'pending',
             paymentStatus: body.paymentMethod === 'cash' ? 'pending' : 'pending',
             paymentMethod: body.paymentMethod,
             deliveryMethod: body.deliveryMethod,
@@ -515,35 +531,27 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             total: orderTotal,
             recipientName: body.recipientName,
             recipientPhone: body.recipientPhone,
-            deliveryDate: body.deliveryDate ? new Date(body.deliveryDate) : null,
-            deliveryTimeSlot: body.deliveryTimeSlot,
+            deliveryDate: deliveryEstimate.estimatedDate || (body.deliveryDate ? new Date(body.deliveryDate) : null),
+            deliveryTimeSlot: deliveryEstimate.estimatedTimeSlot || body.deliveryTimeSlot,
             promoCode: i === 0 ? body.promoCode?.toUpperCase() : null,
             note: body.note,
           },
         });
 
-        // Order items yaratish (B-03: variantLabel to'ldirish)
+        // Order items yaratish (B-03: variantLabel to'ldirish + attributeValues)
         await tx.orderItem.createMany({
           data: shopItems.map((item: typeof shopItems[number]) => {
-            // Variant label yasash (rang / o'lcham)
-            const variant = (item as any).variant;
-            let variantLabel: string | null = null;
-            if (variant) {
-              const parts: string[] = [];
-              if (variant.color?.nameUz) parts.push(variant.color.nameUz);
-              if (variant.size?.nameUz) parts.push(variant.size.nameUz);
-              if (parts.length > 0) variantLabel = parts.join(' / ');
-            }
+            const variantInfo = buildVariantInfo(item);
             return {
               orderId: newOrder.id,
               productId: item.productId,
               variantId: item.variantId || null,
               shopId: item.product.shopId,
               name: item.product.name,
-              variantLabel,
-              price: variant?.price || item.product.price,
+              variantLabel: variantInfo.variantLabel,
+              price: variantInfo.price || item.product.price,
               quantity: item.quantity,
-              imageUrl: (variant?.images?.[0]) || item.product.images?.[0] || null,
+              imageUrl: variantInfo.imageUrl || item.product.images?.[0] || null,
             };
           }),
         });
@@ -552,9 +560,9 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         await tx.orderStatusHistory.create({
           data: {
             orderId: newOrder.id,
-            status: 'processing',
+            status: 'pending',
             changedBy: userId,
-            note: 'Do\'kon tayyorlayapti',
+            note: 'Buyurtma yaratildi — tasdiqlash kutilmoqda',
           },
         });
 
@@ -600,7 +608,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
 
     // 6. Bildirishnomalar (BullMQ orqali non-blocking)
     for (const order of orders) {
-      enqueueNotification({ type: 'order_status', orderId: order.id, newStatus: 'order_new' }).catch(() => {});
+      enqueueNotification({ type: 'order_status', orderId: order.id, newStatus: 'pending' }).catch(() => {});
     }
 
     // 7. Javob — bitta yoki ko'p order
@@ -960,7 +968,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Vendor faqat o'z bosqichlarigacha o'zgartira oladi
-      const vendorAllowed = ['processing', 'ready_for_pickup', 'at_pickup_point', 'cancelled'];
+      const vendorAllowed = ['confirmed', 'processing', 'ready_for_pickup', 'at_pickup_point', 'cancelled'];
       if (!vendorAllowed.includes(body.status)) {
         throw new AppError('Vendor bu statusni o\'zgartira olmaydi');
       }
@@ -968,6 +976,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       // Status yangilash
       const timestamps: Record<string, Date> = {};
       const extraData: Record<string, any> = {};
+      if (body.status === 'confirmed') timestamps.confirmedAt = new Date();
       if (body.status === 'ready_for_pickup') timestamps.readyAt = new Date();
       if (body.status === 'cancelled') timestamps.cancelledAt = new Date();
 
@@ -1124,6 +1133,121 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     });
 
     return reply.send({ success: true, message: 'Rahmat! Bahoyingiz qabul qilindi' });
+  });
+
+  // ============================================
+  // NEW: Delivery info endpoint (O-03/F-03/B-10)
+  // ============================================
+
+  /**
+   * GET /orders/delivery-info
+   * Yetkazib berish narxi va vaqtini olish (checkout sahifasi uchun)
+   */
+  const deliveryInfoSchema = z.object({
+    addressId: z.string().uuid().optional(),
+    deliveryMethod: z.enum(['courier', 'pickup']).default('courier'),
+    subtotal: z.coerce.number().min(0).default(0),
+    scheduledDate: z.string().optional(),
+    scheduledTimeSlot: z.string().optional(),
+  });
+
+  app.get('/orders/delivery-info', { preHandler: authMiddleware }, async (request, reply) => {
+    const query = deliveryInfoSchema.parse(request.query);
+
+    const info = await getDeliveryInfo({
+      addressId: query.addressId,
+      deliveryMethod: query.deliveryMethod,
+      subtotal: query.subtotal,
+      scheduledDate: query.scheduledDate,
+      scheduledTimeSlot: query.scheduledTimeSlot,
+    });
+
+    return reply.send({ success: true, data: info });
+  });
+
+  // ============================================
+  // NEW: Reorder endpoint (O-09)
+  // ============================================
+
+  /**
+   * POST /orders/:id/reorder
+   * Oldingi buyurtma mahsulotlarini savatga qayta qo'shish
+   */
+  app.post('/orders/:id/reorder', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = idParamSchema.parse(request.params);
+    const userId = request.user!.userId;
+
+    const result = await reorderToCart(id, userId);
+
+    return reply.send({
+      success: true,
+      data: result,
+      message: result.skippedItems.length > 0
+        ? `${result.addedItems.length} ta mahsulot qo'shildi, ${result.skippedItems.length} ta mavjud emas`
+        : `${result.addedItems.length} ta mahsulot savatga qo'shildi`,
+    });
+  });
+
+  // ============================================
+  // NEW: Partial cancel endpoint (O-10)
+  // ============================================
+
+  /**
+   * DELETE /orders/:id/items/:itemId
+   * Buyurtmadan bitta mahsulotni bekor qilish
+   */
+  const cancelItemSchema = z.object({
+    reason: z.string().max(500).optional(),
+  });
+
+  app.delete('/orders/:id/items/:itemId', { preHandler: authMiddleware }, async (request, reply) => {
+    const params = z.object({
+      id: z.string().uuid(),
+      itemId: z.string().uuid(),
+    }).parse(request.params);
+    const body = cancelItemSchema.parse(request.body || {});
+    const userId = request.user!.userId;
+
+    const result = await cancelOrderItem(params.id, params.itemId, userId, body.reason);
+
+    // Real-time update
+    emitOrderStatusUpdate(params.id, result.orderCancelled ? 'cancelled' : 'item_cancelled', {
+      cancelledItemId: params.itemId,
+      newTotal: result.newOrderTotal,
+    });
+
+    return reply.send({
+      success: true,
+      data: result,
+      message: result.orderCancelled
+        ? 'Oxirgi mahsulot bekor qilindi — buyurtma bekor qilindi'
+        : `"${result.cancelledItem.name}" buyurtmadan olib tashlandi`,
+    });
+  });
+
+  // Also support POST for clients that don't send body with DELETE
+  app.post('/orders/:id/items/:itemId/cancel', { preHandler: authMiddleware }, async (request, reply) => {
+    const params = z.object({
+      id: z.string().uuid(),
+      itemId: z.string().uuid(),
+    }).parse(request.params);
+    const body = cancelItemSchema.parse(request.body || {});
+    const userId = request.user!.userId;
+
+    const result = await cancelOrderItem(params.id, params.itemId, userId, body.reason);
+
+    emitOrderStatusUpdate(params.id, result.orderCancelled ? 'cancelled' : 'item_cancelled', {
+      cancelledItemId: params.itemId,
+      newTotal: result.newOrderTotal,
+    });
+
+    return reply.send({
+      success: true,
+      data: result,
+      message: result.orderCancelled
+        ? 'Oxirgi mahsulot bekor qilindi — buyurtma bekor qilindi'
+        : `"${result.cancelledItem.name}" buyurtmadan olib tashlandi`,
+    });
   });
 }
 

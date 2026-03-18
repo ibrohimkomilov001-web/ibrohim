@@ -103,7 +103,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           bottomSheet: order.status == OrderStatus.pending ||
                   order.status == OrderStatus.processing
               ? _buildBottomActions(order)
-              : null,
+              : (order.status == OrderStatus.delivered ||
+                      order.status == OrderStatus.cancelled)
+                  ? _buildReorderAction(order)
+                  : null,
         );
       },
     );
@@ -380,13 +383,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          ...order.items.map((item) => _buildProductItem(item)),
+          ...order.items.map((item) => _buildProductItem(order, item)),
         ],
       ),
     );
   }
 
-  Widget _buildProductItem(OrderItemModel item) {
+  Widget _buildProductItem(OrderModel order, OrderItemModel item) {
+    final canPartialCancel = order.items.length > 1 &&
+        (order.status == OrderStatus.pending ||
+            order.status == OrderStatus.processing);
+
     return GestureDetector(
       onTap: () {
         if (item.productId != null) {
@@ -472,6 +479,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 fontSize: 14,
               ),
             ),
+            // Partial cancel button
+            if (canPartialCancel) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _showPartialCancelDialog(order, item),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    Iconsax.close_circle,
+                    size: 18,
+                    color: AppColors.error.withOpacity(0.7),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -977,6 +1003,136 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               backgroundColor: AppColors.error,
             ),
             child: Text(context.l10n.translate('yes_cancel')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Reorder action — show for delivered/cancelled orders
+  Widget _buildReorderAction(OrderModel order) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200, width: 0.5),
+        ),
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: ElevatedButton.icon(
+            onPressed: () => _handleReorder(order),
+            icon: const Icon(Iconsax.refresh, size: 18),
+            label: Text(
+              context.l10n.translate('reorder'),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              elevation: 0,
+              shape: const StadiumBorder(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Handle reorder — add items to cart
+  Future<void> _handleReorder(OrderModel order) async {
+    final ordersProvider = context.read<OrdersProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final result = await ordersProvider.reorder(order.id);
+    if (result != null) {
+      final addedCount = (result['addedItems'] as List?)?.length ?? 0;
+      final skippedCount = (result['skippedItems'] as List?)?.length ?? 0;
+
+      String message;
+      if (skippedCount > 0) {
+        message = '$addedCount ta qo\'shildi, $skippedCount ta mavjud emas';
+      } else {
+        message = '$addedCount ta mahsulot savatga qo\'shildi';
+      }
+
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.success,
+          action: SnackBarAction(
+            label: 'Savatga',
+            textColor: Colors.white,
+            onPressed: () => navigator.popUntil((r) => r.isFirst),
+          ),
+        ),
+      );
+    } else {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Xatolik yuz berdi'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  /// Show partial cancel dialog for a single item
+  void _showPartialCancelDialog(OrderModel order, OrderItemModel item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mahsulotni bekor qilish'),
+        content: Text(
+          '"${item.productName}" buyurtmadan olib tashlansinmi?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Yo\'q'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final ordersProvider = context.read<OrdersProvider>();
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+
+              final result = await ordersProvider.cancelOrderItem(
+                order.id,
+                item.id,
+              );
+              if (result != null) {
+                final orderCancelled = result['orderCancelled'] == true;
+                if (orderCancelled && mounted) {
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Oxirgi mahsulot bekor qilindi — buyurtma bekor qilindi'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                } else if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('"${item.productName}" olib tashlandi'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: const Text('Ha, bekor qilish'),
           ),
         ],
       ),

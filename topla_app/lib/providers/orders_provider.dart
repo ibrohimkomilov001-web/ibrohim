@@ -182,6 +182,46 @@ class OrdersProvider extends ChangeNotifier {
     }
   }
 
+  /// Buyurtmani qayta buyurtma qilish (savatga qo'shish)
+  Future<Map<String, dynamic>?> reorder(String orderId) async {
+    try {
+      final response = await _api.post('/orders/$orderId/reorder', {});
+      if (response != null && response['success'] == true) {
+        return response['data'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Buyurtmadan bitta mahsulotni bekor qilish (partial cancel)
+  Future<Map<String, dynamic>?> cancelOrderItem(
+    String orderId,
+    String itemId, {
+    String? reason,
+  }) async {
+    try {
+      // POST instead of DELETE (since ApiClient.delete doesn't support body)
+      final response = await _api.post(
+        '/orders/$orderId/items/$itemId/cancel',
+        reason != null ? {'reason': reason} : {},
+      );
+      if (response != null && response['success'] == true) {
+        // Buyurtmani qayta yuklash
+        await loadOrderById(orderId);
+        return response['data'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
   /// Bitta buyurtmani ID bo'yicha yuklash
   Future<OrderModel?> loadOrderById(String orderId) async {
     _isLoading = true;

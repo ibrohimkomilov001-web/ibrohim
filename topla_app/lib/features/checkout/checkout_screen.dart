@@ -84,8 +84,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _scheduledDate = DateTime.now().add(const Duration(days: 1));
     // Manzillarni yuklash
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Default yetkazish narxi (courier = 35 000)
-      context.read<CartProvider>().setDeliveryFee(35000);
+      // Backend'dan yetkazish narxini olish
+      final cartProv = context.read<CartProvider>();
 
       final addressProvider = context.read<AddressesProvider>();
       addressProvider.loadAddresses().then((_) {
@@ -95,6 +95,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           setState(() {
             _selectedAddressId = defaultAddress.id;
           });
+          // Manzil asosida yetkazish narxini olish
+          cartProv.fetchDeliveryInfo(
+            addressId: defaultAddress.id,
+            deliveryMethod: _deliveryMethod,
+          );
+        } else {
+          // Manzilsiz default yetkazish narxini olish
+          cartProv.fetchDeliveryInfo(deliveryMethod: _deliveryMethod);
         }
       });
 
@@ -273,7 +281,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 cartProv.setDeliveryFee(0);
                 _openPickupPointSelector();
               } else {
-                cartProv.setDeliveryFee(35000);
+                // Backend'dan zone-based yetkazish narxini olish
+                cartProv.fetchDeliveryInfo(
+                  addressId: _selectedAddressId,
+                  deliveryMethod: 'courier',
+                );
               }
             }
           : null,
@@ -1700,6 +1712,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             onTap: () {
                               HapticUtils.lightImpact();
                               setState(() => _selectedAddressId = address.id);
+                              // Yangi manzil uchun yetkazish narxini yangilash
+                              context.read<CartProvider>().fetchDeliveryInfo(
+                                    addressId: address.id,
+                                    deliveryMethod: _deliveryMethod,
+                                  );
                               Navigator.pop(ctx);
                             },
                             child: Container(
@@ -2236,8 +2253,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _buildSummaryRow(
               '${context.l10n.translate('products_with_count')} (${cartProvider.totalQuantity})',
               _formatPrice(subtotal.toInt())),
-          _buildSummaryRow(context.l10n.translate('shipping'),
-              _formatPrice(deliveryFee.toInt())),
+          _buildSummaryRow(
+              context.l10n.translate('shipping'),
+              cartProvider.isFreeDelivery
+                  ? 'Bepul'
+                  : _formatPrice(deliveryFee.toInt())),
+          // Yetkazish vaqti
+          if (cartProvider.deliveryTimeDisplay != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(Iconsax.clock, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Text(
+                    cartProvider.deliveryTimeDisplay!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Bepul yetkazish haqida xabar
+          if (!cartProvider.isFreeDelivery &&
+              cartProvider.freeDeliveryThreshold > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '${_formatPrice(cartProvider.freeDeliveryThreshold.toInt())} dan ortiq xarid qilsangiz yetkazish bepul!',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.green.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           if (_promoDiscount > 0)
             _buildSummaryRow(
               context.l10n.translate('discount'),
@@ -2414,7 +2466,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Buyurtma ma'lumotlarini yig'ish — faqat tanlangan mahsulotlar
       final selectedIds = widget.selectedProductIds;
       final filteredItems = selectedIds != null && selectedIds.isNotEmpty
-          ? cartProvider.items.where((item) => selectedIds.contains(item.productId)).toList()
+          ? cartProvider.items
+              .where((item) => selectedIds.contains(item.productId))
+              .toList()
           : cartProvider.items;
       final orderItems = filteredItems
           .map((item) => {
@@ -2428,7 +2482,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           .toList();
 
       // Tanlangan mahsulotlar jami narxi
-      final selectedSubtotal = filteredItems.fold(0.0, (sum, item) => sum + item.total);
+      final selectedSubtotal =
+          filteredItems.fold(0.0, (sum, item) => sum + item.total);
       final totalAmount =
           selectedSubtotal + cartProvider.deliveryFee - _promoDiscount;
 

@@ -75,8 +75,42 @@ export default function CheckoutPage() {
 
   const itemCount = getItemCount();
   const subtotal = getTotal();
-  const deliveryFee = subtotal > 100000 ? 0 : 15000;
+
+  // Dynamic delivery fee from backend
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [deliveryTimeDisplay, setDeliveryTimeDisplay] = useState('');
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
+  const [isFreeDelivery, setIsFreeDelivery] = useState(false);
   const total = subtotal + deliveryFee;
+
+  // Fetch delivery info from backend
+  useEffect(() => {
+    if (deliveryMethod === 'pickup') {
+      setDeliveryFee(0);
+      setDeliveryTimeDisplay('');
+      return;
+    }
+    const fetchDelivery = async () => {
+      try {
+        const params = new URLSearchParams({
+          deliveryMethod,
+          subtotal: subtotal.toString(),
+        });
+        const res = await userRequest.get(`/orders/delivery-info?${params}`);
+        if (res?.data) {
+          const d = res.data;
+          setDeliveryFee(d.isFreeDelivery ? 0 : (d.deliveryFee || 0));
+          setFreeDeliveryThreshold(d.freeDeliveryThreshold || 0);
+          setIsFreeDelivery(d.isFreeDelivery || false);
+          setDeliveryTimeDisplay(d.deliveryEstimate?.displayText || '');
+        }
+      } catch {
+        // Fallback
+        setDeliveryFee(subtotal > 100000 ? 0 : 15000);
+      }
+    };
+    fetchDelivery();
+  }, [deliveryMethod, subtotal]);
 
   const stepIndex = steps.findIndex((s) => s.key === currentStep);
 
@@ -664,6 +698,19 @@ export default function CheckoutPage() {
                   {deliveryFee === 0 ? t('free') : formatPrice(deliveryFee)}
                 </span>
               </div>
+              {deliveryTimeDisplay && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Truck className="w-3.5 h-3.5" />
+                  <span>{deliveryTimeDisplay}</span>
+                </div>
+              )}
+              {!isFreeDelivery && freeDeliveryThreshold > 0 && (
+                <p className="text-xs text-green-600 italic">
+                  {locale === 'ru'
+                    ? `Бесплатная доставка при заказе от ${formatPrice(freeDeliveryThreshold)}`
+                    : `${formatPrice(freeDeliveryThreshold)} dan ortiq xaridda yetkazish bepul!`}
+                </p>
+              )}
               <div className="border-t border-border pt-3 flex justify-between font-bold text-lg">
                 <span>{t('total')}</span>
                 <span>{formatPrice(total)}</span>

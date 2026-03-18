@@ -238,7 +238,8 @@ enum OrderStatus {
 enum PaymentStatus {
   pending,
   paid,
-  failed;
+  failed,
+  refunded;
 
   static PaymentStatus fromString(String value) {
     return PaymentStatus.values.firstWhere(
