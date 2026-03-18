@@ -59,7 +59,7 @@ export function RichTextEditor({
   // Sync external value changes (e.g. when loading product data)
   useEffect(() => {
     if (editor && value !== editor.getHTML() && !editor.isFocused) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [value, editor]);
 

@@ -1785,25 +1785,6 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
-   * GET /categories/:categoryId/attributes — Kategoriya atributlarini olish (P-FIX-01)
-   */
-  app.get('/categories/:categoryId/attributes', async (request, reply) => {
-    const { categoryId } = request.params as { categoryId: string };
-
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-    });
-    if (!category) throw new NotFoundError('Kategoriya');
-
-    const attributes = await prisma.categoryAttribute.findMany({
-      where: { categoryId, isActive: true },
-      orderBy: { sortOrder: 'asc' },
-    });
-
-    return reply.send({ success: true, data: attributes });
-  });
-
-  /**
    * GET /products/:id/attributes — Mahsulot atribut qiymatlari (P-FIX-01)
    */
   app.get('/products/:id/attributes', async (request, reply) => {

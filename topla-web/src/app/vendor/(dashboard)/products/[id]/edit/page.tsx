@@ -1071,7 +1071,7 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          {/* Auto-moderation info */
+          {/* Auto-moderation info */}
           <Card className="border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20">
             <CardContent className="pt-4">
               <div className="flex items-start gap-3">
