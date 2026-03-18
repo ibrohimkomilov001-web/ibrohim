@@ -8,64 +8,22 @@ import { cn } from "@/lib/utils";
 import {
   CheckCircle, ChevronRight, Store, Package, CreditCard,
   Truck, Star, BarChart3, Settings, FileText, Play,
-  BookOpen, GraduationCap, ExternalLink, Rocket,
+  BookOpen, GraduationCap, ExternalLink, Rocket, Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { useTranslation } from '@/store/locale-store';
 
-interface OnboardingStep {
-  id: string;
-  titleKey: string;
-  descKey: string;
-  icon: any;
-  href: string;
-  checkFn: (data: any) => boolean;
-}
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  {
-    id: "shop",
-    titleKey: "shopSettings",
-    descKey: "shopSettingsDesc",
-    icon: Store,
-    href: "/vendor/settings",
-    checkFn: (d) => !!d.shop?.name && !!d.shop?.logo,
-  },
-  {
-    id: "product",
-    titleKey: "firstProduct",
-    descKey: "firstProductDesc",
-    icon: Package,
-    href: "/vendor/products",
-    checkFn: (d) => (d.stats?.products?.total || 0) > 0,
-  },
-  {
-    id: "documents",
-    titleKey: "uploadDocuments",
-    descKey: "uploadDocumentsDesc",
-    icon: FileText,
-    href: "/vendor/documents",
-    checkFn: (d) => d.shop?.isVerified === true,
-  },
-  {
-    id: "balance",
-    titleKey: "paymentInfo",
-    descKey: "paymentInfoDesc",
-    icon: CreditCard,
-    href: "/vendor/balance",
-    checkFn: (d) => !!d.shop?.bankCard || !!d.shop?.bankAccount,
-  },
-  {
-    id: "delivery",
-    titleKey: "deliverySetup",
-    descKey: "deliverySetupDesc",
-    icon: Truck,
-    href: "/vendor/settings",
-    checkFn: (d) => !!d.shop?.fulfillmentType,
-  },
-];
+const STEP_ICONS: Record<string, any> = {
+  shop_info: Store,
+  contact_info: Settings,
+  business_info: CreditCard,
+  documents: FileText,
+  first_product: Package,
+  delivery_setup: Truck,
+  social_links: Star,
+};
 
 const VIDEO_GUIDES = [
   {
@@ -120,18 +78,17 @@ const QUICK_TIPS = [
 
 export default function OnboardingPage() {
   const { t } = useTranslation();
-  const { data: shop } = useQuery({
-    queryKey: ["vendor-shop"],
-    queryFn: vendorApi.getShop,
-  });
-  const { data: stats } = useQuery({
-    queryKey: ["vendor-stats"],
-    queryFn: vendorApi.getStats,
+
+  // Fetch onboarding progress from backend API (V-NEW-02)
+  const { data: onboarding, isLoading } = useQuery({
+    queryKey: ["vendor-onboarding"],
+    queryFn: vendorApi.getOnboarding,
   });
 
-  const checkData = { shop, stats };
-  const completedSteps = ONBOARDING_STEPS.filter((s) => s.checkFn(checkData)).length;
-  const progress = Math.round((completedSteps / ONBOARDING_STEPS.length) * 100);
+  const steps = onboarding?.steps || [];
+  const completedSteps = onboarding?.completed || 0;
+  const totalSteps = onboarding?.total || 7;
+  const progress = onboarding?.percentage || 0;
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -150,7 +107,7 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-lg">{t('startSteps')}</h2>
             <Badge variant={progress === 100 ? "default" : "secondary"}>
-              {completedSteps}/{ONBOARDING_STEPS.length} {t('stepsCompleted')}
+              {completedSteps}/{totalSteps} {t('stepsCompleted')}
             </Badge>
           </div>
           <div className="h-3 bg-muted rounded-full overflow-hidden mb-6">
@@ -160,24 +117,29 @@ export default function OnboardingPage() {
             />
           </div>
 
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
           <div className="space-y-3">
-            {ONBOARDING_STEPS.map((step, i) => {
-              const completed = step.checkFn(checkData);
+            {steps.map((step, i) => {
+              const StepIcon = STEP_ICONS[step.key] || Settings;
               return (
-                <Link key={step.id} href={step.href}>
+                <Link key={step.key} href={step.href}>
                   <div
                     className={cn(
                       "flex items-center gap-4 p-4 rounded-xl border transition-all hover:shadow-sm",
-                      completed
+                      step.completed
                         ? "bg-green-50/50 border-green-200 dark:bg-green-900/10 dark:border-green-800"
                         : "hover:bg-muted/50",
                     )}
                   >
                     <div className={cn(
                       "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
-                      completed ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground",
+                      step.completed ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground",
                     )}>
-                      {completed ? (
+                      {step.completed ? (
                         <CheckCircle className="h-5 w-5" />
                       ) : (
                         <span className="text-sm font-bold">{i + 1}</span>
@@ -186,15 +148,14 @@ export default function OnboardingPage() {
                     <div className="flex-1 min-w-0">
                       <div className={cn(
                         "font-medium",
-                        completed && "line-through text-muted-foreground",
+                        step.completed && "line-through text-muted-foreground",
                       )}>
-                        {step.titleKey ? t(step.titleKey) : ''}
+                        {step.label}
                       </div>
-                      <div className="text-sm text-muted-foreground">{step.descKey ? t(step.descKey) : ''}</div>
                     </div>
-                    <step.icon className={cn(
+                    <StepIcon className={cn(
                       "h-5 w-5 shrink-0",
-                      completed ? "text-green-500" : "text-muted-foreground",
+                      step.completed ? "text-green-500" : "text-muted-foreground",
                     )} />
                     <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   </div>
@@ -202,6 +163,7 @@ export default function OnboardingPage() {
               );
             })}
           </div>
+          )}
         </CardContent>
       </Card>
 

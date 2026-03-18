@@ -246,25 +246,15 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    // Notify vendor about document status change
+    // Enhanced notification — auto-activates shop when all required docs approved (V-02)
     try {
-      const shop = await prisma.shop.findUnique({
-        where: { id: doc.shopId },
-        select: { ownerId: true, name: true },
-      });
-
-      if (shop) {
-        await prisma.notification.create({
-          data: {
-            userId: shop.ownerId,
-            title: body.status === 'approved' ? 'Hujjat tasdiqlandi' : 'Hujjat rad etildi',
-            body: body.status === 'approved'
-              ? `${doc.name} hujjati muvaffaqiyatli tasdiqlandi`
-              : `${doc.name} hujjati rad etildi: ${body.rejectedReason}`,
-            type: 'system',
-          },
-        });
-      }
+      const { sendDocumentStatusNotification } = await import('../../services/vendor.service.js');
+      await sendDocumentStatusNotification(
+        doc.shopId,
+        doc.name,
+        body.status as 'approved' | 'rejected',
+        body.rejectedReason,
+      );
     } catch (e) {
       // Don't fail the review if notification fails
       request.log.error(e, 'Failed to send document review notification');

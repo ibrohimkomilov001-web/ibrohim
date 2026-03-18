@@ -552,6 +552,37 @@ export const vendorApi = {
 
   getFinanceReports: () =>
     api.get<any>('/vendor/finance/reports'),
+
+  // ===== Phase 5: Vendor System Enhancements =====
+
+  // V-NEW-02: Onboarding progress
+  getOnboarding: () =>
+    api.get<OnboardingProgress>('/vendor/onboarding'),
+
+  // V-NEW-04: Performance score
+  getPerformance: (period?: 'week' | 'month' | 'year' | 'all') =>
+    api.get<PerformanceScore>(`/vendor/performance${period ? `?period=${period}` : ''}`),
+
+  // V-04: Product export CSV
+  exportProducts: async () => {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/products/export`, {
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Export failed');
+    return response.text();
+  },
+
+  // V-NEW-03: Bulk product import
+  importProducts: (csvContent: string) =>
+    api.post<BulkImportResult>('/vendor/products/import', { csvContent }),
+
+  // B-08: Bulk price update
+  bulkUpdatePrices: (updates: BulkPriceUpdate[]) =>
+    api.patch<BulkPriceResult>('/vendor/products/bulk-price', { updates }),
+
+  // V-NEW-01: Full shop settings update
+  updateShopSettings: (settings: Partial<ShopSettings>) =>
+    api.put<any>('/vendor/shop/settings', settings),
 };
 
 export interface PromoCode {
@@ -585,6 +616,84 @@ export interface DeliverySettings {
   returnPolicy: string;
   returnDays: number;
   freeDeliveryThreshold: number | null;
+}
+
+// ===== Phase 5 interfaces =====
+
+export interface OnboardingStep {
+  key: string;
+  label: string;
+  completed: boolean;
+  href: string;
+}
+
+export interface OnboardingProgress {
+  completed: number;
+  total: number;
+  percentage: number;
+  steps: OnboardingStep[];
+}
+
+export interface PerformanceMetric {
+  label: string;
+  value: number;
+  weight: number;
+  weightedScore: number;
+}
+
+export interface PerformanceScore {
+  overall: number;
+  level: 'bronze' | 'silver' | 'gold' | 'platinum';
+  metrics: Record<string, PerformanceMetric>;
+  periodDays: number;
+}
+
+export interface BulkPriceUpdate {
+  productId: string;
+  price?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+}
+
+export interface BulkPriceResult {
+  updated: number;
+  errors: { productId: string; error: string }[];
+  total: number;
+}
+
+export interface BulkImportResult {
+  imported: number;
+  errors: { row: number; error: string }[];
+  total: number;
+}
+
+export interface ShopSettings {
+  name: string;
+  description: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  website: string | null;
+  telegram: string | null;
+  instagram: string | null;
+  businessType: string;
+  inn: string;
+  bankName: string;
+  bankAccount: string;
+  mfo: string;
+  oked: string;
+  fulfillmentType: 'FBS' | 'DBS';
+  isOpen: boolean;
+  workingHours: Record<string, any>;
+  minOrderAmount: number;
+  deliveryFee: number;
+  freeDeliveryFrom: number | null;
+  deliveryRadius: number | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export default vendorApi;

@@ -49,6 +49,9 @@ import {
   Filter,
   ArrowUpDown,
   ImageIcon,
+  Download,
+  Upload,
+  DollarSign,
 } from "lucide-react";
 import { useTranslation } from '@/store/locale-store';
 
@@ -58,6 +61,8 @@ export default function ProductsPage() {
   const debouncedSearch = useDebounce(search);
   const page = parseInt(pageStr) || 1;
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [showBulkPrice, setShowBulkPrice] = useState(false);
   const { t } = useTranslation();
   const limit = 20;
 
@@ -101,6 +106,51 @@ export default function ProductsPage() {
   const totalPages = pagination?.totalPages || data?.totalPages || 1;
   const totalCount = pagination?.total || data?.total || 0;
 
+  // Export CSV mutation
+  const handleExport = async () => {
+    try {
+      const csv = await vendorApi.exportProducts();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `products_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('exportSuccess') || 'Eksport qilindi');
+    } catch {
+      toast.error(t('errorOccurred'));
+    }
+  };
+
+  // Import CSV mutation
+  const importMutation = useMutation({
+    mutationFn: (csvContent: string) => vendorApi.importProducts(csvContent),
+    onSuccess: (result) => {
+      const data = (result as any)?.data || result;
+      toast.success(`${data.imported} ta mahsulot import qilindi`);
+      if (data.errors?.length) {
+        toast.warning(`${data.errors.length} ta xatolik`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["vendor-products"] });
+      setShowImport(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorOccurred'));
+    },
+  });
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csvContent = event.target?.result as string;
+      importMutation.mutate(csvContent);
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -111,12 +161,27 @@ export default function ProductsPage() {
             Jami {totalCount} ta mahsulot
           </p>
         </div>
-        <Button asChild className="rounded-full">
-          <Link href="/vendor/products/new">
-            <Plus className="mr-2 h-4 w-4" />
-            {t('addProduct')}
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleExport} className="rounded-full">
+            <Download className="mr-2 h-4 w-4" />
+            Eksport CSV
+          </Button>
+          <label>
+            <Button variant="outline" size="sm" className="rounded-full cursor-pointer" asChild>
+              <span>
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </span>
+            </Button>
+            <input type="file" accept=".csv" onChange={handleImportFile} className="hidden" />
+          </label>
+          <Button asChild className="rounded-full">
+            <Link href="/vendor/products/new">
+              <Plus className="mr-2 h-4 w-4" />
+              {t('addProduct')}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

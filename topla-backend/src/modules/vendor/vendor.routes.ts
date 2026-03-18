@@ -6,6 +6,13 @@ import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
 import { getVendorShop } from '../../utils/shop.js';
 import { cacheGet, cacheSet } from '../../config/redis.js';
+import {
+  calculateOnboardingProgress,
+  calculatePerformanceScore,
+  bulkUpdatePrices,
+  exportProductsCSV,
+  bulkImportProducts,
+} from '../../services/vendor.service.js';
 
 // ============================================
 // Validation Schemas
@@ -1628,5 +1635,142 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.send({ success: true, data: reports });
+  });
+
+  // ============================================
+  // GET /vendor/onboarding — Onboarding progress tracker (V-NEW-02)
+  // ============================================
+  app.get('/vendor/onboarding', { preHandler: vendorAuth }, async (request, reply) => {
+    const shop = await getVendorShop(request.user!.userId);
+    const progress = await calculateOnboardingProgress(shop.id);
+    return reply.send({ success: true, data: progress });
+  });
+
+  // ============================================
+  // GET /vendor/performance — Performance score (V-NEW-04)
+  // ============================================
+  app.get('/vendor/performance', { preHandler: vendorAuth }, async (request, reply) => {
+    const { period } = request.query as { period?: string };
+    const shop = await getVendorShop(request.user!.userId);
+
+    const periodDays = period === 'week' ? 7 : period === 'year' ? 365 : period === 'all' ? 3650 : 30;
+
+    const cacheKey = `vendor:perf:${shop.id}:${periodDays}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return reply.send({ success: true, data: JSON.parse(cached) });
+
+    const score = await calculatePerformanceScore(shop.id, periodDays);
+    await cacheSet(cacheKey, JSON.stringify(score), 300); // 5 min cache
+
+    return reply.send({ success: true, data: score });
+  });
+
+  // ============================================
+  // PATCH /vendor/products/bulk-price — Bulk price update (B-08)
+  // ============================================
+  const bulkPriceSchema = z.object({
+    updates: z.array(z.object({
+      productId: z.string().uuid(),
+      price: z.number().positive().optional(),
+      originalPrice: z.number().positive().optional(),
+      discountPercent: z.number().min(0).max(100).optional(),
+    })).min(1).max(500),
+  });
+
+  app.patch('/vendor/products/bulk-price', { preHandler: vendorWriteAuth }, async (request, reply) => {
+    const body = bulkPriceSchema.parse(request.body);
+    const shop = await getVendorShop(request.user!.userId);
+
+    const result = await bulkUpdatePrices(shop.id, body.updates);
+
+    return reply.send({
+      success: true,
+      data: {
+        updated: result.updated,
+        errors: result.errors,
+        total: body.updates.length,
+      },
+    });
+  });
+
+  // ============================================
+  // GET /vendor/products/export — CSV export (V-04)
+  // ============================================
+  app.get('/vendor/products/export', { preHandler: vendorAuth }, async (request, reply) => {
+    const shop = await getVendorShop(request.user!.userId);
+    const csv = await exportProductsCSV(shop.id);
+
+    return reply
+      .header('Content-Type', 'text/csv; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="products_${shop.id.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv"`)
+      .send(csv);
+  });
+
+  // ============================================
+  // POST /vendor/products/import — CSV import (V-NEW-03)
+  // ============================================
+  app.post('/vendor/products/import', { preHandler: vendorWriteAuth }, async (request, reply) => {
+    const { csvContent } = z.object({
+      csvContent: z.string().min(10).max(5_000_000), // max ~5MB text
+    }).parse(request.body);
+
+    const shop = await getVendorShop(request.user!.userId);
+    const result = await bulkImportProducts(shop.id, csvContent);
+
+    return reply.send({
+      success: true,
+      data: result,
+    });
+  });
+
+  // ============================================
+  // PUT /vendor/shop/settings — Full shop settings update (V-NEW-01)
+  // ============================================
+  const shopSettingsSchema = z.object({
+    // Basic info
+    name: z.string().min(2).max(100).optional(),
+    description: z.string().max(2000).optional(),
+    phone: z.string().max(20).optional(),
+    email: z.string().email().optional(),
+    address: z.string().max(300).optional(),
+    city: z.string().max(100).optional(),
+    website: z.string().url().optional().nullable(),
+    // Social
+    telegram: z.string().max(100).optional().nullable(),
+    instagram: z.string().max(100).optional().nullable(),
+    // Business
+    businessType: z.string().max(100).optional(),
+    inn: z.string().max(20).optional(),
+    bankName: z.string().max(100).optional(),
+    bankAccount: z.string().max(30).optional(),
+    mfo: z.string().max(10).optional(),
+    oked: z.string().max(10).optional(),
+    // Operations
+    fulfillmentType: z.enum(['FBS', 'DBS']).optional(),
+    isOpen: z.boolean().optional(),
+    workingHours: z.record(z.any()).optional(),
+    // Delivery
+    minOrderAmount: z.number().min(0).optional(),
+    deliveryFee: z.number().min(0).optional(),
+    freeDeliveryFrom: z.number().min(0).optional().nullable(),
+    deliveryRadius: z.number().min(0).optional().nullable(),
+    // Media
+    logoUrl: z.string().optional().nullable(),
+    bannerUrl: z.string().optional().nullable(),
+    // Location
+    latitude: z.number().optional().nullable(),
+    longitude: z.number().optional().nullable(),
+  });
+
+  app.put('/vendor/shop/settings', { preHandler: vendorWriteAuth }, async (request, reply) => {
+    const body = shopSettingsSchema.parse(request.body);
+    const shop = await getVendorShop(request.user!.userId);
+
+    const updated = await prisma.shop.update({
+      where: { id: shop.id },
+      data: body,
+    });
+
+    return reply.send({ success: true, data: updated });
   });
 }

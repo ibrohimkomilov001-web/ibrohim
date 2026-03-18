@@ -49,6 +49,7 @@ import {
   GraduationCap,
   TrendingUp,
   DollarSign,
+  Gauge,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./components/NotificationBell";
@@ -70,6 +71,7 @@ const sidebarItems = [
   { icon: Rocket, key: 'vendorBoosts', href: "/vendor/boosts" },
   { icon: AlertTriangle, key: 'vendorPenalties', href: "/vendor/penalties" },
   { icon: FileText, key: 'vendorDocuments', href: "/vendor/documents" },
+  { icon: Gauge, key: 'vendorPerformance', href: "/vendor/performance" },
   { icon: Settings, key: 'vendorSettings', href: "/vendor/settings" },
   { icon: GraduationCap, key: 'vendorOnboarding', href: "/vendor/onboarding" },
   { icon: HelpCircle, key: 'help', href: "/vendor/help" },

@@ -61,6 +61,14 @@ export default function SettingsPage() {
   const [deliveryFee, setDeliveryFee] = useState("");
   const [freeDeliveryMin, setFreeDeliveryMin] = useState("");
 
+  // Business info state (V-NEW-01)
+  const [businessType, setBusinessType] = useState("");
+  const [inn, setInn] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [mfo, setMfo] = useState("");
+  const [oked, setOked] = useState("");
+
   // Load shop data
   const { data: shop, isLoading } = useQuery({
     queryKey: ["vendor-shop"],
@@ -84,6 +92,12 @@ export default function SettingsPage() {
       setMinOrder(shop.minOrderAmount?.toString() || "");
       setDeliveryFee(shop.deliveryFee?.toString() || "");
       setFreeDeliveryMin(shop.freeDeliveryFrom?.toString() || "");
+      setBusinessType(shop.businessType || "");
+      setInn(shop.inn || "");
+      setBankName(shop.bankName || "");
+      setBankAccount(shop.bankAccount || "");
+      setMfo(shop.mfo || "");
+      setOked(shop.oked || "");
     }
   }, [shop]);
 
@@ -162,6 +176,12 @@ export default function SettingsPage() {
       minOrderAmount: minOrder ? Number(minOrder) : undefined,
       deliveryFee: deliveryFee ? Number(deliveryFee) : undefined,
       freeDeliveryFrom: freeDeliveryMin ? Number(freeDeliveryMin) : undefined,
+      businessType: businessType.trim() || undefined,
+      inn: inn.trim() || undefined,
+      bankName: bankName.trim() || undefined,
+      bankAccount: bankAccount.trim() || undefined,
+      mfo: mfo.trim() || undefined,
+      oked: oked.trim() || undefined,
     });
   };
 
@@ -383,6 +403,88 @@ export default function SettingsPage() {
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="https://"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Business Info (V-NEW-01) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Store className="h-5 w-5 text-primary" />
+            Biznes ma'lumotlari
+          </CardTitle>
+          <CardDescription>Yuridik shaxs yoki yakka tartibdagi tadbirkor ma'lumotlari</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Biznes turi</Label>
+              <Select value={businessType} onValueChange={setBusinessType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="individual">Jismoniy shaxs</SelectItem>
+                  <SelectItem value="sole_proprietor">Yakka tartibdagi tadbirkor</SelectItem>
+                  <SelectItem value="llc">MChJ</SelectItem>
+                  <SelectItem value="other">Boshqa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inn">INN (STIR)</Label>
+              <Input
+                id="inn"
+                value={inn}
+                onChange={(e) => setInn(e.target.value)}
+                placeholder="123456789"
+                maxLength={15}
+              />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="bankName">Bank nomi</Label>
+              <Input
+                id="bankName"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="Ipoteka bank"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bankAccount">Hisob raqam</Label>
+              <Input
+                id="bankAccount"
+                value={bankAccount}
+                onChange={(e) => setBankAccount(e.target.value)}
+                placeholder="20208000..."
+                maxLength={25}
+              />
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="mfo">MFO</Label>
+              <Input
+                id="mfo"
+                value={mfo}
+                onChange={(e) => setMfo(e.target.value)}
+                placeholder="00084"
+                maxLength={10}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="oked">OKED (IFUT)</Label>
+              <Input
+                id="oked"
+                value={oked}
+                onChange={(e) => setOked(e.target.value)}
+                placeholder="47111"
+                maxLength={10}
               />
             </div>
           </div>
