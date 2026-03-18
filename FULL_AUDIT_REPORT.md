@@ -870,22 +870,22 @@ Qidiruv natijasi bo'sh bo'lganda:
 | [x] | **P-09**: Mahsulot clone/duplicate | Backend + Web | 0.5 kun |
 | [x] | **P-11**: Video URL support | Backend + Web + Flutter | 1 kun |
 
-### FAZA 3: QIDIRUV TIZIMI — ENG KUCHLI (2-3 hafta)
+### FAZA 3: QIDIRUV TIZIMI — ENG KUCHLI (2-3 hafta) ✅ BAJARILDI (a524b21)
 
 | # | Ish | Masul | Muddat |
 |---|-----|-------|--------|
 | [ ] | **S-NEW-01**: Rasm orqali qidirish — backend (CLIP + Qdrant) | Backend | 3 kun |
 | [ ] | **S-NEW-01**: Rasm orqali qidirish — Flutter UI (kamera/galereya) | Flutter | 2 kun |
 | [ ] | **S-NEW-01**: Rasm orqali qidirish — Web UI | Web | 1 kun |
-| [ ] | **S-NEW-02**: Barcode scanner qidirish (Flutter) | Flutter + Backend | 1 kun |
-| [ ] | **S-NEW-03**: Meilisearch synonym, stop words, transliteration | Backend | 1 kun |
-| [ ] | **S-NEW-04**: Web advanced search sahifasi (filtr, sort, suggest, facets) | Web | 3 kun |
-| [ ] | **B-06**: Meilisearch'da atribut qiymatlarini indekslash | Backend | 1 kun |
-| [ ] | **S-04**: Typo correction UI ("Siz qidirdingiz: X → Y boshlami?") | Flutter + Web | 1 kun |
-| [ ] | **S-NEW-05**: Search analytics model + tracking | Backend | 1 kun |
-| [ ] | **S-NEW-06**: "Topilmadi" intelligent fallback | Backend + Flutter + Web | 1 kun |
-| [ ] | **S-09**: Latin ↔ Cyrillic transliteration | Backend | 0.5 kun |
-| [ ] | **S-05**: Synonym management admin panel | Web (Admin) | 1 kun |
+| [x] | **S-NEW-02**: Barcode scanner qidirish (Flutter) | Flutter + Backend | 1 kun |
+| [x] | **S-NEW-03**: Meilisearch synonym, stop words, transliteration | Backend | 1 kun |
+| [x] | **S-NEW-04**: Web advanced search sahifasi (filtr, sort, suggest, facets) | Web | 3 kun |
+| [x] | **B-06**: Meilisearch'da atribut qiymatlarini indekslash | Backend | 1 kun |
+| [x] | **S-04**: Typo correction UI ("Siz qidirdingiz: X → Y boshlami?") | Flutter + Web | 1 kun |
+| [x] | **S-NEW-05**: Search analytics model + tracking | Backend | 1 kun |
+| [x] | **S-NEW-06**: "Topilmadi" intelligent fallback | Backend + Flutter + Web | 1 kun |
+| [x] | **S-09**: Latin ↔ Cyrillic transliteration | Backend | 0.5 kun |
+| [x] | **S-05**: Synonym management admin panel | Web (Admin) | 1 kun |
 
 ### FAZA 4: BUYURTMA JARAYONI YAXSHILASH (1-2 hafta)
 
