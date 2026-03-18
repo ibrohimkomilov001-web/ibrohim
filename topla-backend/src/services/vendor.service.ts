@@ -412,7 +412,7 @@ export async function bulkImportProducts(
     return { total: 0, imported: 0, skipped: 0, errors: [{ row: 0, message: 'CSV fayl bo\'sh yoki header yo\'q' }] };
   }
 
-  const header = parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
+  const header = parseCsvLine(lines[0]!).map(h => h.toLowerCase().trim());
   const result: BulkImportResult = { total: lines.length - 1, imported: 0, skipped: 0, errors: [] };
 
   // Map column names
@@ -448,7 +448,7 @@ export async function bulkImportProducts(
 
   for (let i = 1; i < lines.length; i++) {
     try {
-      const values = parseCsvLine(lines[i]);
+      const values = parseCsvLine(lines[i]!);
       const getVal = (field: string) => {
         const idx = colMap[field];
         return idx !== undefined ? values[idx]?.trim() || '' : '';

@@ -1656,7 +1656,7 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const periodDays = period === 'week' ? 7 : period === 'year' ? 365 : period === 'all' ? 3650 : 30;
 
     const cacheKey = `vendor:perf:${shop.id}:${periodDays}`;
-    const cached = await cacheGet(cacheKey);
+    const cached = await cacheGet<string>(cacheKey);
     if (cached) return reply.send({ success: true, data: JSON.parse(cached) });
 
     const score = await calculatePerformanceScore(shop.id, periodDays);
