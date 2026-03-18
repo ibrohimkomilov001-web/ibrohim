@@ -887,19 +887,19 @@ Qidiruv natijasi bo'sh bo'lganda:
 | [x] | **S-09**: Latin ↔ Cyrillic transliteration | Backend | 0.5 kun |
 | [x] | **S-05**: Synonym management admin panel | Web (Admin) | 1 kun |
 
-### FAZA 4: BUYURTMA JARAYONI YAXSHILASH (1-2 hafta)
+### FAZA 4: BUYURTMA JARAYONI YAXSHILASH (1-2 hafta) ✅ BAJARILDI (2562637)
 
 | # | Ish | Masul | Muddat |
 |---|-----|-------|--------|
-| [ ] | **O-FIX-03**: Order confirmation flow (pending → confirmed) | Backend | 1 kun |
-| [ ] | **O-FIX-04**: Delivery time estimation | Backend + Flutter + Web | 1 kun |
-| [ ] | **O-03/F-03**: Dynamic delivery fee (backend'dan olish) | Backend + Flutter | 0.5 kun |
-| [ ] | **O-05/B-03**: Variant info to'liq saqlash (rang, o'lcham, atribut) | Backend | 0.5 kun |
-| [ ] | **O-08**: Order tracking real-time map | Flutter | 2 kun |
-| [ ] | **O-09**: Reorder (qayta buyurtma) | Flutter + Web | 0.5 kun |
-| [ ] | **O-10**: Partial cancellation (bitta itemni bekor qilish) | Backend | 1 kun |
-| [ ] | **B-10**: Delivery zone based pricing | Backend | 1 kun |
-| [ ] | **O-11**: Payment gateway to'liq integratsiya (Payme/Click) | Backend + Flutter + Web | 5 kun |
+| [x] | **O-FIX-03**: Order confirmation flow (pending → confirmed) | Backend | 1 kun |
+| [x] | **O-FIX-04**: Delivery time estimation | Backend + Flutter + Web | 1 kun |
+| [x] | **O-03/F-03**: Dynamic delivery fee (backend'dan olish) | Backend + Flutter | 0.5 kun |
+| [x] | **O-05/B-03**: Variant info to'liq saqlash (rang, o'lcham, atribut) | Backend | 0.5 kun |
+| [ ] | **O-08**: Order tracking real-time map (Google Maps SDK kerak — keyingi fazaga) | Flutter | 2 kun |
+| [x] | **O-09**: Reorder (qayta buyurtma) | Flutter + Web | 0.5 kun |
+| [x] | **O-10**: Partial cancellation (bitta itemni bekor qilish) | Backend | 1 kun |
+| [x] | **B-10**: Delivery zone based pricing | Backend | 1 kun |
+| [ ] | **O-11**: Payment gateway to'liq integratsiya (Payme/Click API credentials kerak) | Backend + Flutter + Web | 5 kun |
 
 ### FAZA 5: VENDOR TIZIMI YAXSHILASH (1-2 hafta)
 
