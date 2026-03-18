@@ -276,9 +276,6 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { nameUz: true, nameRu: true } },
               size: { select: { nameUz: true, nameRu: true } },
-              attributeValues: {
-                include: { attribute: { select: { key: true, nameUz: true } } },
-              },
             },
           },
         },
@@ -303,9 +300,6 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { nameUz: true, nameRu: true } },
               size: { select: { nameUz: true, nameRu: true } },
-              attributeValues: {
-                include: { attribute: { select: { key: true, nameUz: true } } },
-              },
             },
           },
         },
