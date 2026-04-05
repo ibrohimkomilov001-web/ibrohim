@@ -184,7 +184,7 @@ export async function sendOtp(
   // 5. Eskiz SMS orqali yuborish
   const result = await sendSmsViaEskiz(
     phone,
-    `TOPLA tasdiqlash kodi: ${code}. Kod 2 daqiqa amal qiladi.`,
+    `topla ilovasiga kirish uchun tasdiqlash kodi: ${code}`,
   );
 
   if (result.success) {

@@ -173,7 +173,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
       background: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.centerLeft,
@@ -194,7 +194,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
       secondaryBackground: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: AppColors.error.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.centerRight,
@@ -229,7 +229,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isDefault
-                ? AppColors.primary.withOpacity(0.3)
+                ? AppColors.primary.withValues(alpha: 0.3)
                 : Colors.grey.shade200,
             width: 1,
           ),
@@ -275,7 +275,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.08),
+                                  color: AppColors.primary.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
@@ -332,7 +332,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.08),
+                  color: AppColors.error.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -938,12 +938,12 @@ class _AddressesScreenState extends State<AddressesScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.08)
+              ? AppColors.primary.withValues(alpha: 0.08)
               : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected
-                ? AppColors.primary.withOpacity(0.4)
+                ? AppColors.primary.withValues(alpha: 0.4)
                 : Colors.grey.shade200,
             width: 1,
           ),

@@ -242,7 +242,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -273,7 +273,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Iconsax.medal_star,
@@ -291,7 +291,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Iconsax.clock, color: Colors.white, size: 18),
@@ -336,7 +336,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
                         boxShadow: [
                           BoxShadow(
                             color: const Color(0xFFFFD700)
-                                .withOpacity(_glowAnimation.value * 0.12),
+                                .withValues(alpha: _glowAnimation.value * 0.12),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -454,7 +454,7 @@ class _LuckyWheelScreenState extends State<LuckyWheelScreen>
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFFFFD700)
-                      .withOpacity(_glowAnimation.value * 0.4),
+                      .withValues(alpha: _glowAnimation.value * 0.4),
                   blurRadius: 16,
                   spreadRadius: 1,
                 ),
@@ -614,14 +614,14 @@ class _ResultDialogState extends State<_ResultDialog>
             ),
             border: Border.all(
               color: isWin
-                  ? const Color(0xFFFFD700).withOpacity(0.5)
+                  ? const Color(0xFFFFD700).withValues(alpha: 0.5)
                   : Colors.grey.shade700,
               width: 2,
             ),
             boxShadow: isWin
                 ? [
                     BoxShadow(
-                      color: const Color(0xFFFFD700).withOpacity(0.3),
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.3),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -648,7 +648,7 @@ class _ResultDialogState extends State<_ResultDialog>
                   boxShadow: isWin
                       ? [
                           BoxShadow(
-                            color: const Color(0xFFFFD700).withOpacity(0.4),
+                            color: const Color(0xFFFFD700).withValues(alpha: 0.4),
                             blurRadius: 20,
                             spreadRadius: 3,
                           ),
@@ -701,10 +701,10 @@ class _ResultDialogState extends State<_ResultDialog>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFD700).withOpacity(0.08),
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: const Color(0xFFFFD700).withOpacity(0.25)),
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.25)),
                   ),
                   child: Column(
                     children: [
@@ -752,7 +752,7 @@ class _ResultDialogState extends State<_ResultDialog>
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color:
-                                    const Color(0xFFFFD700).withOpacity(0.15),
+                                    const Color(0xFFFFD700).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -782,10 +782,10 @@ class _ResultDialogState extends State<_ResultDialog>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE91E63).withOpacity(0.1),
+                    color: const Color(0xFFE91E63).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: const Color(0xFFE91E63).withOpacity(0.3)),
+                        color: const Color(0xFFE91E63).withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [

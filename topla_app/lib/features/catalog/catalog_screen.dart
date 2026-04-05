@@ -29,10 +29,9 @@ class _CatalogScreenState extends State<CatalogScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Har doim kategoriyalarni yuklashga harakat qilish (agar bo'sh bo'lsa)
+      // Har doim kategoriyalarni yuklash
       final productsProvider = context.read<ProductsProvider>();
-      if (productsProvider.categories.isEmpty &&
-          !productsProvider.isCategoriesLoading) {
+      if (!productsProvider.isCategoriesLoading) {
         productsProvider.loadCategories();
       }
       if (widget.initialCategoryId != null) {
@@ -234,7 +233,7 @@ class _CatalogScreenState extends State<CatalogScreen>
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () {
-              context.read<ProductsProvider>().loadCategories();
+              context.read<ProductsProvider>().loadCategories(force: true);
             },
             icon: const Icon(Iconsax.refresh),
             label: Text(

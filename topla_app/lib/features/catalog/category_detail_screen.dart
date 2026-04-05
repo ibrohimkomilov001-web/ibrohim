@@ -405,6 +405,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   }
 
   /// Faol filterlarni ko'rsatuvchi chips (har bir filterni alohida olib tashlash mumkin)
+  // ignore: unused_element
   Widget _buildActiveFilterChips() {
     final chips = <Widget>[];
 
@@ -761,6 +762,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   /// Filter bar
   Widget _buildFilterBar() {
     final facets = _facets;
+    // ignore: unused_local_variable
     final hasActiveFilters = _filter.hasActiveFilters;
 
     return SliverToBoxAdapter(
@@ -902,7 +904,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
                       padding: const EdgeInsets.only(right: 8),
                       child: _buildFilterChip(
                         label: _filter.sizeIds.isNotEmpty
-                            ? '${_isUzbek ? "O\'lchamlar" : "Размеры"}: ${_filter.sizeIds.length}'
+                            ? '${_isUzbek ? "O'lchamlar" : "Размеры"}: ${_filter.sizeIds.length}'
                             : (_isUzbek
                                 ? 'O\'lchamlar (${facets.sizes.length})'
                                 : 'Размеры (${facets.sizes.length})'),
@@ -981,7 +983,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
                     padding: const EdgeInsets.only(right: 8),
                     child: _buildFilterChip(
                       label: _filter.shopIds.isNotEmpty
-                          ? '${_isUzbek ? "Do\'kon" : "Магазин"}: ${_filter.shopIds.length}'
+                          ? '${_isUzbek ? "Do'kon" : "Магазин"}: ${_filter.shopIds.length}'
                           : (_isUzbek ? 'Do\'kon' : 'Магазин'),
                       onTap: () => _showShopFilterSheet(),
                       isActive: _filter.shopIds.isNotEmpty,
@@ -1064,6 +1066,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
   }
 
   /// Active filterlarni pill shaklida ko'rsatish
+  // ignore: unused_element
   List<Widget> _buildActiveFilterPills() {
     final pills = <Widget>[];
 
@@ -1132,7 +1135,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     }
     if (_filter.sizeIds.isNotEmpty) {
       pills.add(_buildRemovablePill(
-        '${_isUzbek ? "O\'lchamlar" : "Размеры"}: ${_filter.sizeIds.length}',
+        '${_isUzbek ? "O'lchamlar" : "Размеры"}: ${_filter.sizeIds.length}',
         () => setState(() {
           _filter = _filter.copyWith(sizeIds: {});
           _applyFilters();
@@ -2327,6 +2330,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
+  // ignore: unused_element
   Widget _buildPremiumSelectableItem({
     required String label,
     required bool isSelected,
@@ -2754,6 +2758,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
     );
   }
 
+  // ignore: unused_element
   Widget _buildOptionChip({
     required String label,
     required bool isActive,
@@ -3771,7 +3776,7 @@ class _PriceFilterSheetState extends State<_PriceFilterSheet> {
   late TextEditingController _maxController;
   late FocusNode _minFocus;
   late FocusNode _maxFocus;
-  bool _isChanged = false;
+  bool _isChanged = false; // ignore: unused_field
 
   @override
   void initState() {
@@ -3818,6 +3823,7 @@ class _PriceFilterSheetState extends State<_PriceFilterSheet> {
     super.dispose();
   }
 
+  // ignore: unused_element
   Widget _buildPriceInput({
     required String label,
     required String hint,
@@ -3866,7 +3872,7 @@ class _PriceFilterSheetState extends State<_PriceFilterSheet> {
               data: Theme.of(context).copyWith(
                 textSelectionTheme: TextSelectionThemeData(
                   cursorColor: Colors.black,
-                  selectionColor: Colors.black.withOpacity(0.3),
+                  selectionColor: Colors.black.withValues(alpha: 0.3),
                   selectionHandleColor: Colors.black,
                 ),
               ),

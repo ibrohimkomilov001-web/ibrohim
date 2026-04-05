@@ -11,7 +11,6 @@ import 'package:topla_app/data/repositories/repositories.dart';
 import 'package:topla_app/core/services/api_client.dart';
 import 'package:topla_app/core/services/tracking_service.dart';
 import 'package:topla_app/services/secure_storage_service.dart';
-import 'package:topla_app/services/cache_service.dart';
 
 // Providers
 import 'package:topla_app/providers/providers.dart';

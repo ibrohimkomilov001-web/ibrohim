@@ -7,9 +7,9 @@ import 'package:topla_app/providers/shop_provider.dart';
 // ==================== MOCK ====================
 class MockShopRepository implements IShopRepository {
   List<ShopModel> _shops = [];
-  List<ShopModel> _followedShops = [];
+  final List<ShopModel> _followedShops = [];
   List<ShopModel> _topShops = [];
-  List<ProductModel> _products = [];
+  final List<ProductModel> _products = [];
   final Set<String> _followedIds = {};
   Exception? nextError;
   bool followCalled = false;

@@ -28,6 +28,44 @@ export interface RegisterRequest {
   oked?: string;
 }
 
+export interface SendOtpRequest {
+  phone: string;
+}
+
+export interface SendOtpByEmailRequest {
+  email: string;
+}
+
+export interface SendOtpResponse {
+  success: boolean;
+  data: {
+    phone: string;
+    channel: string;
+  };
+  message: string;
+}
+
+export interface SendOtpByEmailResponse {
+  maskedPhone: string;
+  phone: string;
+}
+
+export interface RegisterOtpRequest {
+  phone: string;
+  code: string;
+  fullName: string;
+  email?: string;
+  shopName: string;
+  shopDescription?: string;
+  category?: string;
+  city?: string;
+}
+
+export interface LoginOtpRequest {
+  phone: string;
+  code: string;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -74,6 +112,32 @@ export const authApi = {
 
   register: async (data: RegisterRequest) => {
     const response = await api.post<AuthResponse>('/auth/vendor/register', data);
+    if (response.accessToken) {
+      setToken(response.accessToken);
+    }
+    return { token: response.accessToken, user: response.user, shop: response.shop };
+  },
+
+  sendOtp: async (data: SendOtpRequest) => {
+    const response = await api.post<SendOtpResponse>('/auth/send-otp', data);
+    return response;
+  },
+
+  sendOtpByEmail: async (data: SendOtpByEmailRequest) => {
+    const response = await api.post<SendOtpByEmailResponse>('/auth/vendor/send-otp-by-email', data);
+    return response;
+  },
+
+  registerOtp: async (data: RegisterOtpRequest) => {
+    const response = await api.post<AuthResponse>('/auth/vendor/register-otp', data);
+    if (response.accessToken) {
+      setToken(response.accessToken);
+    }
+    return { token: response.accessToken, user: response.user, shop: response.shop };
+  },
+
+  loginOtp: async (data: LoginOtpRequest) => {
+    const response = await api.post<AuthResponse>('/auth/vendor/login-otp', data);
     if (response.accessToken) {
       setToken(response.accessToken);
     }

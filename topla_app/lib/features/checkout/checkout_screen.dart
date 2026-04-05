@@ -398,7 +398,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(Iconsax.building, color: AppColors.primary, size: 20),
@@ -932,13 +932,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         color: Colors.white,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 8,
                             spreadRadius: 0,
                             offset: const Offset(0, 3),
                           ),
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 1,
                             spreadRadius: 0,
                             offset: const Offset(0, 3),
@@ -2157,8 +2157,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         if (ctx.mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                  '${context.l10n.translate('error')}: $e'),
+                              content:
+                                  Text('${ctx.l10n.translate('error')}: $e'),
                               backgroundColor: AppColors.error,
                             ),
                           );

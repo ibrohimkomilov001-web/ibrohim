@@ -45,7 +45,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
   @override
   void initState() {
     super.initState();
-    print('📨 InviteFriend: initState called');
+    debugPrint('📨 InviteFriend: initState called');
     _loadAllData();
   }
 
@@ -270,7 +270,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     try {
       return _buildBody(l10n);
     } catch (e, stack) {
-      print('📨 InviteFriend: BUILD ERROR: $e\n$stack');
+      debugPrint('📨 InviteFriend: BUILD ERROR: $e\n$stack');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -372,7 +372,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     try {
       return builder();
     } catch (e, stack) {
-      print('📨 InviteFriend: _safeBuild($name) ERROR: $e\n$stack');
+      debugPrint('📨 InviteFriend: _safeBuild($name) ERROR: $e\n$stack');
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

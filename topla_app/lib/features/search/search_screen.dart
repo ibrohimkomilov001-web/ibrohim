@@ -136,8 +136,9 @@ class _SearchScreenState extends State<SearchScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_historyKey, _searchHistory);
     // Sync to server if logged in (async, fire-and-forget)
+    if (!mounted) return;
     final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
-    if (isLoggedIn && _searchHistory.isNotEmpty) {
+    if (isLoggedIn && _searchHistory.isNotEmpty && mounted) {
       context.read<ProductsProvider>().saveSearchQuery(_searchHistory.first);
     }
   }
@@ -243,35 +244,51 @@ class _SearchScreenState extends State<SearchScreen>
       // Build filter params for API
       final filterParams = <String, dynamic>{};
       final queryMap = _filter.toQueryMap();
-      if (queryMap.containsKey('minPrice'))
+      if (queryMap.containsKey('minPrice')) {
         filterParams['minPrice'] = queryMap['minPrice'];
-      if (queryMap.containsKey('maxPrice'))
+      }
+      if (queryMap.containsKey('maxPrice')) {
         filterParams['maxPrice'] = queryMap['maxPrice'];
-      if (queryMap.containsKey('brandIds'))
+      }
+      if (queryMap.containsKey('brandIds')) {
         filterParams['brandIds'] = queryMap['brandIds'];
-      if (queryMap.containsKey('colorIds'))
+      }
+      if (queryMap.containsKey('colorIds')) {
         filterParams['colorIds'] = queryMap['colorIds'];
-      if (queryMap.containsKey('sizeIds'))
+      }
+      if (queryMap.containsKey('sizeIds')) {
         filterParams['sizeIds'] = queryMap['sizeIds'];
-      if (queryMap.containsKey('minRating'))
+      }
+      if (queryMap.containsKey('minRating')) {
         filterParams['minRating'] = queryMap['minRating'];
-      if (queryMap.containsKey('inStock'))
+      }
+      if (queryMap.containsKey('inStock')) {
         filterParams['inStock'] = queryMap['inStock'];
-      if (queryMap.containsKey('hasDiscount'))
+      }
+      if (queryMap.containsKey('hasDiscount')) {
         filterParams['hasDiscount'] = queryMap['hasDiscount'];
-      if (queryMap.containsKey('attributes'))
+      }
+      if (queryMap.containsKey('attributes')) {
         filterParams['attributes'] = queryMap['attributes'];
-      if (queryMap.containsKey('shopIds'))
+      }
+      if (queryMap.containsKey('shopIds')) {
         filterParams['shopIds'] = queryMap['shopIds'];
-      if (queryMap.containsKey('deliveryHours'))
+      }
+      if (queryMap.containsKey('deliveryHours')) {
         filterParams['deliveryHours'] = queryMap['deliveryHours'];
-      if (queryMap.containsKey('deliveryType'))
+      }
+      if (queryMap.containsKey('deliveryType')) {
         filterParams['deliveryType'] = queryMap['deliveryType'];
-      if (queryMap.containsKey('isWowPrice'))
+      }
+      if (queryMap.containsKey('isWowPrice')) {
         filterParams['isWowPrice'] = queryMap['isWowPrice'];
-      if (_filter.isOriginal == true) filterParams['isOriginal'] = true;
-      if (_dominantCategoryId != null)
+      }
+      if (_filter.isOriginal == true) {
+        filterParams['isOriginal'] = true;
+      }
+      if (_dominantCategoryId != null) {
         filterParams['categoryId'] = _dominantCategoryId;
+      }
 
       final page = loadMore ? _currentPage + 1 : 1;
       final result = await productsProvider.searchProducts(

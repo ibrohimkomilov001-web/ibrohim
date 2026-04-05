@@ -62,15 +62,16 @@ class CartProvider extends ChangeNotifier {
       };
       if (addressId != null) params['addressId'] = addressId;
       if (scheduledDate != null) params['scheduledDate'] = scheduledDate;
-      if (scheduledTimeSlot != null)
+      if (scheduledTimeSlot != null) {
         params['scheduledTimeSlot'] = scheduledTimeSlot;
+      }
 
       final queryStr =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _api.get('/orders/delivery-info?$queryStr');
 
-      if (response != null && response['data'] != null) {
-        final data = response['data'];
+      if (response.data != null) {
+        final data = response.data as Map<String, dynamic>;
         final fee = (data['deliveryFee'] as num?)?.toDouble() ?? 0;
         _freeDeliveryThreshold =
             (data['freeDeliveryThreshold'] as num?)?.toDouble() ?? 0;

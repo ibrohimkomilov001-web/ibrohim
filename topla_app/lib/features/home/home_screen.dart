@@ -8,7 +8,6 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../widgets/product_card.dart';
-import '../../widgets/topla_refresh_indicator.dart';
 import '../../widgets/category_item.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';

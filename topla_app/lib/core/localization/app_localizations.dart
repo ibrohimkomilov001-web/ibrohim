@@ -226,8 +226,9 @@ class AppLocalizations {
       'onboarding_2_desc': 'Minglab mahsulotlar zavod narxida',
       'onboarding_3_title': 'Tez yetkazib berish',
       'onboarding_3_desc': '30 daqiqadan boshlab eshigingizgacha',
-      'onboarding_4_title': 'Xavfsiz to\'lov',
-      'onboarding_4_desc': 'Xavfsiz va qulay to\'lov usullari',
+      'onboarding_4_title': 'Sizga yaqin do\'konlar',
+      'onboarding_4_desc':
+          'Joylashuvingizni aniqlang va eng yaqin do\'konlarni toping',
       'skip': 'O\'tkazib yuborish',
       'get_started': 'Boshlash',
 
@@ -373,6 +374,14 @@ class AppLocalizations {
       'notification_feature_3': 'Maxsus takliflarni qo\'ldan boy bermang',
       'allow': 'Ruxsat berish',
       'later': 'Keyinroq',
+
+      // Joylashuv ruxsati
+      'location_permission_title': 'Joylashuvni aniqlash',
+      'location_permission_desc':
+          'Sizga yaqin do\'konlar va tez yetkazib berishni ta\'minlash uchun joylashuvingizni aniqlashga ruxsat bering',
+      'location_feature_1': 'Eng yaqin do\'konlarni toping',
+      'location_feature_2': 'Tez va aniq yetkazib berish',
+      'location_feature_3': 'Manzilingizni avtomatik aniqlash',
 
       // Yordam markazi
       'help': 'Yordam',
@@ -1215,8 +1224,9 @@ class AppLocalizations {
       'onboarding_2_desc': 'Тысячи товаров по заводским ценам',
       'onboarding_3_title': 'Быстрая доставка',
       'onboarding_3_desc': 'От 30 минут до вашей двери',
-      'onboarding_4_title': 'Безопасная оплата',
-      'onboarding_4_desc': 'Безопасные и удобные способы оплаты',
+      'onboarding_4_title': 'Магазины рядом с вами',
+      'onboarding_4_desc':
+          'Определите местоположение и найдите ближайшие магазины',
       'skip': 'Пропустить',
       'get_started': 'Начать',
 
@@ -1359,6 +1369,14 @@ class AppLocalizations {
       'notification_feature_3': 'Не пропустите специальные предложения',
       'allow': 'Разрешить',
       'later': 'Позже',
+
+      // Разрешение на местоположение
+      'location_permission_title': 'Определение местоположения',
+      'location_permission_desc':
+          'Разрешите определить ваше местоположение для поиска ближайших магазинов и быстрой доставки',
+      'location_feature_1': 'Найдите ближайшие магазины',
+      'location_feature_2': 'Быстрая и точная доставка',
+      'location_feature_3': 'Автоматическое определение адреса',
 
       // Центр помощи
       'help': 'Помощь',

@@ -122,6 +122,26 @@ const vendorLoginSchema = z.object({
   password: z.string().min(1, 'Parol kerak'),
 });
 
+const vendorRegisterOtpSchema = z.object({
+  phone: z.string().min(9, 'Telefon raqam noto\'g\'ri'),
+  code: z.string().length(5, '5 xonali OTP kod kerak'),
+  fullName: z.string().min(2, 'Ism kerak'),
+  email: z.string().email('Email noto\'g\'ri').optional().or(z.literal('')),
+  shopName: z.string().min(2, 'Do\'kon nomi kerak'),
+  shopDescription: z.string().optional(),
+  category: z.string().optional(),
+  city: z.string().optional(),
+});
+
+const vendorLoginOtpSchema = z.object({
+  phone: z.string().min(9, 'Telefon raqam noto\'g\'ri'),
+  code: z.string().length(5, '5 xonali OTP kod kerak'),
+});
+
+const vendorSendOtpByEmailSchema = z.object({
+  email: z.string().email('Email noto\'g\'ri'),
+});
+
 const resetPasswordSchema = z.object({
   email: z.string().email('Email noto\'g\'ri'),
 });
@@ -148,7 +168,7 @@ const sendOtpSchema = z.object({
 
 const verifyOtpSchema = z.object({
   phone: z.string().min(9, 'Telefon raqam noto\'g\'ri'),
-  code: z.string().min(4, 'Kod kerak').max(6),
+  code: z.string().length(5, '5 xonali kod kerak'),
   fcmToken: z.string().optional(),
   platform: z.enum(['android', 'ios', 'web']).default('android'),
 });
@@ -892,6 +912,301 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         accessToken,
         refreshToken,
       },
+    });
+  });
+
+  // ============================================
+  // VENDOR: Phone OTP Authentication
+  // ============================================
+
+  /**
+   * POST /auth/vendor/register-otp
+   * Vendor ro'yxatdan o'tishi (telefon OTP)
+   */
+  app.post('/auth/vendor/register-otp', async (request, reply) => {
+    const body = vendorRegisterOtpSchema.parse(request.body);
+    const phone = body.phone.startsWith('+998')
+      ? body.phone
+      : body.phone.startsWith('998')
+        ? `+${body.phone}`
+        : `+998${body.phone}`;
+
+    // Rate limiting: 5 urinish / 15 daqiqa
+    const rateLimitKey = `register:vendor:otp:${phone}`;
+    const rateCheck = await checkRateLimit(rateLimitKey, 5, 900);
+    if (!rateCheck.allowed) {
+      throw new AppError(
+        `Juda ko'p urinish. ${Math.ceil((rateCheck.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
+    // 1. OTP tekshirish
+    const otpResult = await verifyOtp(phone, body.code);
+    if (!otpResult.valid) {
+      throw new AppError(otpResult.error || 'Noto\'g\'ri kod', 401);
+    }
+
+    // 2. Telefon raqam bo'yicha mavjud profilni tekshirish
+    const existing = await prisma.profile.findUnique({
+      where: { phone },
+      include: { shop: true },
+    });
+
+    let result: { profile: any; shop: any };
+
+    if (existing) {
+      // Agar allaqachon do'koni bor bo'lsa — rad etamiz
+      if (existing.shop) {
+        throw new AppError('Bu telefon raqamda allaqachon do\'kon mavjud');
+      }
+
+      // Mavjud foydalanuvchi — role ni vendor ga o'zgartirish + shop yaratish
+      const slug = await generateUniqueSlug(body.shopName);
+
+      result = await prisma.$transaction(async (tx) => {
+        const profile = await tx.profile.update({
+          where: { id: existing.id },
+          data: {
+            fullName: body.fullName || existing.fullName,
+            email: body.email || existing.email,
+            role: 'vendor',
+          },
+        });
+
+        const shop = await tx.shop.create({
+          data: {
+            name: body.shopName,
+            slug,
+            description: body.shopDescription,
+            phone: existing.phone,
+            ownerId: existing.id,
+            status: 'pending',
+            category: body.category,
+            city: body.city,
+          },
+        });
+
+        // Admin ga notification
+        const admins = await tx.profile.findMany({ where: { role: 'admin' } });
+        if (admins.length > 0) {
+          await tx.notification.createMany({
+            data: admins.map(admin => ({
+              userId: admin.id,
+              type: 'system',
+              title: '\uD83C\uDFEA Yangi sotuvchi arizasi!',
+              body: `"${body.shopName}" do'koni ro'yxatdan o'tdi. Tasdiqlash kutilmoqda.`,
+            })),
+          });
+        }
+
+        return { profile, shop };
+      });
+    } else {
+      // Yangi foydalanuvchi — profil + shop yaratish
+      const slug = await generateUniqueSlug(body.shopName);
+
+      result = await prisma.$transaction(async (tx) => {
+        const profile = await tx.profile.create({
+          data: {
+            phone,
+            fullName: body.fullName,
+            email: body.email || null,
+            role: 'vendor',
+          },
+        });
+
+        const shop = await tx.shop.create({
+          data: {
+            name: body.shopName,
+            slug,
+            description: body.shopDescription,
+            phone,
+            ownerId: profile.id,
+            status: 'pending',
+            category: body.category,
+            city: body.city,
+          },
+        });
+
+        // Admin ga notification
+        const admins = await tx.profile.findMany({ where: { role: 'admin' } });
+        if (admins.length > 0) {
+          await tx.notification.createMany({
+            data: admins.map(admin => ({
+              userId: admin.id,
+              type: 'system',
+              title: '\uD83C\uDFEA Yangi sotuvchi arizasi!',
+              body: `"${body.shopName}" do'koni ro'yxatdan o'tdi. Tasdiqlash kutilmoqda.`,
+            })),
+          });
+        }
+
+        return { profile, shop };
+      });
+    }
+
+    // JWT token yaratish
+    const tokenPayload = {
+      userId: result.profile.id,
+      role: result.profile.role,
+      phone: result.profile.phone,
+    };
+
+    const accessToken = generateToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    setAuthCookies(reply, accessToken, refreshToken);
+
+    return reply.status(201).send({
+      success: true,
+      data: {
+        user: {
+          id: result.profile.id,
+          phone: result.profile.phone,
+          fullName: result.profile.fullName,
+          email: result.profile.email,
+          role: result.profile.role,
+        },
+        shop: result.shop,
+        accessToken,
+        refreshToken,
+      },
+    });
+  });
+
+  /**
+   * POST /auth/vendor/login-otp
+   * Vendor kirish (telefon OTP)
+   */
+  app.post('/auth/vendor/login-otp', async (request, reply) => {
+    const body = vendorLoginOtpSchema.parse(request.body);
+    const phone = body.phone.startsWith('+998')
+      ? body.phone
+      : body.phone.startsWith('998')
+        ? `+${body.phone}`
+        : `+998${body.phone}`;
+
+    // Rate limiting: 5 urinish / 15 daqiqa
+    const rateLimitKey = `login:vendor:otp:${phone}`;
+    const rateCheck = await checkRateLimit(rateLimitKey, 5, 900);
+    if (!rateCheck.allowed) {
+      throw new AppError(
+        `Juda ko'p urinish. ${Math.ceil((rateCheck.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
+    // 1. OTP tekshirish
+    const otpResult = await verifyOtp(phone, body.code);
+    if (!otpResult.valid) {
+      throw new AppError(otpResult.error || 'Noto\'g\'ri kod', 401);
+    }
+
+    // 2. Profilni topish
+    const profile = await prisma.profile.findUnique({
+      where: { phone },
+      include: { shop: true },
+    });
+
+    if (!profile) {
+      throw new AppError('Bu telefon raqam bilan ro\'yxatdan o\'tilmagan. Avval ro\'yxatdan o\'ting.', 404);
+    }
+
+    // Vendor yoki admin bo'lishi kerak
+    if (profile.role !== 'vendor' && profile.role !== 'admin') {
+      throw new AppError('Sizda vendor huquqi yo\'q. Iltimos, ro\'yxatdan o\'ting.', 403);
+    }
+
+    // Bloklangan emasmi?
+    if (profile.status === 'blocked') {
+      throw new AppError('Hisobingiz bloklangan. Admin bilan bog\'laning.', 403);
+    }
+
+    // JWT generatsiya
+    const tokenPayload = {
+      userId: profile.id,
+      role: profile.role,
+      phone: profile.phone,
+    };
+
+    const accessToken = generateToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    setAuthCookies(reply, accessToken, refreshToken);
+
+    return reply.send({
+      success: true,
+      data: {
+        user: {
+          id: profile.id,
+          phone: profile.phone,
+          fullName: profile.fullName,
+          email: profile.email,
+          avatarUrl: profile.avatarUrl,
+          role: profile.role,
+          language: profile.language,
+        },
+        shop: profile.shop,
+        accessToken,
+        refreshToken,
+      },
+    });
+  });
+
+  /**
+   * POST /auth/vendor/send-otp-by-email
+   * Email bilan ro'yxatdan o'tgan vendor uchun — telefoniga OTP yuborish
+   */
+  app.post('/auth/vendor/send-otp-by-email', async (request, reply) => {
+    const body = vendorSendOtpByEmailSchema.parse(request.body);
+
+    const profile = await prisma.profile.findFirst({
+      where: {
+        email: body.email,
+        role: { in: ['vendor', 'admin'] },
+      },
+    });
+
+    if (!profile || !profile.phone) {
+      throw new AppError("Bu email bilan ro'yxatdan o'tilmagan vendor topilmadi", 404);
+    }
+
+    if (profile.status === 'blocked') {
+      throw new AppError("Hisobingiz bloklangan. Admin bilan bog'laning.", 403);
+    }
+
+    const emailRateLimitKey = `otp:email:${body.email}`;
+    const emailRateCheck = await checkRateLimit(emailRateLimitKey, 3, 900);
+    if (!emailRateCheck.allowed) {
+      throw new AppError(
+        `Juda ko'p OTP so'rovi. ${Math.ceil((emailRateCheck.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
+    const otpSendResult = await sendOtp(profile.phone, 'sms');
+    if (!otpSendResult.success) {
+      throw new AppError(otpSendResult.error || "SMS yuborib bo'lmadi", 500);
+    }
+
+    if (env.NODE_ENV !== 'production') {
+      const devOtp = await getOtpForTesting(profile.phone);
+      if (devOtp) {
+        console.log(`[DEV] OTP for ${profile.phone} (via email ${body.email}): ${devOtp}`);
+      }
+    }
+
+    const phoneDigits = profile.phone.replace(/\D/g, '');
+    const maskedPhone = phoneDigits.length >= 12
+      ? `+${phoneDigits.slice(0, 3)} ${phoneDigits[3]}X *** **${phoneDigits.slice(-2)}`
+      : profile.phone;
+    const phoneForLogin = phoneDigits.startsWith('998') ? phoneDigits : `998${phoneDigits}`;
+
+    return reply.send({
+      success: true,
+      data: { maskedPhone, phone: phoneForLogin },
+      message: 'SMS kod yuborildi',
     });
   });
 

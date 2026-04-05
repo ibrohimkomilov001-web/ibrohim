@@ -166,7 +166,7 @@ class _HistoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -178,7 +178,7 @@ class _HistoryCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: info.color.withOpacity(0.12),
+              color: info.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(info.icon, color: info.color, size: 20),
@@ -231,10 +231,10 @@ class _HistoryCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C63FF).withOpacity(0.08),
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: const Color(0xFF6C63FF).withOpacity(0.15),
+                    color: const Color(0xFF6C63FF).withValues(alpha: 0.15),
                   ),
                 ),
                 child: Row(
@@ -255,7 +255,7 @@ class _HistoryCard extends StatelessWidget {
                     Icon(
                       Icons.copy_rounded,
                       size: 12,
-                      color: const Color(0xFF6C63FF).withOpacity(0.6),
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.6),
                     ),
                   ],
                 ),

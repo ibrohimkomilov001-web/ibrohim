@@ -424,11 +424,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               color: isUnread ? Colors.white : const Color(0xFFFAFAFA),
               borderRadius: BorderRadius.circular(AppSizes.radiusLg),
               border: isUnread
-                  ? Border.all(color: typeInfo.color.withOpacity(0.2))
+                  ? Border.all(color: typeInfo.color.withValues(alpha: 0.2))
                   : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -463,7 +463,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: typeInfo.color.withOpacity(0.1),
+                          color: typeInfo.color.withValues(alpha: 0.1),
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusMd),
                         ),
@@ -537,7 +537,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: typeInfo.color.withOpacity(0.08),
+                                    color: typeInfo.color.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -635,7 +635,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           width: width,
           height: height,
           decoration: BoxDecoration(
-            color: const Color(0xFFE2E8F0).withOpacity(value),
+            color: const Color(0xFFE2E8F0).withValues(alpha: value),
             borderRadius: BorderRadius.circular(radius),
           ),
         );

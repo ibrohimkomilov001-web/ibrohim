@@ -14,6 +14,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  loginWithOtp: (phone: string, code: string) => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
 }
@@ -76,13 +77,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const loginWithOtp = async (phone: string, code: string) => {
+    const response = await authApi.loginOtp({ phone, code });
+    const fullName = response.user.fullName || "";
+    const nameParts = fullName.trim().split(/\s+/);
+    setState({
+      user: {
+        id: response.user.id,
+        email: response.user.email,
+        fullName: response.user.fullName,
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        phone: response.user.phone,
+        role: response.user.role,
+        avatarUrl: response.user.avatarUrl,
+        shop: response.shop,
+      },
+      isLoading: false,
+      isAuthenticated: true,
+      isVendor: response.user.role === "vendor",
+    });
+  };
+
   const logout = () => {
     authApi.logout();
     setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ ...state, login, loginWithOtp, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

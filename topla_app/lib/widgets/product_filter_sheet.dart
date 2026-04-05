@@ -417,6 +417,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
   // FAOL FILTERLAR (Active Filters Row)
   // ═══════════════════════════════════════════════════════════════
 
+  // ignore: unused_element
   Widget _buildActiveFiltersRow() {
     final chips = <Widget>[];
 
@@ -441,7 +442,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       final min = _filter.minPrice?.toInt().toString() ?? '';
       final max = _filter.maxPrice?.toInt().toString() ?? '';
       chips.add(_buildActiveChip(
-        '$min - $max ${_isUz ? "so\'m" : "сум"}',
+        '$min - $max ${_isUz ? "so'm" : "сум"}',
         () {
           _minPriceCtrl.clear();
           _maxPriceCtrl.clear();

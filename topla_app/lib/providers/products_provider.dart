@@ -136,8 +136,8 @@ class ProductsProvider extends ChangeNotifier {
   }
 
   /// Kategoriyalarni yuklash (lazy)
-  Future<void> loadCategories() async {
-    if (_categoriesLoaded && _categories.isNotEmpty) return;
+  Future<void> loadCategories({bool force = false}) async {
+    if (!force && _categoriesLoaded && _categories.isNotEmpty) return;
 
     _isCategoriesLoading = true;
     notifyListeners();
@@ -176,10 +176,12 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _featuredProducts = await _productRepo.getFeaturedProducts(limit: _pageSize);
+      _featuredProducts =
+          await _productRepo.getFeaturedProducts(limit: _pageSize);
       // Agar featured bo'sh bo'lsa — barcha mahsulotlarni ko'rsatish
       if (_featuredProducts.isEmpty) {
-        _featuredProducts = await _productRepo.getProducts(limit: _pageSize, offset: 0);
+        _featuredProducts =
+            await _productRepo.getProducts(limit: _pageSize, offset: 0);
         AppLogger.d(_tag,
             'No featured products, loaded all: ${_featuredProducts.length}');
       }

@@ -88,7 +88,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               height: 280,
               decoration: BoxDecoration(
                 border:
-                    Border.all(color: Colors.white.withOpacity(0.8), width: 2),
+                    Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
@@ -105,7 +105,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   : 'Поместите штрих-код в рамку',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),

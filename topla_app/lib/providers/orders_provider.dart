@@ -185,9 +185,9 @@ class OrdersProvider extends ChangeNotifier {
   /// Buyurtmani qayta buyurtma qilish (savatga qo'shish)
   Future<Map<String, dynamic>?> reorder(String orderId) async {
     try {
-      final response = await _api.post('/orders/$orderId/reorder', {});
-      if (response != null && response['success'] == true) {
-        return response['data'] as Map<String, dynamic>?;
+      final response = await _api.post('/orders/$orderId/reorder', body: {});
+      if (response.success == true) {
+        return response.data as Map<String, dynamic>?;
       }
       return null;
     } catch (e) {
@@ -207,12 +207,12 @@ class OrdersProvider extends ChangeNotifier {
       // POST instead of DELETE (since ApiClient.delete doesn't support body)
       final response = await _api.post(
         '/orders/$orderId/items/$itemId/cancel',
-        reason != null ? {'reason': reason} : {},
+        body: reason != null ? {'reason': reason} : {},
       );
-      if (response != null && response['success'] == true) {
+      if (response.success == true) {
         // Buyurtmani qayta yuklash
         await loadOrderById(orderId);
-        return response['data'] as Map<String, dynamic>?;
+        return response.data as Map<String, dynamic>?;
       }
       return null;
     } catch (e) {

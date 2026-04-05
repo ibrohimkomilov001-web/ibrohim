@@ -129,15 +129,6 @@ class _AuthScreenState extends State<AuthScreen> {
           _isLoading = false;
         });
         _startResendCountdown();
-
-        final l10n = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text(l10n?.translate('sms_code_sent') ?? 'SMS kod yuborildi'),
-            backgroundColor: AppColors.success,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -156,12 +147,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// Backend'da OTP tekshirish va JWT olish
   Future<void> _verifyOtp() async {
-    if (_otpController.text.length != 4) {
+    if (_otpController.text.length != 6) {
       final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n?.translate('enter_4_digit_code') ??
-              '4 xonali kodni kiriting'),
+          content: Text(l10n?.translate('enter_6_digit_code') ??
+              '6 xonali kodni kiriting'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -317,356 +308,371 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-
-                // Back button
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back_ios_new, size: 18),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Profile Icon
-                Center(
-                  child: Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: const Color(
-                          0xFFEEF2FF), // Light purple/blue background
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person_outline_rounded,
-                      color: Color(0xFF2855C5), // Blue icon color
-                      size: 32,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Title
-                Text(
-                  _isOtpSent
-                      ? (l10n?.translate('verify') ?? 'Tasdiqlash')
-                      : (l10n?.translate('login') ?? 'Kirish'),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 6),
-
-                Text(
-                  _isOtpSent
-                      ? '${_formatPhoneNumber(_phoneController.text.trim())} ${l10n?.translate('code_sent_to_number') ?? 'ga yuborilgan kodni kiriting'}'
-                      : (l10n?.translate('enter_phone') ??
-                          'Telefon raqamingizni kiriting'),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade500,
-                    height: 1.3,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 32),
-
-                // Phone field
-                if (!_isOtpSent) ...[
-                  // Phone input - minimal style with dividers
-                  Column(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Divider(height: 1, color: Colors.grey.shade200),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal:
-                                    0), // Removed padding to align better
-                            width: 80, // Fixed width for prefix
-                            alignment: Alignment.center,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                      const SizedBox(height: 16),
+
+                      // Back button
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child:
+                                const Icon(Icons.arrow_back_ios_new, size: 18),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Profile Icon
+                      Center(
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                                0xFFEEF2FF), // Light purple/blue background
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.person_outline_rounded,
+                            color: Color(0xFF2855C5), // Blue icon color
+                            size: 32,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Title
+                      Text(
+                        _isOtpSent
+                            ? (l10n?.translate('verify') ?? 'Tasdiqlash')
+                            : (l10n?.translate('login') ?? 'Kirish'),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Text(
+                        _isOtpSent
+                            ? '${_formatPhoneNumber(_phoneController.text.trim())} ${l10n?.translate('code_sent_to_number') ?? 'ga yuborilgan kodni kiriting'}'
+                            : (l10n?.translate('enter_phone') ??
+                                'Telefon raqamingizni kiriting'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                          height: 1.3,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Phone field
+                      if (!_isOtpSent) ...[
+                        // Phone input - minimal style with dividers
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Divider(height: 1, color: Colors.grey.shade200),
+                            Row(
                               children: [
-                                const Text(
-                                  '+998',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal:
+                                          0), // Removed padding to align better
+                                  width: 80, // Fixed width for prefix
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        '+998',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        width: 1,
+                                        height: 24,
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Container(
-                                  width: 1,
-                                  height: 24,
-                                  color: Colors.grey.shade300,
+                                Expanded(
+                                  child: TextField(
+                                    controller: _phoneController,
+                                    focusNode: _phoneFocusNode,
+                                    keyboardType: TextInputType.phone,
+                                    textInputAction: TextInputAction.done,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 1,
+                                    ),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(9),
+                                      UzPhoneInputFormatter(),
+                                    ],
+                                    decoration: InputDecoration(
+                                      hintText: '00 000 00 00',
+                                      hintStyle: TextStyle(
+                                        color: Colors.grey.shade300,
+                                        fontWeight: FontWeight.w400,
+                                        fontSize: 18,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      focusedErrorBorder: InputBorder.none,
+                                      contentPadding: const EdgeInsets.fromLTRB(
+                                          12, 16, 0, 16),
+                                    ),
+                                    onSubmitted: (_) => _sendOtp(),
+                                  ),
                                 ),
                               ],
                             ),
+                            Divider(height: 1, color: Colors.grey.shade200),
+                          ],
+                        ),
+                      ] else ...[
+                        // OTP field - modern
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.grey.shade50,
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
-                          Expanded(
-                            child: TextField(
-                              controller: _phoneController,
-                              focusNode: _phoneFocusNode,
-                              keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.done,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 1,
-                              ),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(9),
-                                UzPhoneInputFormatter(),
-                              ],
-                              decoration: InputDecoration(
-                                hintText: '00 000 00 00',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey.shade300,
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 18,
-                                ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                errorBorder: InputBorder.none,
-                                focusedErrorBorder: InputBorder.none,
-                                contentPadding:
-                                    const EdgeInsets.fromLTRB(12, 16, 0, 16),
-                              ),
-                              onSubmitted: (_) => _sendOtp(),
+                          child: TextFormField(
+                            controller: _otpController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            textAlign: TextAlign.center,
+                            autofocus: true,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 16,
                             ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(6),
+                            ],
+                            cursorColor: AppColors.primary,
+                            decoration: InputDecoration(
+                              hintText: '••••••',
+                              hintStyle: TextStyle(
+                                fontSize: 24,
+                                letterSpacing: 16,
+                                color: Colors.grey.shade300,
+                              ),
+                              border: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                            ),
+                            onFieldSubmitted: (_) => _verifyOtp(),
                           ),
-                        ],
-                      ),
-                      Divider(height: 1, color: Colors.grey.shade200),
-                    ],
-                  ),
-                ] else ...[
-                  // OTP field - modern
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.grey.shade50,
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: TextFormField(
-                      controller: _otpController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.done,
-                      textAlign: TextAlign.center,
-                      autofocus: true,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 16,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(4),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Timer yoki qaytadan yuborish
+                        Center(
+                          child: _resendCountdown > 0
+                              ? Text(
+                                  '00:${_resendCountdown.toString().padLeft(2, '0')}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade500,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                )
+                              : TextButton(
+                                  onPressed: _isLoading ? null : _sendOtp,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 36),
+                                  ),
+                                  child: Text(
+                                    l10n?.translate('resend') ??
+                                        'Qaytadan yuborish',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                        ),
                       ],
-                      cursorColor: AppColors.primary,
-                      decoration: InputDecoration(
-                        hintText: '••••',
-                        hintStyle: TextStyle(
-                          fontSize: 24,
-                          letterSpacing: 16,
-                          color: Colors.grey.shade300,
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        focusedErrorBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                      onFieldSubmitted: (_) => _verifyOtp(),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Timer yoki qaytadan yuborish
-                  Center(
-                    child: _resendCountdown > 0
-                        ? Text(
-                            '00:${_resendCountdown.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          )
-                        : TextButton(
-                            onPressed: _isLoading ? null : _sendOtp,
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(0, 36),
-                            ),
-                            child: Text(
-                              l10n?.translate('resend') ?? 'Qaytadan yuborish',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                  ),
-                ],
-
-                const SizedBox(height: 24),
-
-                // Submit button - pill-shaped
-                SizedBox(
-                  height: 48,
-                  child: Builder(builder: (context) {
-                    final isPhoneValid = _phoneController.text
-                            .replaceAll(RegExp(r'\D'), '')
-                            .length ==
-                        9;
-                    final isButtonEnabled = _isOtpSent
-                        ? _otpController.text.length == 4
-                        : isPhoneValid;
-
-                    return ElevatedButton(
-                      onPressed: _isLoading || !isButtonEnabled
-                          ? null
-                          : (_isOtpSent ? _verifyOtp : _sendOtp),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade200,
-                        disabledForegroundColor: Colors.grey.shade400,
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _isOtpSent
-                                  ? (l10n?.translate('verify') ?? 'Tasdiqlash')
-                                  : (l10n?.translate('continue') ??
-                                      'Davom etish'),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    );
-                  }),
-                ),
-
-                // Google Sign In - faqat telefon kiritish sahifasida va klaviatura yopiq paytda ko'rsatish
-                if (!_isOtpSent && !isKeyboardVisible) ...[
-                  const SizedBox(height: 20),
-
-                  // Divider
-                  Row(
-                    children: [
-                      Expanded(
-                          child:
-                              Divider(color: Colors.grey.shade200, height: 1)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          l10n?.translate('or_text') ?? 'yoki',
-                          style: TextStyle(
-                            color: Colors.grey.shade400,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                          child:
-                              Divider(color: Colors.grey.shade200, height: 1)),
                     ],
                   ),
+                ),
+              ),
+            ),
 
-                  const SizedBox(height: 20),
-
-                  // Google Sign In Button - pill-shaped
+            // Button section - pinned at bottom, near keyboard
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Submit button - pill-shaped
                   SizedBox(
                     height: 48,
-                    child: OutlinedButton(
-                      onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        side: BorderSide(color: Colors.grey.shade200),
-                        elevation: 0,
-                      ),
-                      child: _isGoogleLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildGoogleLogo(),
-                                const SizedBox(width: 12),
-                                Text(
-                                  l10n?.translate('login_with_google') ??
-                                      'Google orqali kirish',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ],
+                    child: Builder(builder: (context) {
+                      final isPhoneValid = _phoneController.text
+                              .replaceAll(RegExp(r'\D'), '')
+                              .length ==
+                          9;
+                      final isButtonEnabled = _isOtpSent
+                          ? _otpController.text.length == 6
+                          : isPhoneValid;
 
-                const SizedBox(height: 32),
-              ],
+                      return ElevatedButton(
+                        onPressed: _isLoading || !isButtonEnabled
+                            ? null
+                            : (_isOtpSent ? _verifyOtp : _sendOtp),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade200,
+                          disabledForegroundColor: Colors.grey.shade400,
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                _isOtpSent
+                                    ? (l10n?.translate('verify') ??
+                                        'Tasdiqlash')
+                                    : (l10n?.translate('continue') ??
+                                        'Davom etish'),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      );
+                    }),
+                  ),
+
+                  // Google Sign In - faqat telefon kiritish sahifasida va klaviatura yopiq paytda ko'rsatish
+                  if (!_isOtpSent && !isKeyboardVisible) ...[
+                    const SizedBox(height: 20),
+
+                    // Divider
+                    Row(
+                      children: [
+                        Expanded(
+                            child: Divider(
+                                color: Colors.grey.shade200, height: 1)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            l10n?.translate('or_text') ?? 'yoki',
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                            child: Divider(
+                                color: Colors.grey.shade200, height: 1)),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Google Sign In Button - pill-shaped
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: _isGoogleLoading ? null : _signInWithGoogle,
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          side: BorderSide(color: Colors.grey.shade200),
+                          elevation: 0,
+                        ),
+                        child: _isGoogleLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildGoogleLogo(),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    l10n?.translate('login_with_google') ??
+                                        'Google orqali kirish',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

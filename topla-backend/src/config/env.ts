@@ -34,7 +34,7 @@ const envSchema = z.object({
   ESKIZ_PASSWORD: z.string().optional(),
 
   // OTP
-  OTP_LENGTH: z.coerce.number().default(6),
+    OTP_LENGTH: z.coerce.number().default(5),
   OTP_TTL_SECONDS: z.coerce.number().default(120),
 
   // Payment Webhooks (Aliance Bank / Octobank)

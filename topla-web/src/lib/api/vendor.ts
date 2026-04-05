@@ -26,6 +26,12 @@ export interface Shop {
   deliveryFee?: number;
   freeDeliveryFrom?: number;
   deliveryRadius?: number;
+  businessType?: string;
+  inn?: string;
+  bankName?: string;
+  bankAccount?: string;
+  mfo?: string;
+  oked?: string;
   createdAt: string;
   _count?: {
     products: number;

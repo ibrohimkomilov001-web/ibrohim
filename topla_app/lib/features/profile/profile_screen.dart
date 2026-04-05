@@ -1,12 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
-import '../../models/user_role.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
 import 'edit_profile_screen.dart';

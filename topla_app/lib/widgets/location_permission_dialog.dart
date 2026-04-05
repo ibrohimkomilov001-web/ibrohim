@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/constants.dart';
 import '../core/localization/app_localizations.dart';
-import '../services/push_notification_service.dart';
 
-/// Bildirishnoma ruxsati so'rash dialogini ko'rsatish
-Future<bool> showNotificationPermissionDialog(BuildContext context) async {
-  final notificationService = PushNotificationService();
-
-  // Agar avval so'ralgan bo'lsa, qayta so'ramaymiz
-  final isAsked = await notificationService.isPermissionAsked();
+/// Joylashuv ruxsati so'rash dialogini ko'rsatish
+Future<bool> showLocationPermissionDialog(BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  final isAsked = prefs.getBool('locationPermissionAsked') ?? false;
   if (isAsked) return true;
 
   if (!context.mounted) return false;
@@ -16,14 +15,14 @@ Future<bool> showNotificationPermissionDialog(BuildContext context) async {
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => const _NotificationPermissionDialog(),
+    builder: (context) => const _LocationPermissionDialog(),
   );
 
   return result ?? false;
 }
 
-class _NotificationPermissionDialog extends StatelessWidget {
-  const _NotificationPermissionDialog();
+class _LocationPermissionDialog extends StatelessWidget {
+  const _LocationPermissionDialog();
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +40,13 @@ class _NotificationPermissionDialog extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.success.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.notifications_active_rounded,
+                Icons.location_on_rounded,
                 size: 28,
-                color: AppColors.primary,
+                color: AppColors.success,
               ),
             ),
 
@@ -55,7 +54,7 @@ class _NotificationPermissionDialog extends StatelessWidget {
 
             // Title
             Text(
-              context.l10n.translate('notification_permission_title'),
+              context.l10n.translate('location_permission_title'),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -67,7 +66,7 @@ class _NotificationPermissionDialog extends StatelessWidget {
 
             // Description
             Text(
-              context.l10n.translate('notification_permission_desc'),
+              context.l10n.translate('location_permission_desc'),
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey.shade600,
@@ -81,20 +80,20 @@ class _NotificationPermissionDialog extends StatelessWidget {
             // Features list
             _buildFeatureItem(
               context,
-              Icons.local_offer_rounded,
-              context.l10n.translate('notification_feature_1'),
+              Icons.store_rounded,
+              context.l10n.translate('location_feature_1'),
             ),
             const SizedBox(height: 8),
             _buildFeatureItem(
               context,
-              Icons.local_shipping_rounded,
-              context.l10n.translate('notification_feature_2'),
+              Icons.delivery_dining_rounded,
+              context.l10n.translate('location_feature_2'),
             ),
             const SizedBox(height: 8),
             _buildFeatureItem(
               context,
-              Icons.campaign_rounded,
-              context.l10n.translate('notification_feature_3'),
+              Icons.my_location_rounded,
+              context.l10n.translate('location_feature_3'),
             ),
 
             const SizedBox(height: 20),
@@ -106,8 +105,8 @@ class _NotificationPermissionDialog extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      final notificationService = PushNotificationService();
-                      await notificationService.setPermissionAsked();
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('locationPermissionAsked', true);
                       if (context.mounted) {
                         Navigator.pop(context, false);
                       }
@@ -136,15 +135,19 @@ class _NotificationPermissionDialog extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      final notificationService = PushNotificationService();
-                      final granted =
-                          await notificationService.requestPermissionOnly();
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('locationPermissionAsked', true);
+
+                      final permission = await Geolocator.requestPermission();
+                      final granted = permission == LocationPermission.always ||
+                          permission == LocationPermission.whileInUse;
+
                       if (context.mounted) {
                         Navigator.pop(context, granted);
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: AppColors.success,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(100),
@@ -176,13 +179,13 @@ class _NotificationPermissionDialog extends StatelessWidget {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
+            color: AppColors.success.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
             size: 15,
-            color: AppColors.primary,
+            color: AppColors.success,
           ),
         ),
         const SizedBox(width: 10),

@@ -1781,6 +1781,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildActionIconButton({
     IconData? icon,
     Widget? child,
@@ -1807,6 +1808,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildActionButton({
     required IconData icon,
     Color? color,
@@ -1829,6 +1831,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildPillButton({
     IconData? icon,
     Widget? child,

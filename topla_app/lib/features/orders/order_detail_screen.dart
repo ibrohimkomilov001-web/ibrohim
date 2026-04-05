@@ -487,13 +487,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.08),
+                    color: AppColors.error.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
                     Iconsax.close_circle,
                     size: 18,
-                    color: AppColors.error.withOpacity(0.7),
+                    color: AppColors.error.withValues(alpha: 0.7),
                   ),
                 ),
               ),
@@ -517,7 +517,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -600,7 +600,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -906,7 +906,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         border: Border(
           top: BorderSide(color: Colors.grey.shade200, width: 0.5),
         ),
@@ -1014,7 +1014,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         border: Border(
           top: BorderSide(color: Colors.grey.shade200, width: 0.5),
         ),
