@@ -7,3 +7,7 @@ dist
 README.md
 docker-compose.yml
 nginx/
+src/__tests__
+*.test.ts
+*.spec.ts
+vitest.config.ts

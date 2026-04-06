@@ -391,7 +391,7 @@ export default function ApiKeysPage() {
               </div>
 
               <div>
-                <h3 className="font-bold mb-2">Webhook Formatı</h3>
+                <h3 className="font-bold mb-2">Webhook formati</h3>
                 <div className="bg-muted p-4 rounded font-mono text-xs sm:text-sm">
                   <pre>{`{
   "event": "order.created",

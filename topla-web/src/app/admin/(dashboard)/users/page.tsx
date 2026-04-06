@@ -22,7 +22,7 @@ import { useTranslation } from '@/store/locale-store'
 const roleLabels: Record<string, string> = {
   customer: 'Foydalanuvchi',
   user: 'Foydalanuvchi',
-  vendor: 'Vendor',
+  vendor: 'Sotuvchi',
   admin: 'Admin',
 }
 
@@ -119,8 +119,8 @@ export default function AdminUsersPage() {
               <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="all" className="text-xs sm:text-sm">{t('all')}</TabsTrigger>
                 <TabsTrigger value="user" className="text-xs sm:text-sm">{t('users')}</TabsTrigger>
-                <TabsTrigger value="vendor" className="text-xs sm:text-sm">Vendorlar</TabsTrigger>
-                <TabsTrigger value="admin" className="text-xs sm:text-sm">{t('roles')}</TabsTrigger>
+                <TabsTrigger value="vendor" className="text-xs sm:text-sm">{t('toVendors')}</TabsTrigger>
+                <TabsTrigger value="admin" className="text-xs sm:text-sm">Adminlar</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -312,7 +312,7 @@ export default function AdminUsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="customer">Foydalanuvchi</SelectItem>
-                <SelectItem value="vendor">Vendor</SelectItem>
+                <SelectItem value="vendor">Sotuvchi</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>

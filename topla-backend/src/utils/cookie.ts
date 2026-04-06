@@ -14,6 +14,7 @@ const BASE_COOKIE_OPTIONS = {
   secure: IS_PRODUCTION,                      // HTTPS faqat production da
   sameSite: IS_PRODUCTION ? 'none' as const : 'lax' as const, // Cross-origin uchun 'none' (prod), dev uchun 'lax'
   path: '/',
+  ...(IS_PRODUCTION && { domain: '.topla.uz' }), // Barcha subdomenlar uchun cookie ishlaydi
 };
 
 // Access token TTL — env dan olinadi (default 1d = 86400s)

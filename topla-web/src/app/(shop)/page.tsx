@@ -120,23 +120,23 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
   ];
 
   return (
-    <div className="overflow-x-auto no-scrollbar py-2">
-      <div className="inline-flex items-center gap-1 bg-white rounded-2xl p-0.5 shadow-sm">
+    <div className="overflow-x-auto no-scrollbar">
+      <div className="inline-flex items-center gap-4">
         {filters.map((f) => {
           const isActive = selected === f.key;
           return (
             <button
               key={f.key}
               onClick={() => onSelect(f.key)}
-              className={`relative whitespace-nowrap px-4 py-2 text-sm transition-all ${
+              className={`relative whitespace-nowrap pb-2 text-sm transition-all ${
                 isActive
                   ? 'text-black font-semibold'
-                  : 'text-gray-500 font-normal hover:text-gray-800'
+                  : 'text-gray-400 font-normal hover:text-gray-700'
               }`}
             >
               {f.label}
               {isActive && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-0.5 bg-black rounded-full" />
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-black rounded-full" />
               )}
             </button>
           );
@@ -151,9 +151,9 @@ function HomeSkeleton() {
   return (
     <div className="site-container space-y-4 pt-1 animate-pulse">
       <div className="h-36 sm:h-48 skeleton rounded-xl" />
-      <div className="flex gap-0.5 bg-white rounded-2xl p-0.5 shadow-sm w-fit">
+      <div className="flex gap-4 w-fit">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-8 w-20 skeleton rounded-[14px]" />
+          <div key={i} className="h-5 w-16 skeleton rounded" />
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2">

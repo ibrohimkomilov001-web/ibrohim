@@ -8,11 +8,29 @@ import { createRequest, createTokenHelpers } from './base-client';
 // autoUnwrap: false — admin funksiyalar o'zi res.data qiladi
 const tokenHelpers = createTokenHelpers('admin');
 
+/**
+ * Admin uchun token refresh: refresh cookie bilan yangi access token olish.
+ * 401 kelsa avtomatik chaqiriladi (onUnauthorized).
+ */
+async function tryAdminRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/v1/auth/admin/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 const adminRequest = createRequest({
   tokenKey: 'admin',
   loginRedirect: '/admin/login',
   useRelativeUrl: true,
   autoUnwrap: false,
+  onUnauthorized: tryAdminRefresh,
 });
 
 export function setAdminToken(_token: string): void {
@@ -33,11 +51,12 @@ export function isAdminAuthenticated(): boolean {
 // ============================================
 export async function adminLogin(email: string, password: string) {
   try {
-    // Login so'rovi — adminRequest auto-unwrap qiladi
-    const data = await adminRequest<{ token?: string; adminRole?: AdminPermissions }>('/auth/admin/login', {
+    // autoUnwrap: false — response: { success, data: { token, adminRole, user } }
+    const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>('/auth/admin/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    const data = res.data;
     if (data?.token) {
       setAdminToken(data.token);
     }
@@ -47,6 +66,26 @@ export async function adminLogin(email: string, password: string) {
     return data;
   } catch (err: any) {
     throw new Error(err.message || 'Serverga ulanib bo\'lmadi. Qayta urinib ko\'ring.');
+  }
+}
+
+export async function adminGoogleLogin(credential: string) {
+  try {
+    // autoUnwrap: false — response: { success, data: { token, adminRole, user } }
+    const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>('/auth/admin/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    const data = res.data;
+    if (data?.token) {
+      setAdminToken(data.token);
+    }
+    if (data?.adminRole) {
+      setAdminPermissions(data.adminRole);
+    }
+    return data;
+  } catch (err: any) {
+    throw new Error(err.message || 'Google orqali kirishda xatolik yuz berdi.');
   }
 }
 

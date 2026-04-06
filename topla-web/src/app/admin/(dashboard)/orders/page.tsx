@@ -145,7 +145,7 @@ export default function AdminOrdersPage() {
                           setSelectedOrder(order)
                           setNewStatus(order.status)
                           setStatusDialogOpen(true)
-                        }}>Status</Button>
+                        }}>Holat</Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {new Date(order.created_at).toLocaleDateString('uz-UZ')} • {order.payment_method || 'Naqd'}

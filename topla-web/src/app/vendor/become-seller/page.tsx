@@ -34,6 +34,8 @@ import {
   Heart,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { useTranslation } from "@/store/locale-store";
 
 /* ──────────────── FORMAT NUMBER (consistent server/client) ──────────────── */
 function formatNumber(n: number): string {
@@ -545,6 +547,7 @@ function RangeSlider({
 
 /* ──────────────── COMMISSION CALCULATOR ──────────────── */
 function CommissionCalculator() {
+  const { t } = useTranslation();
   const [price, setPrice] = useState(200000);
   const [quantity, setQuantity] = useState(10);
   const commissionRate = 0.1;
@@ -561,9 +564,9 @@ function CommissionCalculator() {
       <div className="space-y-6">
         <div>
           <Label className="text-sm font-medium mb-3 block">
-            Mahsulot narxi:{" "}
+            {t('bsCalcPriceLabel')}{" "}
             <span className="text-[#2563EB] font-bold">
-              {formatNumber(price)} so&apos;m
+              {formatNumber(price)} {t('bsCalcCurrency')}
             </span>
           </Label>
           <RangeSlider
@@ -581,8 +584,8 @@ function CommissionCalculator() {
 
         <div>
           <Label className="text-sm font-medium mb-3 block">
-            Kuniga sotish soni:{" "}
-            <span className="text-[#2563EB] font-bold">{quantity} dona</span>
+            {t('bsCalcQtyLabel')}{" "}
+            <span className="text-[#2563EB] font-bold">{quantity} {t('bsCalcUnit')}</span>
           </Label>
           <RangeSlider
             min={1}
@@ -599,38 +602,38 @@ function CommissionCalculator() {
 
         <div className="p-4 rounded-xl bg-[#EFF6FF] dark:bg-[#1E3A5F] space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Komissiya stavkasi</span>
+            <span className="text-muted-foreground">{t('bsCalcCommRate')}</span>
             <span className="font-semibold">10%</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Yetkazib berish</span>
-            <span className="font-semibold">8 000 so&apos;m/buyurtma</span>
+            <span className="text-muted-foreground">{t('bsCalcDelivery')}</span>
+            <span className="font-semibold">8 000 {t('bsCalcDeliveryVal')}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">
-              Ro&apos;yxatdan o&apos;tish
+              {t('bsCalcRegistration')}
             </span>
-            <span className="font-semibold text-green-600">Bepul</span>
+            <span className="font-semibold text-green-600">{t('bsCalcFree')}</span>
           </div>
         </div>
       </div>
 
       <div className="space-y-4">
         <div className="text-sm font-medium text-muted-foreground mb-2">
-          Oylik hisob-kitob:
+          {t('bsCalcMonthly')}
         </div>
         <div className="space-y-3">
           <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-muted/50">
             <span className="text-sm text-muted-foreground">
-              Umumiy sotish
+              {t('bsCalcTotalSales')}
             </span>
             <span className="font-bold text-lg">
-              {formatNumber(totalRevenue)} so&apos;m
+              {formatNumber(totalRevenue)} {t('bsCalcCurrency')}
             </span>
           </div>
           <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-orange-50 dark:bg-orange-950/20">
             <span className="text-sm text-orange-600">
-              TOPLA komissiyasi (10%)
+              {t('bsCalcCommission')}
             </span>
             <span className="font-bold text-orange-600">
               -{formatNumber(totalCommission)}
@@ -638,7 +641,7 @@ function CommissionCalculator() {
           </div>
           <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-orange-50 dark:bg-orange-950/20">
             <span className="text-sm text-orange-600">
-              Yetkazib berish
+              {t('bsCalcDeliveryFee')}
             </span>
             <span className="font-bold text-orange-600">
               -{formatNumber(totalDelivery)}
@@ -647,15 +650,15 @@ function CommissionCalculator() {
           <div className="flex justify-between items-center py-4 px-4 rounded-xl bg-green-100 dark:bg-green-950/30 border-2 border-green-200 dark:border-green-800">
             <div>
               <span className="text-sm text-green-700 dark:text-green-400">
-                Sizning foyda
+                {t('bsCalcProfit')}
               </span>
               <div className="text-xs text-green-600/70 dark:text-green-500">
-                oyiga ({quantity} x 30 kun)
+                {t('bsCalcPerMonth')} ({quantity} x 30)
               </div>
             </div>
             <span className="font-extrabold text-2xl text-green-700 dark:text-green-400">
               {formatNumber(profit)}{" "}
-              <span className="text-sm font-medium">so&apos;m</span>
+              <span className="text-sm font-medium">{t('bsCalcCurrency')}</span>
             </span>
           </div>
         </div>
@@ -665,34 +668,7 @@ function CommissionCalculator() {
 }
 
 /* ──────────────── FAQ ──────────────── */
-const faqItems = [
-  {
-    q: "Ro'yxatdan o'tish uchun qanday hujjatlar kerak?",
-    a: "Yakka tartibdagi tadbirkorlar (YaTT) uchun:\n• YaTT guvohnomasini\n• Pasport\n\nMChJ uchun:\n• Yuridik shaxs guvohnomasi\n• Direktor tayinlash buyrug'i\n• Pasport\n\nJismoniy shaxslar uchun:\n• Pasport\n• JSHSHIR (PINFL)",
-  },
-  {
-    q: "TOPLA.UZ komissiyasi qancha?",
-    a: "Komissiya kategoriyaga qarab 5% dan 15% gacha. O'rtacha 10%. Qo'shimcha oylik to'lov yoki obuna yo'q — faqat sotilganda to'laysiz.",
-  },
-  {
-    q: "Mahsulotlarni omborga topshirish kerakmi?",
-    a: "Ha, mahsulotlarni omborimizga topshirasiz — saqlash, qadoqlash va yetkazib berishni TOPLA.UZ o'zi bajaradi. Siz faqat sotishga e'tibor bering!",
-  },
-  {
-    q: "Pul qachon hisobga tushadi?",
-    a: "Mahsulot xaridorga yetkazilganidan so'ng 3-7 ish kuni ichida. Pulingizni istalgan vaqtda chiqarishingiz mumkin.",
-  },
-  {
-    q: "Qanday kategoriyalarda sotish mumkin?",
-    a: "10+ kategoriya: Elektronika, Kiyim-kechak, Oziq-ovqat, Uy-ro'zg'or, Go'zallik, Bolalar uchun, Sport, Kitoblar, Avtomobil, Qurilish va boshqalar.",
-  },
-  {
-    q: "Ro'yxatdan o'tish qancha vaqt oladi?",
-    a: "5-10 daqiqa to'ldirasiz, 1-2 ish kunida tasdiqlaymiz. Ariza topshirish bepul.",
-  },
-];
-
-function FAQItem({ item }: { item: (typeof faqItems)[0] }) {
+function FAQItem({ item }: { item: { q: string; a: string } }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-border/50 last:border-0">
@@ -722,96 +698,31 @@ function FAQItem({ item }: { item: (typeof faqItems)[0] }) {
   );
 }
 
-/* ──────────────── DATA ──────────────── */
-const benefits = [
-  {
-    icon: Users,
-    title: "Xaridorlarni jalb qilamiz",
-    desc: "Reklamaga pul sarflamang — TOPLA.UZ da xaridorlar allaqachon mahsulotingizni qidirmoqda",
-    color:
-      "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
-  },
-  {
-    icon: Megaphone,
-    title: "Bepul reklama va promosyon",
-    desc: "Aksiyalar, chegirmalar, top joylashuvlar — mahsulotlaringizni millionlab xaridorlarga ko'rsatamiz",
-    color:
-      "bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
-  },
-  {
-    icon: Globe,
-    title: "Butun O'zbekiston bo'ylab",
-    desc: "14+ shaharda yetkazib berish. Toshkent, Samarqand, Buxoro, Namangan — hamma joyga yetkazamiz",
-    color:
-      "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400",
-  },
-  {
-    icon: Truck,
-    title: "Yetkazib berish xizmati",
-    desc: "Siz faqat mahsulotni tayyorlang — qadoqlash va yetkazishni biz o'z zimmamizga olamiz",
-    color:
-      "bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400",
-  },
-  {
-    icon: BarChart3,
-    title: "Analitika va hisobotlar",
-    desc: "Real vaqtda sotuvlar, eng ko'p sotilgan mahsulotlar, mijoz statistikasi — hammasini kuzating",
-    color:
-      "bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400",
-  },
-  {
-    icon: Shield,
-    title: "Ishonchli to'lov kafolati",
-    desc: "Xavfsiz to'lov tizimi. Pul 3-7 kun ichida hisobingizga tushadi. 100% kafolat",
-    color:
-      "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400",
-  },
+/* ──────────────── DATA (icons & colors only — text via i18n) ──────────────── */
+const benefitMeta = [
+  { icon: Users, titleKey: 'bsBenefit1Title', descKey: 'bsBenefit1Desc', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400' },
+  { icon: Megaphone, titleKey: 'bsBenefit2Title', descKey: 'bsBenefit2Desc', color: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400' },
+  { icon: Globe, titleKey: 'bsBenefit3Title', descKey: 'bsBenefit3Desc', color: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400' },
+  { icon: Truck, titleKey: 'bsBenefit4Title', descKey: 'bsBenefit4Desc', color: 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400' },
+  { icon: BarChart3, titleKey: 'bsBenefit5Title', descKey: 'bsBenefit5Desc', color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400' },
+  { icon: Shield, titleKey: 'bsBenefit6Title', descKey: 'bsBenefit6Desc', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' },
 ];
 
-const steps = [
-  {
-    icon: Store,
-    title: "Biznesingizni ro'yxatdan o'tkazing",
-    desc: "YaTT, MChJ yoki jismoniy shaxs — agar hali biznesingiz yo'q bo'lsa, biz yordam beramiz",
-  },
-  {
-    icon: Wallet,
-    title: "Hisob raqam oching",
-    desc: "Mavjud hisob raqamingiz yoki istalgan bankda yangisini oching",
-  },
-  {
-    icon: ShoppingBag,
-    title: "TOPLA.UZ da akkaunt yarating",
-    desc: "5 daqiqada formani to'ldiring. 1-2 ish kunida tasdiqlaymiz va siz sotishni boshlaysiz!",
-  },
+const stepMeta = [
+  { icon: Store, titleKey: 'bsStep1Title', descKey: 'bsStep1Desc' },
+  { icon: Wallet, titleKey: 'bsStep2Title', descKey: 'bsStep2Desc' },
+  { icon: ShoppingBag, titleKey: 'bsStep3Title', descKey: 'bsStep3Desc' },
 ];
 
-const testimonials = [
-  {
-    name: "Aziz Karimov",
-    role: "TechStore egasi",
-    avatar: "AK",
-    text: "TOPLA ga qo'shilganimizdan beri sotuvlar 3 baravarga oshdi. Platforma juda qulay!",
-    rating: 5,
-  },
-  {
-    name: "Nilufar Rashidova",
-    role: "GoStyle brendi",
-    avatar: "NR",
-    text: "Aksiyalarda har safar sotuvlarda o'sish ko'ramiz. Analitika vositalari juda foydali.",
-    rating: 5,
-  },
-  {
-    name: "Sardor Umarov",
-    role: "FreshFood do'koni",
-    avatar: "SU",
-    text: "6 oyda doimiy xaridorlar bazasini shakllantirdik. Yetkazib berish tizimi a'lo!",
-    rating: 5,
-  },
+const testimonialMeta = [
+  { nameKey: 'bsTestimonial1Name', roleKey: 'bsTestimonial1Role', avatar: 'AK', textKey: 'bsTestimonial1Text', rating: 5 },
+  { nameKey: 'bsTestimonial2Name', roleKey: 'bsTestimonial2Role', avatar: 'NR', textKey: 'bsTestimonial2Text', rating: 5 },
+  { nameKey: 'bsTestimonial3Name', roleKey: 'bsTestimonial3Role', avatar: 'SU', textKey: 'bsTestimonial3Text', rating: 5 },
 ];
 
 /* ──────────────── MAIN PAGE ──────────────── */
 export default function BecomeSellerPage() {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -836,7 +747,9 @@ export default function BecomeSellerPage() {
                 TOPLA<span className="text-[#2563EB]">.UZ</span>
               </span>
             </Link>
-            <div className="relative">
+            <div className="flex items-center gap-1">
+              <LanguageSwitcher />
+              <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex flex-col justify-center items-center w-9 h-9 rounded-lg hover:bg-black/5 transition-colors"
@@ -853,17 +766,18 @@ export default function BecomeSellerPage() {
                     className="block px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-[#2563EB] transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
-                    Kirish
+                    {t('bsNavLogin')}
                   </Link>
                   <Link
                     href="/vendor/register"
                     className="block px-4 py-2.5 text-sm font-medium text-[#2563EB] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
-                    Sotuvchi bo&apos;lish
+                    {t('bsNavBecomeSeller')}
                   </Link>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
@@ -885,10 +799,10 @@ export default function BecomeSellerPage() {
             >
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#2563EB]/10 text-[#2563EB] text-sm font-medium mb-6">
                 <Sparkles className="h-4 w-4" />
-                Yangi imkoniyatlar kutmoqda
+                {t('bsHeroBadge')}
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight leading-[1.15]">
-                Butun O&apos;zbekiston bo&apos;ylab{" "}
+                {t('bsHeroTitle1')}{" "}
                 <span className="text-[#2563EB] relative">
                   TOPLA.UZ
                   <svg
@@ -905,13 +819,12 @@ export default function BecomeSellerPage() {
                     />
                   </svg>
                 </span>{" "}
-                da soting!
+                {t('bsHeroTitle2')}
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Minglab sotuvchilar allaqachon ishlayapti. Qo&apos;shiling —
-                millionlab xaridorlarga yetib boring.{" "}
+                {t('bsHeroDesc')}{" "}
                 <strong className="text-foreground">
-                  Ro&apos;yxatdan o&apos;tish bepul!
+                  {t('bsHeroFreeReg')}
                 </strong>
               </p>
 
@@ -922,7 +835,7 @@ export default function BecomeSellerPage() {
                   className="rounded-full text-base px-8 bg-[#2563EB] hover:bg-[#1D4ED8] shadow-xl shadow-blue-500/25 h-12"
                 >
                   <Link href="/vendor/register">
-                    Sotuvchi bo&apos;lish
+                    {t('bsHeroBtnSeller')}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -934,7 +847,7 @@ export default function BecomeSellerPage() {
                 >
                   <Link href="#calculator">
                     <Calculator className="mr-2 h-5 w-5" />
-                    Daromadni hisoblash
+                    {t('bsHeroBtnCalc')}
                   </Link>
                 </Button>
               </div>
@@ -943,11 +856,11 @@ export default function BecomeSellerPage() {
               <div className="mt-10 flex items-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>Bepul ro&apos;yxatdan o&apos;tish</span>
+                  <span>{t('bsHeroTagFree')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span>24/7 qo&apos;llab-quvvatlash</span>
+                  <span>{t('bsHeroTagSupport')}</span>
                 </div>
               </div>
             </motion.div>
@@ -977,43 +890,47 @@ export default function BecomeSellerPage() {
             {
               value: 100000,
               suffix: "+",
-              label: "Faol xaridorlar",
+              labelKey: "bsStatBuyers",
               icon: Users,
               color: "text-[#2563EB]",
+              translate: false,
             },
             {
               value: 15,
               suffix: "x",
-              label: "Sotuvlar o'sishi",
+              labelKey: "bsStatGrowth",
               icon: TrendingUp,
               color: "text-green-500",
+              translate: false,
             },
             {
               value: 7,
-              suffix: " kun",
-              label: "Birinchi daromad",
+              suffix: "bsStatDaySuffix",
+              labelKey: "bsStatFirstIncome",
               icon: Clock,
               color: "text-orange-500",
+              translate: true,
             },
             {
               value: 14,
               suffix: "+",
-              label: "Shaharlar",
+              labelKey: "bsStatCities",
               icon: MapPin,
               color: "text-purple-500",
+              translate: false,
             },
           ].map((stat) => (
-            <div key={stat.label} className="text-center">
+            <div key={stat.labelKey} className="text-center">
               <stat.icon
                 className={`h-6 w-6 mx-auto mb-2 ${stat.color}`}
               />
               <div
                 className={`text-xl sm:text-2xl font-extrabold ${stat.color}`}
               >
-                <AnimatedCounter end={stat.value} suffix={stat.suffix} />
+                <AnimatedCounter end={stat.value} suffix={stat.translate ? t(stat.suffix) : stat.suffix} />
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                {stat.label}
+                {t(stat.labelKey)}
               </div>
             </div>
           ))}
@@ -1030,22 +947,20 @@ export default function BecomeSellerPage() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2563EB]/10 text-[#2563EB] text-xs font-semibold mb-4">
-              <Gift className="h-3.5 w-3.5" /> IMKONIYATLAR
+              <Gift className="h-3.5 w-3.5" /> {t('bsBenefitsBadge')}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              TOPLA.UZ da sotish — bu{" "}
-              <span className="text-[#2563EB]">oson!</span>
+              {t('bsBenefitsTitle')}
             </h2>
             <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-              Biznesingizni rivojlantirishga yordam beradigan barcha
-              vositalar
+              {t('bsBenefitsDesc')}
             </p>
           </motion.div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {benefits.map((b, i) => (
+            {benefitMeta.map((b, i) => (
               <motion.div
-                key={b.title}
+                key={b.titleKey}
                 initial={{ opacity: 0, y: 25 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -1058,9 +973,9 @@ export default function BecomeSellerPage() {
                     >
                       <b.icon className="h-6 w-6" />
                     </div>
-                    <h3 className="font-bold text-lg mb-2">{b.title}</h3>
+                    <h3 className="font-bold text-lg mb-2">{t(b.titleKey)}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                      {b.desc}
+                      {t(b.descKey)}
                     </p>
                   </CardContent>
                 </Card>
@@ -1083,18 +998,18 @@ export default function BecomeSellerPage() {
               viewport={{ once: true }}
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold mb-4 dark:bg-green-950 dark:text-green-400">
-                <Zap className="h-3.5 w-3.5" /> 3 QADAM
+                <Zap className="h-3.5 w-3.5" /> {t('bsStepsBadge')}
               </div>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mb-4">
-                Qanday boshlash kerak?
+                {t('bsStepsTitle')}
               </h2>
               <p className="text-muted-foreground mb-10">
-                3 oddiy qadam — va siz allaqachon sotuvchisiz
+                {t('bsStepsDesc')}
               </p>
 
-              {steps.map((step, i) => (
+              {stepMeta.map((step, i) => (
                 <motion.div
-                  key={step.title}
+                  key={step.titleKey}
                   className="flex gap-5 mb-8 last:mb-0"
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
@@ -1105,19 +1020,19 @@ export default function BecomeSellerPage() {
                     <div className="h-14 w-14 rounded-2xl bg-[#2563EB] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
                       <step.icon className="h-7 w-7" />
                     </div>
-                    {i < steps.length - 1 && (
+                    {i < stepMeta.length - 1 && (
                       <div className="w-0.5 flex-1 bg-[#2563EB]/20 mt-2" />
                     )}
                   </div>
                   <div className="pb-8">
                     <div className="text-xs font-bold text-[#2563EB] mb-1">
-                      {i + 1}-QADAM
+                      {i + 1}{t('bsStepLabel')}
                     </div>
                     <h3 className="text-lg font-bold mb-1.5">
-                      {step.title}
+                      {t(step.titleKey)}
                     </h3>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                      {step.desc}
+                      {t(step.descKey)}
                     </p>
                   </div>
                 </motion.div>
@@ -1129,7 +1044,7 @@ export default function BecomeSellerPage() {
                 className="rounded-full bg-[#2563EB] hover:bg-[#1D4ED8] shadow-lg shadow-blue-500/25 px-8 mt-2"
               >
                 <Link href="/vendor/register">
-                  Sotuvchi bo&apos;lish{" "}
+                  {t('bsHeroBtnSeller')}{" "}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -1160,26 +1075,25 @@ export default function BecomeSellerPage() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold mb-4 dark:bg-green-950 dark:text-green-400">
-              <Truck className="h-3.5 w-3.5" /> YETKAZIB BERISH
+              <Truck className="h-3.5 w-3.5" /> {t('bsDeliveryBadge')}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              TOPLA<span className="text-[#2563EB]">.UZ</span> o&apos;zi{" "}
-              <span className="text-[#2563EB]">yetkazib beradi</span>
+              {t('bsDeliveryTitle1')}<span className="text-[#2563EB]">.UZ</span> {t('bsDeliveryTitle2')}{" "}
+              <span className="text-[#2563EB]">{t('bsDeliveryTitle3')}</span>
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-base sm:text-lg">
-              Mahsulotlaringizni omborga topshiring — saqlash, qadoqlash va yetkazib berishni biz o&apos;z zimmamizga olamiz.
-              Siz faqat sotishga e&apos;tibor bering!
+              {t('bsDeliveryDesc')}
             </p>
           </motion.div>
 
           <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto mt-12">
             {[
-              { icon: Package, title: "Qabul qilamiz", desc: "Mahsulotlarni omborimizga topshirasiz", color: "border-green-200 dark:border-green-800" },
-              { icon: Package, title: "Saqlaymiz va qadoqlaymiz", desc: "Professional saqlash va qadoqlash", color: "border-blue-200 dark:border-blue-800" },
-              { icon: Truck, title: "Yetkazamiz", desc: "Xaridorga tez va ishonchli yetkazib beramiz", color: "border-orange-200 dark:border-orange-800" },
+              { icon: Package, titleKey: "bsDelStep1Title", descKey: "bsDelStep1Desc", color: "border-green-200 dark:border-green-800" },
+              { icon: Package, titleKey: "bsDelStep2Title", descKey: "bsDelStep2Desc", color: "border-blue-200 dark:border-blue-800" },
+              { icon: Truck, titleKey: "bsDelStep3Title", descKey: "bsDelStep3Desc", color: "border-orange-200 dark:border-orange-800" },
             ].map((m, i) => (
               <motion.div
-                key={m.title}
+                key={m.titleKey}
                 initial={{ opacity: 0, y: 25 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -1192,9 +1106,9 @@ export default function BecomeSellerPage() {
                     <div className="h-12 w-12 rounded-xl bg-[#2563EB]/10 flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform">
                       <m.icon className="h-6 w-6 text-[#2563EB]" />
                     </div>
-                    <h3 className="font-bold mb-2">{m.title}</h3>
+                    <h3 className="font-bold mb-2">{t(m.titleKey)}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed">
-                      {m.desc}
+                      {t(m.descKey)}
                     </p>
                   </CardContent>
                 </Card>
@@ -1217,15 +1131,14 @@ export default function BecomeSellerPage() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold mb-4 dark:bg-green-950 dark:text-green-400">
-              <Calculator className="h-3.5 w-3.5" /> KALKULYATOR
+              <Calculator className="h-3.5 w-3.5" /> {t('bsCalcBadge')}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              Qancha{" "}
-              <span className="text-green-600">ishlash mumkin?</span>
+              {t('bsCalcTitle')}{" "}
+              <span className="text-green-600">{t('bsCalcTitleHighlight')}</span>
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Narx va sotish sonini kiriting — oylik foydangizni
-              ko&apos;ring
+              {t('bsCalcDesc')}
             </p>
           </motion.div>
 
@@ -1253,7 +1166,7 @@ export default function BecomeSellerPage() {
               className="rounded-full bg-[#2563EB] hover:bg-[#1D4ED8] shadow-lg shadow-blue-500/25 px-10 h-12"
             >
               <Link href="/vendor/register">
-                Sotuvchi bo&apos;lish{" "}
+                {t('bsHeroBtnSeller')}{" "}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -1271,14 +1184,14 @@ export default function BecomeSellerPage() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold mb-4 dark:bg-red-950 dark:text-red-400">
-              <Play className="h-3.5 w-3.5" /> VIDEO
+              <Play className="h-3.5 w-3.5" /> {t('bsVideoBadge')}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              TOPLA.UZ{" "}
-              <span className="text-[#2563EB]">qanday ishlaydi?</span>
+              {t('bsVideoTitle')}{" "}
+              <span className="text-[#2563EB]">{t('bsVideoTitleHighlight')}</span>
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Sotuvchilar tajribasini video orqali ko&apos;ring
+              {t('bsVideoDesc')}
             </p>
           </motion.div>
 
@@ -1295,10 +1208,10 @@ export default function BecomeSellerPage() {
                   <Play className="h-8 w-8 text-white ml-1" />
                 </div>
                 <p className="mt-4 text-muted-foreground text-sm font-medium">
-                  Video tez orada qo&apos;shiladi
+                  {t('bsVideoSoon')}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  YouTube video shu yerga joylashtiriladi
+                  {t('bsVideoPlaceholder')}
                 </p>
               </div>
             </div>
@@ -1324,18 +1237,18 @@ export default function BecomeSellerPage() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold mb-4 dark:bg-yellow-950 dark:text-yellow-400">
-              <Heart className="h-3.5 w-3.5" /> HAMKORLAR FIKRI
+              <Heart className="h-3.5 w-3.5" /> {t('bsTestimonialsBadge')}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              Sotuvchilarimiz{" "}
-              <span className="text-[#2563EB]">nima deydi?</span>
+              {t('bsTestimonialsTitle')}{" "}
+              <span className="text-[#2563EB]">{t('bsTestimonialsTitleHighlight')}</span>
             </h2>
           </motion.div>
 
           <div className="grid sm:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
+            {testimonialMeta.map((tm, i) => (
               <motion.div
-                key={t.name}
+                key={tm.nameKey}
                 initial={{ opacity: 0, y: 25 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -1344,7 +1257,7 @@ export default function BecomeSellerPage() {
                 <Card className="h-full border-2 hover:border-[#2563EB]/20 hover:shadow-xl transition-all duration-300">
                   <CardContent className="p-6">
                     <div className="flex gap-0.5 mb-4">
-                      {Array.from({ length: t.rating }).map((_, j) => (
+                      {Array.from({ length: tm.rating }).map((_, j) => (
                         <Star
                           key={j}
                           className="h-4 w-4 fill-yellow-400 text-yellow-400"
@@ -1352,18 +1265,18 @@ export default function BecomeSellerPage() {
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground mb-5 leading-relaxed italic">
-                      &ldquo;{t.text}&rdquo;
+                      &ldquo;{t(tm.textKey)}&rdquo;
                     </p>
                     <div className="flex items-center gap-3 pt-4 border-t">
                       <div className="h-10 w-10 rounded-full bg-[#2563EB]/10 flex items-center justify-center text-sm font-bold text-[#2563EB]">
-                        {t.avatar}
+                        {tm.avatar}
                       </div>
                       <div>
                         <div className="font-semibold text-sm">
-                          {t.name}
+                          {t(tm.nameKey)}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {t.role}
+                          {t(tm.roleKey)}
                         </div>
                       </div>
                     </div>
@@ -1385,11 +1298,11 @@ export default function BecomeSellerPage() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2563EB]/10 text-[#2563EB] text-xs font-semibold mb-4">
-              <MessageCircle className="h-3.5 w-3.5" /> SAVOLLAR
+              <MessageCircle className="h-3.5 w-3.5" /> {t('bsFaqBadge')}
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">
-              Ko&apos;p beriladigan{" "}
-              <span className="text-[#2563EB]">savollar</span>
+              {t('bsFaqTitle')}{" "}
+              <span className="text-[#2563EB]">{t('bsFaqTitleHighlight')}</span>
             </h2>
           </motion.div>
 
@@ -1400,7 +1313,14 @@ export default function BecomeSellerPage() {
           >
             <Card className="border-2">
               <CardContent className="p-6 sm:p-8">
-                {faqItems.map((item, i) => (
+                {[
+                  { q: t('bsFaq1Q'), a: t('bsFaq1A') },
+                  { q: t('bsFaq2Q'), a: t('bsFaq2A') },
+                  { q: t('bsFaq3Q'), a: t('bsFaq3A') },
+                  { q: t('bsFaq4Q'), a: t('bsFaq4A') },
+                  { q: t('bsFaq5Q'), a: t('bsFaq5A') },
+                  { q: t('bsFaq6Q'), a: t('bsFaq6A') },
+                ].map((item, i) => (
                   <FAQItem key={i} item={item} />
                 ))}
               </CardContent>
@@ -1412,15 +1332,15 @@ export default function BecomeSellerPage() {
       {/* ━━━ SUPPORT ━━━ */}
       <section className="py-10 border-t">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-2xl p-6 shadow-sm border">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-xl bg-[#2563EB]/10 flex items-center justify-center">
                 <Headphones className="h-6 w-6 text-[#2563EB]" />
               </div>
               <div>
-                <h3 className="font-bold">Savollaringiz bormi?</h3>
+                <h3 className="font-bold">{t('bsSupportTitle')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Qo&apos;llab-quvvatlash xizmati 24/7
+                  {t('bsSupportDesc')}
                 </p>
               </div>
             </div>
@@ -1446,7 +1366,7 @@ export default function BecomeSellerPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <MessageCircle className="h-4 w-4" /> Telegram
+                  <MessageCircle className="h-4 w-4" /> {t('bsSupportTelegram')}
                 </a>
               </Button>
             </div>
@@ -1466,23 +1386,23 @@ export default function BecomeSellerPage() {
                 href="/"
                 className="hover:text-white transition-colors"
               >
-                Bosh sahifa
+                {t('bsFooterHome')}
               </Link>
               <Link
                 href="/vendor/register"
                 className="hover:text-white transition-colors"
               >
-                Ro&apos;yxatdan o&apos;tish
+                {t('bsFooterRegister')}
               </Link>
               <Link
                 href="/vendor/login"
                 className="hover:text-white transition-colors"
               >
-                Kirish
+                {t('bsFooterLogin')}
               </Link>
             </div>
             <p className="text-xs text-gray-500">
-              2026 TOPLA.UZ — Barcha huquqlar himoyalangan
+              {t('bsFooterRights')}
             </p>
           </div>
         </div>

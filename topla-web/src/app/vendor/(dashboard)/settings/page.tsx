@@ -46,7 +46,9 @@ export default function SettingsPage() {
 
   // Shop form state
   const [shopName, setShopName] = useState("");
+  const [shopNameRu, setShopNameRu] = useState("");
   const [shopDescription, setShopDescription] = useState("");
+  const [shopDescriptionRu, setShopDescriptionRu] = useState("");
   const [shopPhone, setShopPhone] = useState("");
   const [shopEmail, setShopEmail] = useState("");
   const [shopAddress, setShopAddress] = useState("");
@@ -78,7 +80,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (shop) {
       setShopName(shop.name || "");
+      setShopNameRu((shop as any).nameRu || "");
       setShopDescription(shop.description || "");
+      setShopDescriptionRu((shop as any).descriptionRu || "");
       setShopPhone(shop.phone || "");
       setShopEmail(shop.email || "");
       setShopAddress(shop.address || "");
@@ -162,7 +166,9 @@ export default function SettingsPage() {
     }
     updateMutation.mutate({
       name: shopName.trim(),
+      nameRu: shopNameRu.trim() || undefined,
       description: shopDescription.trim(),
+      descriptionRu: shopDescriptionRu.trim() || undefined,
       phone: shopPhone.trim(),
       email: shopEmail.trim(),
       address: shopAddress.trim(),
@@ -287,7 +293,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="shopName">{t('shopNameLabel')} <span className="text-destructive">*</span></Label>
+              <Label htmlFor="shopName">{t('shopNameLabel')} (UZ) <span className="text-destructive">*</span></Label>
               <Input
                 id="shopName"
                 value={shopName}
@@ -298,29 +304,50 @@ export default function SettingsPage() {
               {errors.shopName && <p className="text-xs text-destructive">{errors.shopName}</p>}
             </div>
             <div className="space-y-2">
-              <Label>{t('cityLabel')}</Label>
-              <Select value={shopCity} onValueChange={setShopCity}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('selectPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {["Toshkent", "Samarqand", "Buxoro", "Namangan", "Andijon", "Farg'ona", "Nukus", "Qarshi", "Jizzax", "Navoiy", "Termiz", "Urganch", "Guliston"].map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.shopCity && <p className="text-xs text-destructive">{errors.shopCity}</p>}
+              <Label htmlFor="shopNameRu">{t('shopNameLabel')} (RU)</Label>
+              <Input
+                id="shopNameRu"
+                value={shopNameRu}
+                onChange={(e) => setShopNameRu(e.target.value)}
+                placeholder="Название магазина"
+              />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="shopDescription">{t('descriptionLabel')}</Label>
-            <Textarea
-              id="shopDescription"
-              value={shopDescription}
-              onChange={(e) => setShopDescription(e.target.value)}
-              placeholder="Do'kon haqida..."
-              rows={3}
-            />
+            <Label>{t('cityLabel')}</Label>
+            <Select value={shopCity} onValueChange={setShopCity}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('selectPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                {["Toshkent", "Samarqand", "Buxoro", "Namangan", "Andijon", "Farg'ona", "Nukus", "Qarshi", "Jizzax", "Navoiy", "Termiz", "Urganch", "Guliston"].map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.shopCity && <p className="text-xs text-destructive">{errors.shopCity}</p>}
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="shopDescription">{t('descriptionLabel')} (UZ)</Label>
+              <Textarea
+                id="shopDescription"
+                value={shopDescription}
+                onChange={(e) => setShopDescription(e.target.value)}
+                placeholder="Do'kon haqida..."
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shopDescriptionRu">{t('descriptionLabel')} (RU)</Label>
+              <Textarea
+                id="shopDescriptionRu"
+                value={shopDescriptionRu}
+                onChange={(e) => setShopDescriptionRu(e.target.value)}
+                placeholder="О магазине..."
+                rows={3}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="shopAddress">{t('addressLabel')}</Label>

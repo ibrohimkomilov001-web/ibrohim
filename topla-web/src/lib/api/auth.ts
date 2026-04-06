@@ -1,7 +1,7 @@
 import api, { setToken, removeToken } from './client';
 
 export interface LoginRequest {
-  email: string;
+  phone: string;
   password: string;
 }
 
@@ -54,15 +54,73 @@ export interface RegisterOtpRequest {
   phone: string;
   code: string;
   fullName: string;
+  password: string;
   email?: string;
   shopName: string;
   shopDescription?: string;
+  slug?: string;
   category?: string;
   city?: string;
+  businessType: 'yatt' | 'mchj';
+  inn: string;
+  bankName?: string;
+  bankAccount?: string;
+  mfo?: string;
+  termsAccepted: true;
+}
+
+export interface CheckAvailabilityRequest {
+  phone?: string;
+  email?: string;
+  shopName?: string;
+  slug?: string;
+}
+
+export interface CheckAvailabilityResult {
+  available: boolean;
+  message?: string;
+}
+
+export interface CheckAvailabilityResponse {
+  phone?: CheckAvailabilityResult;
+  email?: CheckAvailabilityResult;
+  shopName?: CheckAvailabilityResult;
+  slug?: CheckAvailabilityResult;
 }
 
 export interface LoginOtpRequest {
   phone: string;
+  code: string;
+}
+
+export interface GoogleLoginRequest {
+  googleAccessToken: string;
+}
+
+export interface ResetPasswordPhoneRequest {
+  phone: string;
+}
+
+export interface ConfirmResetPhoneRequest {
+  phone: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordEmailRequest {
+  email: string;
+}
+
+export interface ConfirmResetEmailRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface SendEmailCodeRequest {
+  email: string;
+}
+
+export interface VerifyEmailCodeRequest {
   code: string;
 }
 
@@ -136,12 +194,49 @@ export const authApi = {
     return { token: response.accessToken, user: response.user, shop: response.shop };
   },
 
+  checkAvailability: async (data: CheckAvailabilityRequest) => {
+    const response = await api.post<CheckAvailabilityResponse>('/auth/check-availability', data);
+    return response;
+  },
+
   loginOtp: async (data: LoginOtpRequest) => {
     const response = await api.post<AuthResponse>('/auth/vendor/login-otp', data);
     if (response.accessToken) {
       setToken(response.accessToken);
     }
     return { token: response.accessToken, user: response.user, shop: response.shop };
+  },
+
+  googleLogin: async (data: GoogleLoginRequest) => {
+    const response = await api.post<AuthResponse>('/auth/vendor/google', data);
+    if (response.accessToken) {
+      setToken(response.accessToken);
+    }
+    return { token: response.accessToken, user: response.user, shop: response.shop };
+  },
+
+  resetPasswordPhone: async (data: ResetPasswordPhoneRequest) => {
+    return api.post<{ success: boolean; message: string }>('/auth/reset-password-phone', data);
+  },
+
+  confirmResetPhone: async (data: ConfirmResetPhoneRequest) => {
+    return api.post<{ success: boolean; message: string }>('/auth/reset-password-phone/confirm', data);
+  },
+
+  resetPasswordEmail: async (data: ResetPasswordEmailRequest) => {
+    return api.post<{ success: boolean; message: string }>('/auth/reset-password', data);
+  },
+
+  confirmResetEmail: async (data: ConfirmResetEmailRequest) => {
+    return api.post<{ success: boolean; message: string }>('/auth/confirm-reset', data);
+  },
+
+  sendEmailCode: async (data: SendEmailCodeRequest) => {
+    return api.post<{ success: boolean; message: string }>('/auth/send-email-code', data);
+  },
+
+  verifyEmailCode: async (data: VerifyEmailCodeRequest) => {
+    return api.post<{ success: boolean; message: string }>('/auth/verify-email-code', data);
   },
 
   logout: () => {

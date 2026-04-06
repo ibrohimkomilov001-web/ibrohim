@@ -62,7 +62,10 @@ export interface ProductDetail extends ProductItem {
 export interface ShopDetail {
   id: string;
   name: string;
+  nameRu?: string;
+  slug?: string;
   description?: string;
+  descriptionRu?: string;
   logoUrl?: string;
   bannerUrl?: string;
   phone?: string;
@@ -76,7 +79,7 @@ export interface ShopDetail {
   deliveryFee?: number;
   freeDeliveryFrom?: number;
   minOrderAmount?: number;
-  _count?: { products: number; orders: number };
+  _count?: { products: number; orders: number; followers?: number };
 }
 
 export interface Banner {

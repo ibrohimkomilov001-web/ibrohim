@@ -53,10 +53,10 @@ export default function ExtendedAnalyticsPage() {
 
       <Tabs defaultValue="heatmap">
         <TabsList className="overflow-x-auto w-full justify-start">
-          <TabsTrigger value="heatmap" className="gap-1"><Flame className="w-4 h-4" /> Heatmap</TabsTrigger>
-          <TabsTrigger value="funnel" className="gap-1"><Filter className="w-4 h-4" /> Funnel</TabsTrigger>
-          <TabsTrigger value="cohort" className="gap-1"><Users className="w-4 h-4" /> Cohort</TabsTrigger>
-          <TabsTrigger value="ab-tests" className="gap-1"><FlaskConical className="w-4 h-4" /> A/B Test</TabsTrigger>
+          <TabsTrigger value="heatmap" className="gap-1"><Flame className="w-4 h-4" /> {t('heatmapTab')}</TabsTrigger>
+          <TabsTrigger value="funnel" className="gap-1"><Filter className="w-4 h-4" /> {t('funnelTab')}</TabsTrigger>
+          <TabsTrigger value="cohort" className="gap-1"><Users className="w-4 h-4" /> {t('cohortTab')}</TabsTrigger>
+          <TabsTrigger value="ab-tests" className="gap-1"><FlaskConical className="w-4 h-4" /> {t('abTestTab')}</TabsTrigger>
         </TabsList>
 
         {/* HEATMAP */}
@@ -340,7 +340,7 @@ function ABTestTab() {
                   <SelectItem value="price">Narx</SelectItem>
                   <SelectItem value="image">Rasm</SelectItem>
                   <SelectItem value="title">Sarlavha</SelectItem>
-                  <SelectItem value="layout">Layout</SelectItem>
+                  <SelectItem value="layout">Joylashuv</SelectItem>
                 </SelectContent>
               </Select>
               <Input
@@ -356,8 +356,8 @@ function ABTestTab() {
                   testType: newTest.testType,
                   description: newTest.description || undefined,
                   variants: [
-                    { id: "A", label: "Original", config: {} },
-                    { id: "B", label: "Variant B", config: {} },
+                    { id: "A", label: "Asl variant", config: {} },
+                    { id: "B", label: "B variant", config: {} },
                   ],
                 })}
               >
@@ -392,7 +392,7 @@ function ABTestTab() {
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span>Turi: {test.testType}</span>
                       <span>Variantlar: {(test.variants as any[])?.length || 0}</span>
-                      <span>Target: {test.targetPercent}%</span>
+                      <span>Maqsad: {test.targetPercent}%</span>
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">

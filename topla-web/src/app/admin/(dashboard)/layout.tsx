@@ -162,9 +162,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/v1/auth/admin/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* ignore */ }
     removeAdminToken();
-    router.push("/admin/login");
+    window.location.href = "/admin/login";
   };
 
   return (

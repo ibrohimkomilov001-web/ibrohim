@@ -277,7 +277,7 @@ export default function AdminBannersPage() {
           <div className="relative border rounded-lg overflow-hidden">
             <img
               src={imagePreview}
-              alt="Banner preview"
+              alt="Banner ko'rinishi"
               className="w-full h-40 object-cover"
             />
             {(selectedFile || !isEdit) && (

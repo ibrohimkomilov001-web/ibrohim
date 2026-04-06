@@ -32,6 +32,8 @@ const EXEMPT_PREFIXES = [
   '/api/v1/auth/verify-otp',
   '/api/v1/auth/login',
   '/api/v1/auth/admin/login',
+  '/api/v1/auth/admin/refresh',
+  '/api/v1/auth/admin/logout',
   '/api/v1/auth/vendor/login',
   '/api/v1/auth/vendor/register',
   '/api/v1/pickup/login',

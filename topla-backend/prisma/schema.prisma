@@ -133,8 +133,11 @@ model Profile {
   status       UserStatus @default(active)
   fcmToken     String?    @map("fcm_token")
   language     String     @default("uz")
-  passwordHash String?    @map("password_hash")
-  firebaseUid  String?    @unique @map("firebase_uid")
+  passwordHash   String?    @map("password_hash")
+  firebaseUid    String?    @unique @map("firebase_uid")
+  googleId       String?    @unique @map("google_id")
+  emailVerified  Boolean    @default(false) @map("email_verified")
+  termsAcceptedAt DateTime? @map("terms_accepted_at")
 
   // Location
   lastLatitude  Float? @map("last_latitude")
@@ -252,8 +255,10 @@ model Shop {
   id              String          @id @default(uuid()) @db.Uuid
   ownerId         String          @unique @map("owner_id") @db.Uuid
   name            String
+  nameRu          String?         @map("name_ru")
   slug            String?         @unique
   description     String?
+  descriptionRu   String?         @map("description_ru")
   logoUrl         String?         @map("logo_url")
   bannerUrl       String?         @map("banner_url")
   phone           String?

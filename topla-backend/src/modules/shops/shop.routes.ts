@@ -10,7 +10,9 @@ const idParamSchema = z.object({ id: z.string().uuid('Noto\'g\'ri ID formati') }
 
 const createShopSchema = z.object({
   name: z.string().min(2).max(200),
+  nameRu: z.string().max(200).optional(),
   description: z.string().optional(),
+  descriptionRu: z.string().optional(),
   logoUrl: z.string().optional(),
   bannerUrl: z.string().optional(),
   phone: z.string().optional(),
@@ -77,6 +79,31 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const shopsResponse = { success: true, data: { shops, total } };
     cacheSet(shopsCacheKey, shopsResponse, 120).catch(() => {});
     return reply.send(shopsResponse);
+  });
+
+  /**
+   * GET /shops/by-slug/:slug
+   * Slug bo'yicha do'konni olish (public shop page uchun)
+   */
+  app.get('/shops/by-slug/:slug', async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+
+    if (!slug || slug.length < 2) {
+      throw new AppError('Slug noto\'g\'ri', 400);
+    }
+
+    const shop = await prisma.shop.findUnique({
+      where: { slug: slug.toLowerCase() },
+      include: {
+        _count: { select: { products: true, reviews: true, followers: true } },
+      },
+    });
+
+    if (!shop || shop.status !== 'active') {
+      throw new NotFoundError('Do\'kon');
+    }
+
+    return reply.send({ success: true, data: shop });
   });
 
   /**

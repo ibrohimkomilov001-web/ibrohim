@@ -14,7 +14,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+RUN rm -rf src/__tests__ && ls src/__tests__ 2>/dev/null || echo "tests removed" && npm run build
 
 # Production stage
 FROM base AS production

@@ -436,7 +436,7 @@ export default function AdminPickupApplicationsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Status</Label>
+              <Label>Holat</Label>
               <select
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value)}

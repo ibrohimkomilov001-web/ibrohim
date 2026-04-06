@@ -56,6 +56,9 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.string().default('info'),
 
+  // Google OAuth (admin panel "Sign in with Google")
+  GOOGLE_CLIENT_ID: z.string().optional(),
+
   // Error tracking (Sentry)
   SENTRY_DSN: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   SENTRY_ENVIRONMENT: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),

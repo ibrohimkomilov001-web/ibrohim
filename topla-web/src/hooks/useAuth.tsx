@@ -13,7 +13,8 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (phone: string, password: string) => Promise<void>;
+  loginWithGoogle: (googleAccessToken: string) => Promise<void>;
   loginWithOtp: (phone: string, code: string) => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
@@ -55,8 +56,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile();
   }, [refreshProfile]);
 
-  const login = async (email: string, password: string) => {
-    const response = await authApi.login({ email, password });
+  const login = async (phone: string, password: string) => {
+    const response = await authApi.login({ phone, password });
+    const fullName = response.user.fullName || "";
+    const nameParts = fullName.trim().split(/\s+/);
+    setState({
+      user: {
+        id: response.user.id,
+        email: response.user.email,
+        fullName: response.user.fullName,
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        phone: response.user.phone,
+        role: response.user.role,
+        avatarUrl: response.user.avatarUrl,
+        shop: response.shop,
+      },
+      isLoading: false,
+      isAuthenticated: true,
+      isVendor: response.user.role === "vendor",
+    });
+  };
+
+  const loginWithGoogle = async (googleAccessToken: string) => {
+    const response = await authApi.googleLogin({ googleAccessToken });
     const fullName = response.user.fullName || "";
     const nameParts = fullName.trim().split(/\s+/);
     setState({
@@ -105,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, loginWithOtp, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ ...state, login, loginWithGoogle, loginWithOtp, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
