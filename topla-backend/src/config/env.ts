@@ -50,6 +50,9 @@ const envSchema = z.object({
   MEILISEARCH_URL: z.string().default('http://localhost:7700'),
   MEILISEARCH_API_KEY: z.string().default('topla_meili_master_key'),
 
+  // CLIP image search
+  CLIP_SERVICE_URL: z.string().optional(),
+
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
 
   COOKIE_SECRET: z.string().default('topla-dev-cookie-secret-change-in-prod'),

@@ -152,6 +152,20 @@ class ApiProductRepositoryImpl implements IProductRepository {
   }
 
   @override
+  Future<SearchResult> searchByImage(String imagePath, {int page = 1, int limit = 20}) async {
+    final response = await _api.upload(
+      '/search/image?page=$page&limit=$limit',
+      filePath: imagePath,
+      fieldName: 'file',
+      auth: false,
+    );
+    final products = response.dataList
+        .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return SearchResult.fromResponse(products, response.meta);
+  }
+
+  @override
   Future<List<ProductModel>> getProductsByCategory(
     String categoryId, {
     int limit = 20,

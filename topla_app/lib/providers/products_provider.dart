@@ -402,6 +402,17 @@ class ProductsProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Rasm orqali qidirish (CLIP image search)
+  Future<SearchResult> searchByImage(String imagePath, {int page = 1}) async {
+    try {
+      return await _productRepo.searchByImage(imagePath, page: page);
+    } catch (e) {
+      AppLogger.e(_tag, 'searchByImage error', e);
+      _error = e.toString();
+      return const SearchResult(products: []);
+    }
+  }
+
   /// Kategoriya bo'yicha mahsulotlar
   Future<List<ProductModel>> getProductsByCategory(String categoryId) async {
     try {

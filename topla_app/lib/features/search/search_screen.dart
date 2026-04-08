@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
@@ -19,7 +20,6 @@ import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
 import '../../widgets/product_filter_sheet.dart';
 import '../product/product_detail_screen.dart';
-import 'barcode_scanner_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -204,23 +204,6 @@ class _SearchScreenState extends State<SearchScreen>
     _overlayEntry = null;
   }
 
-  /// Shtrix-kod skanerini ochish
-  Future<void> _openBarcodeScanner() async {
-    final barcode = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const BarcodeScannerScreen(),
-      ),
-    );
-    if (barcode != null && barcode.isNotEmpty && mounted) {
-      _searchController.text = barcode;
-      setState(() {
-        _showClearButton = true;
-      });
-      _performSearch(barcode);
-    }
-  }
-
   Future<void> _performSearch(String query, {bool loadMore = false}) async {
     if (query.trim().isEmpty) return;
     if (loadMore && (_isLoadingMore || _currentPage >= _totalPages)) return;
@@ -335,6 +318,102 @@ class _SearchScreenState extends State<SearchScreen>
           SnackBar(
             content: Text(context.l10n.translate('search_error')),
             backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Rasm orqali qidirish (CLIP image search)
+  Future<void> _openImageSearch() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Rasm orqali qidirish',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFF0F0F0),
+                  child: Icon(Icons.camera_alt, color: Colors.black87),
+                ),
+                title: const Text('Kameradan suratga olish'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFF0F0F0),
+                  child: Icon(Icons.photo_library, color: Colors.black87),
+                ),
+                title: const Text('Galereyadan tanlash'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
+
+    if (image == null || !mounted) return;
+
+    _removeSuggestionOverlay();
+    setState(() {
+      _isSearching = true;
+      _hasSearched = true;
+      _showSuggestions = false;
+      _searchController.text = '📷 Rasm orqali qidirish';
+      _showClearButton = true;
+    });
+
+    try {
+      final productsProvider = context.read<ProductsProvider>();
+      final result = await productsProvider.searchByImage(image.path);
+
+      if (mounted) {
+        setState(() {
+          _searchResults = result.products;
+          _totalResults = result.total;
+          _currentPage = result.page;
+          _totalPages = result.totalPages;
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSearching = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Rasm orqali qidirish xatolik yuz berdi'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -577,9 +656,9 @@ class _SearchScreenState extends State<SearchScreen>
                   icon: const Icon(Icons.close, size: 18),
                 ),
               IconButton(
-                onPressed: _openBarcodeScanner,
-                icon: const Icon(Icons.qr_code_scanner, size: 20),
-                tooltip: _isUzbek ? 'Shtrix-kod skaneri' : 'Сканер штрих-кода',
+                onPressed: _openImageSearch,
+                icon: const Icon(Icons.camera_alt_outlined, size: 20),
+                tooltip: 'Rasm orqali qidirish',
               ),
             ],
           ),

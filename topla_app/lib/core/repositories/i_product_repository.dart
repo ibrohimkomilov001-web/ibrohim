@@ -46,6 +46,9 @@ abstract class IProductRepository {
   /// Bitta qidiruv so'zini tarixdan o'chirish
   Future<void> removeSearchHistoryItem(String query);
 
+  /// Rasm orqali qidirish (CLIP)
+  Future<SearchResult> searchByImage(String imagePath, {int page = 1, int limit = 20});
+
   /// Kategoriya bo'yicha mahsulotlar
   Future<List<ProductModel>> getProductsByCategory(
     String categoryId, {

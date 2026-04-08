@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import multipart from '@fastify/multipart';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, requireRole, optionalAuth } from '../../middleware/auth.js';
@@ -9,6 +10,7 @@ import { enqueueSearchIndex } from '../../services/queue.service.js';
 import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js';
 import { CacheKeys } from '../../utils/constants.js';
 import { generateProductSlug } from '../../utils/slug.js';
+import { getImageEmbedding, searchProductsByEmbedding, isClipAvailable } from '../../services/clip.service.js';
 
 // ============================================
 // Validation Schemas
@@ -224,6 +226,103 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // ============================================
+  // PUBLIC: Rasm orqali qidirish (CLIP + pgvector)
+  // ============================================
+
+  /**
+   * POST /search/image
+   * Upload an image to search for visually similar products
+   */
+  await app.register(async function imageSearchPlugin(imageApp) {
+    await imageApp.register(multipart, {
+      limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+    });
+
+    imageApp.post('/search/image', async (request, reply) => {
+      const clipReady = await isClipAvailable();
+      if (!clipReady) {
+        return reply.status(503).send({
+          error: 'Image search is temporarily unavailable',
+        });
+      }
+
+      const data = await request.file();
+      if (!data) {
+        return reply.status(400).send({ error: 'No image uploaded' });
+      }
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!data.mimetype || !allowedTypes.includes(data.mimetype)) {
+        return reply.status(400).send({
+          error: 'Invalid file type. Allowed: jpeg, png, webp, gif',
+        });
+      }
+
+      const buffer = await data.toBuffer();
+      if (buffer.length > 10 * 1024 * 1024) {
+        return reply.status(400).send({ error: 'Image too large (max 10MB)' });
+      }
+
+      const limitParam = (request.query as any)?.limit;
+      const pageParam = (request.query as any)?.page;
+      const limit = Math.min(Math.max(parseInt(limitParam) || 20, 1), 50);
+      const page = Math.max(parseInt(pageParam) || 1, 1);
+      const offset = (page - 1) * limit;
+
+      try {
+        const embedding = await getImageEmbedding(buffer, data.filename || 'image.jpg');
+        const similarProducts = await searchProductsByEmbedding(embedding, limit, offset);
+
+        if (similarProducts.length === 0) {
+          return reply.send({
+            success: true,
+            data: [],
+            meta: {
+              total: 0,
+              page,
+              limit,
+              totalPages: 0,
+              engine: 'clip',
+            },
+          });
+        }
+
+        const productIds = similarProducts.map(p => p.id);
+        const similarityMap = new Map(similarProducts.map(p => [p.id, p.similarity]));
+
+        const products = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+          include: {
+            shop: { select: { id: true, name: true, logoUrl: true } },
+            category: { select: { id: true, nameUz: true, nameRu: true } },
+            brand: { select: { id: true, name: true } },
+          },
+        });
+
+        // Sort by similarity (same order as pgvector results)
+        const sorted = productIds
+          .map(id => products.find(p => p.id === id))
+          .filter(Boolean);
+
+        return reply.send({
+          success: true,
+          data: sorted,
+          meta: {
+            total: sorted.length,
+            page,
+            limit,
+            totalPages: 1,
+            engine: 'clip',
+          },
+        });
+      } catch (err: any) {
+        request.log.error(err, 'Image search failed');
+        return reply.status(500).send({ error: 'Image search failed' });
+      }
+    });
+  });
+
+  // ============================================
   // PUBLIC: Mahsulotlar
   // ============================================
 
@@ -323,7 +422,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       facets: ['categoryId', 'brandId', 'colorId', 'shopId', 'tags'],
     });
 
-    if (meiliResult) {
+    if (meiliResult && meiliResult.totalHits > 0) {
       const response = {
         success: true,
         data: meiliResult.hits,
@@ -966,6 +1065,32 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       success: true,
       data: { ...product, isFavorite, colorSiblings },
     });
+  });
+
+  // ============================================
+  // PUBLIC SETTINGS
+  // ============================================
+
+  /**
+   * GET /settings/public — faqat ommaviy sozlamalarni qaytaradi (auth kerak emas)
+   */
+  app.get('/settings/public', async (_request, reply) => {
+    const cacheKey = 'settings:public';
+    const cached = await cacheGet<Record<string, string>>(cacheKey);
+    if (cached) return reply.send({ success: true, data: cached });
+
+    const ALLOWED_KEYS = ['supportPhone', 'supportEmail'];
+    const settings = await prisma.adminSetting.findMany({
+      where: { key: { in: ALLOWED_KEYS } },
+    });
+
+    const map: Record<string, string> = {};
+    for (const s of settings) {
+      map[s.key] = s.value;
+    }
+
+    await cacheSet(cacheKey, map, 300); // 5 min cache
+    return reply.send({ success: true, data: map });
   });
 
   // ============================================
@@ -2094,6 +2219,51 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
     await prisma.productReview.delete({ where: { id: existing.id } });
     return reply.send({ success: true, message: 'Sharh o\'chirildi' });
+  });
+
+  /**
+   * GET /my/reviews
+   * Foydalanuvchining barcha sharhlari
+   */
+  app.get('/my/reviews', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
+
+    const pg = Math.max(1, parseInt(page));
+    const lim = Math.min(50, Math.max(1, parseInt(limit)));
+    const skip = (pg - 1) * lim;
+
+    const [reviews, total] = await Promise.all([
+      prisma.productReview.findMany({
+        where: { userId },
+        include: {
+          product: {
+            select: {
+              id: true,
+              nameUz: true,
+              nameRu: true,
+              images: true,
+              price: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: lim,
+      }),
+      prisma.productReview.count({ where: { userId } }),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: reviews,
+      meta: {
+        total,
+        page: pg,
+        limit: lim,
+        totalPages: Math.ceil(total / lim),
+      },
+    });
   });
 
   // ============================================

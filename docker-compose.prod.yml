@@ -46,6 +46,7 @@ services:
       - CORS_ORIGINS=https://topla.uz,https://manage.topla.uz,https://vendor.topla.uz,https://pickup.topla.uz
       - MEILISEARCH_URL=http://meilisearch:7700
       - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY}
+      - CLIP_SERVICE_URL=http://clip:8100
       - COOKIE_SECRET=${COOKIE_SECRET}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - SENTRY_DSN=${SENTRY_DSN:-}
@@ -57,6 +58,8 @@ services:
       redis:
         condition: service_healthy
       meilisearch:
+        condition: service_started
+      clip:
         condition: service_started
     networks:
       - topla-network
@@ -115,10 +118,10 @@ services:
           memory: 128M
 
   # ============================================
-  # PostgreSQL 16
+  # PostgreSQL 16 (with pgvector for visual search)
   # ============================================
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: topla-postgres
     restart: unless-stopped
     environment:
@@ -259,6 +262,31 @@ services:
         condition: service_healthy
     networks:
       - topla-network
+
+  # ============================================
+  # CLIP Image Embedding Service (visual search)
+  # ============================================
+  clip:
+    build: ./topla-backend/clip-service
+    container_name: topla-clip
+    restart: unless-stopped
+    expose:
+      - "8100"
+    networks:
+      - topla-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+          cpus: '2.0'
+        reservations:
+          memory: 512M
 
 volumes:
   postgres_data:
