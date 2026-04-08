@@ -20,8 +20,13 @@ interface EmbeddingResponse {
 export async function getImageEmbedding(imageBuffer: Buffer, filename = 'image.jpg'): Promise<number[]> {
   if (!CLIP_URL) throw new Error('CLIP_SERVICE_URL not configured');
 
+  // Determine MIME type from filename extension
+  const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+  const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
+  const mimeType = mimeMap[ext] || 'image/jpeg';
+
   const formData = new FormData();
-  formData.append('file', new Blob([imageBuffer]), filename);
+  formData.append('file', new Blob([imageBuffer], { type: mimeType }), filename);
 
   const res = await fetch(`${CLIP_URL}/embed/image`, {
     method: 'POST',
@@ -124,8 +129,12 @@ export async function generateProductEmbedding(productId: string): Promise<void>
 
   if (!product) return;
 
-  const imageUrl = product.thumbnailUrl || product.images?.[0];
-  if (!imageUrl) return;
+  const imagePath = product.thumbnailUrl || product.images?.[0];
+  if (!imagePath) return;
+
+  // Build a full URL reachable from the CLIP container
+  const baseUrl = process.env.BASE_URL || 'https://topla.uz';
+  const imageUrl = imagePath.startsWith('http') ? imagePath : `${baseUrl}${imagePath}`;
 
   try {
     const embedding = await getImageEmbeddingFromUrl(imageUrl);
