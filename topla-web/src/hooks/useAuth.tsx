@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { authApi, type VendorProfile } from "@/lib/api/auth";
-import { getToken, removeToken } from "@/lib/api/client";
+import { isVendorAuthenticated, removeToken } from "@/lib/api/client";
 
 interface AuthState {
   user: VendorProfile | null;
@@ -32,8 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const refreshProfile = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
+    if (!isVendorAuthenticated()) {
       setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
       return;
     }
@@ -46,9 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: true,
         isVendor: profile.role === "vendor",
       });
-    } catch {
-      removeToken();
-      setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
+    } catch (err: any) {
+      const status = err?.status ?? 0;
+      if (status === 401 || status === 403) {
+        removeToken();
+        setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
+      } else {
+        setState((prev) => ({ ...prev, isLoading: false }));
+      }
     }
   }, []);
 

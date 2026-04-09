@@ -36,7 +36,7 @@ export default function AdminSettingsPage() {
     siteName: 'TOPLA.UZ',
     siteDescription: 'O\'zbekistondagi eng yaxshi marketplace',
     supportEmail: 'support@topla.uz',
-    supportPhone: '+998 71 123 45 67',
+    supportPhone: '+998 95 000 94 16',
     // Commission
     defaultCommission: '10',
     minPayout: '100000',

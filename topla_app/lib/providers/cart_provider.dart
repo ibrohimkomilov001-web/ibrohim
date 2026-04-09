@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
 import '../core/services/api_client.dart';
 import '../models/models.dart';
+import '../services/cache_service.dart';
 
 /// Savat holati uchun Provider
 class CartProvider extends ChangeNotifier {
@@ -125,6 +126,7 @@ class CartProvider extends ChangeNotifier {
       (cartItems) {
         // watchCart() already calls getCart() with product joins
         _items = cartItems;
+        _saveCartCache();
         debugPrint('🛒 Cart realtime: ${_items.length} items loaded');
         notifyListeners();
       },
@@ -148,10 +150,34 @@ class CartProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    // Cache-first: show cached cart immediately
+    if (_items.isEmpty) {
+      try {
+        final cached = await PersistentCache.get<List<dynamic>>(
+          CacheKeys.cart,
+          (json) => json as List<dynamic>,
+        );
+        if (cached != null && cached.isNotEmpty) {
+          _items = cached
+              .map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _isLoading = false;
+          notifyListeners();
+          debugPrint('🛒 Cart from cache: ${_items.length} items');
+          // Refresh in background
+          _refreshCartInBackground();
+          return;
+        }
+      } catch (e) {
+        debugPrint('🛒 Cart cache read error: $e');
+      }
+    }
+
     try {
       _items = await _cartRepo.getCart();
       debugPrint(
           '🛒 loadCart: ${_items.length} items, products: ${_items.where((i) => i.product != null).length}');
+      _saveCartCache();
     } catch (e) {
       debugPrint('🛒 loadCart error: $e');
       _error = e.toString();
@@ -159,6 +185,26 @@ class CartProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _refreshCartInBackground() {
+    _cartRepo.getCart().then((data) {
+      _items = data;
+      _saveCartCache();
+      debugPrint('🛒 Cart refreshed: ${_items.length} items');
+      notifyListeners();
+    }).catchError((e) {
+      debugPrint('🛒 Cart background refresh error: $e');
+    });
+  }
+
+  void _saveCartCache() {
+    PersistentCache.set(
+      CacheKeys.cart,
+      _items.map((i) => i.toJson()).toList(),
+      (data) => data,
+      ttl: const Duration(minutes: 30),
+    );
   }
 
   Future<void> addToCart(String productId,

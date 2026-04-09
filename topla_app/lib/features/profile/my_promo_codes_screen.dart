@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../providers/lucky_wheel_provider.dart';
 import '../../core/repositories/i_lucky_wheel_repository.dart';
 
@@ -425,17 +426,19 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
                     if (mounted) {
                       final discountType = result['discountType'] ?? '';
                       final discountValue = result['discountValue'] ?? 0;
+                      final l10n = context.l10n;
                       String discountText = '';
                       if (discountType == 'percentage') {
-                        discountText = '$discountValue% chegirma';
+                        discountText =
+                            '$discountValue% ${l10n.translate('discount_label')}';
                       } else {
                         discountText =
-                            '${discountValue.toInt()} so\'m chegirma';
+                            '${discountValue.toInt()} ${l10n.translate('currency_som')} ${l10n.translate('discount_label')}';
                       }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                              '✅ Promokod faol! $discountText. Buyurtma berishda ishlating.',
+                              '✅ ${l10n.translate('promo_activated')} $discountText. ${l10n.translate('promo_use_at_order')}',
                               style: const TextStyle(
                                   color: Colors.white, fontSize: 13)),
                           backgroundColor: const Color(0xFF4CAF50),

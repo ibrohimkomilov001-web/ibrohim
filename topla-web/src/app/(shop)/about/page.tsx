@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/store/locale-store';
+import { useSupportPhone } from '@/hooks/useSettings';
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -17,6 +18,7 @@ const fadeUp = {
 
 export default function AboutPage() {
   const { t, locale } = useTranslation();
+  const supportPhone = useSupportPhone();
 
   const stats = [
     { value: '10K+', label: locale === 'ru' ? 'Товаров' : 'Mahsulotlar', icon: ShoppingBag },
@@ -80,8 +82,8 @@ export default function AboutPage() {
     {
       q: locale === 'ru' ? 'Какие способы оплаты доступны?' : 'Qanday to\'lov usullari bor?',
       a: locale === 'ru'
-        ? 'Мы принимаем наличные при получении, Payme, Click и Uzum Bank.'
-        : 'Naqd pul, Payme, Click va Uzum Bank orqali to\'lash mumkin.',
+        ? 'Мы принимаем наличные при получении и Octobank.'
+        : 'Naqd pul va Octobank orqali to\'lash mumkin.',
     },
     {
       q: locale === 'ru' ? 'Как стать продавцом?' : 'Qanday sotuvchi bo\'laman?',
@@ -181,13 +183,13 @@ export default function AboutPage() {
           {locale === 'ru' ? 'Связаться с нами' : 'Biz bilan bog\'laning'}
         </h2>
         <div className="grid sm:grid-cols-3 gap-5">
-          <a href="tel:+998901234567" className="flex items-center gap-3 hover:text-primary transition-colors">
+          <a href={`tel:+${supportPhone.replace(/\D/g, '')}`} className="flex items-center gap-3 hover:text-primary transition-colors">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Phone className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{locale === 'ru' ? 'Телефон' : 'Telefon'}</p>
-              <p className="text-sm font-medium">+998 90 123 45 67</p>
+              <p className="text-sm font-medium">{supportPhone}</p>
             </div>
           </a>
           <a href="mailto:info@topla.uz" className="flex items-center gap-3 hover:text-primary transition-colors">

@@ -1046,7 +1046,8 @@ async function main() {
   // ============================================
   // Admin User
   // ============================================
-  const adminPasswordHash = await bcrypt.hash('admin123', 12);
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
   await prisma.profile.upsert({
     where: { phone: '+998900000000' },
     update: {

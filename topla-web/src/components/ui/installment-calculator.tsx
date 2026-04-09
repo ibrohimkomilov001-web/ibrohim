@@ -159,7 +159,7 @@ export function InstallmentCalculator({ price, className, compact = false }: Ins
           </div>
 
           <p className="text-[11px] text-muted-foreground mt-3">
-            * Bo&apos;lib to&apos;lash Payme, Click yoki Uzum orqali amalga oshiriladi.
+            * Bo&apos;lib to&apos;lash Octobank orqali amalga oshiriladi.
             Bankdan tasdiqlash talab qilinadi.
           </p>
         </CardContent>

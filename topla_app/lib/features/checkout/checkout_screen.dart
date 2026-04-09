@@ -2470,16 +2470,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               .where((item) => selectedIds.contains(item.productId))
               .toList()
           : cartProvider.items;
-      final orderItems = filteredItems
-          .map((item) => {
-                'product_id': item.productId,
-                'name':
-                    item.product?.nameUz ?? context.l10n.translate('product'),
-                'image': item.product?.firstImage,
-                'quantity': item.quantity,
-                'price': item.product?.price ?? 0,
-              })
-          .toList();
+      final orderItems = filteredItems.map((item) {
+        final mapped = <String, dynamic>{
+          'product_id': item.productId,
+          'name': item.product?.nameUz ?? context.l10n.translate('product'),
+          'image': item.product?.firstImage,
+          'quantity': item.quantity,
+          'price': item.product?.price ?? 0,
+        };
+        if (item.variantId != null) {
+          mapped['variant_id'] = item.variantId;
+        }
+        return mapped;
+      }).toList();
 
       // Tanlangan mahsulotlar jami narxi
       final selectedSubtotal =

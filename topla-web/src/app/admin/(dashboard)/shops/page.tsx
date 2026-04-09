@@ -50,9 +50,11 @@ import {
   Store,
   Loader2,
   Trash2,
+  FileSignature,
+  ExternalLink,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { getShops, getShopStats, updateShopStatus, updateShopCommission, deleteShop, type Shop } from "./actions";
+import { getShops, getShopStats, updateShopStatus, updateShopCommission, deleteShop, sendContract, type Shop } from "./actions";
 import { toast } from 'sonner';
 import { useUrlState } from '@/hooks/use-url-state';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
@@ -64,6 +66,14 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   pending: { label: "Kutilmoqda", variant: "secondary" },
   inactive: { label: "Nofaol", variant: "destructive" },
   blocked: { label: "Bloklangan", variant: "destructive" },
+};
+
+const contractStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  not_sent: { label: "Yuborilmagan", variant: "outline" },
+  sent: { label: "Yuborilgan", variant: "secondary" },
+  pending_signature: { label: "Imzo kutilmoqda", variant: "secondary" },
+  signed: { label: "Imzolangan", variant: "default" },
+  rejected: { label: "Rad etilgan", variant: "destructive" },
 };
 
 export default function AdminShopsPage() {
@@ -150,6 +160,19 @@ export default function AdminShopsPage() {
     } catch (error: any) {
       const msg = error?.message || t('errorOccurred');
       toast.error(msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSendContract = async (shop: Shop) => {
+    try {
+      setActionLoading(true);
+      await sendContract(shop.id);
+      await loadData();
+      toast.success("Shartnoma yuborildi");
+    } catch (error: any) {
+      toast.error(error?.message || "Shartnoma yuborishda xato");
     } finally {
       setActionLoading(false);
     }
@@ -273,6 +296,7 @@ export default function AdminShopsPage() {
                         <TableHead>{t('shop')}</TableHead>
                         <TableHead>{t('seller')}</TableHead>
                         <TableHead>{t('status')}</TableHead>
+                        <TableHead>Shartnoma</TableHead>
                         <TableHead>{t('balance')}</TableHead>
                         <TableHead>{t('commission')}</TableHead>
                         <TableHead>{t('date')}</TableHead>
@@ -303,6 +327,11 @@ export default function AdminShopsPage() {
                           <TableCell>
                             <Badge variant={statusConfig[shop.status]?.variant || "secondary"}>
                               {statusConfig[shop.status]?.label || shop.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={contractStatusConfig[shop.contract_status || 'not_sent']?.variant || "outline"}>
+                              {contractStatusConfig[shop.contract_status || 'not_sent']?.label || shop.contract_status}
                             </Badge>
                           </TableCell>
                           <TableCell>{formatPrice(shop.balance)}</TableCell>
@@ -349,6 +378,18 @@ export default function AdminShopsPage() {
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
+                                {(!shop.contract_status || shop.contract_status === 'not_sent' || shop.contract_status === 'rejected') && shop.inn && (
+                                  <DropdownMenuItem onClick={() => handleSendContract(shop)}>
+                                    <FileSignature className="mr-2 h-4 w-4" />
+                                    Shartnoma yuborish
+                                  </DropdownMenuItem>
+                                )}
+                                {shop.contract_url && (
+                                  <DropdownMenuItem onClick={() => window.open(shop.contract_url!, '_blank')}>
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    Shartnomani ko&apos;rish
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => { setSelectedShop(shop); setNewCommission(shop.commission_rate.toString()); setIsCommissionOpen(true); }}>
                                   <Settings className="mr-2 h-4 w-4" />
                                   {t('commission')}
@@ -456,6 +497,49 @@ export default function AdminShopsPage() {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>Ro'yxatdan o'tgan: {new Date(selectedShop.created_at).toLocaleDateString("uz-UZ")}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contract Info */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Shartnoma</h4>
+                <div className="p-3 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Holati:</span>
+                    <Badge variant={contractStatusConfig[selectedShop.contract_status || 'not_sent']?.variant || "outline"}>
+                      {contractStatusConfig[selectedShop.contract_status || 'not_sent']?.label || 'Yuborilmagan'}
+                    </Badge>
+                  </div>
+                  {selectedShop.contract_sent_at && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Yuborilgan:</span>
+                      <span>{new Date(selectedShop.contract_sent_at).toLocaleDateString("uz-UZ")}</span>
+                    </div>
+                  )}
+                  {selectedShop.contract_signed_at && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Imzolangan:</span>
+                      <span>{new Date(selectedShop.contract_signed_at).toLocaleDateString("uz-UZ")}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    {(!selectedShop.contract_status || selectedShop.contract_status === 'not_sent' || selectedShop.contract_status === 'rejected') && selectedShop.inn && (
+                      <Button size="sm" onClick={() => handleSendContract(selectedShop)} disabled={actionLoading}>
+                        {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <FileSignature className="mr-2 h-4 w-4" />
+                        Shartnoma yuborish
+                      </Button>
+                    )}
+                    {selectedShop.contract_url && (
+                      <Button size="sm" variant="outline" onClick={() => window.open(selectedShop.contract_url!, '_blank')}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Ko&apos;rish
+                      </Button>
+                    )}
+                    {!selectedShop.inn && (
+                      <p className="text-xs text-destructive">INN kiritilmagan - shartnoma yuborib bo&apos;lmaydi</p>
+                    )}
                   </div>
                 </div>
               </div>

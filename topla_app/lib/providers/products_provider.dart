@@ -4,6 +4,7 @@ import '../core/repositories/repositories.dart';
 import '../core/utils/app_logger.dart';
 import '../models/models.dart';
 import '../models/search_result.dart';
+import '../services/cache_service.dart';
 
 /// Mahsulotlar holati uchun Provider
 /// Repository pattern bilan - backend o'zgarganda bu kod o'zgarmaydi
@@ -142,10 +143,36 @@ class ProductsProvider extends ChangeNotifier {
     _isCategoriesLoading = true;
     notifyListeners();
 
+    // Cache-first: show cached data immediately
+    if (!force && _categories.isEmpty) {
+      try {
+        final cached = await PersistentCache.get<List<dynamic>>(
+          CacheKeys.categories,
+          (json) => json as List<dynamic>,
+        );
+        if (cached != null && cached.isNotEmpty) {
+          _categories = cached
+              .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _categoriesLoaded = true;
+          _isCategoriesLoading = false;
+          notifyListeners();
+          AppLogger.d(_tag, 'Categories from cache: ${_categories.length}');
+          // Refresh in background
+          _refreshCategoriesInBackground();
+          return;
+        }
+      } catch (e) {
+        AppLogger.e(_tag, 'Categories cache read error', e);
+      }
+    }
+
     try {
       _categories = await _categoryRepo.getCategories();
       _categoriesLoaded = true;
       AppLogger.d(_tag, 'Categories loaded: ${_categories.length}');
+      // Save to cache
+      _saveCategoriesCache();
     } catch (e) {
       AppLogger.e(_tag, 'loadCategories error', e);
       _error = e.toString();
@@ -153,6 +180,25 @@ class ProductsProvider extends ChangeNotifier {
 
     _isCategoriesLoading = false;
     notifyListeners();
+  }
+
+  void _refreshCategoriesInBackground() {
+    _categoryRepo.getCategories().then((data) {
+      _categories = data;
+      _saveCategoriesCache();
+      notifyListeners();
+    }).catchError((e) {
+      AppLogger.e(_tag, 'Categories background refresh error', e);
+    });
+  }
+
+  void _saveCategoriesCache() {
+    PersistentCache.set(
+      CacheKeys.categories,
+      _categories.map((c) => c.toJson()).toList(),
+      (data) => data,
+      ttl: const Duration(hours: 6),
+    );
   }
 
   /// Subcategoriyalarni yuklash (parent_id bo'yicha)
@@ -175,6 +221,32 @@ class ProductsProvider extends ChangeNotifier {
     _featuredHasMore = true;
     notifyListeners();
 
+    // Cache-first: show cached data immediately
+    if (_featuredProducts.isEmpty) {
+      try {
+        final cached = await PersistentCache.get<List<dynamic>>(
+          CacheKeys.featuredProducts,
+          (json) => json as List<dynamic>,
+        );
+        if (cached != null && cached.isNotEmpty) {
+          _featuredProducts = cached
+              .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _featuredOffset = _featuredProducts.length;
+          _featuredHasMore = _featuredProducts.length >= _pageSize;
+          _featuredLoaded = true;
+          _isFeaturedLoading = false;
+          notifyListeners();
+          AppLogger.d(_tag, 'Featured from cache: ${_featuredProducts.length}');
+          // Refresh in background
+          _refreshFeaturedInBackground();
+          return;
+        }
+      } catch (e) {
+        AppLogger.e(_tag, 'Featured cache read error', e);
+      }
+    }
+
     try {
       _featuredProducts =
           await _productRepo.getFeaturedProducts(limit: _pageSize);
@@ -190,6 +262,8 @@ class ProductsProvider extends ChangeNotifier {
       _featuredLoaded = true;
       AppLogger.d(
           _tag, 'Featured products loaded: ${_featuredProducts.length}');
+      // Save to cache
+      _saveFeaturedCache();
     } catch (e) {
       AppLogger.e(_tag, 'loadFeaturedProducts error', e);
       _error = e.toString();
@@ -197,6 +271,31 @@ class ProductsProvider extends ChangeNotifier {
 
     _isFeaturedLoading = false;
     notifyListeners();
+  }
+
+  void _refreshFeaturedInBackground() {
+    _productRepo.getFeaturedProducts(limit: _pageSize).then((data) async {
+      var products = data;
+      if (products.isEmpty) {
+        products = await _productRepo.getProducts(limit: _pageSize, offset: 0);
+      }
+      _featuredProducts = products;
+      _featuredOffset = products.length;
+      _featuredHasMore = products.length >= _pageSize;
+      _saveFeaturedCache();
+      notifyListeners();
+    }).catchError((e) {
+      AppLogger.e(_tag, 'Featured background refresh error', e);
+    });
+  }
+
+  void _saveFeaturedCache() {
+    PersistentCache.set(
+      CacheKeys.featuredProducts,
+      _featuredProducts.map((p) => p.toMap()).toList(),
+      (data) => data,
+      ttl: const Duration(hours: 1),
+    );
   }
 
   /// Keyingi sahifadagi mahsulotlarni yuklash (infinite scroll)
@@ -241,10 +340,35 @@ class ProductsProvider extends ChangeNotifier {
     _isBannersLoading = true;
     notifyListeners();
 
+    // Cache-first: show cached data immediately
+    if (_banners.isEmpty) {
+      try {
+        final cached = await PersistentCache.get<List<dynamic>>(
+          CacheKeys.banners,
+          (json) => json as List<dynamic>,
+        );
+        if (cached != null && cached.isNotEmpty) {
+          _banners = cached
+              .map((e) => BannerModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _bannersLoaded = true;
+          _isBannersLoading = false;
+          notifyListeners();
+          AppLogger.d(_tag, 'Banners from cache: ${_banners.length}');
+          // Refresh in background
+          _refreshBannersInBackground();
+          return;
+        }
+      } catch (e) {
+        AppLogger.e(_tag, 'Banners cache read error', e);
+      }
+    }
+
     try {
       _banners = await _bannerRepo.getActiveBanners();
       _bannersLoaded = true;
       AppLogger.d(_tag, 'Banners loaded: ${_banners.length}');
+      _saveBannersCache();
     } catch (e) {
       AppLogger.e(_tag, 'loadBanners error', e);
       _error = e.toString();
@@ -254,6 +378,25 @@ class ProductsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _refreshBannersInBackground() {
+    _bannerRepo.getActiveBanners().then((data) {
+      _banners = data;
+      _saveBannersCache();
+      notifyListeners();
+    }).catchError((e) {
+      AppLogger.e(_tag, 'Banners background refresh error', e);
+    });
+  }
+
+  void _saveBannersCache() {
+    PersistentCache.set(
+      CacheKeys.banners,
+      _banners.map((b) => b.toJson()).toList(),
+      (data) => data,
+      ttl: const Duration(hours: 2),
+    );
+  }
+
   /// Sevimlilarni yuklash (lazy)
   Future<void> loadFavorites() async {
     if (_favoritesLoaded) return;
@@ -261,11 +404,37 @@ class ProductsProvider extends ChangeNotifier {
     _isFavoritesLoading = true;
     notifyListeners();
 
+    // Cache-first: show cached data immediately
+    if (_favorites.isEmpty) {
+      try {
+        final cached = await PersistentCache.get<List<dynamic>>(
+          CacheKeys.favorites,
+          (json) => json as List<dynamic>,
+        );
+        if (cached != null && cached.isNotEmpty) {
+          _favorites = cached
+              .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _favoriteIds = _favorites.map((p) => p.id).toSet();
+          _favoritesLoaded = true;
+          _isFavoritesLoading = false;
+          notifyListeners();
+          AppLogger.d(_tag, 'Favorites from cache: ${_favorites.length}');
+          // Refresh in background
+          _refreshFavoritesInBackground();
+          return;
+        }
+      } catch (e) {
+        AppLogger.e(_tag, 'Favorites cache read error', e);
+      }
+    }
+
     try {
       _favorites = await _favoritesRepo.getFavorites();
       _favoriteIds = _favorites.map((p) => p.id).toSet();
       _favoritesLoaded = true;
       AppLogger.d(_tag, 'Favorites loaded: ${_favorites.length}');
+      _saveFavoritesCache();
     } catch (e) {
       AppLogger.e(_tag, 'loadFavorites error', e);
       _error = e.toString();
@@ -273,6 +442,26 @@ class ProductsProvider extends ChangeNotifier {
 
     _isFavoritesLoading = false;
     notifyListeners();
+  }
+
+  void _refreshFavoritesInBackground() {
+    _favoritesRepo.getFavorites().then((data) {
+      _favorites = data;
+      _favoriteIds = data.map((p) => p.id).toSet();
+      _saveFavoritesCache();
+      notifyListeners();
+    }).catchError((e) {
+      AppLogger.e(_tag, 'Favorites background refresh error', e);
+    });
+  }
+
+  void _saveFavoritesCache() {
+    PersistentCache.set(
+      CacheKeys.favorites,
+      _favorites.map((p) => p.toMap()).toList(),
+      (data) => data,
+      ttl: const Duration(hours: 1),
+    );
   }
 
   /// Sevimlilarni majburan yangilash (toggle dan keyin)

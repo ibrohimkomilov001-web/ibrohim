@@ -1,4 +1,4 @@
-import { fetchShops, fetchShopStats, updateShopStatus as apiUpdateShopStatus, updateShopCommission as apiUpdateShopCommission, deleteShop as apiDeleteShop } from "@/lib/api/admin";
+import { fetchShops, fetchShopStats, updateShopStatus as apiUpdateShopStatus, updateShopCommission as apiUpdateShopCommission, deleteShop as apiDeleteShop, sendShopContract as apiSendContract, getShopContractStatus as apiGetContractStatus } from "@/lib/api/admin";
 import type { PaginationMeta } from "@/components/ui/data-table-pagination";
 
 export type Shop = {
@@ -18,6 +18,10 @@ export type Shop = {
   slug?: string;
   business_type?: string;
   inn?: string;
+  contract_status?: string;
+  contract_url?: string;
+  contract_sent_at?: string;
+  contract_signed_at?: string;
   owner?: { full_name?: string; phone?: string; email?: string };
 };
 
@@ -51,6 +55,10 @@ export async function getShops(params?: ShopsParams): Promise<{ shops: Shop[]; p
       slug: s.slug,
       business_type: s.businessType,
       inn: s.inn,
+      contract_status: s.contractStatus,
+      contract_url: s.contractUrl,
+      contract_sent_at: s.contractSentAt,
+      contract_signed_at: s.contractSignedAt,
       owner: s.owner ? { full_name: s.owner.fullName, phone: s.owner.phone, email: s.owner.email } : undefined,
     }));
     const pagination = data.pagination || { page: 1, limit: 20, total: shops.length, totalPages: 1, hasMore: false };
@@ -80,4 +88,12 @@ export async function updateShopCommission(id: string, commission: number): Prom
 
 export async function deleteShop(id: string): Promise<void> {
   await apiDeleteShop(id);
+}
+
+export async function sendContract(id: string): Promise<void> {
+  await apiSendContract(id);
+}
+
+export async function checkContractStatus(id: string): Promise<{ contractStatus: string; contractUrl?: string; contractSignedAt?: string; didoxStatus?: string }> {
+  return await apiGetContractStatus(id);
 }

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Heart, Star, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn, formatPrice } from '@/lib/utils';
+import { resolveImageUrl } from '@/lib/api/upload';
 import { useFavoritesStore } from '@/store/favorites-store';
 import { useLocaleStore } from '@/store/locale-store';
 import type { ProductItem } from '@/lib/api/shop';
@@ -32,7 +33,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
       <Link href={`/products/${product.id}`} className={cn('product-card flex gap-3 p-3', className)}>
         <div className="relative w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden">
           {product.images?.[0] ? (
-            <Image src={product.images[0]} alt={name} fill className="object-cover" sizes="112px" />
+            <Image src={resolveImageUrl(product.images[0])} alt={name} fill className="object-cover" sizes="112px" />
           ) : (
             <div className="w-full h-full bg-muted flex items-center justify-center text-2xl">📦</div>
           )}
@@ -69,7 +70,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
         <div className="relative aspect-square">
           {product.images?.[0] ? (
             <Image
-              src={product.images[0]}
+              src={resolveImageUrl(product.images[0])}
               alt={name}
               fill
               className="object-cover"

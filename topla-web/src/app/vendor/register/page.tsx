@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { authApi } from "@/lib/api/auth";
 import api from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -183,23 +184,35 @@ export default function VendorRegisterPage() {
     return () => { clearTimeout(timer); setSlugChecking(false); };
   }, [slug]);
 
-  const enforcePhoneCursor = (el: HTMLInputElement) => {
-    const minPos = PHONE_PREFIX.length;
-    if ((el.selectionStart ?? 0) < minPos) {
-      el.setSelectionRange(minPos, minPos);
-    }
-  };
-
   const handlePhoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const el = event.target;
-    const prevLen = phone.length;
-    const formatted = formatPhone(el.value);
+    const cursorPos = el.selectionStart ?? 0;
+
+    // Count digits before cursor in the raw input
+    const rawValue = el.value;
+    let digitsBefore = 0;
+    for (let i = 0; i < cursorPos && i < rawValue.length; i++) {
+      if (/\d/.test(rawValue[i])) digitsBefore++;
+    }
+    // Don't let cursor go before country code (998 = 3 digits)
+    if (digitsBefore < 3) digitsBefore = 3;
+
+    const formatted = formatPhone(rawValue);
     setPhone(formatted);
-    const cursorPos = el.selectionStart ?? formatted.length;
-    const diff = formatted.length - prevLen;
+
+    // Position cursor after the same number of digits in formatted string
     requestAnimationFrame(() => {
       if (phoneRef.current) {
-        const newPos = Math.max(PHONE_PREFIX.length, cursorPos + diff);
+        let count = 0;
+        let newPos = 0;
+        for (let i = 0; i < formatted.length; i++) {
+          if (/\d/.test(formatted[i])) count++;
+          if (count >= digitsBefore) {
+            newPos = i + 1;
+            break;
+          }
+        }
+        if (count < digitsBefore) newPos = formatted.length;
         phoneRef.current.setSelectionRange(newPos, newPos);
       }
     });
@@ -207,7 +220,12 @@ export default function VendorRegisterPage() {
 
   const handlePhoneFocus = () => {
     requestAnimationFrame(() => {
-      if (phoneRef.current) enforcePhoneCursor(phoneRef.current);
+      if (phoneRef.current) {
+        const pos = phoneRef.current.selectionStart ?? 0;
+        if (pos < PHONE_PREFIX.length) {
+          phoneRef.current.setSelectionRange(PHONE_PREFIX.length, PHONE_PREFIX.length);
+        }
+      }
     });
   };
 
@@ -272,7 +290,7 @@ export default function VendorRegisterPage() {
       setCountdown(60);
       setTimeout(() => otpRefs.current[0]?.focus(), 80);
     } catch (err: any) {
-      setError(err.message || t("vendorSmsFailed"));
+      toast.error(err.message || t("vendorSmsFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -385,7 +403,7 @@ export default function VendorRegisterPage() {
       await refreshProfile();
       router.push("/vendor/dashboard");
     } catch (err: any) {
-      setError(err.message || t("vendorRegisterError"));
+      toast.error(err.message || t("vendorRegisterError"));
     } finally {
       setIsLoading(false);
     }
@@ -414,7 +432,7 @@ export default function VendorRegisterPage() {
           </div>
 
           {error && (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-4 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -425,37 +443,41 @@ export default function VendorRegisterPage() {
               <h2 className="text-lg font-medium text-gray-800">{t("vendorPersonalInfo")}</h2>
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
                 placeholder={t("vendorNameInput")}
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
+                enterKeyHint="next"
               />
               <input
                 ref={phoneRef}
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
                 placeholder={t("vendorPhonePlaceholder")}
                 value={phone}
                 onChange={handlePhoneChange}
                 onFocus={handlePhoneFocus}
-                onClick={() => phoneRef.current && enforcePhoneCursor(phoneRef.current)}
+                onClick={handlePhoneFocus}
                 onKeyDown={handlePhoneKeyDown}
                 inputMode="tel"
+                enterKeyHint="next"
               />
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
                 placeholder={t("vendorEmailOptional")}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 type="email"
+                enterKeyHint="next"
               />
 
               <div className="relative">
                 <input
-                  className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 pr-12 text-base outline-none ring-0"
+                  className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 pr-12 text-base outline-none ring-0"
                   placeholder={t("vendorCreatePassword")}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   type={showPassword ? "text" : "password"}
+                  enterKeyHint="next"
                 />
                 <button
                   type="button"
@@ -472,11 +494,12 @@ export default function VendorRegisterPage() {
               </div>
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
                 placeholder={t("vendorConfirmPassword")}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 type={showPassword ? "text" : "password"}
+                enterKeyHint="done"
               />
 
               {password && (
@@ -487,7 +510,7 @@ export default function VendorRegisterPage() {
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={handleSendOtp}
                 disabled={isLoading}
               >
@@ -517,14 +540,15 @@ export default function VendorRegisterPage() {
                     onPaste={index === 0 ? handleOtpPaste : undefined}
                     maxLength={1}
                     inputMode="numeric"
-                    className="h-14 w-12 rounded-2xl border-0 bg-gray-100 text-center text-2xl font-semibold outline-none"
+                    autoComplete="one-time-code"
+                    className="h-14 w-12 rounded-xl border-0 bg-gray-100 text-center text-2xl font-semibold outline-none"
                   />
                 ))}
               </div>
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={goToBusinessStep}
                 disabled={isLoading || otpValue.length < OTP_LENGTH}
               >
@@ -561,7 +585,7 @@ export default function VendorRegisterPage() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    className={`flex-1 h-12 rounded-xl border-2 text-sm font-medium transition ${
+                    className={`flex-1 h-12 rounded-full border-2 text-sm font-medium transition ${
                       businessType === "yatt"
                         ? "border-blue-600 bg-blue-50 text-blue-700"
                         : "border-gray-200 text-gray-600 hover:border-gray-300"
@@ -572,7 +596,7 @@ export default function VendorRegisterPage() {
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 h-12 rounded-xl border-2 text-sm font-medium transition ${
+                    className={`flex-1 h-12 rounded-full border-2 text-sm font-medium transition ${
                       businessType === "mchj"
                         ? "border-blue-600 bg-blue-50 text-blue-700"
                         : "border-gray-200 text-gray-600 hover:border-gray-300"
@@ -585,34 +609,38 @@ export default function VendorRegisterPage() {
               </div>
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 placeholder={t("vendorInnPlaceholder")}
                 value={inn}
                 onChange={(event) => setInn(event.target.value.replace(/[^\d\s]/g, ""))}
                 inputMode="numeric"
+                enterKeyHint="next"
               />
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 placeholder={t("vendorBankName")}
                 value={bankName}
                 onChange={(event) => setBankName(event.target.value)}
+                enterKeyHint="next"
               />
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 placeholder={t("vendorBankAccount")}
                 value={bankAccount}
                 onChange={(event) => setBankAccount(event.target.value.replace(/[^\d\s]/g, ""))}
                 inputMode="numeric"
+                enterKeyHint="next"
               />
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 placeholder={t("vendorMfo")}
                 value={mfo}
                 onChange={(event) => setMfo(event.target.value.replace(/[^\d]/g, "").slice(0, 5))}
                 inputMode="numeric"
+                enterKeyHint="done"
               />
 
               <label className="flex items-start gap-3 cursor-pointer">
@@ -637,7 +665,7 @@ export default function VendorRegisterPage() {
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={goToShopStep}
               >
                 {t("vendorContinue")}
@@ -659,10 +687,11 @@ export default function VendorRegisterPage() {
               <h2 className="text-xl font-semibold text-gray-900">{t("vendorShopDetails")}</h2>
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 placeholder={t("vendorShopName")}
                 value={shopName}
                 onChange={(event) => setShopName(event.target.value)}
+                enterKeyHint="next"
               />
 
               <textarea
@@ -678,7 +707,7 @@ export default function VendorRegisterPage() {
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">topla.uz/</span>
                   <input
-                    className={`h-14 w-full rounded-2xl border-2 bg-gray-100 pl-[85px] pr-10 text-base outline-none ${
+                    className={`h-14 w-full rounded-full border-2 bg-gray-100 pl-[85px] pr-10 text-base outline-none ${
                       slugAvailable === true ? 'border-green-400' : slugAvailable === false ? 'border-red-400' : 'border-transparent'
                     }`}
                     placeholder="my-shop"
@@ -708,7 +737,7 @@ export default function VendorRegisterPage() {
               </div>
 
               <select
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
               >
@@ -719,7 +748,7 @@ export default function VendorRegisterPage() {
               </select>
 
               <select
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 value={city}
                 onChange={(event) => setCity(event.target.value)}
               >
@@ -731,7 +760,7 @@ export default function VendorRegisterPage() {
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={handleRegister}
                 disabled={isLoading}
               >

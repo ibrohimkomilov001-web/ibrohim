@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { vendorApi, type ColorOption, type SizeOption, type CategoryAttribute } from "@/lib/api/vendor";
-import { uploadApi } from "@/lib/api/upload";
+import { uploadApi, resolveImageUrl } from "@/lib/api/upload";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -644,7 +644,7 @@ export default function NewProductPage() {
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {images.map((url, index) => (
                     <div key={index} className="relative aspect-square rounded-xl overflow-hidden border bg-muted group">
-                      <Image src={url} alt="" fill className="object-cover" />
+                      <Image src={resolveImageUrl(url)} alt="" fill className="object-cover" />
                       <button
                         type="button"
                         className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
@@ -847,7 +847,7 @@ export default function NewProductPage() {
                                           <div className="flex -space-x-1">
                                             {row.images.slice(0, 2).map((img, imgIdx) => (
                                               <div key={imgIdx} className="relative w-7 h-7 rounded border overflow-hidden">
-                                                <Image src={img} alt="" fill className="object-cover" />
+                                                <Image src={resolveImageUrl(img)} alt="" fill className="object-cover" />
                                               </div>
                                             ))}
                                             {row.images.length > 2 && (

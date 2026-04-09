@@ -3,6 +3,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
 import '../models/models.dart';
+import '../services/cache_service.dart';
 
 /// Auth holati uchun Provider
 /// Repository pattern bilan - backend o'zgarganda bu kod o'zgarmaydi
@@ -27,9 +28,18 @@ class AuthProvider extends ChangeNotifier {
   String? get phoneNumber => _profile?.phone;
 
   void _init() {
-    // Profil yuklash (agar token saqlangan bo'lsa)
-    if (isLoggedIn) {
-      _loadOrCreateProfile();
+    // App qayta ochilganda sessiyani tiklash
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final restored = await _authRepo.restoreSession();
+      if (restored) {
+        await _loadOrCreateProfile();
+      }
+    } catch (e) {
+      debugPrint('Session restore error: $e');
     }
   }
 
@@ -128,6 +138,13 @@ class AuthProvider extends ChangeNotifier {
       await _authRepo.signOut();
       _profile = null;
 
+      // Foydalanuvchiga tegishli keshlarni tozalash
+      await PersistentCache.remove(CacheKeys.favorites);
+      await PersistentCache.remove(CacheKeys.orders);
+      await PersistentCache.remove(CacheKeys.cart);
+      await PersistentCache.remove(CacheKeys.userProfile);
+      await PersistentCache.remove(CacheKeys.addresses);
+
       // Crashlytics user identifikatsiyani tozalash
       if (!kIsWeb && !kDebugMode) {
         FirebaseCrashlytics.instance.setUserIdentifier('');
@@ -147,6 +164,8 @@ class AuthProvider extends ChangeNotifier {
     String? email,
     String? phone,
     String? avatarUrl,
+    String? gender,
+    String? region,
   }) async {
     _isLoading = true;
     _error = null;
@@ -159,6 +178,8 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         phone: phone,
         avatarUrl: avatarUrl,
+        gender: gender,
+        region: region,
       );
       await loadProfile();
     } catch (e) {

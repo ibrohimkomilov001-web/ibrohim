@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '@/lib/utils';
+import { resolveImageUrl } from '@/lib/api/upload';
 import { useCartStore } from '@/store/cart-store';
 import { useTranslation } from '@/store/locale-store';
 
@@ -21,7 +22,7 @@ export default function CartPage() {
     <div className="site-container py-6 sm:py-10">
       {/* Breadcrumb */}
       <nav className="text-sm text-muted-foreground mb-6">
-        <Link href="/" className="hover:text-primary transition-colors">{t('home')}</Link>
+        <Link href="/" className="text-primary transition-colors">{t('home')}</Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">{t('cart')}</span>
       </nav>
@@ -83,7 +84,7 @@ export default function CartPage() {
                       className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden shrink-0 relative"
                     >
                       {item.image ? (
-                        <Image src={item.image} alt={name} fill className="object-cover" />
+                        <Image src={resolveImageUrl(item.image)} alt={name} fill className="object-cover" />
                       ) : (
                         <div className="w-full h-full bg-muted flex items-center justify-center text-2xl">📦</div>
                       )}

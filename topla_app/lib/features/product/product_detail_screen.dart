@@ -11,6 +11,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/providers.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/skeleton_widgets.dart';
 import '../checkout/checkout_screen.dart';
 import '../shop/shop_detail_screen.dart';
 import '../shop/shop_chat_screen.dart';
@@ -301,7 +302,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void _updateImagesForVariant() {
     final v = _selectedVariant;
     if (v != null && v['images'] != null && (v['images'] as List).isNotEmpty) {
-      _productImages = List<String>.from(v['images']);
+      _productImages = List<String>.from(v['images']).map((url) {
+        if (url.startsWith('http')) return url;
+        return 'https://topla.uz$url';
+      }).toList();
       _selectedImageIndex = 0;
       if (_pageController.hasClients) {
         _pageController.jumpToPage(0);
@@ -350,11 +354,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<String> _getProductImages() {
     final product = widget.product;
     if (product['images'] != null && product['images'] is List) {
-      final images = List<String>.from(product['images']);
+      final images = List<String>.from(product['images']).map((url) {
+        if (url.startsWith('http')) return url;
+        return 'https://topla.uz$url';
+      }).toList();
       // Remove duplicates while preserving order
       return images.toSet().toList();
     } else if (product['image'] != null) {
-      return [product['image']];
+      final url = product['image'] as String;
+      return [url.startsWith('http') ? url : 'https://topla.uz$url'];
     }
     return [];
   }
@@ -1460,14 +1468,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         height: 220,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: 3,
-          itemBuilder: (_, __) => Container(
-            width: 160,
-            margin: const EdgeInsets.only(right: 14),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+          itemBuilder: (_, __) => Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: SizedBox(
+              width: 160,
+              child: ProductCardSkeleton(width: 160),
             ),
           ),
         ),

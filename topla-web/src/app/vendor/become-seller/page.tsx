@@ -36,6 +36,7 @@ import {
 import { useState, useRef, useEffect, useCallback } from "react";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useTranslation } from "@/store/locale-store";
+import { useSupportPhone } from "@/hooks/useSettings";
 
 /* ──────────────── FORMAT NUMBER (consistent server/client) ──────────────── */
 function formatNumber(n: number): string {
@@ -723,6 +724,7 @@ const testimonialMeta = [
 /* ──────────────── MAIN PAGE ──────────────── */
 export default function BecomeSellerPage() {
   const { t } = useTranslation();
+  const supportPhone = useSupportPhone();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -1351,8 +1353,8 @@ export default function BecomeSellerPage() {
                 className="rounded-full gap-2"
                 asChild
               >
-                <a href="tel:+998901234567">
-                  <Phone className="h-4 w-4" /> +998 90 123 45 67
+                <a href={`tel:+${supportPhone.replace(/\D/g, '')}`}>
+                  <Phone className="h-4 w-4" /> {supportPhone}
                 </a>
               </Button>
               <Button

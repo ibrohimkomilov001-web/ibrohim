@@ -1,5 +1,6 @@
 /// Banner modeli
 library;
+
 import '../core/config/api_config.dart';
 
 class BannerModel {
@@ -46,6 +47,19 @@ class BannerModel {
       isActive: (json['is_active'] ?? json['isActive']) as bool? ?? true,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title_uz': titleUz,
+        'title_ru': titleRu,
+        'subtitle_uz': subtitleUz,
+        'subtitle_ru': subtitleRu,
+        'image_url': imageUrl,
+        'action_type': actionType,
+        'action_value': actionValue,
+        'sort_order': sortOrder,
+        'is_active': isActive,
+      };
 
   String? getTitle(String locale) {
     return locale == 'ru' ? titleRu : titleUz;

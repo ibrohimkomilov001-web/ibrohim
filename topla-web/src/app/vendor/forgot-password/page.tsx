@@ -225,17 +225,17 @@ export default function ForgotPasswordPage() {
           <h1 className="text-3xl font-semibold text-gray-900">{t("vendorResetTitle")}</h1>
 
           {error && (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-4 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
           {/* Tab selector (only on input step) */}
           {step === "input" && (
-            <div className="mt-5 flex rounded-xl bg-gray-100 p-1">
+            <div className="mt-5 flex rounded-full bg-gray-100 p-1">
               <button
                 type="button"
-                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-full py-2.5 text-sm font-medium transition ${
                   tab === "phone" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
                 onClick={() => handleTabChange("phone")}
@@ -244,7 +244,7 @@ export default function ForgotPasswordPage() {
               </button>
               <button
                 type="button"
-                className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition ${
+                className={`flex-1 rounded-full py-2.5 text-sm font-medium transition ${
                   tab === "email" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
                 onClick={() => handleTabChange("email")}
@@ -264,7 +264,7 @@ export default function ForgotPasswordPage() {
               {tab === "phone" ? (
                 <input
                   ref={phoneRef}
-                  className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                  className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                   placeholder={t("vendorPhonePlaceholder")}
                   value={phone}
                   onChange={handlePhoneChange}
@@ -278,7 +278,7 @@ export default function ForgotPasswordPage() {
                 />
               ) : (
                 <input
-                  className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                  className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                   placeholder={t("vendorEmailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -289,7 +289,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={handleSendCode}
                 disabled={isLoading}
               >
@@ -319,13 +319,14 @@ export default function ForgotPasswordPage() {
                       onPaste={index === 0 ? handleOtpPaste : undefined}
                       maxLength={1}
                       inputMode="numeric"
-                      className="h-14 w-12 rounded-2xl border-0 bg-gray-100 text-center text-2xl font-semibold outline-none"
+                      autoComplete="one-time-code"
+                      className="h-14 w-12 rounded-xl border-0 bg-gray-100 text-center text-2xl font-semibold outline-none"
                     />
                   ))}
                 </div>
               ) : (
                 <input
-                  className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-center text-lg tracking-widest outline-none"
+                  className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-center text-lg tracking-widest outline-none"
                   placeholder={t("vendorResetCodePlaceholder")}
                   value={emailToken}
                   onChange={(e) => setEmailToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -337,7 +338,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={goToNewPass}
                 disabled={isLoading || (tab === "phone" ? otpValue.length < OTP_LENGTH : emailToken.length < 4)}
               >
@@ -371,7 +372,7 @@ export default function ForgotPasswordPage() {
 
               <div className="relative">
                 <input
-                  className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 pr-12 text-base outline-none"
+                  className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 pr-12 text-base outline-none"
                   placeholder={t("vendorNewPassword")}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -393,7 +394,7 @@ export default function ForgotPasswordPage() {
               </div>
 
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
                 placeholder={t("vendorConfirmPassword")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -408,7 +409,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="button"
-                className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
                 onClick={handleConfirmReset}
                 disabled={isLoading}
               >
@@ -434,7 +435,7 @@ export default function ForgotPasswordPage() {
               <p className="text-gray-600">{t("vendorResetSuccessDesc")}</p>
               <Link
                 href="/vendor/login"
-                className="inline-block h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 leading-[3rem] text-center"
+                className="inline-block h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 leading-[3rem] text-center"
               >
                 {t("vendorGoToLogin")}
               </Link>

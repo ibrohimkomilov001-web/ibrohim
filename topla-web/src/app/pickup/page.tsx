@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { submitPickupApplication } from "@/lib/api/pickup";
+import { useSupportPhone } from "@/hooks/useSettings";
 
 /* ──────────────── FAQ ITEM ──────────────── */
 function FAQItem({ item }: { item: { q: string; a: string } }) {
@@ -172,6 +173,7 @@ export default function PickupLandingPage() {
   const [formSuccess, setFormSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const supportPhone = useSupportPhone();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -839,8 +841,8 @@ export default function PickupLandingPage() {
                 className="rounded-full gap-2"
                 asChild
               >
-                <a href="tel:+998901234567">
-                  <Phone className="h-4 w-4" /> +998 90 123 45 67
+                <a href={`tel:+${supportPhone.replace(/\D/g, '')}`}>
+                  <Phone className="h-4 w-4" /> {supportPhone}
                 </a>
               </Button>
               <Button

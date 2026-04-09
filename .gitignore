@@ -16,7 +16,6 @@ Thumbs.db
 
 # Environment files
 *.env
-!topla-prod.env
 
 # Uploads
 topla-backend/uploads/*

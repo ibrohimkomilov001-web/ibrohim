@@ -101,20 +101,28 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
 
   @override
   Future<void> signInWithGoogle() async {
-    // 1. Google Sign-In — avval signOut qilib, account picker chiqishini ta'minlaymiz
+    // 1. Google Sign-In
     final googleSignIn = GoogleSignIn(
-      serverClientId: '541689366619-lj413c9ff4i5lf29upaopiu10b78ukn4.apps.googleusercontent.com',
+      serverClientId:
+          '541689366619-lj413c9ff4i5lf29upaopiu10b78ukn4.apps.googleusercontent.com',
     );
+    // Oldingi sessiyani tozalash - har doim akkaunt tanlash oynasi chiqishi uchun
     await googleSignIn.signOut();
+    debugPrint('=== GoogleSignIn.signIn() boshlanmoqda ===');
     final googleUser = await googleSignIn.signIn();
 
     if (googleUser == null) {
       throw Exception('Google kirish bekor qilindi');
     }
+    debugPrint('=== Google user: ${googleUser.email} ===');
 
     // 2. Google auth tokenlarini olish
     final googleAuth = await googleUser.authentication;
     final googleAccessToken = googleAuth.accessToken;
+    debugPrint(
+        '=== Google accessToken: ${googleAccessToken != null ? "mavjud" : "YO'Q"} ===');
+    debugPrint(
+        '=== Google idToken: ${googleAuth.idToken != null ? "mavjud" : "YO'Q"} ===');
 
     // 3. Firebase credential yaratish va kirish (token olish uchun)
     String? firebaseToken;
@@ -130,6 +138,7 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
 
       if (firebaseUser != null) {
         firebaseToken = await firebaseUser.getIdToken();
+        debugPrint('=== Firebase token: mavjud ===');
       }
     } catch (e) {
       debugPrint('Firebase sign-in failed (using Google direct): $e');
@@ -149,11 +158,15 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
       throw Exception('Google tokenlar olinmadi');
     }
 
+    debugPrint(
+        '=== Backend /auth/google ga POST yuborilmoqda, body keys: ${body.keys.toList()} ===');
     final response = await _api.post(
       '/auth/google',
       body: body,
       auth: false,
     );
+    debugPrint(
+        '=== Backend javob keldi, dataMap keys: ${response.dataMap.keys.toList()} ===');
 
     final data = response.dataMap;
     await _api.setTokens(
@@ -162,7 +175,9 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
     );
 
     // Profile olish
+    debugPrint('=== _fetchAndSetUser() chaqirilmoqda ===');
     await _fetchAndSetUser();
+    debugPrint('=== signInWithGoogle muvaffaqiyatli tugadi ===');
   }
 
   @override
@@ -175,6 +190,13 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
       await _api.clearTokens();
       _userId = null;
       _cachedProfile = null;
+      // Google va Firebase sessiyalarni ham tozalash
+      try {
+        await GoogleSignIn().signOut();
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        debugPrint('Google/Firebase sign-out error: $e');
+      }
     }
   }
 
@@ -207,8 +229,14 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
     String? email,
     String? phone,
     String? avatarUrl,
+    String? gender,
+    String? region,
   }) async {
     final body = <String, dynamic>{};
+    if (firstName != null && firstName.isNotEmpty) {
+      body['firstName'] = firstName;
+    }
+    if (lastName != null && lastName.isNotEmpty) body['lastName'] = lastName;
     if (firstName != null || lastName != null) {
       body['fullName'] = [firstName, lastName]
           .where((s) => s != null && s.isNotEmpty)
@@ -217,6 +245,8 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
     if (email != null) body['email'] = email;
     if (phone != null) body['phone'] = phone;
     if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+    if (gender != null) body['gender'] = gender;
+    if (region != null) body['region'] = region;
 
     final response = await _api.put('/auth/profile', body: body);
     _cachedProfile = UserProfile.fromJson(response.dataMap);
@@ -241,6 +271,7 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
   }
 
   /// Token bilan tiklash (app qayta ochilganda)
+  @override
   Future<bool> restoreSession() async {
     await _api.loadTokens();
     if (!_api.hasToken) return false;

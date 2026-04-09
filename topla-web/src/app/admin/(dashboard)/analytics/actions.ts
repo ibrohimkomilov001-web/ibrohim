@@ -69,9 +69,8 @@ export const statusLabels: Record<string, string> = {
 
 export const paymentLabels: Record<string, string> = {
   cash: "Naqd",
-  payme: "Payme",
-  click: "Click",
   card: "Karta",
+  octobank: "Octobank",
 };
 
 // ============================================

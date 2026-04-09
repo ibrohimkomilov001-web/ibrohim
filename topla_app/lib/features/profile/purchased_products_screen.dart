@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../widgets/empty_states.dart';
+import '../../widgets/skeleton_widgets.dart';
 import '../../providers/providers.dart';
 import '../../models/order_model.dart';
 
@@ -78,7 +79,7 @@ class _PurchasedProductsScreenState extends State<PurchasedProductsScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const PurchasedProductsSkeleton()
           : _purchasedProducts.isEmpty
               ? _buildEmptyState()
               : RefreshIndicator(

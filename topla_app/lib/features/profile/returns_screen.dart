@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:image_picker/image_picker.dart';
@@ -198,7 +199,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
                         color: Colors.grey.shade100,
                         image: imageUrl != null
                             ? DecorationImage(
-                                image: NetworkImage(imageUrl),
+                                image: CachedNetworkImageProvider(imageUrl),
                                 fit: BoxFit.cover,
                               )
                             : null,

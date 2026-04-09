@@ -34,7 +34,7 @@ const createOrderSchema = z.object({
   addressId: z.string().uuid().optional(),
   pickupPointId: z.string().uuid().optional(),
   deliveryMethod: z.enum(['courier', 'pickup']).default('courier'),
-  paymentMethod: z.enum(['cash', 'card', 'payme', 'click']).default('cash'),
+  paymentMethod: z.enum(['cash', 'card']).default('cash'),
   recipientName: z.string().optional(),
   recipientPhone: z.string().optional(),
   deliveryDate: z.string().optional(),
@@ -479,18 +479,22 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           : Number(freshPromo.discountValue);
       }
 
-      // Stock tekshirish - TRANSACTION ICHIDA (race condition oldini oladi)
+      // Stock tekshirish - SELECT FOR UPDATE bilan qulflash (race condition oldini oladi)
       for (const item of cartItems) {
-        const currentProduct = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { stock: true, name: true, isActive: true },
-        });
+        const locked: { id: string; stock: number; name: string; is_active: boolean }[] =
+          await tx.$queryRaw`
+            SELECT id, stock, name, is_active
+            FROM products
+            WHERE id = ${item.productId}::uuid
+            FOR UPDATE
+          `;
+        const currentProduct = locked[0];
         if (!currentProduct || currentProduct.stock < item.quantity) {
           throw new AppError(
             `"${currentProduct?.name || item.product.name}" mahsulotidan faqat ${currentProduct?.stock || 0} dona bor`,
           );
         }
-        if (!currentProduct.isActive) {
+        if (!currentProduct.is_active) {
           throw new AppError(`"${currentProduct.name}" mahsuloti sotuvda mavjud emas`);
         }
       }
@@ -1060,8 +1064,17 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      // MUHIM: Agar "delivered" bo'lsa → referral bonus berish
+      // MUHIM: Agar "delivered" bo'lsa → salesCount oshirish + referral bonus berish
       if (body.status === 'delivered') {
+        // Mahsulotlarning sotilgan sonini oshirish
+        const deliveredItems = await prisma.orderItem.findMany({ where: { orderId: id } });
+        for (const item of deliveredItems) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { salesCount: { increment: item.quantity } },
+          });
+        }
+
         processReferralBonus(order.userId).catch((err) =>
           console.error('Referral bonus error:', err),
         );

@@ -9,6 +9,7 @@ import {
   CheckCircle, ChevronRight, Store, Package, CreditCard,
   Truck, Star, BarChart3, Settings, FileText, Play,
   BookOpen, GraduationCap, ExternalLink, Rocket, Loader2,
+  FileSignature, AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ const STEP_ICONS: Record<string, any> = {
   shop_info: Store,
   contact_info: Settings,
   business_info: CreditCard,
+  contract: FileSignature,
   documents: FileText,
   first_product: Package,
   delivery_setup: Truck,
@@ -89,9 +91,62 @@ export default function OnboardingPage() {
   const completedSteps = onboarding?.completed || 0;
   const totalSteps = onboarding?.total || 7;
   const progress = onboarding?.percentage || 0;
+  const contract = onboarding?.contract;
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Contract Status Banner */}
+      {contract && contract.contractStatus !== 'signed' && (
+        <Card className={cn(
+          "border-2",
+          contract.contractStatus === 'not_sent' ? "border-yellow-300 bg-yellow-50/50" :
+          contract.contractStatus === 'sent' || contract.contractStatus === 'pending_signature' ? "border-blue-300 bg-blue-50/50" :
+          contract.contractStatus === 'rejected' ? "border-red-300 bg-red-50/50" : ""
+        )}>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              {contract.contractStatus === 'rejected' ? (
+                <AlertCircle className="h-6 w-6 text-red-500 shrink-0 mt-0.5" />
+              ) : (
+                <FileSignature className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                {contract.contractStatus === 'not_sent' && (
+                  <>
+                    <h3 className="font-semibold">Shartnoma kutilmoqda</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Ma&apos;lumotlaringiz ko&apos;rib chiqilmoqda. Admin tez orada shartnoma yuboradi.
+                    </p>
+                  </>
+                )}
+                {(contract.contractStatus === 'sent' || contract.contractStatus === 'pending_signature') && (
+                  <>
+                    <h3 className="font-semibold">Shartnomani imzolang</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Didox orqali shartnoma yuborildi. Iltimos, shartnomani ko&apos;rib chiqing va imzolang.
+                    </p>
+                    {contract.contractUrl && (
+                      <Button size="sm" className="mt-2" onClick={() => window.open(contract.contractUrl!, '_blank')}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Shartnomani ochish
+                      </Button>
+                    )}
+                  </>
+                )}
+                {contract.contractStatus === 'rejected' && (
+                  <>
+                    <h3 className="font-semibold text-red-600">Shartnoma rad etildi</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {contract.contractNote || "Shartnoma rad etildi. Iltimos, admin bilan bog'laning."}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="text-center">
         <GraduationCap className="h-12 w-12 mx-auto mb-4 text-primary" />
@@ -124,9 +179,11 @@ export default function OnboardingPage() {
           ) : (
           <div className="space-y-3">
             {steps.map((step, i) => {
-              const StepIcon = STEP_ICONS[step.key] || Settings;
+              const stepKey = step.key || step.id || '';
+              const stepLabel = step.label || step.title || '';
+              const StepIcon = STEP_ICONS[stepKey] || Settings;
               return (
-                <Link key={step.key} href={step.href}>
+                <Link key={stepKey} href={step.href}>
                   <div
                     className={cn(
                       "flex items-center gap-4 p-4 rounded-xl border transition-all hover:shadow-sm",
@@ -150,7 +207,7 @@ export default function OnboardingPage() {
                         "font-medium",
                         step.completed && "line-through text-muted-foreground",
                       )}>
-                        {step.label}
+                        {stepLabel}
                       </div>
                     </div>
                     <StepIcon className={cn(

@@ -1643,7 +1643,17 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vendor/onboarding', { preHandler: vendorAuth }, async (request, reply) => {
     const shop = await getVendorShop(request.user!.userId);
     const progress = await calculateOnboardingProgress(shop.id);
-    return reply.send({ success: true, data: progress });
+
+    // Shartnoma ma'lumotlarini qo'shish
+    const contractInfo = {
+      contractStatus: shop.contractStatus,
+      contractUrl: shop.contractUrl,
+      contractSentAt: shop.contractSentAt,
+      contractSignedAt: shop.contractSignedAt,
+      contractNote: shop.contractNote,
+    };
+
+    return reply.send({ success: true, data: { ...progress, contract: contractInfo } });
   });
 
   // ============================================

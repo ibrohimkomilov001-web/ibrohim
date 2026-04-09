@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchModerationQueue, approveProduct, rejectProduct } from "@/lib/api/admin";
 import { toast } from "sonner";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/api/upload";
 import {
   Shield, Search, Check, X, Eye, Loader2, Image as ImageIcon, ShoppingBag,
 } from "lucide-react";
@@ -145,7 +146,7 @@ export default function ModerationPage() {
               <div className="relative">
                 {product.images?.[0] ? (
                   <img
-                    src={product.images[0]}
+                    src={resolveImageUrl(product.images[0])}
                     alt={product.name}
                     className="w-full h-48 object-cover"
                   />
@@ -283,7 +284,7 @@ export default function ModerationPage() {
               {selectedProduct.images?.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {selectedProduct.images.map((img: string, i: number) => (
-                    <img key={i} src={img} alt="" className="h-32 w-32 object-cover rounded-lg shrink-0" />
+                    <img key={i} src={resolveImageUrl(img)} alt="" className="h-32 w-32 object-cover rounded-lg shrink-0" />
                   ))}
                 </div>
               )}

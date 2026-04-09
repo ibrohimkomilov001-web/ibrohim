@@ -9,7 +9,8 @@ interface AuthStore {
   isLoading: boolean;
 
   // Actions
-  login: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  login: (phone: string, code: string) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
+  loginWithGoogle: (googleAccessToken: string) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
@@ -33,10 +34,27 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
           });
-          return { success: true };
+          return { success: true, isNewUser: data.isNewUser };
         } catch (error: any) {
           set({ isLoading: false });
           return { success: false, error: error.message || 'Login failed' };
+        }
+      },
+
+      loginWithGoogle: async (googleAccessToken) => {
+        try {
+          set({ isLoading: true });
+          const data = await userAuthApi.loginWithGoogle(googleAccessToken);
+          setUserTokens(data.accessToken, data.refreshToken);
+          set({
+            user: data.user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return { success: true, isNewUser: data.isNewUser };
+        } catch (error: any) {
+          set({ isLoading: false });
+          return { success: false, error: error.message || 'Google login failed' };
         }
       },
 

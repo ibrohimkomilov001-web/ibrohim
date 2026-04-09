@@ -3,6 +3,7 @@ class CartItemModel {
   final String id;
   final String userId;
   final String productId;
+  final String? variantId;
   final int quantity;
   final ProductInfo? product;
 
@@ -10,6 +11,7 @@ class CartItemModel {
     required this.id,
     required this.userId,
     required this.productId,
+    this.variantId,
     this.quantity = 1,
     this.product,
   });
@@ -18,6 +20,7 @@ class CartItemModel {
     String? id,
     String? userId,
     String? productId,
+    String? variantId,
     int? quantity,
     ProductInfo? product,
   }) {
@@ -25,6 +28,7 @@ class CartItemModel {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       productId: productId ?? this.productId,
+      variantId: variantId ?? this.variantId,
       quantity: quantity ?? this.quantity,
       product: product ?? this.product,
     );
@@ -36,12 +40,22 @@ class CartItemModel {
       id: json['id'] as String? ?? '',
       userId: (json['user_id'] ?? json['userId']) as String? ?? '',
       productId: (json['product_id'] ?? json['productId']) as String? ?? '',
+      variantId: (json['variant_id'] ?? json['variantId']) as String?,
       quantity: json['quantity'] as int? ?? 1,
       product: productData != null
           ? ProductInfo.fromJson(productData as Map<String, dynamic>)
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'user_id': userId,
+        'product_id': productId,
+        'variant_id': variantId,
+        'quantity': quantity,
+        'product': product?.toJson(),
+      };
 
   double get total => (product?.price ?? 0) * quantity;
 }
@@ -95,6 +109,16 @@ class ProductInfo {
       stock: _toInt(json['stock']) ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name_uz': nameUz,
+        'name_ru': nameRu,
+        'price': price,
+        'old_price': oldPrice,
+        'images': images,
+        'stock': stock,
+      };
 
   String getName(String locale) => locale == 'ru' ? nameRu : nameUz;
   String? get firstImage => images.isNotEmpty ? images.first : null;

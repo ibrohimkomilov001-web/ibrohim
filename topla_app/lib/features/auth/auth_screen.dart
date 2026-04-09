@@ -233,6 +233,7 @@ class _AuthScreenState extends State<AuthScreen> {
         Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
       }
     } catch (e) {
+      debugPrint('=== GOOGLE SIGN-IN ERROR TYPE: ${e.runtimeType} ===');
       debugPrint('=== GOOGLE SIGN-IN ERROR: $e ===');
       if (mounted) {
         final errorStr = e.toString().toLowerCase();
@@ -240,28 +241,47 @@ class _AuthScreenState extends State<AuthScreen> {
         // Foydalanuvchi bekor qildi - xabar ko'rsatmaymiz
         if (errorStr.contains('cancelled') ||
             errorStr.contains('canceled') ||
+            errorStr.contains('sign_in_canceled') ||
             errorStr.contains('bekor qilindi')) {
           setState(() => _isGoogleLoading = false);
           return;
         }
 
-        final l10n = AppLocalizations.of(context);
-        String message =
-            '${l10n?.translate('google_sign_in_error') ?? 'Google kirish xatoligi'}: ${e.toString().length > 100 ? e.toString().substring(0, 100) : e.toString()}';
-        if (errorStr.contains('network') ||
-            errorStr.contains('internet') ||
-            errorStr.contains('socket') ||
-            errorStr.contains('connection') ||
-            errorStr.contains('unreachable') ||
-            errorStr.contains('timeout')) {
-          message = l10n?.translate('no_internet_check') ??
-              'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
+        // PlatformException (Google Sign-In native xatoligi)
+        String message;
+        if (e is PlatformException) {
+          debugPrint(
+              '=== PlatformException code: ${e.code} message: ${e.message} ===');
+          if (e.code == 'sign_in_failed' || e.code == '10') {
+            message =
+                'Google kirish xatoligi (${e.code}): ${e.message ?? "Noma'lum xato"}';
+          } else if (e.code == 'network_error') {
+            message = 'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
+          } else {
+            message =
+                'Google xatoligi [${e.code}]: ${e.message ?? e.toString()}';
+          }
+        } else if (e is ApiException) {
+          message = 'Server xatoligi: ${e.message}';
+        } else {
+          final l10n = AppLocalizations.of(context);
+          message = errorStr.contains('network') ||
+                  errorStr.contains('internet') ||
+                  errorStr.contains('socket') ||
+                  errorStr.contains('connection') ||
+                  errorStr.contains('unreachable') ||
+                  errorStr.contains('timeout')
+              ? (l10n?.translate('no_internet_check') ??
+                  'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring')
+              : 'Google kirish xatoligi: ${e.toString().length > 150 ? e.toString().substring(0, 150) : e.toString()}';
         }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -301,9 +321,6 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // Check if keyboard is visible
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardVisible = bottomInset > 0.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -478,6 +495,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             textInputAction: TextInputAction.done,
                             textAlign: TextAlign.center,
                             autofocus: true,
+                            autofillHints: const [AutofillHints.oneTimeCode],
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -539,140 +557,136 @@ class _AuthScreenState extends State<AuthScreen> {
                                   ),
                                 ),
                         ),
+                      ], // <-- END of OTP else block
+
+                      const SizedBox(height: 32),
+
+                      // Button section - natively below the inputs
+                      // Submit button - pill-shaped
+                      SizedBox(
+                        height: 48,
+                        child: Builder(builder: (context) {
+                          final isPhoneValid = _phoneController.text
+                                  .replaceAll(RegExp(r'\D'), '')
+                                  .length ==
+                              9;
+                          final isButtonEnabled = _isOtpSent
+                              ? _otpController.text.length == 6
+                              : isPhoneValid;
+
+                          return ElevatedButton(
+                            onPressed: _isLoading || !isButtonEnabled
+                                ? null
+                                : (_isOtpSent ? _verifyOtp : _sendOtp),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey.shade200,
+                              disabledForegroundColor: Colors.grey.shade400,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _isOtpSent
+                                        ? (l10n?.translate('verify') ??
+                                            'Tasdiqlash')
+                                        : (l10n?.translate('continue') ??
+                                            'Davom etish'),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          );
+                        }),
+                      ),
+
+                      // Google Sign In - faqat telefon kiritish sahifasida
+                      if (!_isOtpSent) ...[
+                        const SizedBox(height: 16),
+
+                        // Divider
+                        Row(
+                          children: [
+                            Expanded(
+                                child: Divider(
+                                    color: Colors.grey.shade200, height: 1)),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                l10n?.translate('or_text') ?? 'yoki',
+                                style: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                                child: Divider(
+                                    color: Colors.grey.shade200, height: 1)),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Google Sign In Button - pill-shaped
+                        SizedBox(
+                          height: 48,
+                          child: OutlinedButton(
+                            onPressed:
+                                _isGoogleLoading ? null : _signInWithGoogle,
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              side: BorderSide(color: Colors.grey.shade200),
+                              elevation: 0,
+                            ),
+                            child: _isGoogleLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildGoogleLogo(),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        l10n?.translate('login_with_google') ??
+                                            'Google orqali kirish',
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
                       ],
-                    ],
+                    ], // <-- END of Column children
                   ),
                 ),
               ),
             ),
-
-            // Button section - pinned at bottom, near keyboard
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Submit button - pill-shaped
-                  SizedBox(
-                    height: 48,
-                    child: Builder(builder: (context) {
-                      final isPhoneValid = _phoneController.text
-                              .replaceAll(RegExp(r'\D'), '')
-                              .length ==
-                          9;
-                      final isButtonEnabled = _isOtpSent
-                          ? _otpController.text.length == 6
-                          : isPhoneValid;
-
-                      return ElevatedButton(
-                        onPressed: _isLoading || !isButtonEnabled
-                            ? null
-                            : (_isOtpSent ? _verifyOtp : _sendOtp),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.grey.shade200,
-                          disabledForegroundColor: Colors.grey.shade400,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                _isOtpSent
-                                    ? (l10n?.translate('verify') ??
-                                        'Tasdiqlash')
-                                    : (l10n?.translate('continue') ??
-                                        'Davom etish'),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                      );
-                    }),
-                  ),
-
-                  // Google Sign In - faqat telefon kiritish sahifasida va klaviatura yopiq paytda ko'rsatish
-                  if (!_isOtpSent && !isKeyboardVisible) ...[
-                    const SizedBox(height: 20),
-
-                    // Divider
-                    Row(
-                      children: [
-                        Expanded(
-                            child: Divider(
-                                color: Colors.grey.shade200, height: 1)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            l10n?.translate('or_text') ?? 'yoki',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                            child: Divider(
-                                color: Colors.grey.shade200, height: 1)),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Google Sign In Button - pill-shaped
-                    SizedBox(
-                      height: 48,
-                      child: OutlinedButton(
-                        onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          side: BorderSide(color: Colors.grey.shade200),
-                          elevation: 0,
-                        ),
-                        child: _isGoogleLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _buildGoogleLogo(),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    l10n?.translate('login_with_google') ??
-                                        'Google orqali kirish',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
+          ], // <-- END of Scaffold body Column children
         ),
       ),
     );

@@ -281,6 +281,10 @@ class CacheKeys {
   static const String categories = 'categories';
   static const String banners = 'banners';
   static const String products = 'products';
+  static const String featuredProducts = 'featured_products';
+  static const String favorites = 'favorites';
+  static const String orders = 'orders';
+  static const String cart = 'cart';
   static const String userProfile = 'user_profile';
   static const String addresses = 'addresses';
   static const String settings = 'app_settings';

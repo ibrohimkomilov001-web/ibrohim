@@ -1,4 +1,5 @@
 import { fetchProducts, approveProduct as apiApproveProduct, rejectProduct as apiRejectProduct, deleteProduct as apiDeleteProduct } from "@/lib/api/admin";
+import { resolveImageUrl } from "@/lib/api/upload";
 import type { PaginationMeta } from "@/components/ui/data-table-pagination";
 
 export type Product = {
@@ -44,7 +45,7 @@ export async function getProducts(params?: ProductsParams): Promise<{
       id: p.id,
       name_uz: p.nameUz || p.name_uz || p.name || 'Nomsiz',
       shop: p.shop ? { name: p.shop.name } : undefined,
-      thumbnail_url: p.thumbnailUrl || p.thumbnail_url || p.images?.[0],
+      thumbnail_url: resolveImageUrl(p.thumbnailUrl || p.thumbnail_url || p.images?.[0]),
       category: p.category ? { name_uz: p.category.nameUz || p.category.name_uz } : undefined,
       price: Number(p.price) || 0,
       status: p.status === 'active' ? 'approved' : p.status === 'has_errors' ? 'rejected' : p.status === 'on_review' ? 'pending' : p.status,

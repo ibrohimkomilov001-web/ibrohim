@@ -12,6 +12,7 @@ import { checkRateLimit, setWithExpiry, getValue, deleteKey } from '../../config
 import { sendOtp, verifyOtp, getOtpForTesting, type OtpChannel } from '../../services/otp.service.js';
 import { getLocationFromIp } from '../../utils/geolocation.js';
 import { generateUniqueSlug, generateSlugBase } from '../../utils/slug.js';
+import crypto from 'crypto';
 
 // Reserved slugs — mavjud routelar bilan conflict bo'lmasligi uchun
 const RESERVED_SLUGS = new Set([
@@ -88,10 +89,15 @@ const loginSchema = z.object({
 
 const updateProfileSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
+  firstName: z.string().min(1).max(60).optional(),
+  lastName: z.string().max(60).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(9).max(20).optional(),
   avatarUrl: z.string().url().optional(),
   language: z.enum(['uz', 'ru']).optional(),
+  gender: z.enum(['male', 'female', 'unspecified']).optional(),
+  birthDate: z.string().datetime().optional().transform(v => v ? new Date(v) : undefined),
+  region: z.string().max(100).optional(),
 });
 
 const refreshTokenSchema = z.object({
@@ -370,10 +376,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!profile) {
       // Yangi foydalanuvchi
       isNewUser = true;
+
+      // Generate unique referral code
+      let referralCode: string;
+      let isUnique = false;
+      do {
+        referralCode = 'TOPLA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        const existing = await prisma.profile.findUnique({ where: { referralCode } });
+        isUnique = !existing;
+      } while (!isUnique);
+
       profile = await prisma.profile.create({
         data: {
           phone,
           fcmToken: body.fcmToken || null,
+          referralCode,
         },
       });
     } else {
@@ -426,10 +443,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           id: profile.id,
           phone: profile.phone,
           fullName: profile.fullName,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
           email: profile.email,
           avatarUrl: profile.avatarUrl,
           role: profile.role,
           language: profile.language,
+          gender: profile.gender,
+          birthDate: profile.birthDate,
+          region: profile.region,
+          referralCode: profile.referralCode,
+          referralPoints: profile.referralPoints,
         },
         isNewUser,
         accessToken,
@@ -477,11 +501,22 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!profile) {
       // Yangi foydalanuvchi
       isNewUser = true;
+
+      // Generate unique referral code
+      let referralCode2: string;
+      let isUnique2 = false;
+      do {
+        referralCode2 = 'TOPLA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        const existing = await prisma.profile.findUnique({ where: { referralCode: referralCode2 } });
+        isUnique2 = !existing;
+      } while (!isUnique2);
+
       profile = await prisma.profile.create({
         data: {
           phone: body.phone,
           firebaseUid: firebaseUser.uid,
           fcmToken: body.fcmToken || null,
+          referralCode: referralCode2,
         },
       });
     } else {
@@ -623,11 +658,18 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         id: profile.id,
         phone: profile.phone,
         fullName: profile.fullName,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
         email: profile.email,
         avatarUrl: profile.avatarUrl,
         role: profile.role,
         language: profile.language,
         status: profile.status,
+        gender: profile.gender,
+        birthDate: profile.birthDate,
+        region: profile.region,
+        referralCode: profile.referralCode,
+        referralPoints: profile.referralPoints,
         shop: profile.shop,
         courier: profile.courier,
         addresses: profile.addresses,
@@ -662,9 +704,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // firstName/lastName → auto-build fullName if not explicitly provided
+    const updateData: any = { ...body };
+    if ((body.firstName || body.lastName) && !body.fullName) {
+      const currentProfile = await prisma.profile.findUnique({
+        where: { id: request.user!.userId },
+        select: { firstName: true, lastName: true },
+      });
+      const fn = body.firstName ?? currentProfile?.firstName ?? '';
+      const ln = body.lastName ?? currentProfile?.lastName ?? '';
+      updateData.fullName = [fn, ln].filter(Boolean).join(' ') || undefined;
+    }
+
     const profile = await prisma.profile.update({
       where: { id: request.user!.userId },
-      data: body,
+      data: updateData,
     });
 
     return reply.send({
@@ -1389,12 +1443,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       throw new AppError('Iltimos, 60 soniya kutib qayta urinib ko\'ring', 429);
     }
 
-    // 6 xonali tasodifiy kod yaratish
-    const resetCode = String(Math.floor(100000 + Math.random() * 900000));
+    // 6 xonali tasodifiy kod yaratish (crypto-safe)
+    const resetCode = String(crypto.randomInt(100000, 999999));
     const RESET_TTL = 15 * 60; // 15 daqiqa
     
-    // Kodni Redis'ga saqlash (kod -> userId mapping)
-    await setWithExpiry(`password_reset:${resetCode}`, profile.id, RESET_TTL);
+    // Kodni hash qilib Redis'ga saqlash (Redis access orqali code sizmashi oldini oladi)
+    const codeHash = crypto.createHash('sha256').update(resetCode).digest('hex');
+    await setWithExpiry(`password_reset:${codeHash}`, profile.id, RESET_TTL);
     // Rate limit o'rnatish
     await setWithExpiry(rateLimitKey, '1', 60);
 
@@ -1440,8 +1495,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/auth/confirm-reset', async (request, reply) => {
     const body = confirmResetSchema.parse(request.body);
 
-    // Redis'dan token tekshirish
-    const userId = await getValue(`password_reset:${body.token}`);
+    // Redis'dan hash qilingan token tekshirish
+    const tokenHash = crypto.createHash('sha256').update(body.token).digest('hex');
+    const userId = await getValue(`password_reset:${tokenHash}`);
     if (!userId) {
       throw new AppError('Token yaroqsiz yoki muddati tugagan', 400);
     }
@@ -1463,7 +1519,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     });
 
     // Tokenni o'chirish (bir martalik ishlatish)
-    await deleteKey(`password_reset:${body.token}`);
+    await deleteKey(`password_reset:${tokenHash}`);
 
     request.log.info({ userId }, 'Password reset completed');
 
@@ -1811,7 +1867,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     let name: string = '';
     let picture: string = '';
     let phone: string = '';
-    let googleUid: string = '';
+    // Firebase UID (Firebase Admin SDK orqali tasdiqlangan)
+    let firebaseUidValue: string = '';
+    // Google sub ID (Google API orqali tasdiqlangan) — alohida maydon
+    let googleSubId: string = '';
 
     // 1. Token tekshirish - Firebase yoki Google direct
     if (body.firebaseToken) {
@@ -1822,7 +1881,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         name = firebaseUser.name || firebaseUser.displayName || '';
         picture = firebaseUser.picture || '';
         phone = firebaseUser.phone_number || '';
-        googleUid = firebaseUser.uid;
+        firebaseUidValue = firebaseUser.uid;
       } catch (error) {
         console.warn('Firebase token verification failed, trying Google direct...');
         // Firebase ishlamasa, googleAccessToken bormi tekshiramiz
@@ -1832,8 +1891,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    if (!googleUid && body.googleAccessToken) {
+    if (!firebaseUidValue && body.googleAccessToken) {
       // Google Access Token orqali to'g'ridan-to'g'ri
+      // google_id (Google sub) ni firebase_uid ga emas, alohida maydoniga saqlaymiz
       try {
         const googleResponse = await fetch(
           `https://www.googleapis.com/oauth2/v3/userinfo`,
@@ -1850,49 +1910,69 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         email = googleUser.email;
         name = googleUser.name || '';
         picture = googleUser.picture || '';
-        googleUid = googleUser.sub; // Google user ID
+        googleSubId = googleUser.sub; // Google sub → googleId maydoniga saqlanadi
       } catch (error) {
         console.error('Google token verification error:', error);
         throw new AppError('Google token yaroqsiz', 401);
       }
     }
 
-    if (!googleUid) {
+    if (!firebaseUidValue && !googleSubId) {
       throw new AppError('Autentifikatsiya amalga oshmadi', 401);
     }
 
-    // 2. Profilni topish - avval firebaseUid, keyin email bo'yicha
-    let profile = await prisma.profile.findFirst({
-      where: {
-        OR: [
-          { firebaseUid: googleUid },
-          ...(email ? [{ email }] : []),
-        ],
-      },
-    });
+    // 2. Profilni topish - to'g'ri maydonlar bo'yicha qidirish
+    // Firebase UID → firebaseUid maydoni, Google sub → googleId maydoni
+    let isNew = false;
+    let profile: Awaited<ReturnType<typeof prisma.profile.findFirst>>;
+
+    if (firebaseUidValue) {
+      profile = await prisma.profile.findUnique({ where: { firebaseUid: firebaseUidValue } });
+    } else {
+      profile = await prisma.profile.findUnique({ where: { googleId: googleSubId } });
+    }
+    // Email bo'yicha fallback
+    if (!profile && email) {
+      profile = await prisma.profile.findFirst({ where: { email } });
+    }
 
     if (!profile) {
       // phone maydoni majburiy va unique, Google foydalanuvchilarda telefon yo'q bo'lishi mumkin
       // Shuning uchun vaqtincha unique placeholder yaratamiz
-      const tempPhone = phone || `google_${googleUid}`;
+      const uidForPhone = firebaseUidValue || googleSubId;
+      const tempPhone = phone || `google_${uidForPhone}`;
+
+      // Generate unique referral code
+      let referralCode3: string;
+      let isUnique3 = false;
+      do {
+        referralCode3 = 'TOPLA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        const existing = await prisma.profile.findUnique({ where: { referralCode: referralCode3 } });
+        isUnique3 = !existing;
+      } while (!isUnique3);
 
       // Yangi foydalanuvchi yaratish
+      isNew = true;
       profile = await prisma.profile.create({
         data: {
-          firebaseUid: googleUid,
+          ...(firebaseUidValue ? { firebaseUid: firebaseUidValue } : {}),
+          ...(googleSubId ? { googleId: googleSubId } : {}),
           email: email || null,
           fullName: name || null,
           avatarUrl: picture || null,
           phone: tempPhone,
           fcmToken: body.fcmToken || null,
+          referralCode: referralCode3,
         },
       });
     } else {
-      // Mavjud foydalanuvchini yangilash
+      // Mavjud foydalanuvchini yangilash — faqat bo'sh maydonlarni to'ldirish
       profile = await prisma.profile.update({
         where: { id: profile.id },
         data: {
-          firebaseUid: googleUid,
+          // Faqat bo'sh bo'lsa yangilaymiz — unique constraint konfliktidan saqlanish uchun
+          ...(firebaseUidValue && !profile.firebaseUid ? { firebaseUid: firebaseUidValue } : {}),
+          ...(googleSubId && !profile.googleId ? { googleId: googleSubId } : {}),
           ...(email && !profile.email ? { email } : {}),
           ...(name && !profile.fullName ? { fullName: name } : {}),
           ...(picture && !profile.avatarUrl ? { avatarUrl: picture } : {}),
@@ -1931,6 +2011,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const accessToken = generateToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
+    setAuthCookies(reply, accessToken, refreshToken);
     return reply.send({
       success: true,
       data: {
@@ -1943,6 +2024,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           role: profile.role,
           language: profile.language,
         },
+        isNewUser: isNew,
         accessToken,
         refreshToken,
       },

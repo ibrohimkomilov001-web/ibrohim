@@ -19,9 +19,10 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const viewport: Viewport = {
-  themeColor: '#FF8800',
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
@@ -36,6 +37,13 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
     apple: '/apple-touch-icon.svg',
+  },
+  alternates: {
+    canonical: '/',
+    languages: {
+      'uz': '/',
+      'ru': '/',
+    },
   },
   openGraph: {
     type: 'website',
@@ -57,7 +65,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'TOPLA',
   },
   formatDetection: {

@@ -43,8 +43,13 @@ abstract class IAuthRepository {
     String? email,
     String? phone,
     String? avatarUrl,
+    String? gender,
+    String? region,
   });
 
   /// Foydalanuvchi rolini olish
   Future<UserRole> getUserRole();
+
+  /// Sessiyani tiklash (app qayta ochilganda)
+  Future<bool> restoreSession();
 }

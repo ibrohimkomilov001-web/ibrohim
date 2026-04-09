@@ -108,6 +108,7 @@ export function errorHandler(
   reply.status(500).send({
     error: 'Internal Server Error',
     message: 'Serverda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.',
+    requestId: request.id,
   });
 }
 

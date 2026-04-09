@@ -43,6 +43,7 @@ import { initMeilisearch } from './services/search.service.js';
 import { startWorkers, closeQueues } from './services/queue.service.js';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 // ============================================
 // Create Fastify App
@@ -157,6 +158,37 @@ app.addHook('onRequest', async (request, reply) => {
     const cookieToken = (request.cookies as Record<string, string>)?.topla_at;
     if (!authHeader && !cookieToken) {
       return reply.status(401).send({ error: 'Autentifikatsiya zarur' });
+    }
+  }
+});
+
+// ============================================
+// Request ID (x-request-id)
+// ============================================
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+app.addHook('onRequest', async (request, reply) => {
+  const reqId = (request.headers['x-request-id'] as string) || randomUUID();
+  request.id = reqId;
+  reply.header('x-request-id', reqId);
+});
+
+// ============================================
+// UUID Parameter Validation
+// ============================================
+
+app.addHook('preValidation', async (request, reply) => {
+  const params = request.params as Record<string, string> | undefined;
+  if (!params) return;
+  for (const [key, value] of Object.entries(params)) {
+    if (key === 'id' || key.endsWith('Id')) {
+      if (typeof value === 'string' && value.length > 0 && !UUID_REGEX.test(value)) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: `Noto'g'ri identifikator formati: ${key}`,
+        });
+      }
     }
   }
 });

@@ -111,10 +111,45 @@ class OrderModel {
           : [],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'order_number': orderNumber,
+        'user_id': userId,
+        'address_id': addressId,
+        'status': status.name,
+        'subtotal': subtotal,
+        'delivery_fee': deliveryFee,
+        'discount': discount,
+        'cashback_used': cashbackUsed,
+        'total': total,
+        'payment_method': paymentMethod,
+        'payment_status': paymentStatus.name,
+        'delivery_date': deliveryDate?.toIso8601String(),
+        'delivery_time_slot': deliveryTimeSlot,
+        'notes': notes,
+        'recipient_name': recipientName,
+        'recipient_phone': recipientPhone,
+        'delivery_method': deliveryMethod,
+        'created_at': createdAt.toIso8601String(),
+        'pickup_point_id': pickupPointId,
+        'pickup_code': pickupCode,
+        'pickup_token': pickupToken,
+        'pickupPoint': pickupPoint?.toJson(),
+        'items': items.map((i) => i.toJson()).toList(),
+      };
 }
 
 /// Buyurtma elementi
 class OrderItemModel {
+  static String? _resolveImageUrl(dynamic url) {
+    if (url == null) return null;
+    final s = url.toString();
+    if (s.isEmpty) return null;
+    if (s.startsWith('http')) return s;
+    return 'https://topla.uz$s';
+  }
+
   final String id;
   final String orderId;
   final String? productId;
@@ -148,13 +183,25 @@ class OrderItemModel {
       productId: (json['product_id'] ?? json['productId']) as String?,
       shopId: (json['shop_id'] ?? json['shopId']) as String?,
       productName: (json['product_name'] ?? json['name']) as String? ?? '',
-      productImage:
-          json['product_image'] ?? json['imageUrl'] ?? json['image_url'],
+      productImage: _resolveImageUrl(
+          json['product_image'] ?? json['imageUrl'] ?? json['image_url']),
       price: prc,
       quantity: qty,
       total: _safeDouble(json['total'] ?? (prc * qty)),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'order_id': orderId,
+        'product_id': productId,
+        'shop_id': shopId,
+        'product_name': productName,
+        'product_image': productImage,
+        'price': price,
+        'quantity': quantity,
+        'total': total,
+      };
 }
 
 /// Buyurtma holati
@@ -280,4 +327,14 @@ class PickupPointModel {
       workingHours: json['workingHours'] as Map<String, dynamic>?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'address': address,
+        'latitude': latitude,
+        'longitude': longitude,
+        'phone': phone,
+        'workingHours': workingHours,
+      };
 }

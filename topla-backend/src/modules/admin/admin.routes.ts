@@ -19,6 +19,7 @@ import { checkRateLimit, cacheDelete } from '../../config/redis.js';
 import { sendMulticastPush } from '../../config/firebase.js';
 import bcrypt from 'bcryptjs';
 import { indexProduct, removeProductFromIndex, bulkIndexProducts, clearIndex, initMeilisearch } from '../../services/search.service.js';
+import { createAndSendContract, getContractStatus, isDidoxConfigured } from '../../services/didox.service.js';
 import { CacheKeys } from '../../utils/constants.js';
 
 // ============================================
@@ -465,6 +466,70 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   // ==========================================
+  // USER DEMOGRAPHICS
+  // ==========================================
+  app.get('/admin/user-demographics', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async () => {
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now);
+    twelveMonthsAgo.setFullYear(now.getFullYear() - 1);
+
+    const [genderStats, regionStats, allUsersWithAge, monthlyGrowthRaw] = await Promise.all([
+      // Gender distribution
+      prisma.profile.groupBy({
+        by: ['gender'],
+        where: { role: 'user' },
+        _count: { id: true },
+      }),
+      // Region distribution
+      prisma.$queryRaw<Array<{ region: string | null; count: bigint }>>`
+        SELECT region, COUNT(id)::bigint as count
+        FROM profiles
+        WHERE role = 'user'
+        GROUP BY region
+        ORDER BY count DESC
+      `,
+      // Age data for histogram
+      prisma.profile.findMany({
+        where: { role: 'user', birthDate: { not: null } },
+        select: { birthDate: true },
+      }),
+      // Monthly user growth (last 12 months)
+      prisma.$queryRaw<Array<{ month: string; count: bigint }>>`
+        SELECT TO_CHAR("created_at", 'YYYY-MM') as month, COUNT(id)::bigint as count
+        FROM profiles
+        WHERE role = 'user' AND "created_at" >= ${twelveMonthsAgo}
+        GROUP BY month
+        ORDER BY month ASC
+      `,
+    ]);
+
+    // Build age groups from birthDates
+    const ageGroups = { '13-17': 0, '18-24': 0, '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0 };
+    for (const { birthDate } of allUsersWithAge) {
+      if (!birthDate) continue;
+      const age = Math.floor((now.getTime() - new Date(birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+      if (age >= 13 && age <= 17) ageGroups['13-17']++;
+      else if (age >= 18 && age <= 24) ageGroups['18-24']++;
+      else if (age >= 25 && age <= 34) ageGroups['25-34']++;
+      else if (age >= 35 && age <= 44) ageGroups['35-44']++;
+      else if (age >= 45 && age <= 54) ageGroups['45-54']++;
+      else if (age >= 55) ageGroups['55+']++;
+    }
+
+    return {
+      success: true,
+      data: {
+        gender: genderStats.map(g => ({ gender: g.gender, count: g._count.id })),
+        regions: regionStats.map(r => ({ region: r.region || 'Noma\'lum', count: Number(r.count) })),
+        ageGroups: Object.entries(ageGroups).map(([range, count]) => ({ range, count })),
+        monthlyGrowth: monthlyGrowthRaw.map(m => ({ month: m.month, count: Number(m.count) })),
+      },
+    };
+  });
+
+  // ==========================================
   // SHOPS
   // ==========================================
 
@@ -539,6 +604,14 @@ export async function adminRoutes(app: FastifyInstance) {
       status: z.enum(['active', 'blocked', 'inactive', 'pending']),
       reason: z.string().optional(),
     }).parse(request.body);
+
+    // Shartnoma imzolanmasdan active qilish mumkin emas
+    if (status === 'active') {
+      const existing = await prisma.shop.findUnique({ where: { id }, select: { contractStatus: true } });
+      if (existing && existing.contractStatus !== 'signed') {
+        throw new AppError('Shartnoma imzolanmaganligi sababli do\'konni faollashtirish mumkin emas. Avval shartnoma yuboring.', 400);
+      }
+    }
 
     const shop = await prisma.shop.update({ where: { id }, data: { status } });
 
@@ -709,6 +782,208 @@ export async function adminRoutes(app: FastifyInstance) {
     }
 
     return { success: true, message: `"${shop.name}" do'koni muvaffaqiyatli o'chirildi` };
+  });
+
+  // ==========================================
+  // SHOP CONTRACT — Didox shartnoma boshqarish
+  // ==========================================
+
+  // Shartnoma yuborish
+  app.post('/admin/shops/:id/send-contract', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+
+    const shop = await prisma.shop.findUnique({
+      where: { id },
+      include: { owner: { select: { email: true, fullName: true } } },
+    });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    if (!shop.inn) {
+      throw new AppError('Vendor INN kiritilmagan. Shartnoma yuborish uchun INN talab qilinadi.', 400);
+    }
+
+    if (shop.contractStatus === 'signed') {
+      throw new AppError('Shartnoma allaqachon imzolangan.', 400);
+    }
+
+    if (!isDidoxConfigured()) {
+      throw new AppError('Didox API sozlanmagan. DIDOX_API_TOKEN va DIDOX_COMPANY_TIN ni .env ga qo\'shing.', 500);
+    }
+
+    const result = await createAndSendContract({
+      vendorTin: shop.inn,
+      vendorName: shop.owner?.fullName || shop.name,
+      vendorEmail: shop.email || shop.owner?.email || undefined,
+      shopName: shop.name,
+      commissionRate: Number(shop.commissionRate),
+    });
+
+    const updatedShop = await prisma.shop.update({
+      where: { id },
+      data: {
+        contractStatus: 'sent',
+        contractId: result.contractId,
+        contractUrl: result.contractUrl,
+        contractSentAt: new Date(),
+        contractSentBy: request.user!.userId,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        userId: request.user!.userId,
+        action: 'shop.contract_sent',
+        entityType: 'shop',
+        entityId: id,
+        details: { contractId: result.contractId },
+        ipAddress: request.ip,
+      },
+    });
+
+    // Vendor'ga bildirishnoma
+    if (shop.ownerId) {
+      await prisma.notification.create({
+        data: {
+          userId: shop.ownerId,
+          type: 'system',
+          title: '📝 Shartnoma yuborildi',
+          body: 'Didox orqali shartnoma yuborildi. Iltimos, shartnomani ko\'rib chiqing va imzolang.',
+        },
+      });
+    }
+
+    return { success: true, data: updatedShop };
+  });
+
+  // Shartnoma holatini tekshirish
+  app.get('/admin/shops/:id/contract-status', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+
+    const shop = await prisma.shop.findUnique({ where: { id } });
+    if (!shop) throw new NotFoundError('Do\'kon');
+
+    if (!shop.contractId) {
+      return { success: true, data: { contractStatus: shop.contractStatus } };
+    }
+
+    if (!isDidoxConfigured()) {
+      return { success: true, data: { contractStatus: shop.contractStatus, note: 'Didox API sozlanmagan' } };
+    }
+
+    // Didox'dan so'nggi holatni olish
+    const didoxStatus = await getContractStatus(shop.contractId);
+
+    let newContractStatus = shop.contractStatus;
+    const updateData: Record<string, unknown> = {};
+
+    if (didoxStatus.status === 'signed' && shop.contractStatus !== 'signed') {
+      newContractStatus = 'signed';
+      updateData.contractStatus = 'signed';
+      updateData.contractSignedAt = didoxStatus.signedAt ? new Date(didoxStatus.signedAt) : new Date();
+    } else if (didoxStatus.status === 'rejected' && shop.contractStatus !== 'rejected') {
+      newContractStatus = 'rejected';
+      updateData.contractStatus = 'rejected';
+      updateData.contractNote = didoxStatus.rejectReason || undefined;
+    } else if (didoxStatus.status === 'viewed' && shop.contractStatus === 'sent') {
+      newContractStatus = 'pending_signature';
+      updateData.contractStatus = 'pending_signature';
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.shop.update({ where: { id }, data: updateData });
+    }
+
+    return {
+      success: true,
+      data: {
+        contractStatus: newContractStatus,
+        contractId: shop.contractId,
+        contractUrl: shop.contractUrl,
+        contractSentAt: shop.contractSentAt,
+        contractSignedAt: updateData.contractSignedAt || shop.contractSignedAt,
+        didoxStatus: didoxStatus.status,
+      },
+    };
+  });
+
+  // Didox webhook — shartnoma imzolanganda/rad etilganda
+  app.post('/webhooks/didox', async (request) => {
+    const body = request.body as { contract_id?: string; status?: string; signed_at?: string; reject_reason?: string };
+
+    if (!body.contract_id || !body.status) {
+      throw new AppError('Noto\'g\'ri webhook ma\'lumotlari', 400);
+    }
+
+    const shop = await prisma.shop.findFirst({
+      where: { contractId: body.contract_id },
+    });
+
+    if (!shop) {
+      request.log.warn({ contractId: body.contract_id }, 'Didox webhook: shop topilmadi');
+      return { success: true }; // Webhook'ni qayta yubortirmaslik uchun 200 qaytaramiz
+    }
+
+    if (body.status === 'signed') {
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: {
+          contractStatus: 'signed',
+          contractSignedAt: body.signed_at ? new Date(body.signed_at) : new Date(),
+        },
+      });
+
+      // Admin'larga bildirishnoma
+      const admins = await prisma.profile.findMany({ where: { role: 'admin' }, select: { id: true } });
+      if (admins.length > 0) {
+        await prisma.notification.createMany({
+          data: admins.map((a) => ({
+            userId: a.id,
+            type: 'system' as const,
+            title: '✅ Shartnoma imzolandi',
+            body: `"${shop.name}" do'koni shartnomani imzoladi. Tasdiqlash mumkin.`,
+          })),
+        });
+      }
+
+      // Vendor'ga bildirishnoma
+      if (shop.ownerId) {
+        await prisma.notification.create({
+          data: {
+            userId: shop.ownerId,
+            type: 'system',
+            title: '✅ Shartnoma imzolandi',
+            body: 'Shartnomangiz muvaffaqiyatli imzolandi. Admin tasdiqlashini kuting.',
+          },
+        });
+      }
+    } else if (body.status === 'rejected') {
+      await prisma.shop.update({
+        where: { id: shop.id },
+        data: {
+          contractStatus: 'rejected',
+          contractNote: body.reject_reason || undefined,
+        },
+      });
+
+      if (shop.ownerId) {
+        await prisma.notification.create({
+          data: {
+            userId: shop.ownerId,
+            type: 'system',
+            title: '❌ Shartnoma rad etildi',
+            body: body.reject_reason
+              ? `Shartnoma rad etildi. Sabab: ${body.reject_reason}`
+              : 'Shartnoma rad etildi. Iltimos, admin bilan bog\'laning.',
+          },
+        });
+      }
+    }
+
+    return { success: true };
   });
 
   // ==========================================
@@ -1164,6 +1439,17 @@ export async function adminRoutes(app: FastifyInstance) {
         ipAddress: request.ip,
       },
     });
+
+    // Agar "delivered" bo'lsa → salesCount oshirish
+    if (status === 'delivered') {
+      const deliveredItems = await prisma.orderItem.findMany({ where: { orderId: id } });
+      for (const item of deliveredItems) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { salesCount: { increment: item.quantity } },
+        });
+      }
+    }
 
     // Notify user
     await prisma.notification.create({
@@ -2167,6 +2453,9 @@ export async function adminRoutes(app: FastifyInstance) {
         ipAddress: request.ip,
       },
     });
+
+    // Invalidate public settings cache
+    await cacheDelete('settings:public');
 
     return { success: true, message: 'Sozlamalar yangilandi' };
   });

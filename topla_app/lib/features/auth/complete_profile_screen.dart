@@ -16,7 +16,26 @@ class CompleteProfileScreen extends StatefulWidget {
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _nameController = TextEditingController();
   final _surnameController = TextEditingController();
+  String? _selectedGender;
+  String? _selectedRegion;
   bool _isLoading = false;
+
+  static const _uzRegions = [
+    "Toshkent shahri",
+    "Toshkent viloyati",
+    "Andijon",
+    "Farg'ona",
+    "Namangan",
+    "Samarqand",
+    "Buxoro",
+    "Navoiy",
+    "Qashqadaryo",
+    "Surxondaryo",
+    "Jizzax",
+    "Sirdaryo",
+    "Xorazm",
+    "Qoraqalpog'iston",
+  ];
 
   @override
   void dispose() {
@@ -43,6 +62,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       await context.read<AuthProvider>().updateProfile(
             firstName: name,
             lastName: _surnameController.text.trim(),
+            gender: _selectedGender,
+            region: _selectedRegion,
           );
 
       if (mounted) {
@@ -176,6 +197,73 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 ),
               ),
 
+              const SizedBox(height: 20),
+
+              // Gender selector
+              Text(
+                'Jins (ixtiyoriy)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _GenderButton(
+                      label: 'Erkak',
+                      selected: _selectedGender == 'male',
+                      onTap: () => setState(() => _selectedGender =
+                          _selectedGender == 'male' ? null : 'male'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _GenderButton(
+                      label: 'Ayol',
+                      selected: _selectedGender == 'female',
+                      onTap: () => setState(() => _selectedGender =
+                          _selectedGender == 'female' ? null : 'female'),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Region dropdown
+              Text(
+                'Viloyat (ixtiyoriy)',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedRegion,
+                    isExpanded: true,
+                    hint: Text(
+                      'Viloyatni tanlang',
+                      style: TextStyle(color: Colors.grey.shade500),
+                    ),
+                    items: _uzRegions
+                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedRegion = v),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+
               const Spacer(),
 
               // Continue button
@@ -231,6 +319,43 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
               const SizedBox(height: 24),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GenderButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _GenderButton(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 46,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: selected ? Colors.white : Colors.grey.shade600,
           ),
         ),
       ),

@@ -10,7 +10,6 @@ import '../../core/utils/haptic_utils.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/category_item.dart';
 import '../../widgets/skeleton_widgets.dart';
-import '../../widgets/empty_states.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../search/search_screen.dart';
@@ -74,65 +73,69 @@ class _HomeScreenState extends State<HomeScreen>
         },
         child: Builder(
           builder: (context) {
-            return CustomScrollView(
-              slivers: [
-                // Status bar uchun padding
-                SliverToBoxAdapter(
-                  child: SizedBox(height: statusBarHeight),
-                ),
+            return RefreshIndicator(
+              onRefresh: () => context.read<ProductsProvider>().loadAll(),
+              child: CustomScrollView(
+                slivers: [
+                  // Status bar uchun padding
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: statusBarHeight),
+                  ),
 
-                // App Bar with Search
-                SliverToBoxAdapter(
-                  child: _buildSearchHeader(),
-                ),
+                  // App Bar with Search
+                  SliverToBoxAdapter(
+                    child: _buildSearchHeader(),
+                  ),
 
-                // Banner Carousel
-                SliverToBoxAdapter(
-                  child: Consumer<ProductsProvider>(
+                  // Banner Carousel
+                  SliverToBoxAdapter(
+                    child: Consumer<ProductsProvider>(
+                      builder: (context, productsProvider, _) {
+                        return _buildBannerCarousel(productsProvider);
+                      },
+                    ),
+                  ),
+
+                  // Filter chips - Consumer tashqarisida, faqat setState bilan boshqariladi
+                  SliverToBoxAdapter(
+                    child: _buildFilterChips(),
+                  ),
+
+                  // Featured products grid - faqat shu qism provider bilan yangilanadi
+                  Consumer<ProductsProvider>(
                     builder: (context, productsProvider, _) {
-                      return _buildBannerCarousel(productsProvider);
+                      return _buildFeaturedProductsGrid(productsProvider);
                     },
                   ),
-                ),
 
-                // Filter chips - Consumer tashqarisida, faqat setState bilan boshqariladi
-                SliverToBoxAdapter(
-                  child: _buildFilterChips(),
-                ),
-
-                // Featured products grid - faqat shu qism provider bilan yangilanadi
-                Consumer<ProductsProvider>(
-                  builder: (context, productsProvider, _) {
-                    return _buildFeaturedProductsGrid(productsProvider);
-                  },
-                ),
-
-                // Loading more indicator
-                Consumer<ProductsProvider>(
-                  builder: (context, productsProvider, _) {
-                    if (productsProvider.isFeaturedLoadingMore) {
-                      return const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppSizes.lg),
-                          child: Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                  // Loading more indicator
+                  Consumer<ProductsProvider>(
+                    builder: (context, productsProvider, _) {
+                      if (productsProvider.isFeaturedLoadingMore) {
+                        return const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppSizes.lg),
+                            child: Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(child: SizedBox.shrink());
-                  },
-                ),
+                        );
+                      }
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    },
+                  ),
 
-                // Bottom padding
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSizes.xxl),
-                ),
-              ],
+                  // Bottom padding
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSizes.xxl),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -153,7 +156,8 @@ class _HomeScreenState extends State<HomeScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const SearchScreen(),
+                    builder: (context) =>
+                        const SearchScreen(showBackArrow: true),
                   ),
                 );
               },
@@ -801,8 +805,38 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     if (products.isEmpty) {
-      return const SliverToBoxAdapter(
-        child: ProductsLoadingWidget(),
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 48),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory_2_outlined,
+                    size: 56, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.locale.languageCode == 'ru'
+                      ? 'Товары не найдены'
+                      : 'Mahsulotlar topilmadi',
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    setState(() => _selectedFilter = 'for_you');
+                    productsProvider.loadAll();
+                  },
+                  child: Text(
+                    context.l10n.locale.languageCode == 'ru'
+                        ? 'Обновить'
+                        : 'Yangilash',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

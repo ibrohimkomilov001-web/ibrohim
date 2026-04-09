@@ -69,7 +69,7 @@ Bu dokument Google Play Console'dagi Data Safety formini to'ldirishda yordam ber
 | Firebase Analytics | App usage, Device info | Analytics |
 | Firebase Crashlytics | Crash logs, Device info | Stability monitoring |
 | TOPLA API Backend | All user data | Backend storage |
-| Click/Payme | Payment info | Payment processing |
+| Octobank | Payment info | Payment processing |
 | Delivery Partners | Name, Address, Phone | Order delivery |
 
 ### Data Sharing Purposes

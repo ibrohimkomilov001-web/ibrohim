@@ -11,7 +11,8 @@ class ApiCategoryRepositoryImpl implements ICategoryRepository {
 
   @override
   Future<List<CategoryModel>> getCategories() async {
-    final response = await _api.get('/categories', auth: false);
+    final response = await _api.get('/categories',
+        queryParams: {'tree': 'true'}, auth: false);
     return (response.dataList).map((e) => CategoryModel.fromJson(e)).toList();
   }
 

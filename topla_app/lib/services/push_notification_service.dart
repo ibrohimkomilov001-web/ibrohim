@@ -11,8 +11,18 @@ import '../main.dart';
 /// Background message handler (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Handle background messages
   debugPrint('Background message: ${message.messageId}');
+  // data-only bildirishnomalar uchun: saqlash yoki local notification ko'rsatish
+  // Firebase notification payload bo'lsa, tizim o'zi ko'rsatadi
+  final data = message.data;
+  if (data.isNotEmpty) {
+    // SharedPreferences orqali unread count ni oshirish
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final unread = prefs.getInt('unread_notifications') ?? 0;
+      await prefs.setInt('unread_notifications', unread + 1);
+    } catch (_) {}
+  }
 }
 
 /// Push notification service
@@ -274,7 +284,11 @@ class PushNotificationService {
       case 'order_shipping':
       case 'order_delivered':
       case 'order_cancelled':
-        navigator.pushNamed('/orders');
+        if (id != null && id.isNotEmpty) {
+          navigator.pushNamed('/order-detail', arguments: id);
+        } else {
+          navigator.pushNamed('/orders');
+        }
         break;
       case 'return':
       case 'return_status':

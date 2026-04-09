@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
 import '../../widgets/product_card.dart';
+import '../main/main_screen.dart';
 import '../product/product_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -31,6 +32,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.black87, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: true,
         title: Text(
           context.l10n.favorites,
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -68,7 +75,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
           if (provider.favorites.isEmpty) {
             return EmptyFavoritesWidget(
-              onExplore: () => Navigator.pop(context),
+              onExplore: () => MainScreenState.switchToTab(0),
             );
           }
 
@@ -78,7 +85,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildFavoritesGrid(ProductsProvider provider, List<ProductModel> favorites) {
+  Widget _buildFavoritesGrid(
+      ProductsProvider provider, List<ProductModel> favorites) {
     return GridView.builder(
       padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -182,5 +190,4 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       ),
     );
   }
-
 }

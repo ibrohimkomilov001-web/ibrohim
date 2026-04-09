@@ -45,7 +45,7 @@ class CardsRepositoryImpl implements CardsRepository {
       final response = await _api.post('/payments/cards', body: {
         'cardNumber': card.maskedPan,
         'token': card.bindingId,
-        'provider': card.cardType.value == 'click' ? 'click' : 'payme',
+        'provider': 'octobank',
         'expiryDate': card.expiryDate,
         'isDefault': card.isDefault,
       });

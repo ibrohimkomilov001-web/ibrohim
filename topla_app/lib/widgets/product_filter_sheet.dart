@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/localization/app_localizations.dart';
 import '../models/filter_model.dart';
 import '../models/brand_model.dart';
 import '../models/product_facets.dart';
@@ -75,6 +76,7 @@ class ProductFilterSheet extends StatefulWidget {
 class _ProductFilterSheetState extends State<ProductFilterSheet> {
   bool get _isUz => widget.isUzbek;
   String get _locale => _isUz ? 'uz' : 'ru';
+  String _t(String key) => AppLocalizations.of(context)?.translate(key) ?? key;
 
   late ProductFilter _filter;
 
@@ -251,7 +253,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
 
                   // 3. WOW-narx toggle
                   _buildToggleRow(
-                    _isUz ? 'WOW-narx' : 'WOW-цена',
+                    _t('wow_price'),
                     _filter.onlyWithDiscount,
                     (val) =>
                         _updateFilter(_filter.copyWith(onlyWithDiscount: val)),
@@ -318,7 +320,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
 
                   // 12. Stokda bor toggle
                   _buildToggleRow(
-                    _isUz ? 'Stokda bor' : 'В наличии',
+                    _t('in_stock'),
                     _filter.onlyInStock,
                     (val) => _updateFilter(_filter.copyWith(onlyInStock: val)),
                   ),
@@ -361,7 +363,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                 // Center: Filtrlar (always centered)
                 Center(
                   child: Text(
-                    _isUz ? 'Filtrlar' : 'Фильтры',
+                    _t('filter_title'),
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -376,7 +378,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                     child: GestureDetector(
                       onTap: _clearAllFilters,
                       child: Text(
-                        _isUz ? 'Tozalash' : 'Сбросить',
+                        _t('reset_filters'),
                         style: const TextStyle(
                           fontSize: 13,
                           color: Colors.redAccent,
@@ -442,7 +444,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       final min = _filter.minPrice?.toInt().toString() ?? '';
       final max = _filter.maxPrice?.toInt().toString() ?? '';
       chips.add(_buildActiveChip(
-        '$min - $max ${_isUz ? "so'm" : "сум"}',
+        '$min - $max ${_t('currency_som')}',
         () {
           _minPriceCtrl.clear();
           _maxPriceCtrl.clear();
@@ -457,10 +459,10 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       String label;
       switch (_filter.deliveryHours) {
         case 72:
-          label = _isUz ? '3 kungacha' : 'До 3 дней';
+          label = _t('up_to_3_days');
           break;
         case 168:
-          label = _isUz ? '7 kungacha' : 'До 7 дней';
+          label = _t('up_to_7_days');
           break;
         default:
           label = _isUz
@@ -476,7 +478,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
     // WOW-narx
     if (_filter.onlyWithDiscount) {
       chips.add(_buildActiveChip(
-        _isUz ? 'WOW-narx' : 'WOW-цена',
+        _t('wow_price'),
         () => _updateFilter(_filter.copyWith(onlyWithDiscount: false)),
       ));
     }
@@ -536,13 +538,13 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       String label;
       switch (_filter.deliveryType) {
         case 'courier':
-          label = _isUz ? 'Kuryer' : 'Курьер';
+          label = _t('courier');
           break;
         case 'pickup_point':
-          label = _isUz ? 'Topshirish punktiga' : 'Пункт выдачи';
+          label = _t('delivery_point');
           break;
         case 'pickup':
-          label = _isUz ? 'Olib ketish' : 'Самовывоз';
+          label = _t('self_pickup');
           break;
         default:
           label = _filter.deliveryType!;
@@ -556,7 +558,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
     // Reyting
     if (_filter.minRating != null) {
       chips.add(_buildActiveChip(
-        _isUz ? 'Yuqori reyting' : 'Высокий рейтинг',
+        _t('high_rating'),
         () => _updateFilter(_filter.copyWith(clearMinRating: true)),
       ));
     }
@@ -564,7 +566,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
     // Stokda bor
     if (_filter.onlyInStock) {
       chips.add(_buildActiveChip(
-        _isUz ? 'Stokda bor' : 'В наличии',
+        _t('in_stock'),
         () => _updateFilter(_filter.copyWith(onlyInStock: false)),
       ));
     }
@@ -662,7 +664,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isUz ? 'Narxi, so\'m' : 'Цена, сум',
+          _t('price_som'),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -675,7 +677,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             Expanded(
               child: _buildPriceInput(
                 controller: _minPriceCtrl,
-                label: _isUz ? 'dan' : 'от',
+                label: _t('from_price'),
                 hint: priceRange != null ? _formatPrice(priceRange.min) : '0',
                 onChanged: (value) {
                   final price = double.tryParse(value.replaceAll(' ', ''));
@@ -690,7 +692,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             Expanded(
               child: _buildPriceInput(
                 controller: _maxPriceCtrl,
-                label: _isUz ? 'gacha' : 'до',
+                label: _t('to_price'),
                 hint: priceRange != null ? _formatPrice(priceRange.max) : '0',
                 onChanged: (value) {
                   final price = double.tryParse(value.replaceAll(' ', ''));
@@ -797,7 +799,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isUz ? 'Yetkazish muddati' : 'Срок доставки',
+          _t('delivery_period'),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -809,7 +811,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
           children: [
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? '3 kungacha' : 'До 3 дней',
+                label: _t('up_to_3_days'),
                 isSelected: _filter.deliveryHours == 72,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -823,7 +825,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? '7 kungacha' : 'До 7 дней',
+                label: _t('up_to_7_days'),
                 isSelected: _filter.deliveryHours == 168,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -837,7 +839,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? 'Muhim emas' : 'Не важно',
+                label: _t('not_important'),
                 isSelected: _filter.deliveryHours == null,
                 hideClose: true,
                 onTap: () {
@@ -861,7 +863,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isUz ? 'Yetkazish usuli' : 'Способ доставки',
+          _t('delivery_method_title'),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -873,7 +875,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
           children: [
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? 'Kuryer' : 'Курьер',
+                label: _t('courier'),
                 isSelected: _filter.deliveryType == 'courier',
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -888,7 +890,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? 'Punktga' : 'Пункт выдачи',
+                label: _t('pickup_point'),
                 isSelected: _filter.deliveryType == 'pickup_point',
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -904,7 +906,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? 'Olib ketish' : 'Самовывоз',
+                label: _t('self_pickup'),
                 isSelected: _filter.deliveryType == 'pickup',
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -923,7 +925,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
           children: [
             Expanded(
               child: _buildRadioChip(
-                label: _isUz ? 'Muhim emas' : 'Не важно',
+                label: _t('not_important'),
                 isSelected: _filter.deliveryType == null,
                 hideClose: true,
                 onTap: () {
@@ -1002,7 +1004,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
         Row(
           children: [
             Text(
-              _isUz ? 'Brend' : 'Бренд',
+              _t('brand'),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1016,7 +1018,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                 child: Row(
                   children: [
                     Text(
-                      _isUz ? 'Barchasi' : 'Все',
+                      _t('all_items'),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -1087,7 +1089,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
         Row(
           children: [
             Text(
-              _isUz ? 'Do\'kon' : 'Магазин',
+              _t('shop'),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1101,7 +1103,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                 child: Row(
                   children: [
                     Text(
-                      _isUz ? 'Barchasi' : 'Все',
+                      _t('all_items'),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -1234,7 +1236,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
         Row(
           children: [
             Text(
-              _isUz ? 'Rang' : 'Цвет',
+              _t('color_label'),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1248,7 +1250,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                 child: Row(
                   children: [
                     Text(
-                      _isUz ? 'Barchasi' : 'Все',
+                      _t('all_items'),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -1362,7 +1364,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isUz ? 'O\'lcham' : 'Размер',
+          _t('size_label'),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -1450,7 +1452,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _isUz ? 'Barchasi' : 'Все',
+                      _t('all_items'),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -1632,7 +1634,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
           children: [
             Expanded(
               child: _buildRangeInput(
-                label: _isUz ? 'd.' : 'от',
+                label: _t('from_price'),
                 hint: _formatRangeVal(rangeMin),
                 initialValue: currentMin,
                 onChanged: (v) {
@@ -1651,7 +1653,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildRangeInput(
-                label: _isUz ? 'g.' : 'до',
+                label: _t('to_price'),
                 hint: _formatRangeVal(rangeMax),
                 initialValue: currentMax,
                 onChanged: (v) {
@@ -1784,7 +1786,7 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
               );
             }),
             _buildRadioChip(
-              label: _isUz ? 'Muhim emas' : 'Не важно',
+              label: _t('not_important'),
               isSelected: selectedValues.isEmpty,
               hideClose: true,
               onTap: () {
@@ -1936,13 +1938,9 @@ class _ProductFilterSheetState extends State<ProductFilterSheet> {
               child: Text(
                 hasFilters
                     ? (widget.productCount != null && widget.productCount! > 0
-                        ? (_isUz
-                            ? 'Tovarlarni ko\'rsatish (${widget.productCount})'
-                            : 'Показать товары (${widget.productCount})')
-                        : (_isUz
-                            ? 'Tovarlarni ko\'rsatish'
-                            : 'Показать товары'))
-                    : (_isUz ? 'Bekor qilish' : 'Отмена'),
+                        ? '${_t('show_products')} (${widget.productCount})'
+                        : _t('show_products'))
+                    : _t('cancel'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -2047,7 +2045,8 @@ class _AllColorsSheetState extends State<_AllColorsSheet> {
                 Expanded(
                   child: Center(
                     child: Text(
-                      widget.isUzbek ? 'Rang' : 'Цвет',
+                      AppLocalizations.of(context)?.translate('color_label') ??
+                          'Rang',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,

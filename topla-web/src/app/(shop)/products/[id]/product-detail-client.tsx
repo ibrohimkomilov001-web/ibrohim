@@ -52,6 +52,15 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   });
   const similarProducts = (similarData?.products ?? []).filter((p) => p.id !== id).slice(0, 6);
 
+  // Product reviews
+  const { data: reviewsData } = useQuery({
+    queryKey: ['product-reviews', id],
+    queryFn: () => shopApi.getProductReviews(id),
+    enabled: !!id && activeTab === 'reviews',
+  });
+  const reviews = reviewsData?.data ?? reviewsData ?? [];
+  const reviewsMeta = reviewsData?.meta;
+
   if (isLoading) {
     return (
       <div className="site-container py-10">
@@ -140,7 +149,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
             <div className="relative aspect-square rounded-2xl overflow-hidden glass">
               {images.length > 0 ? (
                 <Image
-                  src={images[currentImage]}
+                  src={resolveImageUrl(images[currentImage])}
                   alt={name}
                   fill
                   className="object-cover"
@@ -212,7 +221,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                       i === currentImage ? 'border-primary ring-2 ring-primary/20' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <Image src={img} alt="" width={80} height={80} className="object-cover w-full h-full" />
+                    <Image src={resolveImageUrl(img)} alt="" width={80} height={80} className="object-cover w-full h-full" />
                   </button>
                 ))}
               </div>
@@ -417,11 +426,72 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
           )}
 
           {activeTab === 'reviews' && (
-            <div className="text-center py-10">
-              <p className="text-4xl mb-3">💬</p>
-              <p className="text-muted-foreground">
-                {locale === 'ru' ? 'Отзывов пока нет' : 'Hozircha sharhlar yo\'q'}
-              </p>
+            <div>
+              {reviewsMeta && reviewsMeta.totalReviews > 0 && (
+                <div className="flex items-center gap-4 mb-6 pb-4 border-b">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold">{reviewsMeta.averageRating}</div>
+                    <div className="flex gap-0.5 mt-1">
+                      {[1,2,3,4,5].map(s => (
+                        <Star key={s} className={`w-4 h-4 ${s <= Math.round(reviewsMeta.averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                      ))}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{reviewsMeta.totalReviews} {locale === 'ru' ? 'отзывов' : 'sharh'}</div>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    {[5,4,3,2,1].map(r => (
+                      <div key={r} className="flex items-center gap-2 text-xs">
+                        <span className="w-3">{r}</span>
+                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${reviewsMeta.totalReviews > 0 ? (reviewsMeta.ratingDistribution?.[r] || 0) / reviewsMeta.totalReviews * 100 : 0}%` }} />
+                        </div>
+                        <span className="w-6 text-right text-muted-foreground">{reviewsMeta.ratingDistribution?.[r] || 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {Array.isArray(reviews) && reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {reviews.map((review: any) => (
+                    <div key={review.id} className="border rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                            {(review.user?.fullName || '?')[0].toUpperCase()}
+                          </div>
+                          <span className="font-medium text-sm">{review.user?.fullName || (locale === 'ru' ? 'Пользователь' : 'Foydalanuvchi')}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex gap-0.5 mb-2">
+                        {[1,2,3,4,5].map(s => (
+                          <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                      {review.comment && <p className="text-sm text-foreground/80">{review.comment}</p>}
+                      {review.images?.length > 0 && (
+                        <div className="flex gap-2 mt-2">
+                          {review.images.map((img: string, i: number) => (
+                            <div key={i} className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                              <img src={resolveImageUrl(img)} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <p className="text-4xl mb-3">💬</p>
+                  <p className="text-muted-foreground">
+                    {locale === 'ru' ? 'Отзывов пока нет' : 'Hozircha sharhlar yo\'q'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/repositories/repositories.dart';
 import '../core/services/api_client.dart';
 import '../models/models.dart';
+import '../services/cache_service.dart';
 
 /// Buyurtmalar holati uchun Provider
 class OrdersProvider extends ChangeNotifier {
@@ -76,6 +77,7 @@ class OrdersProvider extends ChangeNotifier {
     _ordersSubscription = _orderRepo.watchOrders().listen(
       (orders) {
         _orders = orders;
+        _saveOrdersCache();
         notifyListeners();
       },
       onError: (e) {
@@ -97,14 +99,56 @@ class OrdersProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    // Cache-first: show cached data immediately (only for unfiltered requests)
+    if (status == null && _orders.isEmpty) {
+      try {
+        final cached = await PersistentCache.get<List<dynamic>>(
+          CacheKeys.orders,
+          (json) => json as List<dynamic>,
+        );
+        if (cached != null && cached.isNotEmpty) {
+          _orders = cached
+              .map((e) => OrderModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _isLoading = false;
+          notifyListeners();
+          // Refresh in background
+          _refreshOrdersInBackground(status: status);
+          return;
+        }
+      } catch (e) {
+        debugPrint('Orders cache read error: $e');
+      }
+    }
+
     try {
       _orders = await _orderRepo.getOrders(status: status);
+      if (status == null) _saveOrdersCache();
     } catch (e) {
       _error = e.toString();
     }
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _refreshOrdersInBackground({String? status}) {
+    _orderRepo.getOrders(status: status).then((data) {
+      _orders = data;
+      if (status == null) _saveOrdersCache();
+      notifyListeners();
+    }).catchError((e) {
+      debugPrint('Orders background refresh error: $e');
+    });
+  }
+
+  void _saveOrdersCache() {
+    PersistentCache.set(
+      CacheKeys.orders,
+      _orders.map((o) => o.toJson()).toList(),
+      (data) => data,
+      ttl: const Duration(minutes: 30),
+    );
   }
 
   Future<OrderModel?> createOrder({

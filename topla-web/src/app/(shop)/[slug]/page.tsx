@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ShopDetailClient from '../shops/[id]/shop-detail-client';
 import type { ShopDetail } from '@/lib/api/shop';

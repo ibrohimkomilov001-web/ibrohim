@@ -1,5 +1,13 @@
+import '../core/config/api_config.dart';
+
 /// Mahsulot modeli
 class ProductModel {
+  /// Relative URL ni absolute URL ga aylantirish
+  static String _resolveUrl(String url) {
+    if (url.startsWith('http')) return url;
+    return '${ApiConfig.baseUrl}$url';
+  }
+
   final String id;
   final String nameUz;
   final String nameRu;
@@ -92,7 +100,9 @@ class ProductModel {
       shopData: json['shop'] is Map<String, dynamic>
           ? json['shop'] as Map<String, dynamic>
           : null,
-      images: json['images'] != null ? List<String>.from(json['images']) : [],
+      images: json['images'] != null
+          ? List<String>.from(json['images']).map(_resolveUrl).toList()
+          : [],
       stock: _parseInt(json['stock']),
       soldCount: _parseInt(
           json['salesCount'] ?? json['sold_count'] ?? json['soldCount']),

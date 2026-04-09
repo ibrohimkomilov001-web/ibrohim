@@ -93,6 +93,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen>
       // Subcategoriyalarni category modeldan olish (API allaqachon qaytargan)
       _subCategories = widget.category.subcategories;
 
+      // Agar model'da subcategoriyalar bo'sh bo'lsa — API dan yuklash
+      if (_subCategories.isEmpty) {
+        final productsProvider = context.read<ProductsProvider>();
+        final fetched =
+            await productsProvider.getSubCategories(widget.category.id);
+        _subCategories = fetched;
+      }
+
       // Initial data yuklandi - endi qaysi view ko'rsatishni bilamiz
       if (mounted) {
         setState(() => _hasLoadedInitialData = true);

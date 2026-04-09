@@ -90,6 +90,7 @@ const sidebarItems = [
   { icon: Bell, key: 'notifications', href: "/admin/notifications" },
   { icon: LineChart, key: 'analytics', href: "/admin/analytics", permission: 'analytics.view' },
   { icon: BarChart3, key: 'reports', href: "/admin/reports", permission: 'analytics.view' },
+  { icon: Users, key: 'demographics', href: "/admin/demographics", permission: 'analytics.view' },
   { icon: FileText, key: 'logs', href: "/admin/logs", permission: 'logs.view' },
   { icon: Percent, key: 'commissions', href: "/admin/commissions", permission: 'settings.manage' },
   { icon: Megaphone, key: 'promotions', href: "/admin/promotions", permission: 'promotions.manage' },

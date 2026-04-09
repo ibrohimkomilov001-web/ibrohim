@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -443,12 +444,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(AppSizes.radiusLg),
                     ),
-                    child: Image.network(
-                      imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
                       width: double.infinity,
                       height: 150,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
                     ),
                   ),
 
@@ -537,7 +538,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: typeInfo.color.withValues(alpha: 0.08),
+                                    color:
+                                        typeInfo.color.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(

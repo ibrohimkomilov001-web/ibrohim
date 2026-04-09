@@ -120,7 +120,7 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
   ];
 
   return (
-    <div className="overflow-x-auto no-scrollbar">
+    <div className="overflow-x-auto no-scrollbar border-b border-gray-100">
       <div className="inline-flex items-center gap-4">
         {filters.map((f) => {
           const isActive = selected === f.key;
@@ -128,16 +128,13 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
             <button
               key={f.key}
               onClick={() => onSelect(f.key)}
-              className={`relative whitespace-nowrap pb-2 text-sm transition-all ${
+              className={`relative whitespace-nowrap pb-0.5 text-sm transition-all ${
                 isActive
-                  ? 'text-black font-semibold'
+                  ? 'text-black font-semibold border-b-2 border-black -mb-px'
                   : 'text-gray-400 font-normal hover:text-gray-700'
               }`}
             >
               {f.label}
-              {isActive && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-black rounded-full" />
-              )}
             </button>
           );
         })}

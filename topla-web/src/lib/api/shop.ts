@@ -132,6 +132,8 @@ export const shopApi = {
   // Categories
   getCategories: () => shopFetch<Category[]>('/categories'),
 
+  getCategoryTree: () => clientFetch<Category[]>('/categories?tree=true'),
+
   // Products
   getProducts: (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -142,6 +144,9 @@ export const shopApi = {
     clientFetch<PaginatedResponse<ProductItem>>(`/products/featured?limit=${limit}`),
 
   getProduct: (id: string) => clientFetch<ProductDetail>(`/products/${id}`),
+
+  getProductReviews: (id: string, page = 1) =>
+    clientFetch<any>(`/products/${id}/reviews?page=${page}&limit=20`),
 
   searchProducts: (q: string, params?: Record<string, string>) => {
     const searchParams = new URLSearchParams({ q, limit: '20', ...params });
@@ -176,4 +181,7 @@ export const shopApi = {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return clientFetch<PaginatedResponse<ProductItem>>(`/shops/${shopId}/products${query}`);
   },
+
+  // Public settings (support phone, email)
+  getPublicSettings: () => clientFetch<Record<string, string>>('/settings/public'),
 };

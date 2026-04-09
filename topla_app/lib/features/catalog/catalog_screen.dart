@@ -5,6 +5,9 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
+import '../../widgets/skeleton_widgets.dart';
+import '../main/main_screen.dart';
+import '../search/search_screen.dart';
 import 'category_detail_screen.dart';
 
 /// Katalog sahifasi
@@ -81,8 +84,49 @@ class _CatalogScreenState extends State<CatalogScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final isRu = context.l10n.locale.languageCode == 'ru';
+
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.black87, size: 20),
+          onPressed: () {
+            MainScreenState.switchToTab(0);
+          },
+        ),
+        title: Text(
+          isRu ? 'Каталог' : 'Katalog',
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black87),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SearchScreen(showCategories: true),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 4),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey.shade200, height: 1),
+        ),
+      ),
       body: SafeArea(
         child: Consumer<ProductsProvider>(
           builder: (context, productsProvider, _) {
@@ -100,17 +144,21 @@ class _CatalogScreenState extends State<CatalogScreen>
               children: [
                 // Categories list
                 Expanded(
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
+                  child: RefreshIndicator(
+                    onRefresh: () =>
+                        productsProvider.loadCategories(force: true),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: EdgeInsets.zero,
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final category = categories[index];
+                        return _buildCategoryItem(category, index);
+                      },
                     ),
-                    padding: EdgeInsets.zero,
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
-                      final category = categories[index];
-                      return _buildCategoryItem(category, index);
-                    },
                   ),
                 ),
               ],
@@ -187,31 +235,7 @@ class _CatalogScreenState extends State<CatalogScreen>
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 32,
-            height: 32,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation(AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            context.l10n.locale.languageCode == 'ru'
-                ? 'Загрузка...'
-                : 'Yuklanmoqda...',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const CatalogListSkeleton();
   }
 
   Widget _buildEmptyState() {

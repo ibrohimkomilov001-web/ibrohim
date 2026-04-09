@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { MapPin, Phone, Mail, ExternalLink } from 'lucide-react';
 import { useTranslation } from '@/store/locale-store';
+import { SupportPhoneLink } from '@/hooks/useSettings';
 
 export function Footer() {
   const { t } = useTranslation();
@@ -97,9 +98,9 @@ export function Footer() {
             <h4 className="font-semibold text-xs text-gray-700 mb-3">{t('contactUs')}</h4>
             <ul className="space-y-2">
               <li>
-                <a href="tel:+998950009416" className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors">
-                  <Phone className="w-3 h-3" /> +998 95 000 94 16
-                </a>
+                <SupportPhoneLink className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                  <Phone className="w-3 h-3" />
+                </SupportPhoneLink>
               </li>
               <li>
                 <a href="mailto:info@topla.uz" className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors">

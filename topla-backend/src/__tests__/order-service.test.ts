@@ -218,7 +218,7 @@ describe('Order Schema Validation', () => {
     addressId: z.string().uuid().optional(),
     pickupPointId: z.string().uuid().optional(),
     deliveryMethod: z.enum(['courier', 'pickup']).default('courier'),
-    paymentMethod: z.enum(['cash', 'card', 'payme', 'click']).default('cash'),
+    paymentMethod: z.enum(['cash', 'card']).default('cash'),
     recipientName: z.string().optional(),
     recipientPhone: z.string().optional(),
     deliveryDate: z.string().optional(),
@@ -239,18 +239,10 @@ describe('Order Schema Validation', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should accept Payme payment method', () => {
+  it('should accept card payment method', () => {
     const result = createOrderSchema.safeParse({
       deliveryMethod: 'courier',
-      paymentMethod: 'payme',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept Click payment method', () => {
-    const result = createOrderSchema.safeParse({
-      deliveryMethod: 'courier',
-      paymentMethod: 'click',
+      paymentMethod: 'card',
     });
     expect(result.success).toBe(true);
   });

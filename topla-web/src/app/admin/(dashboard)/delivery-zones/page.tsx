@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Loader2, Plus, MapPin, Trash2, ToggleLeft, ToggleRight, Edit, CheckCircle, XCircle } from 'lucide-react'
 import { StatCard } from '@/components/charts'
 import { formatPrice } from '@/lib/utils'
-import { getDeliveryZonesWithStats, createDeliveryZone, toggleDeliveryZoneStatus, deleteDeliveryZone, type DeliveryZone } from './actions'
+import { getDeliveryZonesWithStats, createDeliveryZone, toggleDeliveryZoneStatus, deleteDeliveryZone, updateDeliveryZone, type DeliveryZone } from './actions'
 import { toast } from 'sonner'
 import { useUrlState } from '@/hooks/use-url-state'
 import { useTranslation } from '@/store/locale-store'
@@ -21,6 +21,7 @@ export default function AdminDeliveryZonesPage() {
   const queryClient = useQueryClient()
   const [{ search: searchQuery }, setFilters] = useUrlState({ search: '' })
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editZone, setEditZone] = useState<DeliveryZone | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -80,6 +81,19 @@ export default function AdminDeliveryZonesPage() {
     },
   })
 
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<DeliveryZone> }) =>
+      updateDeliveryZone(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-zones'] })
+      toast.success(t('zoneUpdated'))
+      setEditZone(null)
+    },
+    onError: () => {
+      toast.error(t('updateError'))
+    },
+  })
+
   const handleCreate = () => {
     if (!formData.name) {
       toast.error(t('zoneNameRequired'))
@@ -102,6 +116,36 @@ export default function AdminDeliveryZonesPage() {
   const handleDelete = (id: string) => {
     if (!confirm(t('confirmDeleteZone'))) return
     deleteMutation.mutate(id)
+  }
+
+  const handleEdit = (zone: DeliveryZone) => {
+    setEditZone(zone)
+    setFormData({
+      name: zone.name,
+      region: zone.region || '',
+      districts: zone.districts?.join(', ') || '',
+      delivery_fee: zone.delivery_fee ? String(zone.delivery_fee) : '',
+      min_order_amount: zone.min_order_amount ? String(zone.min_order_amount) : '',
+      estimated_time: zone.estimated_time || '',
+    })
+  }
+
+  const handleEditSubmit = () => {
+    if (!editZone || !formData.name) {
+      toast.error(t('zoneNameRequired'))
+      return
+    }
+    editMutation.mutate({
+      id: editZone.id,
+      data: {
+        name: formData.name,
+        region: formData.region || undefined,
+        districts: formData.districts ? formData.districts.split(',').map(d => d.trim()) : [],
+        delivery_fee: formData.delivery_fee ? parseFloat(formData.delivery_fee) : 0,
+        min_order_amount: formData.min_order_amount ? parseFloat(formData.min_order_amount) : 0,
+        estimated_time: formData.estimated_time || undefined,
+      },
+    })
   }
 
   if (isLoading) {
@@ -164,6 +208,9 @@ export default function AdminDeliveryZonesPage() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(zone)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleToggle(zone.id, zone.is_active)}>
                         {zone.is_active ? <ToggleRight className="h-5 w-5 text-green-600" /> : <ToggleLeft className="h-5 w-5" />}
                       </Button>
@@ -255,6 +302,63 @@ export default function AdminDeliveryZonesPage() {
             <Button onClick={handleCreate} disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editZone} onOpenChange={(open) => { if (!open) setEditZone(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('editZone')}</DialogTitle>
+            <DialogDescription>{t('editZoneDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t('zoneName')} *</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('region')}</Label>
+              <Input
+                value={formData.region}
+                onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('districtsComma')}</Label>
+              <Input
+                value={formData.districts}
+                onChange={(e) => setFormData({ ...formData, districts: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('deliveryPrice')}</Label>
+                <Input
+                  type="number"
+                  value={formData.delivery_fee}
+                  onChange={(e) => setFormData({ ...formData, delivery_fee: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('estimatedTime')}</Label>
+                <Input
+                  value={formData.estimated_time}
+                  onChange={(e) => setFormData({ ...formData, estimated_time: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditZone(null)}>{t('cancel')}</Button>
+            <Button onClick={handleEditSubmit} disabled={editMutation.isPending}>
+              {editMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

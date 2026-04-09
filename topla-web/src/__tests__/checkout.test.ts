@@ -109,7 +109,7 @@ describe('Delivery Info API Response', () => {
 // ============================================
 
 describe('Payment Methods', () => {
-  const validMethods = ['cash', 'card', 'payme', 'click'];
+  const validMethods = ['cash', 'card'];
 
   it('should include cash', () => {
     expect(validMethods).toContain('cash');
@@ -117,14 +117,6 @@ describe('Payment Methods', () => {
 
   it('should include card', () => {
     expect(validMethods).toContain('card');
-  });
-
-  it('should include payme', () => {
-    expect(validMethods).toContain('payme');
-  });
-
-  it('should include click', () => {
-    expect(validMethods).toContain('click');
   });
 
   it('should NOT include bitcoin', () => {

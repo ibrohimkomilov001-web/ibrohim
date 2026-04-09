@@ -13,11 +13,18 @@ export interface UserProfile {
   id: string;
   phone: string;
   fullName?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   avatarUrl?: string;
   role: string;
   language: string;
   status?: string;
+  gender?: 'male' | 'female' | 'unspecified';
+  birthDate?: string;
+  region?: string;
+  referralCode?: string;
+  referralPoints?: number;
   addresses?: UserAddress[];
 }
 
@@ -37,6 +44,7 @@ export interface UserDevice {
   deviceName?: string;
   browser?: string;
   ipAddress?: string;
+  location?: string;
   lastActiveAt: string;
   isActive: boolean;
   createdAt: string;
@@ -137,7 +145,16 @@ export const userAuthApi = {
   getMe: () => userRequest<UserProfile>('/auth/me'),
 
   /** Update profile */
-  updateProfile: (data: { fullName?: string; email?: string; language?: string }) =>
+  updateProfile: (data: {
+    fullName?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    language?: string;
+    gender?: 'male' | 'female' | 'unspecified';
+    birthDate?: string;
+    region?: string;
+  }) =>
     userRequest<UserProfile>('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -150,6 +167,21 @@ export const userAuthApi = {
   deleteDevice: (id: string) =>
     userRequest<void>(`/auth/devices/${id}`, { method: 'DELETE' }),
 
+  /** Terminate all other devices */
+  terminateOtherDevices: () =>
+    userRequest<void>('/auth/devices/terminate-others', { method: 'POST' }),
+
+  /** Google Access Token orqali kirish */
+  loginWithGoogle: (googleAccessToken: string) =>
+    userRequest<AuthResponse>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({
+        googleAccessToken,
+        platform: 'web',
+        fcmToken: `web_${Date.now()}`,
+      }),
+    }),
+
   /** Logout */
   logout: async () => {
     try {
@@ -160,4 +192,8 @@ export const userAuthApi = {
     } catch { /* ignore */ }
     removeUserTokens();
   },
+
+  /** Get my product reviews */
+  getMyReviews: (page = 1) =>
+    userRequest<any>(`/my/reviews?page=${page}&limit=20`),
 };

@@ -4,36 +4,41 @@ import { z } from 'zod';
 import { verifyToken, isTokenBlacklisted } from '../utils/jwt.js';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
+import { checkRateLimit } from '../config/redis.js';
 
 let io: SocketIOServer | null = null;
 
 // ============================================
-// Rate limiter for WS events
+// Rate limiter for WS events (Redis-backed, in-memory fallback)
 // ============================================
-const wsRateLimits = new Map<string, { count: number; resetAt: number }>();
+const wsRateLimitsFallback = new Map<string, { count: number; resetAt: number }>();
 
-function wsRateLimit(socketId: string, event: string, maxPerMinute: number): boolean {
-  const key = `${socketId}:${event}`;
-  const now = Date.now();
-  const entry = wsRateLimits.get(key);
+async function wsRateLimit(socketId: string, event: string, maxPerMinute: number): Promise<boolean> {
+  // Redis-backed rate limiting (multi-node safe)
+  try {
+    const result = await checkRateLimit(`ws:${socketId}:${event}`, maxPerMinute, 60);
+    return result.allowed;
+  } catch {
+    // Fallback: in-memory
+    const key = `${socketId}:${event}`;
+    const now = Date.now();
+    const entry = wsRateLimitsFallback.get(key);
 
-  if (!entry || now > entry.resetAt) {
-    wsRateLimits.set(key, { count: 1, resetAt: now + 60000 });
-    return true;
+    if (!entry || now > entry.resetAt) {
+      wsRateLimitsFallback.set(key, { count: 1, resetAt: now + 60000 });
+      return true;
+    }
+
+    entry.count++;
+    return entry.count <= maxPerMinute;
   }
-
-  entry.count++;
-  if (entry.count > maxPerMinute) {
-    return false;
-  }
-  return true;
 }
 
-// Har 5 daqiqada tozalash
+// Har 5 daqiqada fallback tozalash
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of wsRateLimits) {
-    if (now > entry.resetAt) wsRateLimits.delete(key);
+  for (const [key, entry] of wsRateLimitsFallback) {
+    if (now > entry.resetAt) wsRateLimitsFallback.delete(key);
   }
 }, 300000);
 
@@ -64,6 +69,9 @@ const userSockets = new Map<string, string>();
 
 // adminId → socketId
 const adminSockets = new Map<string, string>();
+
+// socketId → token (har bir ulanish uchun token saqlash — blacklist tekshiruvi uchun)
+const socketTokens = new Map<string, string>();
 
 // ============================================
 // Initialize WebSocket Server
@@ -106,6 +114,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
       const payload = verifyToken(token as string);
       (socket as any).user = payload;
+      (socket as any)._token = token as string;
       next();
     } catch {
       next(new Error('Token yaroqsiz'));
@@ -114,6 +123,10 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
   io.on('connection', (socket: Socket) => {
     const user = (socket as any).user;
+
+    // Token ni saqlash — periodic blacklist check uchun
+    const connToken = (socket as any)._token;
+    if (connToken) socketTokens.set(socket.id, connToken);
 
     // Track user socket
     userSockets.set(user.userId, socket.id);
@@ -147,7 +160,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       orderId = parsed.data;
 
       // Rate limit: 30 track requests per minute
-      if (!wsRateLimit(socket.id, 'track:order', 30)) {
+      if (!await wsRateLimit(socket.id, 'track:order', 30)) {
         socket.emit('error', { message: 'Juda ko\'p so\'rov' });
         return;
       }
@@ -223,7 +236,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     socket.on('chat:join', async (roomId: string) => {
       try {
       if (!roomId || typeof roomId !== 'string') return;
-      if (!wsRateLimit(socket.id, 'chat:join', 20)) return;
+      if (!await wsRateLimit(socket.id, 'chat:join', 20)) return;
 
       // Admin har qanday roomga qo'shilishi mumkin
       if (user.role === 'admin') {
@@ -273,7 +286,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     // Xabar yuborish (real-time)
     socket.on('chat:message', async (data: unknown) => {
       try {
-      if (!wsRateLimit(socket.id, 'chat:message', 30)) {
+      if (!await wsRateLimit(socket.id, 'chat:message', 30)) {
         socket.emit('error', { message: 'Juda ko\'p xabar' });
         return;
       }
@@ -349,7 +362,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     socket.on('chat:typing', (roomId: string) => {
       const parsed = uuidSchema.safeParse(roomId);
       if (!parsed.success) return;
-      if (!wsRateLimit(socket.id, 'chat:typing', 20)) return;
+      if (!await wsRateLimit(socket.id, 'chat:typing', 20)) return;
       socket.to(`chat:${parsed.data}`).emit('chat:typing', {
         userId: user.userId,
         roomId: parsed.data,
@@ -373,6 +386,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     socket.on('disconnect', () => {
       userSockets.delete(user.userId);
       adminSockets.delete(user.userId);
+      socketTokens.delete(socket.id);
 
       // Kuryer disconnect
       if (user.role === 'courier') {
@@ -393,6 +407,25 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
       }
     });
   });
+
+  // Har 60 sekundda blacklist qilingan tokenli socketlarni uzish
+  setInterval(async () => {
+    for (const [socketId, token] of socketTokens) {
+      try {
+        const blacklisted = await isTokenBlacklisted(token);
+        if (blacklisted) {
+          const socket = io?.sockets.sockets.get(socketId);
+          if (socket) {
+            socket.emit('error', { message: 'Session yakunlandi' });
+            socket.disconnect(true);
+          }
+          socketTokens.delete(socketId);
+        }
+      } catch {
+        // Ignore check errors
+      }
+    }
+  }, 60_000);
 
   return io;
 }
@@ -427,7 +460,7 @@ function handleCourierConnection(socket: Socket, user: any): void {
     async (data: unknown) => {
       try {
       // Rate limit: max 15 per minute (har 4 sekundda 1)
-      if (!wsRateLimit(socket.id, 'courier:location', 15)) {
+      if (!await wsRateLimit(socket.id, 'courier:location', 15)) {
         return; // Quietly drop — sekin yuborish kerak
       }
 

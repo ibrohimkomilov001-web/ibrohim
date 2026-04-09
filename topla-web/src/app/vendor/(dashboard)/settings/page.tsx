@@ -34,12 +34,17 @@ import {
   Globe,
   Instagram,
   MessageCircle,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslation } from '@/store/locale-store';
+import { useTheme } from 'next-themes';
 
 export default function SettingsPage() {
   const { t } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -577,6 +582,40 @@ export default function SettingsPage() {
                 placeholder="0"
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Theme / Mavzu */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Sun className="h-5 w-5 text-primary" />
+            Mavzu (Tema)
+          </CardTitle>
+          <CardDescription>Yorug' yoki qorong'u rejimni tanlang</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { value: 'light', label: "Yorug'", icon: Sun },
+              { value: 'dark', label: "Qorong'u", icon: Moon },
+              { value: 'system', label: 'Tizim', icon: Monitor },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTheme(opt.value)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                  theme === opt.value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                <opt.icon className="h-4 w-4" />
+                {opt.label}
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>

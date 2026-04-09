@@ -11,6 +11,7 @@ class UserProfile {
   final String? avatarUrl;
   final DateTime? birthDate;
   final String? gender;
+  final String? region;
   final String? referralCode;
   final String? referredBy;
   final double cashbackBalance;
@@ -29,6 +30,7 @@ class UserProfile {
     this.avatarUrl,
     this.birthDate,
     this.gender,
+    this.region,
     this.referralCode,
     this.referredBy,
     this.cashbackBalance = 0,
@@ -74,6 +76,7 @@ class UserProfile {
       avatarUrl: (json['avatar_url'] ?? json['avatarUrl']) as String?,
       birthDate: birthDateRaw != null ? DateTime.parse(birthDateRaw) : null,
       gender: json['gender'] as String?,
+      region: json['region'] as String?,
       referralCode: (json['referral_code'] ?? json['referralCode']) as String?,
       referredBy: (json['referred_by'] ?? json['referredBy']) as String?,
       cashbackBalance:
@@ -110,6 +113,7 @@ class UserProfile {
     String? avatarUrl,
     DateTime? birthDate,
     String? gender,
+    String? region,
   }) {
     return UserProfile(
       id: id,
@@ -121,6 +125,7 @@ class UserProfile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       birthDate: birthDate ?? this.birthDate,
       gender: gender ?? this.gender,
+      region: region ?? this.region,
       referralCode: referralCode,
       referredBy: referredBy,
       cashbackBalance: cashbackBalance,

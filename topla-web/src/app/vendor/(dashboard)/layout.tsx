@@ -22,23 +22,17 @@ import { vendorApi } from "@/lib/api/vendor";
 import { resolveImageUrl } from "@/lib/api/upload";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ShoppingBag,
-  LayoutDashboard,
   Package,
   ClipboardList,
   Wallet,
-  BarChart3,
+  LineChart,
   FileText,
   Settings,
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Moon,
-  Sun,
   Menu,
-  Bell,
   HelpCircle,
-  Plus,
   Loader2,
   Star,
   X,
@@ -46,7 +40,6 @@ import {
   Tag,
   Rocket,
   AlertTriangle,
-  GraduationCap,
   TrendingUp,
   DollarSign,
   Gauge,
@@ -57,37 +50,40 @@ import { ShopStatusBanner } from "./components/ShopStatusBanner";
 import { useTranslation } from "@/store/locale-store";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, key: 'dashboard', href: "/vendor/dashboard" },
-  { icon: Package, key: 'vendorProducts', href: "/vendor/products" },
+type SidebarItem = { icon: any; key: string; href: string } | 'separator';
+
+const sidebarItems: SidebarItem[] = [
+  // Asosiy
+  { icon: LineChart, key: 'vendorStatistika', href: "/vendor/statistika" },
   { icon: ClipboardList, key: 'vendorOrders', href: "/vendor/orders" },
-  { icon: MessageCircle, key: 'vendorChat', href: "/vendor/chat" },
+  { icon: Package, key: 'vendorProducts', href: "/vendor/products" },
+  'separator',
+  // Savdo
   { icon: Wallet, key: 'vendorPayouts', href: "/vendor/balance" },
-  { icon: BarChart3, key: 'analytics', href: "/vendor/analytics" },
-  { icon: TrendingUp, key: 'aiPricing', href: "/vendor/ai-pricing" },
   { icon: DollarSign, key: 'vendorFinance', href: "/vendor/finance" },
-  { icon: Star, key: 'vendorReviews', href: "/vendor/reviews" },
   { icon: Tag, key: 'vendorPromoCodes', href: "/vendor/promo-codes" },
+  { icon: TrendingUp, key: 'aiPricing', href: "/vendor/ai-pricing" },
   { icon: Rocket, key: 'vendorBoosts', href: "/vendor/boosts" },
+  'separator',
+  // Boshqaruv
+  { icon: Star, key: 'vendorReviews', href: "/vendor/reviews" },
   { icon: AlertTriangle, key: 'vendorPenalties', href: "/vendor/penalties" },
   { icon: FileText, key: 'vendorDocuments', href: "/vendor/documents" },
   { icon: Gauge, key: 'vendorPerformance', href: "/vendor/performance" },
+  'separator',
+  // Aloqa
+  { icon: MessageCircle, key: 'vendorChat', href: "/vendor/chat" },
+  'separator',
+  // Tizim
   { icon: Settings, key: 'vendorSettings', href: "/vendor/settings" },
-  { icon: GraduationCap, key: 'vendorOnboarding', href: "/vendor/onboarding" },
   { icon: HelpCircle, key: 'help', href: "/vendor/help" },
 ];
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const { t } = useTranslation();
-
-  // Auto-detect system theme on vendor pages
-  useEffect(() => {
-    setTheme('system');
-    return () => { setTheme('light'); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -100,13 +96,19 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     retry: 1,
   });
 
-  // Fetch stats for notifications badge
+  // Fetch stats for orders badge
   const { data: stats } = useQuery({
     queryKey: ["vendor-stats"],
     queryFn: vendorApi.getStats,
     enabled: isAuthenticated,
     retry: 1,
   });
+
+  // Auto-detect system theme on vendor pages
+  useEffect(() => {
+    setTheme('system');
+    return () => { setTheme('light'); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -175,20 +177,26 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo */}
+        {/* Shop Logo & Name */}
         <div className="flex h-16 items-center justify-between px-4 border-b">
           {!collapsed ? (
-            <Link href="/vendor/dashboard" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <ShoppingBag className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="font-bold">{t('vendorPanel')}</span>
+            <Link href="/vendor/statistika" className="flex items-center gap-2 min-w-0">
+              <Avatar className="h-8 w-8 flex-shrink-0">
+                <AvatarImage src={resolveImageUrl(shop?.logoUrl || '')} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                  {(shopName || 'D').charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-bold truncate">{shopName}</span>
             </Link>
           ) : (
-            <Link href="/vendor/dashboard" className="mx-auto">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <ShoppingBag className="h-5 w-5 text-primary-foreground" />
-              </div>
+            <Link href="/vendor/statistika" className="mx-auto">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={resolveImageUrl(shop?.logoUrl || '')} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                  {(shopName || 'D').charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             </Link>
           )}
           <Button
@@ -203,9 +211,12 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         </div>
 
         {/* Navigation */}
-        <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100vh-10rem)]">
-          {sidebarItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        <nav className="p-2 space-y-0.5 overflow-y-auto h-[calc(100vh-10rem)]">
+          {sidebarItems.map((item, idx) => {
+            if (item === 'separator') {
+              return <div key={`sep-${idx}`} className="my-2 mx-3 border-t border-border/50" />;
+            }
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}
@@ -222,7 +233,10 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
                   <span className="flex-1">{t(item.key)}</span>
                 )}
                 {!collapsed && item.href === "/vendor/orders" && pendingOrders > 0 && (
-                  <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs">
+                  <Badge
+                    variant="destructive"
+                    className={cn("h-5 min-w-5 px-1.5 text-xs", isActive && "bg-white text-red-600")}
+                  >
                     {pendingOrders}
                   </Badge>
                 )}
@@ -265,22 +279,11 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label={theme === 'dark' ? 'Yorug\' rejimga o\'tish' : 'Qorong\'u rejimga o\'tish'}
-            >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
-
             <LanguageSwitcher />
 
             <NotificationBell />
 
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Profil menyusi">
                   <Avatar className="h-9 w-9">

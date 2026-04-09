@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:topla_app/core/repositories/repositories.dart';
 import 'package:topla_app/models/models.dart';
 import 'package:topla_app/providers/auth_provider.dart';
@@ -79,6 +80,8 @@ class MockAuthRepository implements IAuthRepository {
     String? email,
     String? phone,
     String? avatarUrl,
+    String? gender,
+    String? region,
   }) async {
     if (nextError != null) throw nextError!;
     updateProfileCalled = true;
@@ -120,12 +123,18 @@ class MockAuthRepository implements IAuthRepository {
 
   @override
   Future<UserRole> getUserRole() async => _profile?.role ?? UserRole.user;
+
+  @override
+  Future<bool> restoreSession() async {
+    return _isLoggedIn;
+  }
 }
 
 void main() {
   late MockAuthRepository mockRepo;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     mockRepo = MockAuthRepository();
   });
 

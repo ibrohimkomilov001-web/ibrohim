@@ -72,12 +72,17 @@ class ApiOrderRepositoryImpl implements IOrderRepository {
 
     // Tanlangan mahsulotlarni yuborish (backend faqat shu items'larni buyurtma qiladi)
     if (items.isNotEmpty) {
-      body['items'] = items
-          .map((item) => {
-                'productId': item['product_id'] ?? item['productId'],
-                'quantity': item['quantity'],
-              })
-          .toList();
+      body['items'] = items.map((item) {
+        final mapped = <String, dynamic>{
+          'productId': item['product_id'] ?? item['productId'],
+          'quantity': item['quantity'],
+        };
+        final variantId = item['variant_id'] ?? item['variantId'];
+        if (variantId != null) {
+          mapped['variantId'] = variantId;
+        }
+        return mapped;
+      }).toList();
     }
     if (scheduledDate != null) {
       body['deliveryDate'] = scheduledDate.toIso8601String();

@@ -2,7 +2,7 @@
 enum PayoutStatus { pending, processing, completed, failed, cancelled }
 
 /// To'lov usullari
-enum PaymentMethod { click, payme, bankTransfer }
+enum PaymentMethod { bankTransfer, octobank }
 
 /// To'lov modeli
 class PayoutModel {
@@ -98,10 +98,10 @@ class PayoutModel {
 
   static PaymentMethod _parsePaymentMethod(String? method) {
     switch (method) {
-      case 'click':
-        return PaymentMethod.click;
-      case 'payme':
-        return PaymentMethod.payme;
+      case 'octobank':
+        return PaymentMethod.octobank;
+      case 'bank_transfer':
+        return PaymentMethod.bankTransfer;
       default:
         return PaymentMethod.bankTransfer;
     }
@@ -124,10 +124,8 @@ class PayoutModel {
 
   String get paymentMethodValue {
     switch (paymentMethod) {
-      case PaymentMethod.click:
-        return 'click';
-      case PaymentMethod.payme:
-        return 'payme';
+      case PaymentMethod.octobank:
+        return 'octobank';
       case PaymentMethod.bankTransfer:
         return 'bank_transfer';
     }
@@ -165,12 +163,10 @@ class PayoutModel {
 
   String get paymentMethodText {
     switch (paymentMethod) {
-      case PaymentMethod.click:
-        return 'Click';
-      case PaymentMethod.payme:
-        return 'Payme';
       case PaymentMethod.bankTransfer:
         return 'Bank o\'tkazmasi';
+      case PaymentMethod.octobank:
+        return 'Octobank';
     }
   }
 

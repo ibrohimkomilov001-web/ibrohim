@@ -64,8 +64,6 @@ enum VendorTransactionType {
 }
 
 enum PaymentProvider {
-  payme
-  click
   aliance
   octobank
 }
@@ -123,16 +121,27 @@ enum ModerationAction {
   revalidated
 }
 
+enum Gender {
+  male
+  female
+  unspecified
+}
+
 model Profile {
   id           String     @id @default(uuid()) @db.Uuid
   phone        String     @unique
   email        String?
   fullName     String?    @map("full_name")
+  firstName    String?    @map("first_name")
+  lastName     String?    @map("last_name")
   avatarUrl    String?    @map("avatar_url")
   role         UserRole   @default(user)
   status       UserStatus @default(active)
   fcmToken     String?    @map("fcm_token")
   language     String     @default("uz")
+  gender       Gender     @default(unspecified)
+  birthDate    DateTime?  @map("birth_date")
+  region       String?
   passwordHash   String?    @map("password_hash")
   firebaseUid    String?    @unique @map("firebase_uid")
   googleId       String?    @unique @map("google_id")
@@ -232,6 +241,7 @@ model Address {
   orders Order[]
 
   @@index([userId])
+  @@index([userId, isDefault])
   @@map("addresses")
 }
 
@@ -244,6 +254,14 @@ enum ShopStatus {
   active
   inactive
   blocked
+}
+
+enum ContractStatus {
+  not_sent
+  sent
+  pending_signature
+  signed
+  rejected
 }
 
 enum FulfillmentType {
@@ -288,6 +306,15 @@ model Shop {
   // Social links
   telegram  String?
   instagram String?
+
+  // Didox contract
+  contractStatus   ContractStatus @default(not_sent) @map("contract_status")
+  contractId       String?        @map("contract_id")
+  contractUrl      String?        @map("contract_url")
+  contractSentAt   DateTime?      @map("contract_sent_at")
+  contractSentBy   String?        @map("contract_sent_by") @db.Uuid
+  contractSignedAt DateTime?      @map("contract_signed_at")
+  contractNote     String?        @map("contract_note")
 
   // Working hours
   workingHours Json?   @map("working_hours")
@@ -679,8 +706,6 @@ enum PaymentStatus {
 enum PaymentMethod {
   cash
   card
-  payme
-  click
   aliance
   octobank
   installment
@@ -1101,6 +1126,7 @@ model PromoCode {
   usages PromoCodeUsage[]
 
   @@index([shopId])
+  @@index([isActive, expiresAt])
   @@map("promo_codes")
 }
 
@@ -1425,6 +1451,7 @@ model Referral {
   @@unique([referrerId, referredId])
   @@index([referrerId])
   @@index([referredId])
+  @@index([purchaseBonusGiven, referredId])
   @@map("referrals")
 }
 

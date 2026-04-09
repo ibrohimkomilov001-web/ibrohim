@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/services/api_client.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeleton_widgets.dart';
 
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
@@ -275,7 +276,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const DeviceListSkeleton()
           : _error != null
               ? _buildError()
               : _devices.isEmpty

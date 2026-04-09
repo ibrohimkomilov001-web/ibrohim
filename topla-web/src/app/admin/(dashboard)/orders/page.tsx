@@ -19,16 +19,28 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { DataTablePagination, type PaginationMeta } from '@/components/ui/data-table-pagination'
 import { useTranslation } from '@/store/locale-store'
 
-const statusConfig: Record<string, { color: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-  pending: { color: 'secondary', label: 'Kutilmoqda' },
-  processing: { color: 'default', label: 'Tayyorlanmoqda' },
-  ready_for_pickup: { color: 'outline', label: 'Tayyor - kuryerga berish' },
-  courier_assigned: { color: 'outline', label: 'Kuryer tayinlandi' },
-  courier_picked_up: { color: 'outline', label: 'Kuryer oldi' },
-  shipping: { color: 'outline', label: 'Yetkazilmoqda' },
-  at_pickup_point: { color: 'outline', label: 'Punktda kutmoqda' },
-  delivered: { color: 'default', label: 'Yetkazildi' },
-  cancelled: { color: 'destructive', label: 'Bekor qilindi' },
+const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  pending: 'secondary',
+  processing: 'default',
+  ready_for_pickup: 'outline',
+  courier_assigned: 'outline',
+  courier_picked_up: 'outline',
+  shipping: 'outline',
+  at_pickup_point: 'outline',
+  delivered: 'default',
+  cancelled: 'destructive',
+}
+
+const statusTranslationKeys: Record<string, string> = {
+  pending: 'orderPending',
+  processing: 'orderProcessing',
+  ready_for_pickup: 'orderReadyForPickup',
+  courier_assigned: 'courierAssigned',
+  courier_picked_up: 'courierPickedUp',
+  shipping: 'orderShipping',
+  at_pickup_point: 'orderAtPickupPoint',
+  delivered: 'orderDelivered',
+  cancelled: 'orderCancelled',
 }
 
 export default function AdminOrdersPage() {
@@ -131,8 +143,8 @@ export default function AdminOrdersPage() {
                     <div key={order.id} className="border rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-medium">{order.order_number || order.id.slice(0, 8)}</span>
-                        <Badge variant={statusConfig[order.status]?.color || 'secondary'} className="text-xs">
-                          {statusConfig[order.status]?.label || order.status}
+                        <Badge variant={statusColors[order.status] || 'secondary'} className="text-xs">
+                          {t(statusTranslationKeys[order.status]) || order.status}
                         </Badge>
                       </div>
                       <div className="text-sm">
@@ -193,8 +205,8 @@ export default function AdminOrdersPage() {
                           <Badge variant="outline">{order.payment_method || 'Naqd'}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={statusConfig[order.status]?.color || 'secondary'}>
-                            {statusConfig[order.status]?.label || order.status}
+                          <Badge variant={statusColors[order.status] || 'secondary'}>
+                            {t(statusTranslationKeys[order.status]) || order.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">{new Date(order.created_at).toLocaleDateString('uz-UZ')}</TableCell>
@@ -243,15 +255,15 @@ export default function AdminOrdersPage() {
                   <SelectValue placeholder="Status tanlang" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Kutilmoqda</SelectItem>
-                  <SelectItem value="processing">Tayyorlanmoqda</SelectItem>
-                  <SelectItem value="ready_for_pickup">Tayyor - kuryerga berish</SelectItem>
-                  <SelectItem value="courier_assigned">Kuryer tayinlandi</SelectItem>
-                  <SelectItem value="courier_picked_up">Kuryer oldi</SelectItem>
-                  <SelectItem value="shipping">Yetkazilmoqda</SelectItem>
-                  <SelectItem value="at_pickup_point">Punktda kutmoqda</SelectItem>
-                  <SelectItem value="delivered">Yetkazildi</SelectItem>
-                  <SelectItem value="cancelled">Bekor qilindi</SelectItem>
+                  <SelectItem value="pending">{t('orderPending')}</SelectItem>
+                  <SelectItem value="processing">{t('orderProcessing')}</SelectItem>
+                  <SelectItem value="ready_for_pickup">{t('orderReadyForPickup')}</SelectItem>
+                  <SelectItem value="courier_assigned">{t('courierAssigned')}</SelectItem>
+                  <SelectItem value="courier_picked_up">{t('courierPickedUp')}</SelectItem>
+                  <SelectItem value="shipping">{t('orderShipping')}</SelectItem>
+                  <SelectItem value="at_pickup_point">{t('orderAtPickupPoint')}</SelectItem>
+                  <SelectItem value="delivered">{t('orderDelivered')}</SelectItem>
+                  <SelectItem value="cancelled">{t('orderCancelled')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

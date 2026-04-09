@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { resolveImageUrl } from '@/lib/api/upload';
 import {
   MapPin, CreditCard, Truck, Check, ChevronRight,
   ShieldCheck, ArrowRight, ArrowLeft, LocateFixed, Package, Banknote,
@@ -115,10 +116,10 @@ export default function CheckoutPage() {
   const stepIndex = steps.findIndex((s) => s.key === currentStep);
 
   const stepLabels: Record<Step, string> = {
-    address: locale === 'ru' ? 'Адрес' : 'Manzil',
-    delivery: locale === 'ru' ? 'Доставка' : 'Yetkazish',
-    payment: locale === 'ru' ? 'Оплата' : 'To\'lov',
-    confirm: locale === 'ru' ? 'Подтверждение' : 'Tasdiqlash',
+    address: t('checkoutStepAddress'),
+    delivery: t('checkoutStepDelivery'),
+    payment: t('checkoutStepPayment'),
+    confirm: t('checkoutStepConfirm'),
   };
 
   const goNext = () => {
@@ -137,12 +138,12 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!isAuthenticated) {
-      setOrderError(locale === 'ru' ? 'Войдите в аккаунт для оформления заказа' : 'Buyurtma berish uchun tizimga kiring');
+      setOrderError(t('checkoutLoginRequired'));
       return;
     }
 
     if (!address.fullName || !address.phone) {
-      setOrderError(locale === 'ru' ? 'Заполните имя и телефон' : 'Ism va telefonni to\'ldiring');
+      setOrderError(t('checkoutFillNamePhone'));
       return;
     }
 
@@ -174,7 +175,7 @@ export default function CheckoutPage() {
       const message = error?.data?.message || error?.message || '';
       setOrderError(
         message ||
-        (locale === 'ru' ? 'Ошибка при оформлении заказа' : 'Buyurtma berishda xatolik yuz berdi')
+        t('checkoutOrderError')
       );
     } finally {
       setIsSubmitting(false);
@@ -184,7 +185,7 @@ export default function CheckoutPage() {
   // Geolocation → reverse geocode
   const handleLocate = () => {
     if (!navigator.geolocation) {
-      alert(locale === 'ru' ? 'Геолокация не поддерживается' : 'Geolokatsiya qo\'llab-quvvatlanmaydi');
+      alert(t('checkoutGeoNotSupported'));
       return;
     }
     setLocatingAddress(true);
@@ -210,7 +211,7 @@ export default function CheckoutPage() {
             city: prev.city || city,
           }));
         } catch {
-          alert(locale === 'ru' ? 'Не удалось определить адрес' : 'Manzilni aniqlab bo\'lmadi');
+          alert(t('checkoutGeoFailed'));
         } finally {
           setLocatingAddress(false);
         }
@@ -218,9 +219,9 @@ export default function CheckoutPage() {
       (err) => {
         setLocatingAddress(false);
         if (err.code === 1) {
-          alert(locale === 'ru' ? 'Разрешите доступ к геолокации в настройках браузера' : 'Brauzer sozlamalarida joylashuvga ruxsat bering');
+          alert(t('checkoutGeoPermission'));
         } else {
-          alert(locale === 'ru' ? 'Не удалось определить местоположение' : 'Joylashuvni aniqlab bo\'lmadi');
+          alert(t('checkoutGeoLocationFailed'));
         }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
@@ -248,21 +249,19 @@ export default function CheckoutPage() {
           transition={{ delay: 0.3 }}
         >
           <h1 className="text-2xl sm:text-3xl font-bold mb-3">
-            {locale === 'ru' ? 'Заказ оформлен!' : 'Buyurtma qabul qilindi!'}
+            {t('checkoutOrderPlaced')}
           </h1>
           {orderNumber && (
             <p className="text-lg font-semibold text-primary mb-2">
-              {locale === 'ru' ? 'Номер заказа' : 'Buyurtma raqami'}: #{orderNumber}
+              {t('checkoutOrderNumber')}: #{orderNumber}
             </p>
           )}
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            {locale === 'ru'
-              ? 'Мы свяжемся с вами для подтверждения заказа. Спасибо за покупку!'
-              : 'Buyurtmangizni tasdiqlash uchun siz bilan bog\'lanamiz. Xaridingiz uchun rahmat!'}
+            {t('checkoutOrderConfirmMsg')}
           </p>
           <div className="flex items-center justify-center gap-4">
             <Link href="/orders" className="btn-glass inline-flex items-center gap-2 px-6 py-3">
-              {locale === 'ru' ? 'Мои заказы' : 'Buyurtmalarim'}
+              {t('checkoutMyOrders')}
             </Link>
             <Link href="/" className="liquid-btn inline-flex items-center gap-2 px-6 py-3">
               {t('continueShopping')}
@@ -341,21 +340,21 @@ export default function CheckoutPage() {
                   {/* Full name */}
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">
-                      {locale === 'ru' ? 'Полное имя' : 'To\'liq ism'}
+                      {t('checkoutFullName')}
                     </label>
                     <input
                       type="text"
                       value={address.fullName}
                       onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
-                      placeholder={locale === 'ru' ? 'Иван Иванов' : 'Ism Familiya'}
+                      placeholder={t('checkoutNamePlaceholder')}
                     />
                   </div>
 
                   {/* Phone */}
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">
-                      {locale === 'ru' ? 'Телефон' : 'Telefon'}
+                      {t('checkoutPhone')}
                     </label>
                     <input
                       type="tel"
@@ -370,7 +369,7 @@ export default function CheckoutPage() {
                   {/* Street / house with location button */}
                   <div>
                     <label className="text-sm font-medium mb-1.5 block">
-                      {locale === 'ru' ? 'Улица, дом' : 'Ko\'cha, uy'}
+                      {t('checkoutStreet')}
                     </label>
                     <div className="relative">
                       <input
@@ -378,14 +377,14 @@ export default function CheckoutPage() {
                         value={address.street}
                         onChange={(e) => setAddress({ ...address, street: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 pr-12 rounded-xl text-[16px] outline-none transition-all box-border"
-                        placeholder={locale === 'ru' ? 'ул. Навои, д. 10' : 'Navoiy ko\'chasi, 10-uy'}
+                        placeholder={t('checkoutStreetPlaceholder')}
                       />
                       <button
                         type="button"
                         onClick={handleLocate}
                         disabled={locatingAddress}
                         className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors"
-                        title={locale === 'ru' ? 'Определить местоположение' : 'Joylashuvni aniqlash'}
+                        title={t('checkoutDetectLocation')}
                       >
                         <LocateFixed className={`w-4.5 h-4.5 text-primary ${locatingAddress ? 'animate-spin' : ''}`} />
                       </button>
@@ -395,14 +394,14 @@ export default function CheckoutPage() {
                   {/* Note */}
                   <div className="sm:col-span-2">
                     <label className="text-sm font-medium mb-1.5 block">
-                      {locale === 'ru' ? 'Комментарий' : 'Izoh'}
+                      {t('checkoutComment')}
                     </label>
                     <textarea
                       value={address.note}
                       onChange={(e) => setAddress({ ...address, note: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none resize-none transition-all box-border"
                       rows={3}
-                      placeholder={locale === 'ru' ? 'Ориентир, подъезд, этаж...' : 'Mo\'ljal, podyezd, qavat...'}
+                      placeholder={t('checkoutCommentPlaceholder')}
                     />
                   </div>
                 </div>
@@ -434,10 +433,10 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">
-                        {locale === 'ru' ? 'Пункт выдачи' : 'Topshirish punkti'}
+                        {t('checkoutPickup')}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'ru' ? 'Заберите заказ самостоятельно' : 'Buyurtmani o\'zingiz olib keting'}
+                        {t('checkoutPickupDesc')}
                       </p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -456,16 +455,16 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">
-                        {locale === 'ru' ? 'Курьер' : 'Kuryer'}
+                        {t('checkoutCourier')}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'ru' ? 'Доставка до двери, 2-4 дня' : 'Eshikkacha yetkazish, 2-4 kun'}
+                        {t('checkoutCourierDesc')}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
                       <span className="font-bold text-green-600 text-sm">
                         {subtotal > 100000
-                          ? (locale === 'ru' ? 'Бесплатно' : 'Bepul')
+                          ? t('checkoutFreeLabel')
                           : formatPrice(15000)}
                       </span>
                     </div>
@@ -505,9 +504,9 @@ export default function CheckoutPage() {
                       <Banknote className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium">{locale === 'ru' ? 'Наличные' : 'Naqd pul'}</p>
+                      <p className="font-medium">{t('checkoutCash')}</p>
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'ru' ? 'Оплата при получении' : 'Qabul qilganda to\'lash'}
+                        {t('checkoutCashDesc')}
                       </p>
                     </div>
                   </button>
@@ -529,9 +528,9 @@ export default function CheckoutPage() {
                       <CreditCard className="w-5 h-5 text-purple-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium">{locale === 'ru' ? 'Банковская карта' : 'Karta orqali'}</p>
+                      <p className="font-medium">{t('checkoutCard')}</p>
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'ru' ? 'Онлайн оплата картой' : 'Onlayn karta orqali to\'lash'}
+                        {t('checkoutCardOnline')}
                       </p>
                     </div>
                   </button>
@@ -559,7 +558,7 @@ export default function CheckoutPage() {
                       onClick={() => setCurrentStep('address')}
                       className="text-sm text-primary hover:underline"
                     >
-                      {locale === 'ru' ? 'Изменить' : 'O\'zgartirish'}
+                      {t('checkoutChange')}
                     </button>
                   </div>
                   <p className="text-sm">{address.fullName || '—'}</p>
@@ -578,11 +577,11 @@ export default function CheckoutPage() {
                       onClick={() => setCurrentStep('delivery')}
                       className="text-sm text-primary hover:underline"
                     >
-                      {locale === 'ru' ? 'Изменить' : 'O\'zgartirish'}
+                      {t('checkoutChange')}
                     </button>
                   </div>
                   <p className="text-sm">
-                    {locale === 'ru' ? 'Курьер — доставка до двери' : 'Kuryer — eshikkacha yetkazish'}
+                    {t('checkoutCourierSummary')}
                   </p>
                 </div>
 
@@ -597,27 +596,27 @@ export default function CheckoutPage() {
                       onClick={() => setCurrentStep('payment')}
                       className="text-sm text-primary hover:underline"
                     >
-                      {locale === 'ru' ? 'Изменить' : 'O\'zgartirish'}
+                      {t('checkoutChange')}
                     </button>
                   </div>
                   <p className="text-sm">
                     {paymentMethod === 'cash'
-                      ? (locale === 'ru' ? 'Наличные' : 'Naqd pul')
-                      : (locale === 'ru' ? 'Банковская карта' : 'Karta orqali')}
+                      ? t('checkoutCash')
+                      : t('checkoutCard')}
                   </p>
                 </div>
 
                 {/* Items */}
                 <div className="glass rounded-2xl p-5">
                   <h3 className="font-bold mb-4">
-                    {locale === 'ru' ? 'Товары' : 'Mahsulotlar'} ({itemCount})
+                    {t('checkoutProducts')} ({itemCount})
                   </h3>
                   <div className="space-y-3 max-h-64 overflow-y-auto thin-scrollbar">
                     {items.map((item) => (
                       <div key={item.productId} className="flex gap-3">
                         <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 relative">
                           {item.image ? (
-                            <Image src={item.image} alt={item.nameUz} fill className="object-cover" />
+                            <Image src={resolveImageUrl(item.image)} alt={item.nameUz} fill className="object-cover" />
                           ) : (
                             <div className="w-full h-full bg-muted flex items-center justify-center text-lg">📦</div>
                           )}
@@ -642,7 +641,7 @@ export default function CheckoutPage() {
               className="btn-glass px-5 py-2.5 text-sm flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              {locale === 'ru' ? 'Назад' : 'Ortga'}
+              {t('checkoutBack')}
             </button>
 
             {currentStep === 'confirm' ? (
@@ -658,7 +657,7 @@ export default function CheckoutPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      {locale === 'ru' ? 'Оформление...' : 'Jo\'natilmoqda...'}
+                      {t('checkoutSubmitting')}
                     </>
                   ) : (
                     <>
@@ -673,7 +672,7 @@ export default function CheckoutPage() {
                 onClick={goNext}
                 className="liquid-btn px-6 py-2.5 text-sm flex items-center gap-2"
               >
-                {locale === 'ru' ? 'Далее' : 'Keyingi'}
+                {t('checkoutNext')}
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
@@ -688,7 +687,7 @@ export default function CheckoutPage() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  {locale === 'ru' ? 'Товары' : 'Mahsulotlar'} ({itemCount})
+                  {t('checkoutProducts')} ({itemCount})
                 </span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
@@ -707,8 +706,8 @@ export default function CheckoutPage() {
               {!isFreeDelivery && freeDeliveryThreshold > 0 && (
                 <p className="text-xs text-green-600 italic">
                   {locale === 'ru'
-                    ? `Бесплатная доставка при заказе от ${formatPrice(freeDeliveryThreshold)}`
-                    : `${formatPrice(freeDeliveryThreshold)} dan ortiq xaridda yetkazish bepul!`}
+                    ? `${t('checkoutFreeDeliveryHint')} ${formatPrice(freeDeliveryThreshold)}`
+                    : `${formatPrice(freeDeliveryThreshold)} ${t('checkoutFreeDeliveryHint')}`}
                 </p>
               )}
               <div className="border-t border-border pt-3 flex justify-between font-bold text-lg">
@@ -719,9 +718,7 @@ export default function CheckoutPage() {
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
               <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
-              {locale === 'ru'
-                ? 'Безопасная покупка — ваши данные защищены'
-                : 'Xavfsiz xarid — ma\'lumotlaringiz himoyalangan'}
+              {t('checkoutSafetyNote')}
             </div>
           </div>
         </div>
@@ -748,18 +745,16 @@ export default function CheckoutPage() {
                 <Package className="w-8 h-8 text-orange-500" />
               </div>
               <h3 className="text-lg font-bold mb-2">
-                {locale === 'ru' ? 'Пункты выдачи' : 'Topshirish punktlari'}
+                {t('checkoutPickupPoints')}
               </h3>
               <p className="text-sm text-muted-foreground mb-6">
-                {locale === 'ru'
-                  ? 'Пункты выдачи откроются в ближайшее время. Следите за обновлениями!'
-                  : 'Topshirish punktlari tez orada ochiladi. Yangiliklarni kuzatib boring!'}
+                {t('checkoutPickupComingSoon')}
               </p>
               <button
                 onClick={() => setShowPickupModal(false)}
                 className="w-full py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
               >
-                {locale === 'ru' ? 'Понятно' : 'Tushunarli'}
+                {t('checkoutUnderstood')}
               </button>
             </motion.div>
           </motion.div>

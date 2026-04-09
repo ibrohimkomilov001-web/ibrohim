@@ -11,6 +11,21 @@
 				"R58M72NLQMM"
 			],
 			"isBackground": true
+		},
+		{
+			"label": "Flutter Run on Device",
+			"type": "shell",
+			"command": "flutter run -d R5CT22XSZLX",
+			"isBackground": true,
+			"problemMatcher": [
+				"$dart-test"
+			]
+		},
+		{
+			"label": "Flutter Run Samsung",
+			"type": "shell",
+			"command": "flutter run -d R5CT22XSZLX",
+			"isBackground": true
 		}
 	]
 }

@@ -629,6 +629,9 @@ export interface DeliverySettings {
 export interface OnboardingStep {
   key: string;
   label: string;
+  id?: string;
+  title?: string;
+  description?: string;
   completed: boolean;
   href: string;
 }
@@ -638,6 +641,13 @@ export interface OnboardingProgress {
   total: number;
   percentage: number;
   steps: OnboardingStep[];
+  contract?: {
+    contractStatus: string;
+    contractUrl?: string;
+    contractSentAt?: string;
+    contractSignedAt?: string;
+    contractNote?: string;
+  };
 }
 
 export interface PerformanceMetric {

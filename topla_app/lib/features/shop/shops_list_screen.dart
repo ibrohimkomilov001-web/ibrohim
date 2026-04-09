@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/constants.dart';
 import '../../providers/shop_provider.dart';
 import '../../models/shop_model.dart';
+import '../../widgets/skeleton_widgets.dart';
 import 'shop_detail_screen.dart';
 
 /// Do'konlar ro'yxati sahifasi
@@ -89,7 +90,15 @@ class _ShopsListScreenState extends State<ShopsListScreen> {
       body: Consumer<ShopProvider>(
         builder: (context, shopProvider, _) {
           if (shopProvider.isLoading && shopProvider.shops.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: List.generate(
+                  4,
+                  (_) => const ShopCardSkeleton(),
+                ),
+              ),
+            );
           }
 
           final shops = shopProvider.shops;

@@ -24,25 +24,18 @@ const CSRF_HEADER_NAME = 'x-csrf-token';
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 // CSRF tekshiruv kerak emas:
-// - Login/register (cookie hali yo'q)
+// - Login/register (cookie hali yo'q, unauthenticated flows)
 // - Public endpointlar
 // - Webhook lar (tashqi servislardan keladi)
+// NOTE: /api/v1/auth/vendor/* barchasi exempt — frontend boshqa subdomain
+// (vendor.topla.uz) da turadi, api.topla.uz cookiesini JS o'qiy olmaydi.
 const EXEMPT_PREFIXES = [
-  '/api/v1/auth/send-otp',
-  '/api/v1/auth/verify-otp',
-  '/api/v1/auth/login',
-  '/api/v1/auth/admin/login',
-  '/api/v1/auth/admin/refresh',
-  '/api/v1/auth/admin/logout',
-  '/api/v1/auth/vendor/login',
-  '/api/v1/auth/vendor/register',
+  '/api/v1/auth/',          // Barcha auth endpointlari: login, register, OTP, Google, forgot-password
   '/api/v1/pickup/login',
   '/api/v1/pickup-points/apply',
-  '/api/v1/payments/payme/endpoint',
-  '/api/v1/payments/click/prepare',
-  '/api/v1/payments/click/complete',
   '/api/v1/payments/aliance/callback',
   '/api/v1/payments/octobank/callback',
+  '/api/v1/webhooks/didox',
 ];
 
 function isExempt(url: string): boolean {
@@ -62,8 +55,9 @@ export function ensureCsrfCookie(request: FastifyRequest, reply: FastifyReply): 
     httpOnly: false, // JS o'qishi kerak!
     secure: IS_PRODUCTION,
     sameSite: IS_PRODUCTION ? 'none' : 'lax',
+    domain: IS_PRODUCTION ? '.topla.uz' : undefined, // vendor.topla.uz va api.topla.uz uchun
     path: '/',
-    maxAge: 86400 * 1000, // 1 kun (ms)
+    maxAge: 86400, // 1 kun (seconds)
   });
 }
 

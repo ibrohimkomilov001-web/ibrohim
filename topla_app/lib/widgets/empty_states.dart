@@ -354,127 +354,36 @@ class _EmptyNotificationsWidgetState extends State<EmptyNotificationsWidget>
 // FAVORITES - Animated Heart Empty State
 // ════════════════════════════════════════════════════════
 
-class EmptyFavoritesWidget extends StatefulWidget {
+class EmptyFavoritesWidget extends StatelessWidget {
   final VoidCallback onExplore;
 
   const EmptyFavoritesWidget({super.key, required this.onExplore});
 
   @override
-  State<EmptyFavoritesWidget> createState() => _EmptyFavoritesWidgetState();
-}
-
-class _EmptyFavoritesWidgetState extends State<EmptyFavoritesWidget>
-    with TickerProviderStateMixin {
-  late AnimationController _heartController;
-  late AnimationController _particlesController;
-  late Animation<double> _heartScale;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Heart beat animation
-    _heartController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-
-    _heartScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.15), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 2),
-    ]).animate(
-        CurvedAnimation(parent: _heartController, curve: Curves.easeInOut));
-
-    // Floating particles
-    _particlesController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _heartController.dispose();
-    _particlesController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return EmptyStateWidget(
-      title: context.l10n.translate('empty_favorites'),
-      subtitle: context.l10n.translate('empty_favorites_desc'),
-      actionText: context.l10n.translate('view_products'),
-      onAction: widget.onExplore,
-      customIllustration: SizedBox(
-        width: 180,
-        height: 180,
-        child: Stack(
-          alignment: Alignment.center,
+    final l10n = context.l10n;
+
+    final titleText = l10n.translate('empty_favorites_title');
+    final subtitleText = l10n.translate('empty_favorites_subtitle');
+    final actionText = l10n.translate('empty_favorites_action');
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Floating mini hearts
-            ...List.generate(5, (i) {
-              return AnimatedBuilder(
-                animation: _particlesController,
-                builder: (context, child) {
-                  final progress = (_particlesController.value + i * 0.2) % 1.0;
-                  final angle = i * (2 * math.pi / 5);
-                  final radius = 50.0 + progress * 30;
-                  final x = math.cos(angle + progress * 2) * radius;
-                  final y = math.sin(angle + progress * 2) * radius;
-                  final opacity =
-                      (1.0 - (progress - 0.5).abs() * 2).clamp(0.0, 0.5);
-                  return Transform.translate(
-                    offset: Offset(x, y),
-                    child: Opacity(
-                      opacity: opacity,
-                      child: Icon(
-                        Icons.favorite,
-                        size: 12.0 + i * 2,
-                        color: [
-                          const Color(0xFFFF6B6B),
-                          const Color(0xFFFF8E8E),
-                          const Color(0xFFFFB3B3),
-                          const Color(0xFFFF5252),
-                          const Color(0xFFFFA0A0),
-                        ][i],
-                      ),
-                    ),
-                  );
-                },
-              );
-            }),
-            // Background circle
+            // Using placeholder image if available, else fallback icon
             Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFFFEBEE),
-                    const Color(0xFFFCE4EC),
-                    Colors.white.withValues(alpha: 0.3),
-                  ],
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF5252).withValues(alpha: 0.15),
-                    blurRadius: 25,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-            ),
-            // Animated heart
-            AnimatedBuilder(
-              animation: _heartController,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _heartScale.value,
-                  child: ShaderMask(
+              width: 120,
+              height: 120,
+              margin: const EdgeInsets.only(bottom: 24),
+              child: Image.asset(
+                'assets/icon/heart_3d.png',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback until actual 3D heart asset is added
+                  return ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -482,12 +391,54 @@ class _EmptyFavoritesWidgetState extends State<EmptyFavoritesWidget>
                     ).createShader(bounds),
                     child: const Icon(
                       Icons.favorite_rounded,
-                      size: 56,
+                      size: 100,
                       color: Colors.white,
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
+            ),
+
+            Text(
+              titleText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+                height: 1.2,
+                letterSpacing: -0.3,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Text(
+              subtitleText,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+                height: 1.4,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            ElevatedButton(
+              onPressed: onExplore,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                minimumSize: const Size(double.infinity, 52),
+                shape: const StadiumBorder(),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Text(actionText),
             ),
           ],
         ),

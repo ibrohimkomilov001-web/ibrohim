@@ -220,6 +220,17 @@ export async function deleteShop(id: string) {
   });
 }
 
+export async function sendShopContract(id: string) {
+  return adminRequest<{ success: boolean; data: any }>(`/admin/shops/${id}/send-contract`, {
+    method: 'POST',
+  });
+}
+
+export async function getShopContractStatus(id: string) {
+  const res = await adminRequest<{ success: boolean; data: any }>(`/admin/shops/${id}/contract-status`);
+  return res.data;
+}
+
 // ============================================
 // Products
 // ============================================
@@ -507,6 +518,11 @@ export async function fetchAnalyticsCategories(period: string = '30d') {
 
 export async function fetchAnalyticsRegions(period: string = '30d') {
   const res = await adminRequest<{ success: boolean; data: any }>(`/admin/analytics/regions?period=${period}`);
+  return res.data;
+}
+
+export async function fetchUserDemographics() {
+  const res = await adminRequest<{ success: boolean; data: any }>('/admin/user-demographics');
   return res.data;
 }
 

@@ -285,6 +285,18 @@ class MockProductRepository implements IProductRepository {
     return products.length;
   }
 
+  @override
+  Future<SearchResult> searchByImage(String imagePath,
+      {int page = 1, int limit = 20}) async {
+    return SearchResult(
+      products: _products.where((p) => p.isActive).take(limit).toList(),
+      total: _products.where((p) => p.isActive).length,
+      page: page,
+      limit: limit,
+      totalPages: 1,
+    );
+  }
+
   // Helper methods for testing
   void addProduct(ProductModel product) {
     _products.add(product);

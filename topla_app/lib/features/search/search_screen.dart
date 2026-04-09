@@ -20,11 +20,19 @@ import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
 import '../../widgets/product_filter_sheet.dart';
 import '../product/product_detail_screen.dart';
+import '../catalog/category_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
+  final bool showCategories;
+  final bool showBackArrow;
 
-  const SearchScreen({super.key, this.initialQuery});
+  const SearchScreen({
+    super.key,
+    this.initialQuery,
+    this.showCategories = false,
+    this.showBackArrow = false,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -346,9 +354,10 @@ class _SearchScreenState extends State<SearchScreen>
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const Text(
-                'Rasm orqali qidirish',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              Text(
+                context.l10n.translate('image_search'),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),
               ListTile(
@@ -356,7 +365,7 @@ class _SearchScreenState extends State<SearchScreen>
                   backgroundColor: Color(0xFFF0F0F0),
                   child: Icon(Icons.camera_alt, color: Colors.black87),
                 ),
-                title: const Text('Kameradan suratga olish'),
+                title: Text(context.l10n.translate('take_photo')),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
               ListTile(
@@ -364,7 +373,7 @@ class _SearchScreenState extends State<SearchScreen>
                   backgroundColor: Color(0xFFF0F0F0),
                   child: Icon(Icons.photo_library, color: Colors.black87),
                 ),
-                title: const Text('Galereyadan tanlash'),
+                title: Text(context.l10n.translate('choose_gallery')),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
             ],
@@ -390,7 +399,7 @@ class _SearchScreenState extends State<SearchScreen>
       _isSearching = true;
       _hasSearched = true;
       _showSuggestions = false;
-      _searchController.text = '📷 Rasm orqali qidirish';
+      _searchController.text = '📷 ${context.l10n.translate('image_search')}';
       _showClearButton = true;
     });
 
@@ -411,8 +420,8 @@ class _SearchScreenState extends State<SearchScreen>
       if (mounted) {
         setState(() => _isSearching = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Rasm orqali qidirish xatolik yuz berdi'),
+          SnackBar(
+            content: Text(context.l10n.translate('image_search_error')),
             backgroundColor: Colors.red,
           ),
         );
@@ -470,7 +479,7 @@ class _SearchScreenState extends State<SearchScreen>
     final newFilter = await ProductFilterSheet.show(
       context,
       currentFilter: _filter,
-      categoryName: _isUzbek ? 'Filtrlar' : 'Фильтры',
+      categoryName: context.l10n.translate('filter_title'),
       accentColor: AppColors.primary,
       productCount: _totalResults,
       brands: _brands,
@@ -576,66 +585,212 @@ class _SearchScreenState extends State<SearchScreen>
 
   @override
   Widget build(BuildContext context) {
+    final showResultsAppBar = _hasSearched && _searchResults.isNotEmpty;
+    final showTopBar = widget.showBackArrow || showResultsAppBar;
+
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: _buildSearchField(),
-        actions: [
-          if (_hasSearched && _searchResults.isNotEmpty) ...[
-            // Filter icon with active count badge
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  onPressed: _openFilterSheet,
-                  icon: const Icon(Icons.tune_rounded, size: 22),
-                  tooltip: _isUzbek ? 'Filtrlar' : 'Фильтры',
-                ),
-                if (_filter.activeFilterCount > 0)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
+      backgroundColor: const Color(0xFFF2F2F7),
+      appBar: showTopBar
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: const Color(0xFFF2F2F7),
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              titleSpacing: 0,
+              leading: widget.showBackArrow
+                  ? IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new,
+                          size: 20, color: Colors.black87),
+                    )
+                  : null,
+              title: _buildSearchField(),
+              actions: [
+                // Filter (tune) icon — like category detail screen
+                if (showResultsAppBar)
+                  Stack(
+                    children: [
+                      IconButton(
+                        onPressed: _openFilterSheet,
+                        icon: Icon(
+                          Icons.tune,
+                          color: _filter.hasActiveFilters
+                              ? const Color(0xFF4E6AFF)
+                              : Colors.grey.shade700,
+                        ),
                       ),
-                      child: Text(
-                        '${_filter.activeFilterCount}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                      if (_filter.activeFilterCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${_filter.activeFilterCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                if (!widget.showBackArrow)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0, left: 4.0),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.close,
+                              color: Colors.black87, size: 20),
                         ),
                       ),
                     ),
                   ),
               ],
-            ),
-            IconButton(
-              onPressed: _showSortOptions,
-              icon: const Icon(Iconsax.sort),
-              tooltip: context.l10n.translate('sort_by'),
-            ),
+            )
+          : null,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        top: !showTopBar,
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(child: _buildBody()),
+            // Kategoriyalar + qidiruv maydoni pastda (faqat catalog rejimda)
+            if (!widget.showBackArrow &&
+                (!_hasSearched || _searchResults.isEmpty)) ...[
+              if (widget.showCategories) _buildHorizontalCategories(),
+              _buildBottomSearchBar(),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Pastdagi qidiruv maydoni + X tugmasi (Telegram uslubida)
+  Widget _buildBottomSearchBar() {
+    return Container(
+      color: const Color(0xFFF2F2F7),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 8),
+      child: Row(
+        children: [
+          Expanded(child: _buildSearchField()),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: Colors.grey.shade300, width: 1),
+              ),
+              child: const Icon(Icons.close, color: Colors.black87, size: 22),
+            ),
+          ),
         ],
       ),
-      body: _buildBody(),
+    );
+  }
+
+  Widget _buildHorizontalCategories() {
+    final categories = context.watch<ProductsProvider>().categories;
+    if (categories.isEmpty) return const SizedBox.shrink();
+    final locale = context.l10n.locale.languageCode;
+
+    return Container(
+      color: const Color(0xFFF2F2F7),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SizedBox(
+        height: 36,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final cat = categories[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CategoryDetailScreen(
+                      category: cat,
+                      categoryColor: AppColors.primary,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  cat.getName(locale),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
   Widget _buildSearchField() {
     return Container(
-      height: 42,
-      margin: const EdgeInsets.only(right: 8),
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(100),
+      ),
       child: TextField(
         controller: _searchController,
         focusNode: _searchFocusNode,
+        cursorColor: const Color(0xFF007AFF),
+        cursorWidth: 2.0,
         textInputAction: TextInputAction.search,
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
         decoration: InputDecoration(
           hintText: context.l10n.translate('search_hint'),
-          prefixIcon: const Icon(Icons.search, size: 20),
+          hintStyle: const TextStyle(color: Color(0xFF8E8E93), fontSize: 16),
+          prefixIcon: const Padding(
+            padding: EdgeInsets.only(left: 14, right: 8),
+            child: Icon(Icons.search, color: Color(0xFF8E8E93), size: 22),
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 40, minHeight: 40),
           suffixIcon: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -653,31 +808,42 @@ class _SearchScreenState extends State<SearchScreen>
                     });
                     _searchFocusNode.requestFocus();
                   },
-                  icon: const Icon(Icons.close, size: 18),
+                  icon: const Icon(Icons.cancel,
+                      color: Color(0xFF8E8E93), size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
-              IconButton(
-                onPressed: _openImageSearch,
-                icon: const Icon(Icons.camera_alt_outlined, size: 20),
-                tooltip: 'Rasm orqali qidirish',
-              ),
+              if (!_showClearButton)
+                IconButton(
+                  // Kamera knopkasi — faqat bo'sh maydonda ko'rinadi
+                  onPressed: _openImageSearch,
+                  icon: const Icon(Icons.camera_alt_outlined,
+                      color: Color(0xFF8E8E93), size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                  tooltip: context.l10n.translate('image_search'),
+                ),
+              const SizedBox(width: 4),
             ],
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          filled: true,
+          fillColor: Colors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(100),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(100),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(100),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFF007AFF), width: 1.5),
           ),
-          filled: true,
-          fillColor: const Color(0xFFECECEC),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
         onChanged: _onSearchChanged,
         onSubmitted: _performSearch,
@@ -834,7 +1000,7 @@ class _SearchScreenState extends State<SearchScreen>
                 ),
                 onTap: () {
                   _searchController.text = query;
-                  _showClearButton = true;
+                  setState(() => _showClearButton = true);
                   _performSearch(query);
                 },
               ),
@@ -865,28 +1031,80 @@ class _SearchScreenState extends State<SearchScreen>
 
     return Column(
       children: [
-        // Quick filter bar
+        // Quick filter bar (category detail style)
         Container(
-          color: Theme.of(context).colorScheme.surface,
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
             child: Row(
               children: [
-                // Filter button
-                _buildSearchFilterButton(),
-                const SizedBox(width: 8),
-                // Sort button
-                _buildSearchSortButton(),
-                const SizedBox(width: 8),
-                Container(width: 1, height: 22, color: Colors.grey.shade300),
-                const SizedBox(width: 8),
-                // Quick toggle: Original
+                // 1. Sort icon button
+                _buildSearchSortIconButton(),
+                const SizedBox(width: 10),
+                Container(width: 1, height: 24, color: Colors.grey.shade300),
+                const SizedBox(width: 10),
+
+                // 2. Narxi chip
                 Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: _buildSearchQuickChip(
-                    label: _isUzbek ? 'Original' : 'Оригинал',
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildSearchFilterChip(
+                    label: _filter.minPrice != null || _filter.maxPrice != null
+                        ? _formatSearchPriceLabel()
+                        : context.l10n.translate('price_label'),
+                    onTap: _openFilterSheet,
+                    isActive:
+                        _filter.minPrice != null || _filter.maxPrice != null,
+                    onClear: () {
+                      setState(() => _filter = _filter.copyWith(
+                          clearMinPrice: true, clearMaxPrice: true));
+                      _performSearch(_searchController.text);
+                    },
+                  ),
+                ),
+
+                // 3. WOW narx
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildSearchToggleChip(
+                    label: context.l10n.translate('wow_price'),
+                    isActive: _filter.isWowPrice == true,
+                    onTap: () {
+                      setState(() {
+                        _filter = _filter.copyWith(
+                          isWowPrice: _filter.isWowPrice == true ? null : true,
+                          clearIsWowPrice: _filter.isWowPrice == true,
+                        );
+                      });
+                      _performSearch(_searchController.text);
+                    },
+                  ),
+                ),
+
+                // 4. Brend chip
+                if (_brands.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildSearchFilterChip(
+                      label: _filter.brandIds.isNotEmpty
+                          ? '${context.l10n.translate('brand')}: ${_filter.brandIds.length}'
+                          : context.l10n.translate('brand'),
+                      onTap: _openFilterSheet,
+                      isActive: _filter.brandIds.isNotEmpty,
+                      onClear: () {
+                        setState(
+                            () => _filter = _filter.copyWith(brandIds: {}));
+                        _performSearch(_searchController.text);
+                      },
+                    ),
+                  ),
+
+                // 5. Original
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildSearchToggleChip(
+                    label: context.l10n.translate('original'),
                     isActive: _filter.isOriginal == true,
                     onTap: () {
                       setState(() {
@@ -899,14 +1117,14 @@ class _SearchScreenState extends State<SearchScreen>
                     },
                   ),
                 ),
-                // Quick toggle: Chegirmali
+
+                // 6. Chegirmali
                 if (_facets != null && _facets!.discountCount > 0)
                   Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: _buildSearchQuickChip(
-                      label: context.l10n.locale.languageCode == 'uz'
-                          ? 'Chegirmali'
-                          : 'Со скидкой',
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildSearchToggleChip(
+                      label: context.l10n.translate('discounted'),
+                      count: _facets!.discountCount,
                       isActive: _filter.onlyWithDiscount,
                       onTap: () {
                         setState(() {
@@ -917,14 +1135,14 @@ class _SearchScreenState extends State<SearchScreen>
                       },
                     ),
                   ),
-                // Quick toggle: Stokda bor
+
+                // 7. Stokda bor
                 if (_facets != null && _facets!.inStockCount > 0)
                   Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: _buildSearchQuickChip(
-                      label: context.l10n.locale.languageCode == 'uz'
-                          ? 'Stokda'
-                          : 'В наличии',
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _buildSearchToggleChip(
+                      label: context.l10n.translate('in_stock'),
+                      count: _facets!.inStockCount,
                       isActive: _filter.onlyInStock,
                       onTap: () {
                         setState(() {
@@ -935,12 +1153,43 @@ class _SearchScreenState extends State<SearchScreen>
                       },
                     ),
                   ),
-                // Results count
+
+                // 8. Reyting
                 Padding(
-                  padding: const EdgeInsets.only(left: 4),
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildSearchFilterChip(
+                    label: _filter.minRating != null
+                        ? '★ ${_filter.minRating!.toStringAsFixed(0)}+'
+                        : context.l10n.translate('high_rating'),
+                    onTap: () {
+                      setState(
+                          () => _filter = _filter.copyWith(minRating: 4.0));
+                      _performSearch(_searchController.text);
+                    },
+                    isActive: _filter.minRating != null,
+                    hideArrow: true,
+                    onClear: () {
+                      setState(() =>
+                          _filter = _filter.copyWith(clearMinRating: true));
+                      _performSearch(_searchController.text);
+                    },
+                  ),
+                ),
+
+                // Results count
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F2F7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
                     '$_totalResults ${context.l10n.translate('results_count')}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -951,8 +1200,8 @@ class _SearchScreenState extends State<SearchScreen>
         // Active filter pills row
         if (_filter.hasActiveFilters)
           Container(
-            color: Theme.of(context).colorScheme.surface,
-            padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
+            color: Colors.white,
+            padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -962,8 +1211,8 @@ class _SearchScreenState extends State<SearchScreen>
                       _filter.minPrice != null && _filter.maxPrice != null
                           ? '${(_filter.minPrice! / 1000).toStringAsFixed(0)}K - ${(_filter.maxPrice! / 1000).toStringAsFixed(0)}K'
                           : _filter.minPrice != null
-                              ? '${_isUzbek ? "dan" : "от"} ${(_filter.minPrice! / 1000).toStringAsFixed(0)}K'
-                              : '${_isUzbek ? "gacha" : "до"} ${(_filter.maxPrice! / 1000).toStringAsFixed(0)}K',
+                              ? '${context.l10n.translate('from_price')} ${(_filter.minPrice! / 1000).toStringAsFixed(0)}K'
+                              : '${context.l10n.translate('to_price')} ${(_filter.maxPrice! / 1000).toStringAsFixed(0)}K',
                       () {
                         setState(() {
                           _filter = _filter.copyWith(
@@ -974,7 +1223,7 @@ class _SearchScreenState extends State<SearchScreen>
                     ),
                   if (_filter.brandIds.isNotEmpty)
                     _buildSearchRemovablePill(
-                      '${_isUzbek ? "Brendlar" : "Бренды"}: ${_filter.brandIds.length}',
+                      '${context.l10n.translate('brands_plural')}: ${_filter.brandIds.length}',
                       () {
                         setState(
                             () => _filter = _filter.copyWith(brandIds: {}));
@@ -1076,19 +1325,6 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  String _getSortLabel() {
-    switch (_sortBy) {
-      case 'price_low':
-        return context.l10n.translate('sort_cheap');
-      case 'price_high':
-        return context.l10n.translate('sort_expensive');
-      case 'newest':
-        return context.l10n.translate('newest');
-      default:
-        return context.l10n.translate('most_popular');
-    }
-  }
-
   void _showSortOptions() {
     final l10n = context.l10n;
     showModalBottomSheet(
@@ -1179,40 +1415,96 @@ class _SearchScreenState extends State<SearchScreen>
 
   // === Helper widgets ===
 
-  Widget _buildSearchFilterButton() {
-    final count = _filter.activeFilterCount;
+  /// Sort icon button (category detail style)
+  Widget _buildSearchSortIconButton() {
+    final isActive = _sortBy != 'popular';
     return GestureDetector(
-      onTap: _openFilterSheet,
+      onTap: _showSortOptions,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(
-          color: count > 0
+          color: isActive
               ? AppColors.primary.withValues(alpha: 0.1)
               : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: count > 0
+          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+          border: isActive
               ? Border.all(color: AppColors.primary, width: 1.5)
               : null,
+        ),
+        child: Center(
+          child: Icon(
+            Icons.sort,
+            color: isActive ? AppColors.primary : Colors.grey.shade700,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Filter chip with dropdown arrow (category detail style)
+  Widget _buildSearchFilterChip({
+    required String label,
+    required VoidCallback onTap,
+    bool isActive = false,
+    bool hideArrow = false,
+    VoidCallback? onClear,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFEEF2FF) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+          border: Border.all(
+            color: isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade300,
+            width: isActive ? 1.2 : 0.5,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.tune_rounded,
-                size: 16,
-                color: count > 0 ? AppColors.primary : Colors.grey.shade700),
-            if (count > 0) ...[
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(8),
+            if (isActive)
+              const Padding(
+                padding: EdgeInsets.only(right: 5),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Color(0xFF4E6AFF),
                 ),
-                child: Text('$count',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold)),
+              ),
+            Text(
+              label,
+              style: TextStyle(
+                color:
+                    isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade800,
+                fontSize: 13,
+                height: 1.2,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            if (isActive && onClear != null) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: onClear,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: Color(0xFF4E6AFF),
+                  ),
+                ),
+              ),
+            ] else if (!hideArrow) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: Colors.grey.shade600,
               ),
             ],
           ],
@@ -1221,69 +1513,66 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildSearchSortButton() {
-    return GestureDetector(
-      onTap: _showSortOptions,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Iconsax.sort, size: 14, color: Colors.grey.shade700),
-            const SizedBox(width: 4),
-            Text(
-              _getSortLabel(),
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade800,
-                  fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchQuickChip({
+  /// Quick toggle chip (category detail style)
+  Widget _buildSearchToggleChip({
     required String label,
+    int? count,
     required bool isActive,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF232323) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          border: isActive
-              ? null
-              : Border.all(color: Colors.grey.shade300, width: 0.5),
+          color: isActive ? const Color(0xFFEEF2FF) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+          border: Border.all(
+            color: isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade300,
+            width: isActive ? 1.2 : 0.5,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isActive)
+              const Padding(
+                padding: EdgeInsets.only(right: 5),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Color(0xFF4E6AFF),
+                ),
+              ),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
-                color: isActive ? Colors.white : Colors.grey.shade800,
+                color:
+                    isActive ? const Color(0xFF4E6AFF) : Colors.grey.shade800,
+                fontSize: 13,
+                height: 1.2,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
+            if (count != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                '$count',
+                style: TextStyle(
+                  color: isActive
+                      ? const Color(0xFF4E6AFF).withValues(alpha: 0.7)
+                      : Colors.grey.shade500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
             if (isActive) ...[
               const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF757575),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.close, size: 10, color: Colors.black),
+              const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: Color(0xFF4E6AFF),
               ),
             ],
           ],
@@ -1292,16 +1581,40 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
+  /// Narx labelini formatlash
+  String _formatSearchPriceLabel() {
+    final min = _filter.minPrice;
+    final max = _filter.maxPrice;
+    if (min != null && max != null) {
+      return '${_formatSearchPrice(min)} - ${_formatSearchPrice(max)}';
+    } else if (min != null) {
+      return '${context.l10n.translate('from_price')} ${_formatSearchPrice(min)}';
+    } else if (max != null) {
+      return '${context.l10n.translate('to_price')} ${_formatSearchPrice(max)}';
+    }
+    return context.l10n.translate('price_label');
+  }
+
+  String _formatSearchPrice(double price) {
+    if (price >= 1000000) {
+      return '${(price / 1000000).toStringAsFixed(1)}M';
+    } else if (price >= 1000) {
+      return '${(price / 1000).toStringAsFixed(0)}K';
+    }
+    return price.toStringAsFixed(0);
+  }
+
   Widget _buildSearchRemovablePill(String label, VoidCallback onRemove) {
     return Padding(
-      padding: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: onRemove,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF232323),
-            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFFEEF2FF),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF4E6AFF), width: 1.2),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1310,19 +1623,13 @@ class _SearchScreenState extends State<SearchScreen>
                 label,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.white,
+                  color: Color(0xFF4E6AFF),
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 5),
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF757575),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.close, size: 10, color: Colors.black),
-              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.close_rounded,
+                  size: 12, color: Color(0xFF4E6AFF)),
             ],
           ),
         ),

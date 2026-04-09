@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { resolveImageUrl } from '@/lib/api/upload';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -154,7 +155,7 @@ export default function OrderDetailPage() {
             <div key={item.id} className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0 relative">
                 {item.product?.images?.[0] ? (
-                  <Image src={item.product.images[0]} alt="" fill className="object-cover" />
+                  <Image src={resolveImageUrl(item.product.images[0])} alt="" fill className="object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">📦</div>
                 )}

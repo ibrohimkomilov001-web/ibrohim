@@ -5,12 +5,19 @@ import Link from 'next/link';
 import {
   ShoppingBag, Heart, MapPin, CreditCard, Globe,
   HelpCircle, ChevronRight, Store, Star, ArrowLeft,
-  User, Phone, X, LogOut, Check,
+  User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation, useLocaleStore } from '@/store/locale-store';
 import { useAuthStore } from '@/store/auth-store';
-import { userAuthApi } from '@/lib/api/user-auth';
+import { userAuthApi, type UserDevice } from '@/lib/api/user-auth';
+
+const UZ_REGIONS = [
+  "Toshkent shahri", "Toshkent viloyati", "Andijon", "Farg'ona",
+  "Namangan", "Samarqand", "Buxoro", "Navoiy",
+  "Qashqadaryo", "Surxondaryo", "Jizzax", "Sirdaryo",
+  "Xorazm", "Qoraqalpog'iston",
+];
 
 // Format phone: 90 123 45 67
 function formatPhone(raw: string): string {
@@ -25,12 +32,12 @@ function getRawDigits(formatted: string): string {
   return formatted.replace(/\D/g, '');
 }
 
-type LoginStep = 'phone' | 'code' | 'name';
+type LoginStep = 'phone' | 'code' | 'name' | 'details';
 
 export default function ProfilePage() {
   const { t, locale } = useTranslation();
   const { setLocale } = useLocaleStore();
-  const { user, isAuthenticated, login, logout, setUser } = useAuthStore();
+  const { user, isAuthenticated, login, loginWithGoogle, logout, setUser } = useAuthStore();
 
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -38,7 +45,13 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [fullName, setFullName] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | ''>('');
+  const [birthDate, setBirthDate] = useState('');
+  const [region, setRegion] = useState('');
+  const [devices, setDevices] = useState<UserDevice[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,8 +97,7 @@ export default function ProfilePage() {
       const d = getRawDigits(phone);
       const result = await login(`+998${d}`, otpCode);
       if (result.success) {
-        const { user: currentUser } = useAuthStore.getState();
-        if (!currentUser?.fullName) {
+        if (result.isNewUser || !useAuthStore.getState().user?.fullName) {
           setLoginStep('name');
         } else {
           resetLogin();
@@ -108,6 +120,27 @@ export default function ProfilePage() {
     try {
       const updated = await userAuthApi.updateProfile({ fullName: fullName.trim() });
       setUser(updated);
+      setLoginStep('details');
+    } catch (err: any) {
+      setError(err.message || (locale === 'ru' ? 'Ошибка' : 'Xatolik'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const payload: Record<string, any> = {};
+      if (gender) payload.gender = gender;
+      if (birthDate) payload.birthDate = new Date(birthDate).toISOString();
+      if (region) payload.region = region;
+      if (Object.keys(payload).length > 0) {
+        const updated = await userAuthApi.updateProfile(payload);
+        setUser(updated);
+      }
       resetLogin();
     } catch (err: any) {
       setError(err.message || (locale === 'ru' ? 'Ошибка' : 'Xatolik'));
@@ -122,9 +155,26 @@ export default function ProfilePage() {
     setPhone('');
     setOtpCode('');
     setFullName('');
+    setGender('');
+    setBirthDate('');
+    setRegion('');
     setError('');
     setCountdown(0);
   };
+
+  const loadDevices = async () => {
+    setDevicesLoading(true);
+    try {
+      const list = await userAuthApi.getDevices();
+      setDevices(list);
+    } catch { /* ignore */ }
+    setDevicesLoading(false);
+  };
+
+  // Load devices when authenticated
+  useEffect(() => {
+    if (isAuthenticated) loadDevices();
+  }, [isAuthenticated]);
 
   const handleResendOtp = async () => {
     if (countdown > 0) return;
@@ -135,6 +185,66 @@ export default function ProfilePage() {
       setCountdown(60);
     } catch { /* ignore */ }
     setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      setError(locale === 'ru' ? 'Google kirish sozlanmagan' : 'Google kirish sozlanmagan');
+      return;
+    }
+    const redirectUri = `${window.location.origin}/profile`;
+    const scope = 'openid email profile';
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(googleClientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
+    const popup = window.open(authUrl, 'google-oauth', 'width=500,height=600,scrollbars=yes');
+    if (!popup) {
+      setError(locale === 'ru' ? 'Popup blokirovka qilindi' : 'Popup bloklangan, ruxsat bering');
+      return;
+    }
+    setGoogleLoading(true);
+    setError('');
+    const timeout = setTimeout(() => {
+      clearInterval(pollInterval);
+      setGoogleLoading(false);
+      if (!popup.closed) popup.close();
+    }, 2 * 60 * 1000);
+    const pollInterval = setInterval(async () => {
+      try {
+        if (popup.closed) {
+          clearInterval(pollInterval);
+          clearTimeout(timeout);
+          setGoogleLoading(false);
+          return;
+        }
+        const url = popup.location.href;
+        if (url && url.includes('access_token=')) {
+          clearInterval(pollInterval);
+          clearTimeout(timeout);
+          popup.close();
+          const hash = new URL(url).hash;
+          const params = new URLSearchParams(hash.slice(1));
+          const accessToken = params.get('access_token');
+          if (accessToken) {
+            const result = await loginWithGoogle(accessToken);
+            if (result.success) {
+              const currentUser = useAuthStore.getState().user;
+              if (!currentUser?.fullName) {
+                setLoginStep('name');
+              } else if (result.isNewUser) {
+                setLoginStep('details');
+              } else {
+                resetLogin();
+              }
+            } else {
+              setError(result.error || (locale === 'ru' ? 'Google orqali kirishda xatolik' : 'Google orqali kirishda xatolik'));
+            }
+          }
+          setGoogleLoading(false);
+        }
+      } catch {
+        // Cross-origin tekshiruv — Google sahifasida, normal
+      }
+    }, 500);
   };
 
   const digits = getRawDigits(phone);
@@ -178,20 +288,27 @@ export default function ProfilePage() {
     return (
       <div className="site-container py-4 sm:py-6">
         <div className="max-w-lg mx-auto">
-          {/* Back button */}
-          <button
-            onClick={() => {
-              if (loginStep === 'code') { setLoginStep('phone'); setOtpCode(''); setError(''); }
-              else if (loginStep === 'name') { /* must enter name */ }
-              else { resetLogin(); }
-            }}
-            className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 transition-colors mb-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">
-              {locale === 'ru' ? 'Назад' : 'Orqaga'}
-            </span>
-          </button>
+          {/* Navigatsiya qatori */}
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => {
+                if (loginStep === 'code') { setLoginStep('phone'); setOtpCode(''); setError(''); }
+                else if (loginStep === 'name') { /* must enter name */ }
+                else if (loginStep === 'details') { /* optional — skip forward */ }
+                else { resetLogin(); }
+              }}
+              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">
+                {locale === 'ru' ? 'Назад' : 'Orqaga'}
+              </span>
+            </button>
+            <Link href="/" className="flex items-center gap-1 text-sm text-gray-400 hover:text-primary transition-colors">
+              <Home className="w-4 h-4" />
+              <span>{locale === 'ru' ? 'На главную' : 'Bosh sahifa'}</span>
+            </Link>
+          </div>
 
           {/* Login card */}
           <motion.div
@@ -255,6 +372,33 @@ export default function ProfilePage() {
                       ? 'Нажимая кнопку, вы соглашаетесь с условиями использования'
                       : "Davom etish orqali foydalanish shartlariga rozilik bildirasiz"}
                   </p>
+
+                  {/* Ajratuvchi */}
+                  <div className="flex items-center gap-3 mt-5">
+                    <div className="flex-1 h-px bg-gray-100" />
+                    <span className="text-xs text-gray-400">{locale === 'ru' ? 'или' : 'yoki'}</span>
+                    <div className="flex-1 h-px bg-gray-100" />
+                  </div>
+
+                  {/* Google orqali kirish */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={googleLoading || loading}
+                    className="w-full mt-4 h-11 rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {googleLoading ? (
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                    )}
+                    {locale === 'ru' ? 'Войти через Google' : 'Google orqali kirish'}
+                  </button>
                 </motion.div>
               )}
 
@@ -361,6 +505,100 @@ export default function ProfilePage() {
                   </form>
                 </motion.div>
               )}
+
+              {/* ===== STEP 4: DEMOGRAPHICS (optional) ===== */}
+              {loginStep === 'details' && (
+                <motion.div key="details-step" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                      <User className="w-7 h-7 text-blue-600" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-800">
+                      {locale === 'ru' ? 'О вас' : 'Siz haqingizda'}
+                    </h2>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {locale === 'ru' ? 'Необязательно — можно пропустить' : 'Ixtiyoriy — o\'tkazib yuborish mumkin'}
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSaveDetails} className="space-y-4">
+                    {/* Gender */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                        {locale === 'ru' ? 'Пол' : 'Jins'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['male', 'female'] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setGender(gender === g ? '' : g)}
+                            className={`h-10 rounded-xl text-sm font-medium border transition-all ${
+                              gender === g
+                                ? 'bg-primary text-white border-primary'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary/30'
+                            }`}
+                          >
+                            {g === 'male'
+                              ? (locale === 'ru' ? 'Мужской' : 'Erkak')
+                              : (locale === 'ru' ? 'Женский' : 'Ayol')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Birth date */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                        {locale === 'ru' ? 'Дата рождения' : 'Tug\'ilgan sana'}
+                      </p>
+                      <input
+                        type="date"
+                        value={birthDate}
+                        onChange={(e) => setBirthDate(e.target.value)}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
+                        className="w-full h-12 rounded-xl bg-gray-50 border border-gray-200 px-4 text-[16px] text-gray-800 focus:border-primary/40 focus:bg-white outline-none transition-all"
+                      />
+                    </div>
+
+                    {/* Region */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                        {locale === 'ru' ? 'Регион' : 'Viloyat'}
+                      </p>
+                      <select
+                        value={region}
+                        onChange={(e) => setRegion(e.target.value)}
+                        className="w-full h-12 rounded-xl bg-gray-50 border border-gray-200 px-4 text-[16px] text-gray-800 focus:border-primary/40 focus:bg-white outline-none transition-all"
+                      >
+                        <option value="">{locale === 'ru' ? 'Выберите регион' : 'Viloyatni tanlang'}</option>
+                        {UZ_REGIONS.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-11 rounded-xl bg-primary text-white font-semibold text-sm disabled:opacity-40 hover:bg-primary/90 active:scale-[0.98] transition-all"
+                    >
+                      {loading
+                        ? (locale === 'ru' ? 'Сохранение...' : 'Saqlanmoqda...')
+                        : (locale === 'ru' ? 'Сохранить' : 'Saqlash')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetLogin}
+                      className="w-full h-10 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {locale === 'ru' ? 'Пропустить' : 'O\'tkazib yuborish'}
+                    </button>
+                  </form>
+                </motion.div>
+              )}
             </AnimatePresence>
           </motion.div>
         </div>
@@ -372,6 +610,15 @@ export default function ProfilePage() {
   return (
     <div className="site-container py-4 sm:py-6">
       <div className="max-w-lg mx-auto">
+
+        {/* Bosh sahifaga qaytish */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>{locale === 'ru' ? 'На главную' : 'Bosh sahifa'}</span>
+        </Link>
 
         {/* User info or Login button */}
         {isAuthenticated && user ? (
@@ -388,6 +635,9 @@ export default function ProfilePage() {
                 {user.fullName || (locale === 'ru' ? 'Пользователь' : 'Foydalanuvchi')}
               </span>
               <span className="text-xs text-gray-400 block">{user.phone}</span>
+              {user.referralCode && (
+                <span className="text-[10px] text-primary/60 font-mono">Topla ID: {user.referralCode}</span>
+              )}
             </div>
           </motion.div>
         ) : (
@@ -523,6 +773,68 @@ export default function ProfilePage() {
             <LogOut className="w-4 h-4" />
             {locale === 'ru' ? 'Выйти' : 'Chiqish'}
           </motion.button>
+        )}
+
+        {/* ===== DEVICES SECTION (only when authenticated) ===== */}
+        {isAuthenticated && devices.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
+              {locale === 'ru' ? 'Активные устройства' : 'Faol qurilmalar'}
+            </h3>
+            <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 overflow-hidden divide-y divide-gray-100">
+              {devicesLoading ? (
+                <div className="px-4 py-3 text-sm text-gray-400 text-center">
+                  {locale === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
+                </div>
+              ) : devices.map((device) => {
+                const DeviceIcon = device.platform === 'web' ? Monitor
+                  : device.platform === 'ios' ? Smartphone
+                  : Smartphone;
+                return (
+                  <div key={device.id} className="flex items-center gap-3 px-4 py-3">
+                    <DeviceIcon className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={1.5} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-gray-700 truncate">
+                        {device.deviceName || device.browser || 'Qurilma'}
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        {device.ipAddress}{device.location ? ` · ${device.location}` : ''} ·{' '}
+                        {new Date(device.lastActiveAt).toLocaleDateString(locale === 'ru' ? 'ru' : 'uz')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await userAuthApi.deleteDevice(device.id);
+                          setDevices(prev => prev.filter(d => d.id !== device.id));
+                        } catch { /* ignore */ }
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
+                      title={locale === 'ru' ? 'Удалить' : 'O\'chirish'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {devices.length > 1 && (
+              <button
+                onClick={async () => {
+                  if (!confirm(locale === 'ru'
+                    ? 'Выйти со всех других устройств?'
+                    : 'Barcha boshqa qurilmalardan chiqishni xohlaysizmi?')) return;
+                  try {
+                    await userAuthApi.terminateOtherDevices();
+                    await loadDevices();
+                  } catch { /* ignore */ }
+                }}
+                className="mt-3 w-full py-2.5 text-sm font-medium text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+              >
+                {locale === 'ru' ? 'Выйти со всех устройств' : 'Barcha qurilmalardan chiqish'}
+              </button>
+            )}
+          </div>
         )}
 
       </div>

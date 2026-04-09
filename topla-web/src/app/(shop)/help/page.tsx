@@ -5,6 +5,7 @@ import { ArrowLeft, HelpCircle, MessageCircle, Phone, Mail, ChevronDown } from '
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useTranslation } from '@/store/locale-store';
+import { useSupportPhone } from '@/hooks/useSettings';
 
 const faqItems = {
   uz: [
@@ -88,6 +89,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 
 export default function HelpPage() {
   const { t, locale } = useTranslation();
+  const supportPhone = useSupportPhone();
   const items = locale === 'ru' ? faqItems.ru : faqItems.uz;
 
   return (
@@ -123,7 +125,7 @@ export default function HelpPage() {
           </h2>
           <div className="space-y-2">
             <a
-              href="tel:+998950009416"
+              href={`tel:+${supportPhone.replace(/\D/g, '')}`}
               className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -133,7 +135,7 @@ export default function HelpPage() {
                 <p className="text-sm font-medium text-gray-700">
                   {locale === 'ru' ? 'Позвонить' : 'Qo\'ng\'iroq qilish'}
                 </p>
-                <p className="text-xs text-gray-400">+998 95 000 94 16</p>
+                <p className="text-xs text-gray-400">{supportPhone}</p>
               </div>
             </a>
             <a

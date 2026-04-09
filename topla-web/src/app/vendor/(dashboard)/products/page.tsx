@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { resolveImageUrl } from "@/lib/api/upload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -237,7 +238,7 @@ export default function ProductsPage() {
                   <div className="relative aspect-square bg-muted">
                     {product.images?.[0] ? (
                       <Image
-                        src={product.images[0]}
+                        src={resolveImageUrl(product.images[0])}
                         alt={product.name}
                         fill
                         className="object-cover"

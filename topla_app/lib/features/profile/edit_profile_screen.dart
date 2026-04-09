@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -32,6 +33,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _selectedImage;
   DateTime? _birthday;
   String _avatarUrl = '';
+  String? _selectedGender;
+  String? _selectedRegion;
+
+  static const _uzRegions = [
+    'Toshkent shahri',
+    'Toshkent viloyati',
+    'Andijon',
+    'Buxoro',
+    'Farg\'ona',
+    'Jizzax',
+    'Xorazm',
+    'Namangan',
+    'Navoiy',
+    'Qashqadaryo',
+    'Qoraqalpog\'iston',
+    'Samarqand',
+    'Sirdaryo',
+    'Surxondaryo',
+  ];
 
   // Track changes
   String _initialFirstName = '';
@@ -65,6 +85,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstNameController = TextEditingController(text: _initialFirstName);
     _lastNameController = TextEditingController(text: _initialLastName);
     _emailController = TextEditingController(text: _initialEmail);
+
+    _selectedGender = widget.profile?['gender'] as String?;
+    _selectedRegion = widget.profile?['region'] as String?;
+
+    final birthDateRaw =
+        widget.profile?['birth_date'] ?? widget.profile?['birthDate'];
+    if (birthDateRaw != null) {
+      _birthday = DateTime.tryParse(birthDateRaw.toString());
+    }
 
     _firstNameController.addListener(_checkForChanges);
     _lastNameController.addListener(_checkForChanges);
@@ -158,12 +187,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
     } else if (_avatarUrl.isNotEmpty) {
       avatarContent = ClipOval(
-        child: Image.network(
-          _avatarUrl,
+        child: CachedNetworkImage(
+          imageUrl: _avatarUrl,
           width: 90,
           height: 90,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildInitialsAvatar(initials),
+          errorWidget: (_, __, ___) => _buildInitialsAvatar(initials),
         ),
       );
     } else {
@@ -324,6 +353,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         const SizedBox(height: 12),
 
+        // Gender Section
+        Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Jins', style: TextStyle(fontSize: 16)),
+              Row(
+                children: [
+                  _buildGenderChip('MALE', 'Erkak'),
+                  const SizedBox(width: 8),
+                  _buildGenderChip('FEMALE', 'Ayol'),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Region Section
+        GestureDetector(
+          onTap: _pickRegion,
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Viloyat', style: TextStyle(fontSize: 16)),
+                Row(
+                  children: [
+                    Text(
+                      _selectedRegion ?? "Tanlash",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _selectedRegion != null
+                            ? const Color(0xFF8E8E93)
+                            : const Color(0xFFC4C4C6),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right,
+                        color: Color(0xFFC4C4C6), size: 20),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Phone Section
         GestureDetector(
           onTap: _changePhone,
@@ -356,6 +445,70 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildGenderChip(String value, String label) {
+    final selected = _selectedGender == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedGender = value;
+          _isChanged = true;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : const Color(0xFFF2F2F7),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: selected ? Colors.white : const Color(0xFF8E8E93),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _pickRegion() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Viloyatingizni tanlang',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            ..._uzRegions.map((region) => ListTile(
+                  title: Text(region),
+                  trailing: _selectedRegion == region
+                      ? const Icon(Icons.check, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    setState(() {
+                      _selectedRegion = region;
+                      _isChanged = true;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                )),
+          ],
+        ),
+      ),
     );
   }
 
@@ -587,6 +740,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ? null
                 : _emailController.text.trim(),
             phone: widget.profile?['phone'],
+            gender: _selectedGender,
+            region: _selectedRegion,
           );
 
       if (mounted) {

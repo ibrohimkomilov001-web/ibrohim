@@ -62,6 +62,12 @@ const envSchema = z.object({
   // Google OAuth (admin panel "Sign in with Google")
   GOOGLE_CLIENT_ID: z.string().optional(),
 
+  // Didox e-contract
+  DIDOX_API_URL: z.string().default('https://api.didox.uz'),
+  DIDOX_API_TOKEN: z.string().optional(),
+  DIDOX_COMPANY_TIN: z.string().optional(), // Topla's INN/TIN for contracts
+  DIDOX_WEBHOOK_SECRET: z.string().optional(),
+
   // Error tracking (Sentry)
   SENTRY_DSN: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   SENTRY_ENVIRONMENT: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),

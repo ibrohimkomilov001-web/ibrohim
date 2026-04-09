@@ -117,6 +117,13 @@ export async function calculateOnboardingProgress(shopId: string): Promise<Onboa
       href: '/vendor/settings',
     },
     {
+      id: 'contract',
+      title: 'Shartnoma imzolash',
+      description: 'Didox orqali shartnomani ko\'rib chiqish va imzolash',
+      completed: shop.contractStatus === 'signed',
+      href: '/vendor/onboarding',
+    },
+    {
       id: 'documents',
       title: 'Hujjatlar yuklash',
       description: 'Pasport yoki INN hujjat yuklash va tasdiqlash',

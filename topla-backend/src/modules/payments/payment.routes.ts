@@ -117,18 +117,9 @@ async function callBankApi(
   const config = getBankConfig(provider);
 
   if (!config.configured) {
-    // Bank API sozlanmagan — demo rejimda ishlaydi
     return {
-      success: true,
-      data: {
-        status: 'demo_mode',
-        message: `${provider} API sozlanmagan. Demo rejimda ishlayapti.`,
-        transaction_id: `demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        // Agar binding bo'lsa demo redirect URL
-        redirect_url: endpoint.includes('binding')
-          ? `${env.CORS_ORIGINS?.split(',')[0] || 'http://localhost:3000'}/payment/demo-binding?provider=${provider}`
-          : undefined,
-      },
+      success: false,
+      error: `${provider} API sozlanmagan. Administrator bilan bog'laning.`,
     };
   }
 

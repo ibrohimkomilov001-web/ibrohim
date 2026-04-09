@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/api_config.dart';
 import '../../core/constants/constants.dart';
 import '../../core/services/api_client.dart';
+import '../../widgets/skeleton_widgets.dart';
 
 class SupportChatScreen extends StatefulWidget {
   const SupportChatScreen({super.key});
@@ -219,7 +221,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
           // Messages
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const MessageBubbleSkeleton()
                 : _messages.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
@@ -382,24 +384,20 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                           maxWidth: 220,
                           maxHeight: 220,
                         ),
-                        child: Image.network(
-                          imageUrl.startsWith('http')
+                        child: CachedNetworkImage(
+                          imageUrl: imageUrl.startsWith('http')
                               ? imageUrl
                               : '${ApiConfig.baseUrl}$imageUrl',
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              width: 180,
-                              height: 120,
-                              color: Colors.grey.shade200,
-                              child: const Center(
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
+                          placeholder: (context, url) => Container(
+                            width: 180,
+                            height: 120,
+                            color: Colors.grey.shade200,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) {
                             return Container(
                               width: 180,
                               height: 80,
@@ -478,7 +476,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             InteractiveViewer(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(url, fit: BoxFit.contain),
+                child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
               ),
             ),
             Positioned(

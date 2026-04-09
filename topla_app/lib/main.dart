@@ -27,9 +27,10 @@ import 'features/auth/otp_screen.dart';
 import 'features/favorites/favorites_screen.dart';
 import 'features/addresses/addresses_screen.dart';
 import 'features/payment/payment_methods_screen.dart';
-import 'features/help/help_screen.dart';
+import 'features/help/support_chat_screen.dart';
 import 'features/invite/invite_friend_screen.dart';
 import 'features/orders/orders_screen.dart';
+import 'features/orders/order_detail_screen.dart';
 import 'features/profile/purchased_products_screen.dart';
 import 'features/profile/returns_screen.dart';
 import 'features/profile/reviews_questions_screen.dart';
@@ -40,9 +41,13 @@ import 'features/profile/my_promo_codes_screen.dart';
 import 'features/lucky_wheel/all_prizes_screen.dart';
 import 'features/lucky_wheel/spin_history_screen.dart';
 import 'core/widgets/auth_guard.dart';
+import 'services/cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // PersistentCache — SharedPreferences ni oldindan yuklash
+  await PersistentCache.init();
 
   // Google Fonts — lokal fayllardan yuklash (tarmoqdan emas)
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -238,7 +243,7 @@ class ToplaApp extends StatelessWidget {
                   const AuthGuard(child: AddressesScreen()),
               '/payment-methods': (context) =>
                   const AuthGuard(child: PaymentMethodsScreen()),
-              '/help': (context) => const HelpScreen(),
+              '/help': (context) => const SupportChatScreen(),
               '/invite': (context) =>
                   const AuthGuard(child: InviteFriendScreen()),
               '/orders': (context) =>
@@ -258,6 +263,18 @@ class ToplaApp extends StatelessWidget {
               '/lucky-wheel/history': (context) =>
                   const AuthGuard(child: SpinHistoryScreen()),
               '/': (context) => const SplashScreen(),
+            },
+            onGenerateRoute: (settings) {
+              // Dynamic routes — notification tap orqali
+              final args = settings.arguments;
+              if (settings.name == '/order-detail' && args is String) {
+                return MaterialPageRoute(
+                  builder: (_) => AuthGuard(
+                    child: OrderDetailScreen(orderId: args),
+                  ),
+                );
+              }
+              return null;
             },
           );
         },

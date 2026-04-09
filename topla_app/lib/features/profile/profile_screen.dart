@@ -7,6 +7,7 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
+import '../../widgets/skeleton_widgets.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -31,14 +32,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
         if (authProvider.isLoading) {
           return Scaffold(
-            appBar: AppBar(
-              title: Text(
-                context.l10n.profile,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
-              ),
+            backgroundColor: const Color(0xFFF5F5F5),
+            body: const SafeArea(
+              child: ProfileSkeleton(),
             ),
-            body: const Center(child: CircularProgressIndicator()),
           );
         }
 

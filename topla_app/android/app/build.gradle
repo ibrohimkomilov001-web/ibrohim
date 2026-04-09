@@ -35,7 +35,7 @@ android {
         multiDexEnabled true
         applicationId = "com.topla.topla_app"
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

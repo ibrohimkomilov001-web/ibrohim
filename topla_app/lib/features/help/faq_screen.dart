@@ -121,7 +121,7 @@ class _FaqScreenState extends State<FaqScreen> {
           answer:
               'Ha, barcha to\'lovlar shifrlangan aloqa kanali orqali amalga oshiriladi. '
               'Sizning karta ma\'lumotlaringiz serverlarimizda saqlanmaydi. '
-              'To\'lov tizimlari (Payme, Click) xavfsizlik sertifikatlariga ega.',
+              'To\'lov tizimlari (Octobank) xavfsizlik sertifikatlariga ega.',
         ),
         _FaqItem(
           question: 'Pul qaytarilishi qancha vaqt oladi?',

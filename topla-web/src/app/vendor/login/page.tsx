@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { VendorAuthHeader } from "@/components/vendor/VendorAuthHeader";
 import { useTranslation } from "@/store/locale-store";
@@ -54,14 +55,31 @@ export default function VendorLoginPage() {
 
   const handlePhoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const el = event.target;
-    const prevLen = phone.length;
-    const formatted = formatPhone(el.value);
+    const cursorPos = el.selectionStart ?? 0;
+
+    // Count digits before cursor in the raw input
+    const rawValue = el.value;
+    let digitsBefore = 0;
+    for (let i = 0; i < cursorPos && i < rawValue.length; i++) {
+      if (/\d/.test(rawValue[i])) digitsBefore++;
+    }
+    if (digitsBefore < 3) digitsBefore = 3;
+
+    const formatted = formatPhone(rawValue);
     setPhone(formatted);
-    const cursorPos = el.selectionStart ?? formatted.length;
-    const diff = formatted.length - prevLen;
+
     requestAnimationFrame(() => {
       if (phoneRef.current) {
-        const newPos = Math.max(PHONE_PREFIX.length, cursorPos + diff);
+        let count = 0;
+        let newPos = 0;
+        for (let i = 0; i < formatted.length; i++) {
+          if (/\d/.test(formatted[i])) count++;
+          if (count >= digitsBefore) {
+            newPos = i + 1;
+            break;
+          }
+        }
+        if (count < digitsBefore) newPos = formatted.length;
         phoneRef.current.setSelectionRange(newPos, newPos);
       }
     });
@@ -102,7 +120,7 @@ export default function VendorLoginPage() {
       await login(phoneDigits, password);
       router.push("/vendor/dashboard");
     } catch (err: any) {
-      setError(err.message || t("vendorLoginError"));
+      toast.error(err.message || t("vendorLoginError"));
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +185,7 @@ export default function VendorLoginPage() {
       router.push("/vendor/dashboard");
     } catch (err: any) {
       if (err.message !== "Google kirish bekor qilindi") {
-        setError(err.message || t("vendorLoginError"));
+        toast.error(err.message || t("vendorLoginError"));
       }
     } finally {
       setIsGoogleLoading(false);
@@ -186,7 +204,7 @@ export default function VendorLoginPage() {
           <p className="mt-2 text-sm text-gray-500">{t("vendorLoginSubtitle")}</p>
 
           {error && (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-4 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -194,7 +212,7 @@ export default function VendorLoginPage() {
           <div className="mt-6 space-y-4">
             <input
               ref={phoneRef}
-              className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 text-base outline-none"
+              className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
               placeholder={t("vendorPhonePlaceholder")}
               value={phone}
               onChange={handlePhoneChange}
@@ -202,11 +220,12 @@ export default function VendorLoginPage() {
               onClick={handlePhoneClick}
               onKeyDown={handlePhoneKeyDown}
               inputMode="tel"
+              enterKeyHint="next"
             />
 
             <div className="relative">
               <input
-                className="h-14 w-full rounded-2xl border-0 bg-gray-100 px-4 pr-12 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 pr-12 text-base outline-none"
                 placeholder={t("vendorPassword")}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -232,7 +251,7 @@ export default function VendorLoginPage() {
 
             <button
               type="button"
-              className="h-12 w-full rounded-xl bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
               onClick={handleLogin}
               disabled={isLoading}
             >
@@ -256,7 +275,7 @@ export default function VendorLoginPage() {
 
             <button
               type="button"
-              className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-gray-200 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading}
             >
