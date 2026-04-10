@@ -359,7 +359,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     });
 
     // Typing indicator
-    socket.on('chat:typing', (roomId: string) => {
+    socket.on('chat:typing', async (roomId: string) => {
       const parsed = uuidSchema.safeParse(roomId);
       if (!parsed.success) return;
       if (!await wsRateLimit(socket.id, 'chat:typing', 20)) return;

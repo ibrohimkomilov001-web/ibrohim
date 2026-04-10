@@ -189,6 +189,7 @@ model Profile {
   loyaltyAccount      LoyaltyAccount?
   apiKeys             ApiKey[]
   savedCards          SavedCard[]
+  passkeys            Passkey[]
 
   @@index([role, status])
   @@index([phone])
@@ -215,6 +216,25 @@ model UserDevice {
 
   @@unique([userId, fcmToken])
   @@map("user_devices")
+}
+
+model Passkey {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  credentialId    String   @unique @map("credential_id") // base64url encoded
+  publicKey       String   @map("public_key") // base64url encoded COSE key
+  counter         BigInt   @default(0)
+  deviceType      String?  @map("device_type") // singleDevice | multiDevice
+  backedUp        Boolean  @default(false)
+  transports      String[] // usb, ble, nfc, internal
+  deviceName      String?  @map("device_name")
+  lastUsedAt      DateTime? @map("last_used_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("passkeys")
 }
 
 // ============================================

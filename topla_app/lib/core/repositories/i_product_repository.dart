@@ -18,6 +18,9 @@ abstract class IProductRepository {
   /// Bitta mahsulotni raw JSON sifatida olish (variants bilan)
   Future<Map<String, dynamic>?> getProductByIdRaw(String id);
 
+  /// Mahsulot atributlarini olish
+  Future<List<Map<String, dynamic>>?> getProductAttributes(String id);
+
   /// Tavsiya etilgan mahsulotlar
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10});
 
@@ -47,7 +50,8 @@ abstract class IProductRepository {
   Future<void> removeSearchHistoryItem(String query);
 
   /// Rasm orqali qidirish (CLIP)
-  Future<SearchResult> searchByImage(String imagePath, {int page = 1, int limit = 20});
+  Future<SearchResult> searchByImage(String imagePath,
+      {int page = 1, int limit = 20});
 
   /// Kategoriya bo'yicha mahsulotlar
   Future<List<ProductModel>> getProductsByCategory(
@@ -92,5 +96,12 @@ abstract class IProductRepository {
   Future<int> getFilteredProductsCount({
     required String categoryId,
     required ProductFilter filter,
+  });
+
+  /// Mahsulotga sharh qo'shish
+  Future<bool> addProductReview({
+    required String productId,
+    required int rating,
+    String? comment,
   });
 }

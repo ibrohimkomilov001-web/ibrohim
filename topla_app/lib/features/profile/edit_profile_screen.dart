@@ -103,7 +103,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void _checkForChanges() {
     final hasChanges = _firstNameController.text != _initialFirstName ||
         _lastNameController.text != _initialLastName ||
-        _emailController.text != _initialEmail;
+        _emailController.text != _initialEmail ||
+        _selectedImage != null;
 
     if (hasChanges != _isChanged) {
       setState(() => _isChanged = hasChanges);
@@ -606,9 +607,134 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _changePhone() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tez orada ishlaydi'),
+    final phoneController = TextEditingController(
+      text: _hasPhone ? _initialPhone.replaceAll('+998', '') : '',
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Telefon raqam',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('+998',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 9,
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '90 123 45 67',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 14),
+                    ),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final digits =
+                      phoneController.text.replaceAll(RegExp(r'\D'), '');
+                  if (digits.length < 9) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Telefon raqam to\'liq emas'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  final phone = '+998$digits';
+                  setState(() {
+                    _initialPhone = phone;
+                    _hasPhone = true;
+                    _isChanged = true;
+                  });
+                  // Profilni yangilash
+                  try {
+                    await context
+                        .read<AuthProvider>()
+                        .updateProfile(phone: phone);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Telefon raqam saqlandi'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Xatolik: $e'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Saqlash',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -740,8 +866,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ? null
                 : _emailController.text.trim(),
             phone: widget.profile?['phone'],
-            gender: _selectedGender,
+            gender: _selectedGender?.toLowerCase(),
             region: _selectedRegion,
+            birthDate: _birthday?.toUtc().toIso8601String(),
           );
 
       if (mounted) {

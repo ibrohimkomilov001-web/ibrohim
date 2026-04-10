@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
-import '../../core/services/api_client.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -63,28 +62,9 @@ class _SplashScreenState extends State<SplashScreen>
     if (isFirstTime) {
       Navigator.pushReplacementNamed(context, '/onboarding');
     } else {
-      // Auth holatini tekshirish
-      final api = ApiClient();
-      final hasToken = api.hasToken;
-      if (hasToken) {
-        // Token haqiqiyligini serverdan tekshirish
-        try {
-          await api.get('/auth/me');
-          if (!mounted) return;
-          Navigator.pushReplacementNamed(context, '/main');
-        } catch (e) {
-          debugPrint('Token validation failed: $e');
-          // Token yaroqsiz — tokenni tozalash
-          api.clearTokens();
-          if (!mounted) return;
-          // Asosiy sahifaga o'tish — foydalanuvchi ro'yxatdan o'tmasdan ham ko'ra oladi
-          Navigator.pushReplacementNamed(context, '/main');
-        }
-      } else {
-        // Token yo'q bo'lsa ham asosiy sahifaga o'tish
-        // Foydalanuvchi mahsulotlarni ko'ra oladi, savat/buyurtma uchun auth kerak
-        Navigator.pushReplacementNamed(context, '/main');
-      }
+      // AuthProvider sessiyani o'zi tiklaydi (_restoreSession)
+      // Shu sababli splash'da alohida /auth/me tekshiruv shart emas
+      Navigator.pushReplacementNamed(context, '/main');
     }
   }
 

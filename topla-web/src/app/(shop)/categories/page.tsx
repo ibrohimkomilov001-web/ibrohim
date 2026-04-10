@@ -6,6 +6,15 @@ import { ChevronRight, LayoutGrid } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { shopApi, type Category } from '@/lib/api/shop';
 import { useTranslation } from '@/store/locale-store';
+import { ICON_BY_VALUE } from '@/lib/iconsax-map';
+
+function renderIcon(icon?: string) {
+  if (!icon) return <span className="text-3xl">📦</span>;
+  const opt = ICON_BY_VALUE[icon];
+  if (!opt) return <span className="text-3xl">📦</span>;
+  const IconComp = opt.Icon;
+  return <IconComp size={28} color="hsl(var(--primary))" />;
+}
 
 export default function CategoriesPage() {
   const { t, locale } = useTranslation();
@@ -62,8 +71,8 @@ export default function CategoriesPage() {
                 href={`/categories/${cat.id}`}
                 className="glass rounded-2xl p-5 flex items-center gap-4 hover-spring block group"
               >
-                <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                  {cat.icon || '📦'}
+                <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {renderIcon(cat.icon)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold group-hover:text-primary transition-colors">

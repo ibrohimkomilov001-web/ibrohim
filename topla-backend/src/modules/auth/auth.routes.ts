@@ -13,6 +13,14 @@ import { sendOtp, verifyOtp, getOtpForTesting, type OtpChannel } from '../../ser
 import { getLocationFromIp } from '../../utils/geolocation.js';
 import { generateUniqueSlug, generateSlugBase } from '../../utils/slug.js';
 import crypto from 'crypto';
+import {
+  generatePasskeyRegistrationOptions,
+  verifyPasskeyRegistration,
+  generatePasskeyAuthenticationOptions,
+  verifyPasskeyAuthentication,
+  listUserPasskeys,
+  deletePasskey,
+} from '../../services/passkey.service.js';
 
 // Reserved slugs — mavjud routelar bilan conflict bo'lmasligi uchun
 const RESERVED_SLUGS = new Set([
@@ -2375,6 +2383,154 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({
       success: true,
       message: 'Parol muvaffaqiyatli o\'zgartirildi. Barcha qurilmalardan chiqildi.',
+    });
+  });
+
+  // ============================================
+  // PASSKEY (WebAuthn/FIDO2) — Barmoq izi / Yuz izi
+  // ============================================
+
+  // --- REGISTRATION: 1-qadam — Options olish ---
+  app.post('/auth/passkey/register/begin', {
+    preHandler: [authMiddleware],
+  }, async (request, reply) => {
+    const userId = (request as any).user.userId;
+    const options = await generatePasskeyRegistrationOptions(userId);
+    return reply.send({ success: true, data: options });
+  });
+
+  // --- REGISTRATION: 2-qadam — Javobni tekshirish ---
+  app.post('/auth/passkey/register/verify', {
+    preHandler: [authMiddleware],
+  }, async (request, reply) => {
+    const userId = (request as any).user.userId;
+    const body = request.body as { response: any; deviceName?: string };
+
+    if (!body.response) {
+      throw new AppError('Response majburiy', 400);
+    }
+
+    await verifyPasskeyRegistration(userId, body.response, body.deviceName);
+
+    return reply.send({
+      success: true,
+      message: 'Passkey muvaffaqiyatli ro\'yxatdan o\'tkazildi',
+    });
+  });
+
+  // --- LOGIN: 1-qadam — Authentication options ---
+  app.post('/auth/passkey/login/begin', async (request, reply) => {
+    const body = request.body as { phone?: string } | undefined;
+    const { options, sessionId } = await generatePasskeyAuthenticationOptions(body?.phone);
+
+    return reply.send({
+      success: true,
+      data: { options, sessionId },
+    });
+  });
+
+  // --- LOGIN: 2-qadam — Authentication verify + JWT ---
+  app.post('/auth/passkey/login/verify', async (request, reply) => {
+    const body = request.body as {
+      sessionId: string;
+      response?: any;
+      credential?: any;
+      platform?: string;
+      fcmToken?: string;
+    };
+
+    const passkeyResponse = body.credential || body.response;
+    if (!body.sessionId || !passkeyResponse) {
+      throw new AppError('sessionId va credential/response majburiy', 400);
+    }
+
+    const { userId } = await verifyPasskeyAuthentication(body.sessionId, passkeyResponse);
+
+    // Foydalanuvchi ma'lumotlarini olish
+    const user = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        phone: true,
+        role: true,
+        fullName: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        email: true,
+        status: true,
+        language: true,
+        gender: true,
+        birthDate: true,
+        region: true,
+        referralCode: true,
+      },
+    });
+
+    if (!user) throw new AppError('Foydalanuvchi topilmadi', 404);
+
+    // JWT tokenlar yaratish
+    const tokenPayload = { userId: user.id, role: user.role, phone: user.phone };
+    const accessToken = generateToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    // Cookie o'rnatish (web uchun)
+    setAuthCookies(reply, accessToken, refreshToken);
+
+    // Device saqlash
+    if (body.fcmToken) {
+      const deviceInfo = await extractDeviceInfo(request);
+      await prisma.userDevice.upsert({
+        where: {
+          userId_fcmToken: { userId: user.id, fcmToken: body.fcmToken },
+        },
+        update: {
+          lastActiveAt: new Date(),
+          isActive: true,
+          platform: (body.platform as any) || 'web',
+          ...deviceInfo,
+        },
+        create: {
+          userId: user.id,
+          fcmToken: body.fcmToken,
+          platform: (body.platform as any) || 'web',
+          ...deviceInfo,
+        },
+      });
+    }
+
+    return reply.send({
+      success: true,
+      data: {
+        user,
+        isNewUser: false,
+        accessToken,
+        refreshToken,
+      },
+    });
+  });
+
+  // --- Passkey ro'yxati (profil sozlamalari uchun) ---
+  app.get('/auth/passkeys', {
+    preHandler: [authMiddleware],
+  }, async (request, reply) => {
+    const userId = (request as any).user.userId;
+    const passkeys = await listUserPasskeys(userId);
+    return reply.send({ success: true, data: passkeys });
+  });
+
+  // --- Passkey o'chirish ---
+  app.delete('/auth/passkeys/:id', {
+    preHandler: [authMiddleware],
+  }, async (request, reply) => {
+    const userId = (request as any).user.userId;
+    const { id } = request.params as { id: string };
+
+    await deletePasskey(userId, id);
+
+    return reply.send({
+      success: true,
+      message: 'Passkey o\'chirildi',
     });
   });
 }

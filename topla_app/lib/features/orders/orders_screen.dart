@@ -123,8 +123,6 @@ class _OrdersScreenState extends State<OrdersScreen>
 
           return TabBarView(
             controller: _tabController,
-            physics:
-                const NeverScrollableScrollPhysics(), // Swipe qilishni o'chirish
             children: [
               _buildOrdersList(ordersProvider.activeOrders),
               _buildOrdersList(ordersProvider.completedOrders),

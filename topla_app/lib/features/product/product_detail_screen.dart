@@ -10,6 +10,7 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/providers.dart';
+import '../../providers/comparison_provider.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../checkout/checkout_screen.dart';
@@ -245,9 +246,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final raw = await productsProvider.getProductByIdRaw(_productId);
       if (raw != null && mounted) {
         _parseVariants(raw);
+        // salesCount ni yangilash
+        final sc = raw['salesCount'] ?? raw['sales_count'] ?? raw['sold'];
+        if (sc != null) {
+          widget.product['sold'] =
+              sc is int ? sc : int.tryParse(sc.toString()) ?? 0;
+        }
+        // Atributlarni yuklash (specifications)
+        _loadProductAttributes();
+        setState(() {});
       }
     } catch (e) {
       debugPrint('Fetch full product error: $e');
+    }
+  }
+
+  /// Mahsulot atributlarini yuklash
+  Future<void> _loadProductAttributes() async {
+    try {
+      final api = context.read<ProductsProvider>();
+      final attrs = await api.getProductAttributes(_productId);
+      if (attrs != null && attrs.isNotEmpty && mounted) {
+        final specs = attrs.map<Map<String, String>>((a) {
+          final attr = a['attribute'] as Map<String, dynamic>? ?? {};
+          return {
+            'key': (attr['nameUz'] ?? attr['key'] ?? '').toString(),
+            'value': (a['value'] ?? '').toString(),
+          };
+        }).toList();
+        widget.product['specifications'] = specs;
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('Load product attributes error: $e');
     }
   }
 
@@ -378,8 +409,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       backgroundColor: Colors.grey.shade50,
       body: CustomScrollView(
         slivers: [
-          // App Bar with Image
+          // App Bar
           _buildSliverAppBar(product, hasDiscount, discountPercent),
+
+          // Image Carousel (below AppBar, Yandex Market style)
+          SliverToBoxAdapter(
+            child: _buildImageCarousel(product),
+          ),
 
           // Product Info
           SliverToBoxAdapter(
@@ -457,14 +493,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // ============ SLIVER APP BAR ============
   Widget _buildSliverAppBar(
       Map<String, dynamic> product, bool hasDiscount, int discountPercent) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final productName = product['name'] ?? 'Mahsulot';
     return SliverAppBar(
-      expandedHeight: screenHeight * 0.48,
       pinned: true,
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       foregroundColor: Colors.black,
+      elevation: 0,
       leading: _buildBackButton(),
       actions: [
         Padding(
@@ -482,21 +516,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Compare
-                    GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Solishtirish tez orada!'),
-                            backgroundColor: AppColors.primary,
-                          ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        child: _buildCompareIcon(),
-                      ),
-                    ),
                     // Favorite
                     GestureDetector(
                       onTap: () async {
@@ -528,7 +547,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Icon(
                           isFav
                               ? Icons.favorite
@@ -550,7 +569,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         await Share.share(message, subject: productName);
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: Transform.scale(
                           scaleX: -1,
                           child: Icon(CupertinoIcons.reply,
@@ -565,99 +584,76 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
       ],
-      flexibleSpace: LayoutBuilder(
-        builder: (context, constraints) {
-          final top = constraints.biggest.height;
-          final statusBarHeight = MediaQuery.of(context).padding.top;
-          final collapsedHeight = kToolbarHeight + statusBarHeight;
-          final isCollapsed = top <= collapsedHeight + 10;
-          return FlexibleSpaceBar(
-            title: isCollapsed
-                ? Text(
-                    productName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                : null,
-            titlePadding:
-                const EdgeInsets.only(left: 56, right: 100, bottom: 14),
-            background: Stack(
-              children: [
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.grey.shade100,
-                    child: _productImages.isNotEmpty
-                        ? PageView.builder(
-                            controller: _pageController,
-                            itemCount: _productImages.length,
-                            onPageChanged: (index) =>
-                                setState(() => _selectedImageIndex = index),
-                            itemBuilder: (context, index) {
-                              return GestureDetector(
-                                onTap: () => _showFullScreenImage(index),
-                                child: Hero(
-                                  tag: index == 0
-                                      ? 'product_${product['name']}'
-                                      : 'product_${product['name']}_$index',
-                                  child: CachedNetworkImage(
-                                    imageUrl: _productImages[index],
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    errorWidget: (_, __, ___) =>
-                                        _buildPlaceholderImage(),
-                                  ),
-                                ),
-                              );
-                            },
-                          )
-                        : Center(child: _buildPlaceholderImage()),
-                  ),
-                ),
-                if (_productImages.length > 1)
-                  Positioned(
-                    bottom: 56,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(_productImages.length, (index) {
-                        final isActive = _selectedImageIndex == index;
-                        return GestureDetector(
-                          onTap: () => _pageController.animateToPage(index,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: isActive ? 20 : 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                )
-                              ],
+    );
+  }
+
+  // ============ IMAGE CAROUSEL (Yandex Market style) ============
+  Widget _buildImageCarousel(Map<String, dynamic> product) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final imageHeight = screenWidth * 0.85;
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          SizedBox(
+            height: imageHeight,
+            child: _productImages.isNotEmpty
+                ? PageView.builder(
+                    controller: _pageController,
+                    itemCount: _productImages.length,
+                    onPageChanged: (index) =>
+                        setState(() => _selectedImageIndex = index),
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () => _showFullScreenImage(index),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 8),
+                          child: Hero(
+                            tag: index == 0
+                                ? 'product_${product['name']}'
+                                : 'product_${product['name']}_$index',
+                            child: CachedNetworkImage(
+                              imageUrl: _productImages[index],
+                              fit: BoxFit.contain,
+                              errorWidget: (_, __, ___) =>
+                                  _buildPlaceholderImage(),
                             ),
                           ),
-                        );
-                      }),
+                        ),
+                      );
+                    },
+                  )
+                : Center(child: _buildPlaceholderImage()),
+          ),
+          if (_productImages.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12, top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_productImages.length, (index) {
+                  final isActive = _selectedImageIndex == index;
+                  return GestureDetector(
+                    onTap: () => _pageController.animateToPage(index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? Colors.black.withValues(alpha: 0.8)
+                            : Colors.black.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-              ],
+                  );
+                }),
+              ),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -1345,12 +1341,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildDescriptionContent(Map<String, dynamic> product) {
+    final rawDesc = product['description'] ??
+        'Bu mahsulot haqida batafsil ma\'lumot. Sifatli materiallardan tayyorlangan, uzoq muddat xizmat qiladi.';
+    // Strip HTML tags (vendor uses TipTap rich text editor)
+    final cleanDesc = rawDesc
+        .replaceAll(RegExp(r'<br\s*/?>'), '\n')
+        .replaceAll(RegExp(r'</p>\s*<p>'), '\n\n')
+        .replaceAll(RegExp(r'<li>'), '• ')
+        .replaceAll(RegExp(r'</li>'), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'&amp;'), '&')
+        .replaceAll(RegExp(r'&lt;'), '<')
+        .replaceAll(RegExp(r'&gt;'), '>')
+        .replaceAll(RegExp(r'&quot;'), '"')
+        .replaceAll(RegExp(r'&#39;'), "'")
+        .replaceAll(RegExp(r'&nbsp;'), ' ')
+        .trim();
     return Padding(
       key: const ValueKey('desc'),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(
-        product['description'] ??
-            'Bu mahsulot haqida batafsil ma\'lumot. Sifatli materiallardan tayyorlangan, uzoq muddat xizmat qiladi.',
+        cleanDesc,
         style:
             TextStyle(color: Colors.grey.shade700, fontSize: 15, height: 1.5),
       ),
@@ -1858,7 +1869,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildCompareIcon() {
+  Widget _buildCompareIcon({bool active = false}) {
+    final color = active ? AppColors.primary : Colors.black87;
     return SizedBox(
       width: 22,
       height: 22,
@@ -1873,8 +1885,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               height: 14,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                color:
+                    active ? AppColors.primary.withValues(alpha: 0.15) : null,
                 border: Border.all(
-                  color: Colors.black87,
+                  color: color,
                   width: 1.6,
                 ),
               ),
@@ -1888,8 +1902,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               height: 14,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                color:
+                    active ? AppColors.primary.withValues(alpha: 0.15) : null,
                 border: Border.all(
-                  color: Colors.black87,
+                  color: color,
                   width: 1.6,
                 ),
               ),

@@ -36,7 +36,7 @@ import {
 import { useState, useRef, useEffect, useCallback } from "react";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useTranslation } from "@/store/locale-store";
-import { useSupportPhone } from "@/hooks/useSettings";
+import { useSupportPhone, useTelegramLink } from "@/hooks/useSettings";
 
 /* ──────────────── FORMAT NUMBER (consistent server/client) ──────────────── */
 function formatNumber(n: number): string {
@@ -725,6 +725,7 @@ const testimonialMeta = [
 export default function BecomeSellerPage() {
   const { t } = useTranslation();
   const supportPhone = useSupportPhone();
+  const telegramLink = useTelegramLink();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -1364,7 +1365,7 @@ export default function BecomeSellerPage() {
                 asChild
               >
                 <a
-                  href="https://t.me/topla_support"
+                  href={telegramLink}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

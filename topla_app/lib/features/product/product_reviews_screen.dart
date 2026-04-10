@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
+import '../../providers/products_provider.dart';
 
 /// Mahsulot sharhlari ekrani
 class ProductReviewsScreen extends StatefulWidget {
@@ -751,35 +753,74 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
     );
   }
 
-  void _submitReview() {
+  void _submitReview() async {
     if (_userRating == 0) return;
 
     setState(() => _isSubmitting = true);
 
-    // TODO: Backend ga sharh yuborish
-    Future.delayed(const Duration(milliseconds: 800), () {
+    try {
+      final provider = context.read<ProductsProvider>();
+      final success = await provider.addProductReview(
+        productId: widget.productId,
+        rating: _userRating,
+        comment: _commentController.text.trim().isEmpty
+            ? null
+            : _commentController.text.trim(),
+      );
+
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _commentController.clear();
-      _commentFocus.unfocus();
-      setState(() => _userRating = 0);
 
+      if (success) {
+        _commentController.clear();
+        _commentFocus.unfocus();
+        setState(() => _userRating = 0);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Text('Sharhingiz qabul qilindi!'),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Sharh yuborishda xatolik yuz berdi'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 10),
-              Text('Sharhingiz qabul qilindi!'),
-            ],
+          content: Text(
+            e.toString().contains('409')
+                ? 'Siz allaqachon sharh yozgansiz'
+                : 'Sharh yuborishda xatolik yuz berdi',
           ),
-          backgroundColor: AppColors.success,
+          backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
-    });
+    }
   }
 }

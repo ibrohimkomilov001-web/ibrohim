@@ -5,6 +5,7 @@ import Link from "next/link";
 import { authApi } from "@/lib/api/auth";
 import { VendorAuthHeader } from "@/components/vendor/VendorAuthHeader";
 import { useTranslation } from "@/store/locale-store";
+import { useTelegramLink } from '@/hooks/useSettings';
 
 const PHONE_PREFIX = "+998 ";
 const OTP_LENGTH = 5;
@@ -36,6 +37,7 @@ type Step = "input" | "code" | "newpass" | "success";
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
+  const telegramLink = useTelegramLink();
 
   const [tab, setTab] = useState<Tab>("phone");
   const [step, setStep] = useState<Step>("input");
@@ -217,7 +219,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex flex-col bg-white">
       <VendorAuthHeader menuItems={[
         { label: t('vendorLoginLink'), href: '/vendor/login' },
-        { label: t('vendorSupport'), href: 'https://t.me/topla_admin', external: true },
+        { label: t('vendorSupport'), href: telegramLink, external: true },
       ]} />
 
       <div className="flex-1 flex items-center justify-center px-4 py-8 pt-14">

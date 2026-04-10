@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/store/locale-store';
-import { useSupportPhone } from '@/hooks/useSettings';
+import { useSupportPhone, useSupportEmail } from '@/hooks/useSettings';
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -19,6 +19,7 @@ const fadeUp = {
 export default function AboutPage() {
   const { t, locale } = useTranslation();
   const supportPhone = useSupportPhone();
+  const email = useSupportEmail();
 
   const stats = [
     { value: '10K+', label: locale === 'ru' ? 'Товаров' : 'Mahsulotlar', icon: ShoppingBag },
@@ -192,13 +193,13 @@ export default function AboutPage() {
               <p className="text-sm font-medium">{supportPhone}</p>
             </div>
           </a>
-          <a href="mailto:info@topla.uz" className="flex items-center gap-3 hover:text-primary transition-colors">
+          <a href={`mailto:${email}`} className="flex items-center gap-3 hover:text-primary transition-colors">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Mail className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Email</p>
-              <p className="text-sm font-medium">info@topla.uz</p>
+              <p className="text-sm font-medium">{email}</p>
             </div>
           </a>
           <div className="flex items-center gap-3">

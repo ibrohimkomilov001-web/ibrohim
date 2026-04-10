@@ -260,8 +260,8 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
               } else {
-                final Uri url = Uri.parse('https://t.me/topla_market');
-                await launchUrl(url, mode: LaunchMode.externalApplication);
+                // actionType == 'none' yoki noma'lum — hech narsa qilmaslik
+                debugPrint('Banner has no action, ignoring tap');
               }
             } catch (e) {
               debugPrint('Banner tap error: $e');

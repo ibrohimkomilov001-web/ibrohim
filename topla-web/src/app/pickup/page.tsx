@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { submitPickupApplication } from "@/lib/api/pickup";
-import { useSupportPhone } from "@/hooks/useSettings";
+import { useSupportPhone, useTelegramLink } from "@/hooks/useSettings";
 
 /* ──────────────── FAQ ITEM ──────────────── */
 function FAQItem({ item }: { item: { q: string; a: string } }) {
@@ -174,7 +174,7 @@ export default function PickupLandingPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const supportPhone = useSupportPhone();
-
+  const telegramLink = useTelegramLink();
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "+998",
@@ -852,7 +852,7 @@ export default function PickupLandingPage() {
                 asChild
               >
                 <a
-                  href="https://t.me/topla_support"
+                  href={telegramLink}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

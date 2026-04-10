@@ -7,6 +7,7 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
+import '../../providers/comparison_provider.dart';
 import '../../widgets/skeleton_widgets.dart';
 import 'edit_profile_screen.dart';
 
@@ -113,15 +114,15 @@ class _ProfileScreenState extends State<ProfileScreen>
       onTap: () => Navigator.pushNamed(context, '/auth'),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(50),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -129,52 +130,37 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             // Avatar icon
             Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE6E8FD),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.person_outline_rounded,
-                color: Color(0xFF3B5BDB),
-                size: 30,
+                color: Colors.white,
+                size: 24,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             // Text
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.l10n.translate('login_to_profile'),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F2937),
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    context.l10n.translate('via_phone'),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
+              child: Text(
+                context.l10n.translate('login_to_profile'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
             // Chevron
             Icon(
               Icons.chevron_right_rounded,
-              color: const Color(0xFF9CA3AF).withValues(alpha: 0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               size: 26,
             ),
-            const SizedBox(width: 4),
           ],
         ),
       ),
@@ -330,6 +316,33 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           _divider(),
         ],
+        Consumer<ComparisonProvider>(
+          builder: (context, comparison, _) => _buildMenuItem(
+            icon: Iconsax.chart_21_copy,
+            label: context.l10n.translate('comparison_list'),
+            iconColor: const Color(0xFF7C3AED),
+            trailing: comparison.count > 0
+                ? Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${comparison.count}',
+                      style: const TextStyle(
+                        color: Color(0xFF7C3AED),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                : null,
+            onTap: () => Navigator.pushNamed(context, '/comparison'),
+          ),
+        ),
+        _divider(),
         _buildMenuItem(
           icon: Iconsax.location_copy,
           label: context.l10n.myAddresses,
@@ -657,16 +670,17 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             if (showLogin)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   context.l10n.login,
                   style: const TextStyle(
                     color: AppColors.primary,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

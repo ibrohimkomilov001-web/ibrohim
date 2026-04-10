@@ -51,6 +51,25 @@ export default function AdminBannersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { t } = useTranslation()
 
+  // ---- Resolve banner image URL ----
+  const resolveImageUrl = (url: string | null | undefined): string => {
+    if (!url) return ''
+    // Already absolute URL (S3, https, http)
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
+    // Relative /uploads/... path — resolve against API base
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || ''
+    if (apiBase && url.startsWith('/')) {
+      // Extract origin from API URL (e.g., https://topla.uz from https://topla.uz/api/v1)
+      try {
+        const origin = new URL(apiBase).origin
+        return `${origin}${url}`
+      } catch {
+        return url
+      }
+    }
+    return url
+  }
+
   // ---- File handling ----
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -148,7 +167,7 @@ export default function AdminBannersPage() {
       actionValue: banner.actionValue,
       sortOrder: banner.sortOrder,
     })
-    setImagePreview(banner.imageUrl || null)
+    setImagePreview(resolveImageUrl(banner.imageUrl) || null)
     setSelectedFile(null)
   }
 
@@ -495,7 +514,7 @@ export default function AdminBannersPage() {
               <div className="aspect-[3/1] bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-lg flex items-center justify-center overflow-hidden">
                 {banner.imageUrl ? (
                   <img
-                    src={banner.imageUrl}
+                    src={resolveImageUrl(banner.imageUrl)}
                     alt={banner.titleUz}
                     className="w-full h-full object-cover"
                   />

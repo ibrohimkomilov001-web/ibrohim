@@ -57,6 +57,22 @@ class ApiProductRepositoryImpl implements IProductRepository {
   }
 
   @override
+  Future<List<Map<String, dynamic>>?> getProductAttributes(String id) async {
+    try {
+      final response = await _api.get('/products/$id/attributes', auth: false);
+      final list = response.data;
+      if (list is List) {
+        return List<Map<String, dynamic>>.from(
+          list.map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10}) async {
     final response = await _api.get(
       '/products/featured',
@@ -152,7 +168,8 @@ class ApiProductRepositoryImpl implements IProductRepository {
   }
 
   @override
-  Future<SearchResult> searchByImage(String imagePath, {int page = 1, int limit = 20}) async {
+  Future<SearchResult> searchByImage(String imagePath,
+      {int page = 1, int limit = 20}) async {
     final response = await _api.upload(
       '/search/image?page=$page&limit=$limit',
       filePath: imagePath,
@@ -350,5 +367,18 @@ class ApiProductRepositoryImpl implements IProductRepository {
       offset: 0,
     );
     return result.totalCount;
+  }
+
+  @override
+  Future<bool> addProductReview({
+    required String productId,
+    required int rating,
+    String? comment,
+  }) async {
+    await _api.post('/products/$productId/reviews', body: {
+      'rating': rating,
+      if (comment != null && comment.isNotEmpty) 'comment': comment,
+    });
+    return true;
   }
 }

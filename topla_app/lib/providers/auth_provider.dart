@@ -26,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   String? get currentUserId => _authRepo.currentUserId;
   String? get phoneNumber => _profile?.phone;
+  bool get lastVerifyIsNewUser => _authRepo.lastVerifyIsNewUser;
 
   void _init() {
     // App qayta ochilganda sessiyani tiklash
@@ -52,12 +53,6 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       _profile = await _authRepo.getProfile();
-
-      // Agar profil yo'q bo'lsa - backend tomonidan avtomatik yaratilgan bo'lishi kerak
-      if (_profile == null && currentUserId != null) {
-        debugPrint('Profil topilmadi, qayta yuklash...');
-        _profile = await _authRepo.getProfile();
-      }
 
       // Crashlytics'da user identifikatsiya qilish
       if (_profile != null && !kIsWeb && !kDebugMode) {
@@ -129,6 +124,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> signInWithPasskey() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authRepo.signInWithPasskey();
+      await loadProfile();
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> signOut() async {
     _isLoading = true;
     _error = null;
@@ -166,6 +178,7 @@ class AuthProvider extends ChangeNotifier {
     String? avatarUrl,
     String? gender,
     String? region,
+    String? birthDate,
   }) async {
     _isLoading = true;
     _error = null;
@@ -180,6 +193,7 @@ class AuthProvider extends ChangeNotifier {
         avatarUrl: avatarUrl,
         gender: gender,
         region: region,
+        birthDate: birthDate,
       );
       await loadProfile();
     } catch (e) {

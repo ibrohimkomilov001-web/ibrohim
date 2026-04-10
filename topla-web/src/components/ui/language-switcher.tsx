@@ -1,11 +1,7 @@
 'use client'
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useLocaleStore } from '@/store/locale-store'
 
 function UzFlag({ className }: { className?: string }) {
@@ -39,36 +35,66 @@ function RuFlag({ className }: { className?: string }) {
 }
 
 const languages = [
-  { code: 'uz' as const, Flag: UzFlag },
-  { code: 'ru' as const, Flag: RuFlag },
+  { code: 'uz' as const, Flag: UzFlag, label: "O'zbekcha" },
+  { code: 'ru' as const, Flag: RuFlag, label: 'Русский' },
 ]
 
 export function LanguageSwitcher() {
   const { locale, setLocale } = useLocaleStore()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
   const current = languages.find(l => l.code === locale) || languages[0]
 
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [open])
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none"
-          aria-label={`Til: ${locale}`}
-        >
-          <current.Flag className="w-6 h-4 rounded-sm shadow-sm" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-0">
-        {languages.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            onClick={() => setLocale(lang.code)}
-            className={`justify-center px-3 py-1.5 ${locale === lang.code ? 'bg-gray-100' : ''}`}
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none"
+        aria-label={`Til: ${locale}`}
+      >
+        <current.Flag className="w-6 h-4 rounded-sm shadow-sm" />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-full mt-1.5 z-50 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden min-w-[160px]"
           >
-            <lang.Flag className="w-7 h-5 rounded-sm shadow-sm" />
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => { setLocale(lang.code); setOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-sm transition-colors ${
+                  locale === lang.code
+                    ? 'bg-primary/5 text-primary font-medium'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                <lang.Flag className="w-7 h-5 rounded-sm shadow-sm shrink-0" />
+                <span>{lang.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

@@ -9,19 +9,22 @@ import {
   Send,
 } from "lucide-react";
 import { useTranslation } from '@/store/locale-store';
-import { useSupportPhone } from '@/hooks/useSettings';
+import { useSupportPhone, useSupportEmail, useTelegramLink, useTelegramHandle } from '@/hooks/useSettings';
 
 export default function HelpPage() {
   const { t } = useTranslation();
   const supportPhone = useSupportPhone();
   const phoneDigits = supportPhone.replace(/\D/g, '');
+  const telegramLink = useTelegramLink();
+  const telegramHandle = useTelegramHandle();
+  const email = useSupportEmail();
 
   const contactChannels = [
     {
       icon: Send,
       label: "telegramLabel",
-      value: "@topla_support",
-      href: "https://t.me/topla_support",
+      value: telegramHandle,
+      href: telegramLink,
       descKey: "telegramDesc",
       color: "bg-blue-500/10 text-blue-600",
     },
@@ -36,8 +39,8 @@ export default function HelpPage() {
     {
       icon: Mail,
       label: "emailLabel",
-      value: "support@topla.uz",
-      href: "mailto:support@topla.uz",
+      value: email,
+      href: `mailto:${email}`,
       descKey: "emailDesc",
       color: "bg-orange-500/10 text-orange-600",
     },
@@ -76,7 +79,7 @@ export default function HelpPage() {
           <p className="text-sm text-muted-foreground mb-4">
             {t('supportTeamReady')}
           </p>
-          <a href="https://t.me/topla_support" target="_blank" rel="noopener noreferrer">
+          <a href={telegramLink} target="_blank" rel="noopener noreferrer">
             <Button className="rounded-full">
               <Send className="mr-2 h-4 w-4" />
               {t('writeViaTelegram')}

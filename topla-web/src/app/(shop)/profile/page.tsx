@@ -37,7 +37,7 @@ type LoginStep = 'phone' | 'code' | 'name' | 'details';
 export default function ProfilePage() {
   const { t, locale } = useTranslation();
   const { setLocale } = useLocaleStore();
-  const { user, isAuthenticated, login, loginWithGoogle, logout, setUser } = useAuthStore();
+  const { user, isAuthenticated, login, loginWithGoogle, loginWithPasskey, logout, setUser } = useAuthStore();
 
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -52,6 +52,7 @@ export default function ProfilePage() {
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -193,7 +194,7 @@ export default function ProfilePage() {
       setError(locale === 'ru' ? 'Google kirish sozlanmagan' : 'Google kirish sozlanmagan');
       return;
     }
-    const redirectUri = `${window.location.origin}/profile`;
+    const redirectUri = `${window.location.origin.replace(/^https?:\/\/[^.]+\.topla\.uz/, 'https://topla.uz')}/profile`;
     const scope = 'openid email profile';
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(googleClientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
     const popup = window.open(authUrl, 'google-oauth', 'width=500,height=600,scrollbars=yes');
@@ -245,6 +246,30 @@ export default function ProfilePage() {
         // Cross-origin tekshiruv — Google sahifasida, normal
       }
     }, 500);
+  };
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyLoading(true);
+    setError('');
+    try {
+      const result = await loginWithPasskey();
+      if (result.success) {
+        const currentUser = useAuthStore.getState().user;
+        if (!currentUser?.fullName) {
+          setLoginStep('name');
+        } else if (result.isNewUser) {
+          setLoginStep('details');
+        } else {
+          resetLogin();
+        }
+      } else {
+        setError(result.error || (locale === 'ru' ? 'Passkey xatolik' : 'Passkey xatolik'));
+      }
+    } catch {
+      setError(locale === 'ru' ? 'Passkey qo\'llab-quvvatlanmaydi' : 'Passkey qo\'llab-quvvatlanmaydi');
+    } finally {
+      setPasskeyLoading(false);
+    }
   };
 
   const digits = getRawDigits(phone);
@@ -398,6 +423,24 @@ export default function ProfilePage() {
                       </svg>
                     )}
                     {locale === 'ru' ? 'Войти через Google' : 'Google orqali kirish'}
+                  </button>
+
+                  {/* Passkey orqali kirish */}
+                  <button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={passkeyLoading || loading}
+                    className="w-full mt-3 h-11 rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {passkeyLoading ? (
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
+                        <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
+                      </svg>
+                    )}
+                    {locale === 'ru' ? 'Войти с Passkey' : 'Kirish kaliti bilan kirish'}
                   </button>
                 </motion.div>
               )}
@@ -645,20 +688,15 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={() => setShowLogin(true)}
-            className="w-full flex items-center gap-4 p-4 mb-6 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/10 hover:from-primary/10 hover:to-primary/15 active:scale-[0.98] transition-all"
+            className="w-full flex items-center gap-4 px-6 py-3 rounded-full bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/10 hover:from-primary/10 hover:to-primary/15 active:scale-[0.98] transition-all"
           >
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-primary" />
             </div>
-            <div className="flex-1 text-left">
-              <span className="text-[15px] font-semibold text-gray-800 block">
-                {locale === 'ru' ? 'Войти в профиль' : 'Profilga kirish'}
-              </span>
-              <span className="text-xs text-gray-400">
-                {locale === 'ru' ? 'Телефон номер' : 'Telefon raqam orqali'}
-              </span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-primary/40" />
+            <span className="text-[15px] font-semibold text-gray-800">
+              {locale === 'ru' ? 'Войти в профиль' : 'Profilga kirish'}
+            </span>
+            <ChevronRight className="w-5 h-5 text-primary/40 ml-auto" />
           </motion.button>
         )}
 

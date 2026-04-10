@@ -1047,6 +1047,15 @@ class AppLocalizations {
 
       // Swipeable cart item
       'delete_confirm_msg': '{name} ni o\'chirmoqchimisiz?',
+
+      // Comparison
+      'comparison_list': 'Taqqoslash',
+      'comparison_empty': 'Taqqoslash ro\'yxati bo\'sh',
+      'comparison_empty_desc': 'Mahsulotlarni taqqoslash uchun mahsulot sahifasidan qo\'shing',
+      'comparison_add_more': 'Taqqoslash uchun yana mahsulot qo\'shing',
+      'clear_all': 'Tozalash',
+      'add_to_comparison': 'Taqqoslashga',
+      'remove_from_comparison': 'Taqqoslashdan olib tashlash',
     },
     'ru': {
       // Общие
@@ -2070,6 +2079,15 @@ class AppLocalizations {
 
       // Swipeable cart item
       'delete_confirm_msg': 'Удалить {name}?',
+
+      // Comparison
+      'comparison_list': 'Сравнение',
+      'comparison_empty': 'Список сравнения пуст',
+      'comparison_empty_desc': 'Добавьте товары для сравнения со страницы товара',
+      'comparison_add_more': 'Добавьте ещё товаров для сравнения',
+      'clear_all': 'Очистить',
+      'add_to_comparison': 'В сравнение',
+      'remove_from_comparison': 'Убрать из сравнения',
     },
   };
 

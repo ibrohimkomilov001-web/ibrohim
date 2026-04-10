@@ -11,6 +11,7 @@ interface AuthStore {
   // Actions
   login: (phone: string, code: string) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
   loginWithGoogle: (googleAccessToken: string) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
+  loginWithPasskey: () => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
@@ -55,6 +56,29 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error: any) {
           set({ isLoading: false });
           return { success: false, error: error.message || 'Google login failed' };
+        }
+      },
+
+      loginWithPasskey: async () => {
+        try {
+          set({ isLoading: true });
+          const { startAuthentication } = await import('@simplewebauthn/browser');
+          const { options, sessionId } = await userAuthApi.passkeyLoginBegin();
+          const credential = await startAuthentication({ optionsJSON: options });
+          const data = await userAuthApi.passkeyLoginVerify(sessionId, credential);
+          setUserTokens(data.accessToken, data.refreshToken);
+          set({
+            user: data.user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return { success: true, isNewUser: data.isNewUser };
+        } catch (error: any) {
+          set({ isLoading: false });
+          if (error.name === 'NotAllowedError') {
+            return { success: false, error: 'Passkey bekor qilindi' };
+          }
+          return { success: false, error: error.message || 'Passkey login failed' };
         }
       },
 

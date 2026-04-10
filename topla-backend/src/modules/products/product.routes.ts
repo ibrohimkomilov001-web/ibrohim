@@ -1079,7 +1079,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     const cached = await cacheGet<Record<string, string>>(cacheKey);
     if (cached) return reply.send({ success: true, data: cached });
 
-    const ALLOWED_KEYS = ['supportPhone', 'supportEmail'];
+    const ALLOWED_KEYS = ['supportPhone', 'supportEmail', 'telegramLink', 'instagramLink', 'youtubeLink'];
     const settings = await prisma.adminSetting.findMany({
       where: { key: { in: ALLOWED_KEYS } },
     });

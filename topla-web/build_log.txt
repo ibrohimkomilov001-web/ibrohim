@@ -1,0 +1,127 @@
+  Ôû▓ Next.js 14.2.35
+  - Environments: .env.local
+  - Experiments (use with caution):
+    ┬À instrumentationHook
+
+   Creating an optimized production build ...
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.ts` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.ts` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+ Ô£ô Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/90) ...
+   Generating static pages (22/90) 
+   Generating static pages (44/90) 
+   Generating static pages (67/90) 
+ Ô£ô Generating static pages (90/90)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+Ôöî Ôùï /                                    4.21 kB         273 kB
+Ôö£ Ôùï /_not-found                          340 B           159 kB
+Ôö£ ãÆ /[slug]                              343 B           274 kB
+Ôö£ Ôùï /about                               6.04 kB         258 kB
+Ôö£ Ôùï /addresses                           1.84 kB         246 kB
+Ôö£ Ôùï /admin/analytics                     13.6 kB         258 kB
+Ôö£ Ôùï /admin/api-keys                      10.9 kB         263 kB
+Ôö£ Ôùï /admin/banners                       8.8 kB          276 kB
+Ôö£ Ôùï /admin/categories                    13 kB           293 kB
+Ôö£ Ôùï /admin/commissions                   7.16 kB         240 kB
+Ôö£ Ôùï /admin/dashboard                     8.38 kB         240 kB
+Ôö£ Ôùï /admin/delivery-zones                9.43 kB         262 kB
+Ôö£ Ôùï /admin/demographics                  2.82 kB         182 kB
+Ôö£ Ôùï /admin/documents                     9.3 kB          277 kB
+Ôö£ Ôùï /admin/extended-analytics            9.69 kB         287 kB
+Ôö£ Ôùï /admin/faq                           8.65 kB         261 kB
+Ôö£ Ôùï /admin/login                         5.37 kB         178 kB
+Ôö£ Ôùï /admin/logs                          5.56 kB         238 kB
+Ôö£ Ôùï /admin/loyalty                       9.28 kB         283 kB
+Ôö£ Ôùï /admin/lucky-wheel                   12.7 kB         286 kB
+Ôö£ Ôùï /admin/moderation                    7.19 kB         253 kB
+Ôö£ Ôùï /admin/notifications                 8.88 kB         276 kB
+Ôö£ Ôùï /admin/orders                        6.66 kB         278 kB
+Ôö£ Ôùï /admin/payment-settings              13.3 kB         275 kB
+Ôö£ Ôùï /admin/payouts                       6.45 kB         264 kB
+Ôö£ Ôùï /admin/penalties                     9.19 kB         283 kB
+Ôö£ Ôùï /admin/pickup-applications           10.3 kB         253 kB
+Ôö£ Ôùï /admin/pickup-points                 10.4 kB         253 kB
+Ôö£ Ôùï /admin/products                      7.79 kB         279 kB
+Ôö£ Ôùï /admin/promo-codes                   6.69 kB         274 kB
+Ôö£ Ôùï /admin/promotions                    11.4 kB         285 kB
+Ôö£ Ôùï /admin/referrals                     8.31 kB         251 kB
+Ôö£ Ôùï /admin/reports                       7.21 kB         267 kB
+Ôö£ Ôùï /admin/reviews                       8.41 kB         290 kB
+Ôö£ Ôùï /admin/roles                         10.7 kB         285 kB
+Ôö£ Ôùï /admin/settings                      11.1 kB         263 kB
+Ôö£ Ôùï /admin/users                         7.92 kB         279 kB
+Ôö£ Ôùï /admin/shops                         11.7 kB         282 kB
+Ôö£ Ôùï /admin/chat                          7.74 kB         250 kB
+Ôö£ Ôùï /cart                                6.91 kB         264 kB
+Ôö£ Ôùï /categories                          2.61 kB         255 kB
+Ôö£ ãÆ /categories/[id]                     2.46 kB         274 kB
+Ôö£ Ôùï /faq                                 7.99 kB         219 kB
+Ôö£ Ôùï /favorites                           2.15 kB         271 kB
+Ôö£ Ôùï /help                                5.96 kB         258 kB
+Ôö£ ãÆ /invite/[code]                       356 B           161 kB
+Ôö£ Ôùï /manifest.webmanifest                0 B                0 B
+Ôö£ Ôùï /offline                             724 B           159 kB
+Ôö£ Ôùï /orders                              1.79 kB         246 kB
+Ôö£ Ôùï /payments                            1.83 kB         246 kB
+Ôö£ Ôùï /pickup                              10.3 kB         229 kB
+Ôö£ Ôùï /pickup/dashboard                    2.31 kB         175 kB
+Ôö£ Ôùï /pickup/login                        5.89 kB         174 kB
+Ôö£ Ôùï /pickup/orders                       5.03 kB         175 kB
+Ôö£ Ôùï /pickup/scanner                      4.02 kB         174 kB
+Ôö£ Ôùï /pickup/settings                     6.04 kB         172 kB
+Ôö£ Ôùï /privacy                             9.41 kB         221 kB
+Ôö£ ãÆ /products/[id]                       8.64 kB         278 kB
+Ôö£ Ôùï /profile                             13 kB           257 kB
+Ôö£ Ôùï /reviews                             4.23 kB         257 kB
+Ôö£ Ôùï /robots.txt                          0 B                0 B
+Ôö£ Ôùï /search                              4.9 kB          277 kB
+Ôö£ Ôùï /sitemap.xml                         0 B                0 B
+Ôö£ Ôùï /terms                               10.8 kB         222 kB
+Ôö£ Ôùï /vendor                              394 B           307 kB
+Ôö£ Ôùï /vendor/ai-pricing                   3.88 kB         226 kB
+Ôö£ Ôùï /vendor/analytics                    5.38 kB         263 kB
+Ôö£ Ôùï /vendor/balance                      7.33 kB         252 kB
+Ôö£ Ôùï /vendor/become-seller                393 B           307 kB
+Ôö£ Ôùï /vendor/boosts                       8.14 kB         274 kB
+Ôö£ Ôùï /vendor/dashboard                    547 B           159 kB
+Ôö£ Ôùï /vendor/documents                    7.15 kB         238 kB
+Ôö£ Ôùï /vendor/finance                      5.97 kB         268 kB
+Ôö£ Ôùï /vendor/forgot-password              4.34 kB         262 kB
+Ôö£ Ôùï /vendor/help                         4.69 kB         223 kB
+Ôö£ Ôùï /vendor/login                        3.92 kB         262 kB
+Ôö£ Ôùï /vendor/notifications                3.2 kB          228 kB
+Ôö£ Ôùï /vendor/onboarding                   7.78 kB         232 kB
+Ôö£ Ôùï /vendor/orders                       9.34 kB         278 kB
+Ôö£ ãÆ /vendor/orders/[id]                  7.75 kB         203 kB
+Ôö£ Ôùï /vendor/penalties                    6.33 kB         272 kB
+Ôö£ Ôùï /vendor/performance                  4.86 kB         257 kB
+Ôö£ Ôùï /vendor/privacy                      8.44 kB         222 kB
+Ôö£ Ôùï /vendor/products                     9.95 kB         294 kB
+Ôö£ ãÆ /vendor/products/[id]/edit           9.69 kB         404 kB
+Ôö£ Ôùï /vendor/products/new                 10.2 kB         405 kB
+Ôö£ Ôùï /vendor/promo-codes                  10.6 kB         277 kB
+Ôö£ Ôùï /vendor/register                     7.13 kB         274 kB
+Ôö£ Ôùï /vendor/reviews                      8.16 kB         274 kB
+Ôö£ Ôùï /vendor/settings                     9.34 kB         281 kB
+Ôö£ Ôùï /vendor/statistika                   9.66 kB         245 kB
+Ôö£ Ôùï /vendor/terms                        10.3 kB         224 kB
+Ôö£ Ôùï /vendor/chat                         5.66 kB         237 kB
+Ôö£ ãÆ /shops/[id]                          344 B           274 kB
+Ôö£ ãÆ /shops/[id]/chat                     8.39 kB         277 kB
+Ôöö Ôùï /checkout                            10.9 kB         268 kB
++ First Load JS shared by all            159 kB
+  Ôö£ chunks/493-4f5339d3ebaf0be5.js       101 kB
+  Ôö£ chunks/fd9d1056-8f7250211821c19b.js  53.8 kB
+  Ôöö other shared chunks (total)          3.61 kB
+
+
+ãÆ Middleware                             34.5 kB
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+

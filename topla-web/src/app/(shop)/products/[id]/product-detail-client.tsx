@@ -146,7 +146,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
           <div className="sticky top-24">
             {/* Main image */}
-            <div className="relative aspect-square rounded-2xl overflow-hidden glass">
+            <div className="relative aspect-square rounded-2xl overflow-hidden bg-muted">
               {images.length > 0 ? (
                 <Image
                   src={resolveImageUrl(images[currentImage])}
@@ -171,7 +171,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <button
                   onClick={() => toggleFavorite(id)}
-                  className="w-11 h-11 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
                 </button>
@@ -188,7 +188,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                       alert(locale === 'ru' ? 'Ссылка скопирована' : 'Havola nusxalandi');
                     }
                   }}
-                  className="w-11 h-11 rounded-full glass flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Share2 className="w-5 h-5" />
                 </button>
@@ -375,9 +375,10 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
           {activeTab === 'description' && (
             <div className="prose prose-sm dark:prose-invert max-w-none">
               {description ? (
-                <div className="text-sm sm:text-base text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {description}
-                </div>
+                <div
+                  className="text-sm sm:text-base text-muted-foreground leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2"
+                  dangerouslySetInnerHTML={{ __html: description.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/on\w+="[^"]*"/gi, '') }}
+                />
               ) : (
                 <p className="text-muted-foreground">{locale === 'ru' ? 'Описание отсутствует' : 'Tavsif mavjud emas'}</p>
               )}

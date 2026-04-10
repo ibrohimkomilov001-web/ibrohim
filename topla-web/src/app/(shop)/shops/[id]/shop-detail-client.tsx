@@ -1,15 +1,15 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
-import { Star, MapPin, Phone, ExternalLink, Package, Truck, ShoppingCart } from 'lucide-react';
+import { Star, MapPin, ExternalLink, Package, TrendingUp, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { shopApi, type ShopDetail } from '@/lib/api/shop';
 import { resolveImageUrl } from '@/lib/api/upload';
-import { formatPrice } from '@/lib/utils';
 import { ProductGrid } from '@/components/shop/product-card';
 import { useTranslation } from '@/store/locale-store';
+import { useAuthStore } from '@/store/auth-store';
+import { useRouter } from 'next/navigation';
 
 interface ShopDetailClientProps {
   shopId: string;
@@ -19,6 +19,8 @@ interface ShopDetailClientProps {
 export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClientProps) {
   const id = shopId;
   const { t, locale } = useTranslation();
+  const { isAuthenticated } = useAuthStore();
+  const router = useRouter();
 
   const { data: shop, isLoading } = useQuery({
     queryKey: ['shop', id],
@@ -83,7 +85,7 @@ export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClie
           className="glass rounded-2xl p-5 sm:p-6 -mt-16 relative z-10"
         >
           <div className="flex items-start gap-4 sm:gap-6">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white dark:bg-card shadow-lg overflow-hidden shrink-0 -mt-12 border-4 border-background ring-2 ring-border/50">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white dark:bg-card shadow-lg overflow-hidden shrink-0 -mt-12 border-4 border-background ring-2 ring-border/50">
               {shop.logoUrl ? (
                 <Image src={resolveImageUrl(shop.logoUrl)} alt="" width={96} height={96} className="object-cover w-full h-full" />
               ) : (
@@ -122,11 +124,6 @@ export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClie
                     <MapPin className="w-4 h-4 shrink-0" /> {shop.address}
                   </span>
                 )}
-                {shop.phone && (
-                  <a href={`tel:${shop.phone}`} className="flex items-center gap-1.5 text-sm text-primary hover:underline">
-                    <Phone className="w-4 h-4 shrink-0" /> {shop.phone}
-                  </a>
-                )}
                 {shop.website && (
                   <a href={shop.website} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm text-primary hover:underline">
                     <ExternalLink className="w-4 h-4 shrink-0" />
@@ -134,29 +131,40 @@ export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClie
                   </a>
                 )}
               </div>
+
+              {/* Ask Seller button */}
+              <button
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    router.push('/profile');
+                    return;
+                  }
+                  router.push(`/shops/${id}/chat`);
+                }}
+                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                {t('askSeller')}
+              </button>
             </div>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mt-6">
             <div className="glass rounded-xl p-3 sm:p-4 text-center">
+              <Star className="w-5 h-5 mx-auto text-yellow-500 mb-1 fill-current" />
+              <p className="font-bold text-lg sm:text-xl">{shop.rating?.toFixed(1) || '0.0'}</p>
+              <p className="text-xs text-muted-foreground">{t('rating')}</p>
+            </div>
+            <div className="glass rounded-xl p-3 sm:p-4 text-center">
+              <TrendingUp className="w-5 h-5 mx-auto text-green-500 mb-1" />
+              <p className="font-bold text-lg sm:text-xl">{shop.totalSales || 0}</p>
+              <p className="text-xs text-muted-foreground">{t('shopSold')}</p>
+            </div>
+            <div className="glass rounded-xl p-3 sm:p-4 text-center">
               <Package className="w-5 h-5 mx-auto text-primary mb-1" />
               <p className="font-bold text-lg sm:text-xl">{shop._count?.products || 0}</p>
               <p className="text-xs text-muted-foreground">{t('shopProducts')}</p>
-            </div>
-            <div className="glass rounded-xl p-3 sm:p-4 text-center">
-              <Truck className="w-5 h-5 mx-auto text-blue-500 mb-1" />
-              <p className="font-bold text-lg sm:text-xl">
-                {shop.deliveryFee ? formatPrice(shop.deliveryFee) : t('free')}
-              </p>
-              <p className="text-xs text-muted-foreground">{t('deliveryFee')}</p>
-            </div>
-            <div className="glass rounded-xl p-3 sm:p-4 text-center">
-              <ShoppingCart className="w-5 h-5 mx-auto text-green-500 mb-1" />
-              <p className="font-bold text-lg sm:text-xl">
-                {shop.minOrderAmount ? formatPrice(shop.minOrderAmount) : '—'}
-              </p>
-              <p className="text-xs text-muted-foreground">{t('minOrder')}</p>
             </div>
           </div>
         </motion.div>

@@ -50,7 +50,9 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _instance = this;
     _pageController = PageController();
     WidgetsBinding.instance.addObserver(this);
-    _startRealtimeSubscriptions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startRealtimeSubscriptions();
+    });
   }
 
   void _startRealtimeSubscriptions() {
@@ -186,7 +188,7 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 children: [
                   _buildNavItem(
                     index: 0,
-                    icon: Iconsax.home_1_copy,
+                    icon: Iconsax.home_copy,
                     activeIcon: Iconsax.home_1,
                     label: l10n?.home ?? 'Asosiy',
                   ),

@@ -77,7 +77,9 @@ export function CategoryDrawer({ open, onClose }: CategoryDrawerProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+            style={{ touchAction: 'none' }}
             onClick={() => { onClose(); setSelected(null); }}
+            onTouchMove={(e) => e.preventDefault()}
           />
 
           {/* Drawer */}

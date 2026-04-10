@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { useTranslation } from '@/store/locale-store';
+import { useTelegramLink } from '@/hooks/useSettings';
 
 const STEP_ICONS: Record<string, any> = {
   shop_info: Store,
@@ -80,6 +81,7 @@ const QUICK_TIPS = [
 
 export default function OnboardingPage() {
   const { t } = useTranslation();
+  const telegramLink = useTelegramLink();
 
   // Fetch onboarding progress from backend API (V-NEW-02)
   const { data: onboarding, isLoading } = useQuery({
@@ -271,7 +273,7 @@ export default function OnboardingPage() {
       <Card className="bg-primary/5 border-primary/20">
         <CardContent className="p-6 text-center">
           <p className="text-sm text-muted-foreground mb-3">{t('haveQuestion')}</p>
-          <a href="https://t.me/topla_support" target="_blank" rel="noopener noreferrer">
+          <a href={telegramLink} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" className="rounded-full">
               <ExternalLink className="mr-2 h-4 w-4" /> {t('telegramHelp')}
             </Button>

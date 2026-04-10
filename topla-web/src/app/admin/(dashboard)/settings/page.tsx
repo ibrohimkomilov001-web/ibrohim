@@ -36,7 +36,10 @@ export default function AdminSettingsPage() {
     siteName: 'TOPLA.UZ',
     siteDescription: 'O\'zbekistondagi eng yaxshi marketplace',
     supportEmail: 'support@topla.uz',
-    supportPhone: '+998 95 000 94 16',
+    supportPhone: '+998 20 002 49 20',
+    telegramLink: 'https://t.me/toplauz',
+    instagramLink: 'https://instagram.com/topla.uz',
+    youtubeLink: 'https://youtube.com/@toplauz',
     // Commission
     defaultCommission: '10',
     minPayout: '100000',
@@ -279,6 +282,32 @@ export default function AdminSettingsPage() {
                   <Input
                     value={settings.supportPhone}
                     onChange={(e) => setSettings({ ...settings, supportPhone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('telegramLink')}</Label>
+                  <Input
+                    value={settings.telegramLink}
+                    onChange={(e) => setSettings({ ...settings, telegramLink: e.target.value })}
+                    placeholder="https://t.me/toplauz"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('instagramLink')}</Label>
+                  <Input
+                    value={settings.instagramLink}
+                    onChange={(e) => setSettings({ ...settings, instagramLink: e.target.value })}
+                    placeholder="https://instagram.com/topla.uz"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('youtubeLink')}</Label>
+                  <Input
+                    value={settings.youtubeLink}
+                    onChange={(e) => setSettings({ ...settings, youtubeLink: e.target.value })}
+                    placeholder="https://youtube.com/@toplauz"
                   />
                 </div>
               </div>

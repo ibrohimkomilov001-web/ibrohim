@@ -1,11 +1,14 @@
 'use client'
 
 import { useLocaleStore } from '@/store/locale-store'
-import { SupportPhoneLink } from '@/hooks/useSettings'
+import { SupportPhoneLink, useTelegramLink, useTelegramHandle, useSupportEmail } from '@/hooks/useSettings'
 
 export default function PrivacyContent() {
   const locale = useLocaleStore((s) => s.locale)
   const isRu = locale === 'ru'
+  const telegramLink = useTelegramLink()
+  const telegramHandle = useTelegramHandle()
+  const email = useSupportEmail()
 
   return (
     <div className="min-h-screen bg-white">
@@ -349,9 +352,9 @@ export default function PrivacyContent() {
             <div className="space-y-2 text-gray-800">
               <p><strong>{isRu ? 'Оператор:' : 'Operator:'}</strong> {isRu ? 'ИП «TOPLA»' : 'YaTT «TOPLA»'}</p>
               <p><strong>{isRu ? 'Адрес:' : 'Manzil:'}</strong> {isRu ? 'Республика Каракалпакстан, г. Нукус, Узбекистан' : 'Qoraqalpog\'iston Respublikasi, Nukus shahri, O\'zbekiston'}</p>
-              <p><strong>{isRu ? 'Электронная почта:' : 'Elektron pochta:'}</strong>{' '}<a href="mailto:support@topla.uz" className="text-blue-600 hover:underline">support@topla.uz</a></p>
+              <p><strong>{isRu ? 'Электронная почта:' : 'Elektron pochta:'}</strong>{' '}<a href={`mailto:${email}`} className="text-blue-600 hover:underline">{email}</a></p>
               <p><strong>{isRu ? 'Телефон:' : 'Telefon:'}</strong>{' '}<SupportPhoneLink className="text-blue-600 hover:underline" /></p>
-              <p><strong>Telegram:</strong>{' '}<a href="https://t.me/topla_support" className="text-blue-600 hover:underline">@topla_support</a></p>
+              <p><strong>Telegram:</strong>{' '}<a href={telegramLink} className="text-blue-600 hover:underline">{telegramHandle}</a></p>
             </div>
             <p className="mt-4">
               {isRu

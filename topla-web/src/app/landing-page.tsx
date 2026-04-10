@@ -22,7 +22,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
-import { useSupportPhone } from "@/hooks/useSettings";
+import { useSupportPhone, useSupportEmail } from "@/hooks/useSettings";
 
 const stats = [
   { label: "Faol do'konlar", value: "500+", icon: Store },
@@ -128,6 +128,7 @@ const faqs = [
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const supportPhone = useSupportPhone();
+  const email = useSupportEmail();
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -540,7 +541,7 @@ export default function HomePage() {
             <div>
               <h4 className="font-semibold mb-3">Aloqa</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>info@topla.uz</p>
+                <p>{email}</p>
                 <p>{supportPhone}</p>
                 <p>Toshkent, O&apos;zbekiston</p>
               </div>

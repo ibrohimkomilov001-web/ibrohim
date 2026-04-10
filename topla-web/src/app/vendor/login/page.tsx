@@ -137,7 +137,7 @@ export default function VendorLoginPage() {
       }
 
       // Google OAuth popup ochish
-      const redirectUri = `${window.location.origin}/vendor/login`;
+      const redirectUri = `${window.location.origin.replace(/^https?:\/\/vendor\.topla\.uz/, 'https://topla.uz')}/vendor/login`;
       const scope = "openid email profile";
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
 
@@ -193,18 +193,18 @@ export default function VendorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
       <VendorAuthHeader menuItems={[
         { label: t('vendorCreateAccount'), href: '/vendor/register' },
       ]} />
 
       <div className="flex-1 flex items-center justify-center px-4 py-8 pt-14">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-semibold text-gray-900">{t("vendorLoginTitle")}</h1>
-          <p className="mt-2 text-sm text-gray-500">{t("vendorLoginSubtitle")}</p>
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">{t("vendorLoginTitle")}</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t("vendorLoginSubtitle")}</p>
 
           {error && (
-            <div className="mt-4 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-4 rounded-full border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
@@ -212,7 +212,7 @@ export default function VendorLoginPage() {
           <div className="mt-6 space-y-4">
             <input
               ref={phoneRef}
-              className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+              className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
               placeholder={t("vendorPhonePlaceholder")}
               value={phone}
               onChange={handlePhoneChange}
@@ -225,7 +225,7 @@ export default function VendorLoginPage() {
 
             <div className="relative">
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 pr-12 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 pr-12 text-base outline-none"
                 placeholder={t("vendorPassword")}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -237,7 +237,7 @@ export default function VendorLoginPage() {
               />
               <button
                 type="button"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
               >
@@ -259,23 +259,23 @@ export default function VendorLoginPage() {
             </button>
 
             <div className="text-right">
-              <Link href="/vendor/forgot-password" className="text-sm text-blue-600 hover:underline">
+              <Link href="/vendor/forgot-password" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
                 {t("vendorForgotPassword")}
               </Link>
             </div>
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
+                <div className="w-full border-t border-gray-200 dark:border-gray-800" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-4 text-gray-400">{t("vendorOr")}</span>
+                <span className="bg-white dark:bg-gray-950 px-4 text-gray-400">{t("vendorOr")}</span>
               </div>
             </div>
 
             <button
               type="button"
-              className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-gray-200 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 transition hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-60"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading}
             >
@@ -295,9 +295,9 @@ export default function VendorLoginPage() {
             </button>
           </div>
 
-          <p className="mt-8 text-center text-sm text-gray-500">
+          <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
             {t("vendorNoShop")}{" "}
-            <Link href="/vendor/register" className="text-blue-600 hover:underline">
+            <Link href="/vendor/register" className="text-blue-600 dark:text-blue-400 hover:underline">
               {t("vendorRegisterLink")}
             </Link>
           </p>

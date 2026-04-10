@@ -78,6 +78,7 @@ dependencies:
   connectivity_plus: ^7.0.0
   device_info_plus: ^11.2.0
   package_info_plus: ^8.2.1
+  credential_manager: ^2.0.8
 
 dev_dependencies:
   flutter_test:

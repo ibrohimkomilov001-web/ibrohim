@@ -9,6 +9,9 @@ abstract class IAuthRepository {
   /// Tizimga kirganmi
   bool get isLoggedIn;
 
+  /// Oxirgi OTP verify yangi foydalanuvchimi
+  bool get lastVerifyIsNewUser;
+
   /// Telefon orqali OTP yuborish
   Future<void> sendOTP(String phone);
 
@@ -26,6 +29,9 @@ abstract class IAuthRepository {
 
   /// Google orqali kirish
   Future<void> signInWithGoogle();
+
+  /// Passkey (barmoq izi / yuz izi) orqali kirish
+  Future<void> signInWithPasskey();
 
   /// Tizimdan chiqish
   Future<void> signOut();
@@ -45,6 +51,7 @@ abstract class IAuthRepository {
     String? avatarUrl,
     String? gender,
     String? region,
+    String? birthDate,
   });
 
   /// Foydalanuvchi rolini olish

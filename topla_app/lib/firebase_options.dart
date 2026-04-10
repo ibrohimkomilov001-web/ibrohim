@@ -46,18 +46,34 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // --dart-define orqali berilgan kalitlar (MAJBURIY)
+  // --dart-define orqali berilgan kalitlar (release buildda majburiy)
   // Build: flutter build apk --dart-define=FIREBASE_WEB_API_KEY=xxx ...
-  // Konfiguratsiya yo'q bo'lsa assert xato beradi
-  static const String _webApiKey = String.fromEnvironment(
+  // Debug rejimda google-services.json dagi kalitlar fallback sifatida ishlatiladi
+  static const String _webApiKeyEnv = String.fromEnvironment(
     'FIREBASE_WEB_API_KEY',
   );
-  static const String _androidApiKey = String.fromEnvironment(
+  static const String _androidApiKeyEnv = String.fromEnvironment(
     'FIREBASE_ANDROID_API_KEY',
   );
-  static const String _iosApiKey = String.fromEnvironment(
+  static const String _iosApiKeyEnv = String.fromEnvironment(
     'FIREBASE_IOS_API_KEY',
   );
+
+  // Fallback: google-services.json / GoogleService-Info.plist dagi kalitlar
+  // Bu kalitlar maxfiy emas — Firebase public client config
+  static const String _androidApiKeyDefault =
+      'AIzaSyC1SzjfYUHr1AkKNXVX6PmigFLAHclHVdQ';
+  static const String _iosApiKeyDefault =
+      'AIzaSyC1SzjfYUHr1AkKNXVX6PmigFLAHclHVdQ';
+  static const String _webApiKeyDefault =
+      'AIzaSyC1SzjfYUHr1AkKNXVX6PmigFLAHclHVdQ';
+
+  static String get _webApiKey =>
+      _webApiKeyEnv.isNotEmpty ? _webApiKeyEnv : _webApiKeyDefault;
+  static String get _androidApiKey =>
+      _androidApiKeyEnv.isNotEmpty ? _androidApiKeyEnv : _androidApiKeyDefault;
+  static String get _iosApiKey =>
+      _iosApiKeyEnv.isNotEmpty ? _iosApiKeyEnv : _iosApiKeyDefault;
 
   /// Build vaqtida Firebase kalitlari berilganligini tekshirish
   static void validateKeys() {

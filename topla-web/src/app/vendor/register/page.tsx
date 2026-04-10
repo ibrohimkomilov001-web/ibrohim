@@ -9,6 +9,7 @@ import api from "@/lib/api/client";
 import { useAuth } from "@/hooks/useAuth";
 import { VendorAuthHeader } from "@/components/vendor/VendorAuthHeader";
 import { useTranslation } from "@/store/locale-store";
+import { useTelegramLink } from '@/hooks/useSettings';
 
 const OTP_LENGTH = 5;
 const PHONE_PREFIX = "+998 ";
@@ -75,7 +76,8 @@ type Step = "personal" | "otp" | "business" | "shop";
 export default function VendorRegisterPage() {
   const router = useRouter();
   const { refreshProfile } = useAuth();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const telegramLink = useTelegramLink();
 
   const [step, setStep] = useState<Step>("personal");
   const [isLoading, setIsLoading] = useState(false);
@@ -412,27 +414,27 @@ export default function VendorRegisterPage() {
   const stepNumber = step === "personal" ? 1 : step === "otp" ? 2 : step === "business" ? 3 : 4;
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
       <VendorAuthHeader menuItems={[
         { label: t('vendorLoginLink'), href: '/vendor/login' },
-        { label: t('vendorSupport'), href: 'https://t.me/topla_admin', external: true },
+        { label: t('vendorSupport'), href: telegramLink, external: true },
       ]} />
 
       <div className="flex-1 flex items-center justify-center px-4 py-8 pt-14">
         <div className="w-full max-w-md">
-          <h1 className="text-3xl font-semibold text-gray-900">{t("vendorCreateAccount")}</h1>
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">{t("vendorCreateAccount")}</h1>
 
           {/* Step indicator */}
           <div className="mt-4 flex items-center gap-2">
             {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center gap-2">
-                <div className={`h-2 flex-1 rounded-full ${s <= stepNumber ? "bg-blue-600" : "bg-gray-200"}`} style={{ width: 60 }} />
+                <div className={`h-2 flex-1 rounded-full ${s <= stepNumber ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700"}`} style={{ width: 60 }} />
               </div>
             ))}
           </div>
 
           {error && (
-            <div className="mt-4 rounded-full border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-4 rounded-full border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
@@ -440,10 +442,10 @@ export default function VendorRegisterPage() {
           {/* ===== STEP 1: SHAXSIY MA'LUMOTLAR ===== */}
           {step === "personal" && (
             <div className="mt-6 space-y-4">
-              <h2 className="text-lg font-medium text-gray-800">{t("vendorPersonalInfo")}</h2>
+              <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200">{t("vendorPersonalInfo")}</h2>
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none ring-0"
                 placeholder={t("vendorNameInput")}
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
@@ -451,7 +453,7 @@ export default function VendorRegisterPage() {
               />
               <input
                 ref={phoneRef}
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none ring-0"
                 placeholder={t("vendorPhonePlaceholder")}
                 value={phone}
                 onChange={handlePhoneChange}
@@ -462,7 +464,7 @@ export default function VendorRegisterPage() {
                 enterKeyHint="next"
               />
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none ring-0"
                 placeholder={t("vendorEmailOptional")}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -472,7 +474,7 @@ export default function VendorRegisterPage() {
 
               <div className="relative">
                 <input
-                  className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 pr-12 text-base outline-none ring-0"
+                  className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 pr-12 text-base outline-none ring-0"
                   placeholder={t("vendorCreatePassword")}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -481,7 +483,7 @@ export default function VendorRegisterPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
                 >
@@ -494,7 +496,7 @@ export default function VendorRegisterPage() {
               </div>
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none ring-0"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none ring-0"
                 placeholder={t("vendorConfirmPassword")}
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
@@ -523,8 +525,8 @@ export default function VendorRegisterPage() {
           {step === "otp" && (
             <div className="mt-6 space-y-5">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">{t("vendorVerificationCode")}</h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t("vendorVerificationCode")}</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   {t("vendorCodeSentSms").replace("{phone}", maskedPhone)}
                 </p>
               </div>
@@ -541,7 +543,7 @@ export default function VendorRegisterPage() {
                     maxLength={1}
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    className="h-14 w-12 rounded-xl border-0 bg-gray-100 text-center text-2xl font-semibold outline-none"
+                    className="h-14 w-12 rounded-xl border-0 bg-gray-100 dark:bg-gray-900 dark:text-white text-center text-2xl font-semibold outline-none"
                   />
                 ))}
               </div>
@@ -558,14 +560,14 @@ export default function VendorRegisterPage() {
               <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   onClick={() => setStep("personal")}
                 >
                   {t("vendorBack")}
                 </button>
                 <button
                   type="button"
-                  className="text-blue-600 hover:underline disabled:text-gray-400"
+                  className="text-blue-600 dark:text-blue-400 hover:underline disabled:text-gray-400"
                   disabled={countdown > 0 || isLoading}
                   onClick={handleSendOtp}
                 >
@@ -578,7 +580,7 @@ export default function VendorRegisterPage() {
           {/* ===== STEP 3: BIZNES MA'LUMOTLARI ===== */}
           {step === "business" && (
             <div className="mt-6 space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">{t("vendorBusinessInfo")}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t("vendorBusinessInfo")}</h2>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">{t("vendorBusinessType")}</label>
@@ -587,8 +589,8 @@ export default function VendorRegisterPage() {
                     type="button"
                     className={`flex-1 h-12 rounded-full border-2 text-sm font-medium transition ${
                       businessType === "yatt"
-                        ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                        : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300"
                     }`}
                     onClick={() => setBusinessType("yatt")}
                   >
@@ -598,8 +600,8 @@ export default function VendorRegisterPage() {
                     type="button"
                     className={`flex-1 h-12 rounded-full border-2 text-sm font-medium transition ${
                       businessType === "mchj"
-                        ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                        : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300"
                     }`}
                     onClick={() => setBusinessType("mchj")}
                   >
@@ -609,7 +611,7 @@ export default function VendorRegisterPage() {
               </div>
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 placeholder={t("vendorInnPlaceholder")}
                 value={inn}
                 onChange={(event) => setInn(event.target.value.replace(/[^\d\s]/g, ""))}
@@ -618,7 +620,7 @@ export default function VendorRegisterPage() {
               />
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 placeholder={t("vendorBankName")}
                 value={bankName}
                 onChange={(event) => setBankName(event.target.value)}
@@ -626,7 +628,7 @@ export default function VendorRegisterPage() {
               />
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 placeholder={t("vendorBankAccount")}
                 value={bankAccount}
                 onChange={(event) => setBankAccount(event.target.value.replace(/[^\d\s]/g, ""))}
@@ -635,7 +637,7 @@ export default function VendorRegisterPage() {
               />
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 placeholder={t("vendorMfo")}
                 value={mfo}
                 onChange={(event) => setMfo(event.target.value.replace(/[^\d]/g, "").slice(0, 5))}
@@ -650,13 +652,13 @@ export default function VendorRegisterPage() {
                   onChange={(e) => setTermsAccepted(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-600 leading-5">
+                <span className="text-sm text-gray-600 dark:text-gray-400 leading-5">
                   {t("vendorAcceptOferta")}{" "}
-                  <Link href="/vendor/terms" className="text-blue-600 hover:underline">
+                  <Link href="/vendor/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
                     {t("vendorTermsLink")}
                   </Link>{" "}
-                  va{" "}
-                  <Link href="/vendor/privacy" className="text-blue-600 hover:underline">
+                  {locale === 'ru' ? 'и' : 'va'}{" "}
+                  <Link href="/vendor/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
                     {t("vendorPrivacyLink")}
                   </Link>{" "}
                   {t("vendorAgreeEnd")}
@@ -673,7 +675,7 @@ export default function VendorRegisterPage() {
 
               <button
                 type="button"
-                className="w-full text-sm text-gray-500 hover:text-gray-700"
+                className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 onClick={() => setStep("otp")}
               >
                 {t("vendorBack")}
@@ -684,10 +686,10 @@ export default function VendorRegisterPage() {
           {/* ===== STEP 4: DO'KON MA'LUMOTLARI ===== */}
           {step === "shop" && (
             <div className="mt-6 space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">{t("vendorShopDetails")}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t("vendorShopDetails")}</h2>
 
               <input
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 placeholder={t("vendorShopName")}
                 value={shopName}
                 onChange={(event) => setShopName(event.target.value)}
@@ -695,7 +697,7 @@ export default function VendorRegisterPage() {
               />
 
               <textarea
-                className="min-h-[96px] w-full rounded-2xl border-0 bg-gray-100 px-4 py-3 text-base outline-none"
+                className="min-h-[96px] w-full rounded-2xl border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-4 py-3 text-base outline-none"
                 placeholder={t("vendorShopDescription")}
                 value={shopDescription}
                 onChange={(event) => setShopDescription(event.target.value)}
@@ -703,9 +705,9 @@ export default function VendorRegisterPage() {
 
               {/* Slug (sahifa manzili) */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">{t("vendorShopSlug")}</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">{t("vendorShopSlug")}</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">topla.uz/</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">topla.uz/</span>
                   <input
                     className={`h-14 w-full rounded-full border-2 bg-gray-100 pl-[85px] pr-10 text-base outline-none ${
                       slugAvailable === true ? 'border-green-400' : slugAvailable === false ? 'border-red-400' : 'border-transparent'
@@ -737,7 +739,7 @@ export default function VendorRegisterPage() {
               </div>
 
               <select
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
               >
@@ -748,7 +750,7 @@ export default function VendorRegisterPage() {
               </select>
 
               <select
-                className="h-14 w-full rounded-full border-0 bg-gray-100 px-5 text-base outline-none"
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                 value={city}
                 onChange={(event) => setCity(event.target.value)}
               >
@@ -769,7 +771,7 @@ export default function VendorRegisterPage() {
 
               <button
                 type="button"
-                className="w-full text-sm text-gray-500 hover:text-gray-700"
+                className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 onClick={() => setStep("business")}
               >
                 {t("vendorBack")}
@@ -777,9 +779,9 @@ export default function VendorRegisterPage() {
             </div>
           )}
 
-          <p className="mt-8 text-center text-sm text-gray-500">
+          <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
             {t("vendorHasAccount")}{" "}
-            <Link href="/vendor/login" className="text-blue-600 hover:underline">
+            <Link href="/vendor/login" className="text-blue-600 dark:text-blue-400 hover:underline">
               {t("vendorLoginLink")}
             </Link>
           </p>

@@ -527,6 +527,34 @@ class ProductsProvider extends ChangeNotifier {
     }
   }
 
+  /// Mahsulot atributlarini olish
+  Future<List<Map<String, dynamic>>?> getProductAttributes(String id) async {
+    try {
+      return await _productRepo.getProductAttributes(id);
+    } catch (e) {
+      AppLogger.e(_tag, 'getProductAttributes error', e);
+      return null;
+    }
+  }
+
+  /// Mahsulotga sharh qo'shish
+  Future<bool> addProductReview({
+    required String productId,
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      return await _productRepo.addProductReview(
+        productId: productId,
+        rating: rating,
+        comment: comment,
+      );
+    } catch (e) {
+      AppLogger.e(_tag, 'addProductReview error', e);
+      return false;
+    }
+  }
+
   /// Mahsulotlarni qidirish (Meilisearch) — pagination bilan
   Future<SearchResult> searchProducts(String query,
       {int page = 1, String? sort, Map<String, dynamic>? filters}) async {

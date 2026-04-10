@@ -77,7 +77,7 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
               </span>
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
           {(banners[current].titleUz || banners[current].titleRu) && (
             <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-5">
               <h2 className="text-white font-bold text-sm sm:text-xl mb-0.5 line-clamp-1">

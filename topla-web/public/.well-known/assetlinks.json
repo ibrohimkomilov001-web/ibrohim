@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.topla.topla_app",
+      "sha256_cert_fingerprints": [
+        "74:8A:31:D7:D9:80:7C:D5:B1:3B:F1:93:1B:86:6E:EF:75:12:00:D0:2E:2C:F2:36:D6:CE:A4:1D:6E:5E:90:32"
+      ]
+    }
+  }
+]

@@ -76,6 +76,7 @@ export interface ShopDetail {
   rating: number;
   reviewCount: number;
   isOpen: boolean;
+  totalSales?: number;
   deliveryFee?: number;
   freeDeliveryFrom?: number;
   minOrderAmount?: number;
