@@ -20,3 +20,5 @@ Thumbs.db
 # Uploads
 topla-backend/uploads/*
 !topla-backend/uploads/.gitkeep
+*.tar
+*.tar.gz

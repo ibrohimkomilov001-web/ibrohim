@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://topla.uz';
@@ -113,11 +114,14 @@ export default async function ProductLayout({
       }
     : null;
 
+  const nonce = headers().get('x-nonce') ?? '';
+
   return (
     <>
       {jsonLd && (
         <script
           type="application/ld+json"
+          nonce={nonce}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}

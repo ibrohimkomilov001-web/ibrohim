@@ -1,4 +1,5 @@
 ﻿import { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import ProductDetailClient from './product-detail-client';
 import type { ProductDetail } from '@/lib/api/shop';
@@ -160,14 +161,18 @@ export default async function ProductDetailPage({
     notFound();
   }
 
+  const nonce = headers().get('x-nonce') ?? '';
+
   return (
     <>
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buildProductJsonLd(product, id)) }}
       />
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbJsonLd(product, id)) }}
       />
       <ProductDetailClient productId={id} initialProduct={product} />
