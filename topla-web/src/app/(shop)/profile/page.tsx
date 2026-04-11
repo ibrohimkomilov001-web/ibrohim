@@ -91,7 +91,7 @@ export default function ProfilePage() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otpCode.length < 4) return;
+    if (otpCode.length < 5) return;
     setLoading(true);
     setError('');
     try {
@@ -469,9 +469,9 @@ export default function ProfilePage() {
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       value={otpCode}
-                      onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
-                      placeholder="• • • • • •"
-                      maxLength={6}
+                      onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 5)); setError(''); }}
+                      placeholder="• • • • •"
+                      maxLength={5}
                       className="w-full h-14 rounded-xl bg-gray-50 border border-gray-200 text-center text-2xl font-bold tracking-[0.5em] text-gray-800 placeholder:text-gray-300 focus:border-primary/40 focus:bg-white outline-none transition-all"
                       autoFocus
                     />
@@ -480,7 +480,7 @@ export default function ProfilePage() {
 
                     <button
                       type="submit"
-                      disabled={otpCode.length < 4 || loading}
+                      disabled={otpCode.length < 5 || loading}
                       className="w-full mt-4 h-11 rounded-xl bg-primary text-white font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 active:scale-[0.98] transition-all"
                     >
                       {loading

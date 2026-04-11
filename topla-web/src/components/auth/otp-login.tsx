@@ -14,7 +14,7 @@ export function OtpLogin() {
   const { login, isLoading } = useAuthStore();
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '']);
   const [error, setError] = useState('');
   const [otpSending, setOtpSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -77,13 +77,13 @@ export function OtpLogin() {
     setError('');
 
     // Auto-focus next input
-    if (value && index < 5) {
+    if (value && index < 4) {
       otpRefs.current[index + 1]?.focus();
     }
 
     // Auto-submit when all digits entered
     const fullCode = newOtp.join('');
-    if (fullCode.length === 6) {
+    if (fullCode.length === 5) {
       handleVerifyOtp(fullCode);
     }
   }, [otp]);
@@ -96,14 +96,14 @@ export function OtpLogin() {
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 5);
     if (!pasted) return;
     const newOtp = [...otp];
     for (let i = 0; i < pasted.length; i++) {
       newOtp[i] = pasted[i];
     }
     setOtp(newOtp);
-    if (pasted.length === 6) {
+    if (pasted.length === 5) {
       handleVerifyOtp(pasted);
     } else {
       otpRefs.current[pasted.length]?.focus();
@@ -114,7 +114,7 @@ export function OtpLogin() {
     const result = await login(`+998${phone}`, code);
     if (!result.success) {
       setError(result.error || (locale === 'ru' ? 'Неверный код' : 'Noto\'g\'ri kod'));
-      setOtp(['', '', '', '', '', '']);
+      setOtp(['', '', '', '', '']);
       otpRefs.current[0]?.focus();
     }
   };
@@ -125,7 +125,7 @@ export function OtpLogin() {
     try {
       await userAuthApi.sendOtp(`+998${phone}`, 'sms');
       setCountdown(60);
-      setOtp(['', '', '', '', '', '']);
+      setOtp(['', '', '', '', '']);
       otpRefs.current[0]?.focus();
     } catch (err: any) {
       setError(err.message || 'Error');
@@ -241,7 +241,7 @@ export function OtpLogin() {
             {/* Resend / Back */}
             <div className="flex items-center justify-between mt-5">
               <button
-                onClick={() => { setStep('phone'); setOtp(['', '', '', '', '', '']); setError(''); }}
+                onClick={() => { setStep('phone'); setOtp(['', '', '', '', '']); setError(''); }}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 ← {locale === 'ru' ? 'Изменить номер' : 'Raqamni o\'zgartirish'}
