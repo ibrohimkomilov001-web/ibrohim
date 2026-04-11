@@ -41,8 +41,8 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
     languages: {
+      'x-default': '/',
       'uz': '/',
-      'ru': '/',
     },
   },
   openGraph: {
@@ -52,11 +52,18 @@ export const metadata: Metadata = {
     title: "TOPLA.UZ - O'zbekistonning eng yirik marketplace",
     description: "Minglab do'konlar, millionlab mahsulotlar. Eng arzon narxlarda xarid qiling!",
     url: '/',
+    images: [{
+      url: '/favicon.svg',
+      width: 512,
+      height: 512,
+      alt: 'TOPLA.UZ',
+    }],
   },
   twitter: {
     card: 'summary_large_image',
     title: "TOPLA.UZ - O'zbekistonning eng yirik marketplace",
     description: "Minglab do'konlar, millionlab mahsulotlar.",
+    images: ['/favicon.svg'],
   },
   robots: {
     index: true,
@@ -86,7 +93,10 @@ const organizationJsonLd = {
     contactType: 'customer service',
     availableLanguage: ['uz', 'ru'],
   },
-  sameAs: [],
+  sameAs: [
+    'https://t.me/toplauz',
+    'https://instagram.com/topla.uz',
+  ],
 };
 
 const websiteJsonLd = {

@@ -246,10 +246,6 @@ app.get('/health', async (_request, reply) => {
 
   return reply.status(statusCode).send({
     status: allOk ? 'ok' : 'degraded',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: '1.0.0',
-    checks,
   });
 });
 

@@ -423,9 +423,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (meiliResult && meiliResult.totalHits > 0) {
+      // Internal fieldlarni yashirish
+      const safeHits = meiliResult.hits.map(({ qualityScore, barcode, status, ...hit }: any) => hit);
       const response = {
         success: true,
-        data: meiliResult.hits,
+        data: safeHits,
         meta: {
           total: meiliResult.totalHits,
           page: params.page,
@@ -929,7 +931,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         where: { id },
         include: {
           shop: {
-            select: { id: true, name: true, logoUrl: true, rating: true, reviewCount: true, phone: true },
+            select: { id: true, name: true, logoUrl: true, rating: true, reviewCount: true },
           },
           category: {
             include: {
@@ -1061,9 +1063,16 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Internal fieldlarni yashirish (public API uchun)
+    const {
+      qualityScore, moderatedAt, moderatedBy, validationErrors,
+      sku, barcode, weight, deletedAt, shopId,
+      ...safeProduct
+    } = product as any;
+
     return reply.send({
       success: true,
-      data: { ...product, isFavorite, colorSiblings },
+      data: { ...safeProduct, isFavorite, colorSiblings },
     });
   });
 

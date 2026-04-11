@@ -3,6 +3,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  poweredByHeader: false,
   eslint: {
     // Uzbek text contains apostrophes that trigger react/no-unescaped-entities
     ignoreDuringBuilds: true,
@@ -57,7 +58,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://storage.yandexcloud.net https://images.unsplash.com https://*.topla.uz",
-              "connect-src 'self' https://api.topla.uz wss://api.topla.uz http://localhost:* ws://localhost:*",
+              "connect-src 'self' https://api.topla.uz wss://api.topla.uz",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
