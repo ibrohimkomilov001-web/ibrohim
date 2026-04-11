@@ -5,6 +5,7 @@
 // ============================================
 
 import { env } from '../config/env.js';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database.js';
 
 const CLIP_URL = env.CLIP_SERVICE_URL;
@@ -99,19 +100,16 @@ export async function searchProductsByEmbedding(
 ): Promise<{ id: string; similarity: number }[]> {
   const vectorStr = `[${embedding.join(',')}]`;
 
-  const results = await prisma.$queryRawUnsafe<{ id: string; similarity: number }[]>(
-    `SELECT id, 1 - (embedding <=> $1::vector) as similarity
+  const results = await prisma.$queryRaw<{ id: string; similarity: number }[]>(Prisma.sql`
+    SELECT id, 1 - (embedding <=> ${vectorStr}::vector) as similarity
      FROM products
      WHERE embedding IS NOT NULL
        AND is_active = true
        AND status = 'active'
        AND deleted_at IS NULL
-     ORDER BY embedding <=> $1::vector
-     LIMIT $2 OFFSET $3`,
-    vectorStr,
-    limit,
-    offset,
-  );
+     ORDER BY embedding <=> ${vectorStr}::vector
+     LIMIT ${limit} OFFSET ${offset}
+  `);
 
   return results;
 }

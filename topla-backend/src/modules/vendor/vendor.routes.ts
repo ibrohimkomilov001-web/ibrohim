@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, requireRole, requireActiveShop } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
@@ -987,23 +988,23 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     ]);
 
     // Kunlik trend
-    const dailyViews = await prisma.$queryRawUnsafe<{ date: string; count: bigint }[]>(`
+    const dailyViews = await prisma.$queryRaw<{ date: string; count: bigint }[]>(Prisma.sql`
       SELECT DATE(pv."created_at") as date, COUNT(*) as count
       FROM product_views pv
       JOIN products p ON pv."product_id" = p.id
-      WHERE p."shop_id" = $1::uuid AND pv."created_at" >= $2
+      WHERE p."shop_id" = ${shop.id}::uuid AND pv."created_at" >= ${startDate}
       GROUP BY DATE(pv."created_at")
       ORDER BY date ASC
-    `, shop.id, startDate);
+    `);
 
-    const dailyOrders = await prisma.$queryRawUnsafe<{ date: string; count: bigint }[]>(`
+    const dailyOrders = await prisma.$queryRaw<{ date: string; count: bigint }[]>(Prisma.sql`
       SELECT DATE(o."created_at") as date, COUNT(DISTINCT o.id) as count
       FROM orders o
       JOIN order_items oi ON o.id = oi."order_id"
-      WHERE oi."shop_id" = $1::uuid AND o."created_at" >= $2 AND o.status != 'cancelled'
+      WHERE oi."shop_id" = ${shop.id}::uuid AND o."created_at" >= ${startDate} AND o.status != 'cancelled'
       GROUP BY DATE(o."created_at")
       ORDER BY date ASC
-    `, shop.id, startDate);
+    `);
 
     return reply.send({
       success: true,
