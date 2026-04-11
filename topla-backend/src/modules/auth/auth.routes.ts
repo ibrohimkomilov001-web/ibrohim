@@ -359,12 +359,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         ? `+${body.phone}`
         : `+998${body.phone}`;
 
-    // Brute-force himoyasi: 5 urinish / 15 daqiqa
+    // Brute-force himoyasi: 5 urinish / 30 daqiqa
     const verifyRateKey = `otp:verify:${phone}`;
-    const verifyRate = await checkRateLimit(verifyRateKey, 5, 900);
+    const verifyRate = await checkRateLimit(verifyRateKey, 5, 1800);
     if (!verifyRate.allowed) {
       throw new AppError(
-        `Juda ko'p noto'g'ri urinish. ${Math.ceil((verifyRate.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        `Juda ko'p noto'g'ri urinish. ${Math.ceil((verifyRate.retryAfter || 1800) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
         429
       );
     }
@@ -1619,12 +1619,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         ? `+${body.phone}`
         : `+998${body.phone}`;
 
-    // Brute-force himoyasi
+    // Brute-force himoyasi: 5 urinish / 30 daqiqa
     const verifyRateKey = `reset:phone:verify:${phone}`;
-    const verifyRate = await checkRateLimit(verifyRateKey, 5, 900);
+    const verifyRate = await checkRateLimit(verifyRateKey, 5, 1800);
     if (!verifyRate.allowed) {
       throw new AppError(
-        `Juda ko'p noto'g'ri urinish. ${Math.ceil((verifyRate.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        `Juda ko'p noto'g'ri urinish. ${Math.ceil((verifyRate.retryAfter || 1800) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
         429
       );
     }
@@ -1841,11 +1841,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const body = verifyEmailCodeSchema.parse(request.body);
     const userId = request.user!.userId;
 
-    // Brute-force himoyasi
+    // Brute-force himoyasi: 5 urinish / 30 daqiqa
     const verifyRateKey = `email_verify:attempt:${userId}`;
-    const verifyRate = await checkRateLimit(verifyRateKey, 5, 900);
+    const verifyRate = await checkRateLimit(verifyRateKey, 5, 1800);
     if (!verifyRate.allowed) {
-      throw new AppError('Juda ko\'p noto\'g\'ri urinish. 15 daqiqadan keyin qayta urinib ko\'ring.', 429);
+      throw new AppError('Juda ko\'p noto\'g\'ri urinish. 30 daqiqadan keyin qayta urinib ko\'ring.', 429);
     }
 
     const savedCode = await getValue(`email_verify:${userId}`);
