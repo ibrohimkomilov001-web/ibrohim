@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { ChevronDown, HelpCircle } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLocaleStore } from '@/store/locale-store'
 import { useTelegramLink, useTelegramHandle, useSupportPhone, useSupportEmail } from '@/hooks/useSettings'
@@ -176,16 +176,16 @@ const faqRu: FaqCategory[] = [
   },
 ]
 
-function FaqAccordion({ item }: { item: FaqItem }) {
+function FaqQuestion({ item }: { item: FaqItem }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-start justify-between gap-3 py-4 text-left group"
+        className="w-full flex items-center gap-2 py-2.5 text-left group"
       >
-        <span className="text-[15px] font-medium text-gray-800 group-hover:text-primary transition-colors">{item.q}</span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 mt-1 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-blue-500 shrink-0 transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} />
+        <span className="text-[15px] text-blue-600 group-hover:text-blue-700 transition-colors">{item.q}</span>
       </button>
       <AnimatePresence>
         {open && (
@@ -193,10 +193,10 @@ function FaqAccordion({ item }: { item: FaqItem }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            <p className="pb-4 text-sm text-gray-500 leading-relaxed">{item.a}</p>
+            <div className="pl-6 pb-3 text-[14px] text-gray-600 leading-relaxed">{item.a}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -207,121 +207,155 @@ function FaqAccordion({ item }: { item: FaqItem }) {
 export default function FaqPage() {
   const locale = useLocaleStore((s) => s.locale)
   const isRu = locale === 'ru'
-  const categories = isRu ? faqRu : faqUz
+  const allCategories = isRu ? faqRu : faqUz
   const telegramLink = useTelegramLink()
   const telegramHandle = useTelegramHandle()
   const supportPhone = useSupportPhone()
   const email = useSupportEmail()
 
+  const [search, setSearch] = useState('')
+  const [activeSection, setActiveSection] = useState<number | null>(null)
+
+  const categories = useMemo(() => {
+    if (!search.trim()) return allCategories
+    const q = search.toLowerCase()
+    return allCategories
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter(
+          (item) => item.q.toLowerCase().includes(q) || item.a.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((cat) => cat.items.length > 0)
+  }, [search, allCategories])
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-10 md:py-14">
-          <div className="flex items-center gap-4 mb-1">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <HelpCircle className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-[28px] font-bold text-gray-900 leading-tight">
-                {isRu ? 'Часто задаваемые вопросы' : "Ko'p so'raladigan savollar"}
-              </h1>
-              <p className="mt-1 text-[15px] text-gray-500">
-                {isRu ? 'Последнее обновление: 11 апреля 2026 г.' : "So'nggi yangilanish: 2026-yil, 11-aprel"}
-              </p>
-            </div>
+      <div className="bg-blue-600">
+        <div className="max-w-2xl mx-auto px-4 py-10 md:py-14">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
+            {isRu ? 'Часто задаваемые вопросы' : "Ko'p so'raladigan savollar"}
+          </h1>
+          <p className="mt-2 text-blue-100 text-[15px]">
+            {isRu
+              ? 'Ответы на популярные вопросы о TOPLA.UZ'
+              : "TOPLA.UZ platformasi haqida savollar va javoblar"}
+          </p>
+
+          {/* Search */}
+          <div className="mt-6 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-300" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={isRu ? 'Поиск по вопросам...' : 'Savollarni qidirish...'}
+              className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/15 backdrop-blur text-white placeholder:text-blue-200 border border-white/20 outline-none focus:bg-white/25 transition-colors text-[15px]"
+            />
           </div>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8 md:py-12">
-        <article className="space-y-10 text-[15px] leading-[1.75] text-gray-700">
+      {/* Quick nav */}
+      {!search && (
+        <div className="border-b border-gray-100 bg-gray-50/50">
+          <div className="max-w-2xl mx-auto px-4">
+            <div className="flex gap-1 py-3 overflow-x-auto no-scrollbar">
+              {allCategories.map((cat, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setActiveSection(i)
+                    document.getElementById(`faq-section-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+                    activeSection === i
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  {cat.emoji} {cat.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Intro callout */}
-          <div className="border-l-4 border-orange-400 pl-4 py-1 text-gray-600">
-            <p>
-              {isRu
-                ? 'Здесь собраны ответы на самые популярные вопросы о платформе TOPLA — оформление заказов, доставка, оплата, возврат и многое другое. Если вы не нашли ответ, свяжитесь с нами через Telegram или по телефону.'
-                : "Bu yerda TOPLA platformasi haqida eng ko'p so'raladigan savollarga javoblar to'plangan — buyurtma berish, yetkazish, to'lov, qaytarish va boshqalar. Javob topolmasangiz, Telegram yoki telefon orqali biz bilan bog'laning."}
+      {/* FAQ sections */}
+      <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
+        {categories.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-4xl mb-3">🔍</p>
+            <p className="text-gray-500 text-[15px]">
+              {isRu ? 'Ничего не найдено' : 'Hech narsa topilmadi'}
             </p>
           </div>
+        ) : (
+          <div className="space-y-8">
+            {categories.map((cat, ci) => (
+              <section key={ci} id={`faq-section-${ci}`} className="scroll-mt-20">
+                <h2 className="text-[17px] font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                  <span>{cat.emoji}</span> {cat.title}
+                </h2>
+                <div className="border-l-2 border-gray-100 pl-2">
+                  {cat.items.map((item, i) => (
+                    <FaqQuestion key={i} item={item} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
 
-          {/* FAQ sections */}
-          {categories.map((cat, ci) => (
-            <section key={ci}>
-              <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-                <span>{cat.emoji}</span> {cat.title}
-              </h2>
-              <div className="mt-2 rounded-xl border border-gray-100 divide-y divide-gray-100 px-4">
-                {cat.items.map((item, i) => (
-                  <FaqAccordion key={i} item={item} />
-                ))}
-              </div>
-              {ci < categories.length - 1 && <hr className="border-gray-200 mt-8" />}
-            </section>
-          ))}
+        {/* Contact */}
+        <div className="mt-12 pt-8 border-t border-gray-100">
+          <h2 className="text-[17px] font-semibold text-gray-900 mb-2">
+            {isRu ? 'Не нашли ответ?' : 'Javob topolmadingizmi?'}
+          </h2>
+          <p className="text-[14px] text-gray-500 mb-4">
+            {isRu
+              ? 'Свяжитесь с поддержкой — ответим за 5 минут.'
+              : "Qo'llab-quvvatlash bilan bog'laning — 5 daqiqada javob beramiz."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={telegramLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-600 text-sm font-medium hover:bg-blue-100 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+              {telegramHandle}
+            </a>
+            <a
+              href={`tel:+${supportPhone.replace(/\D/g, '')}`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors"
+            >
+              📞 {supportPhone}
+            </a>
+            <a
+              href={`mailto:${email}`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors"
+            >
+              ✉️ {email}
+            </a>
+          </div>
+        </div>
 
-          <hr className="border-gray-200" />
-
-          {/* Contact section */}
-          <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              {isRu ? 'Не нашли ответ?' : 'Javob topolmadingizmi?'}
-            </h2>
-            <p className="mb-4 text-gray-600">
-              {isRu
-                ? 'Свяжитесь с нашей командой поддержки — мы ответим в течение 5 минут.'
-                : "Qo'llab-quvvatlash jamoamizga murojaat qiling — 5 daqiqa ichida javob beramiz."}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href={telegramLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-sky-50 text-sky-600 text-sm font-medium hover:bg-sky-100 transition-colors"
-              >
-                Telegram {telegramHandle}
-              </a>
-              <a
-                href={`tel:+${supportPhone.replace(/\D/g, '')}`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-50 text-blue-600 text-sm font-medium hover:bg-blue-100 transition-colors"
-              >
-                {supportPhone}
-              </a>
-              <a
-                href={`mailto:${email}`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-50 text-orange-600 text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                {email}
-              </a>
-            </div>
-          </section>
-
-          {/* Useful links */}
-          <section className="pb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              {isRu ? 'Полезные ссылки' : 'Foydali havolalar'}
-            </h2>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/help" className="text-primary hover:underline">
-                  {isRu ? '→ Центр помощи' : '→ Yordam markazi'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="text-primary hover:underline">
-                  {isRu ? '→ Пользовательское соглашение' : '→ Foydalanish shartlari'}
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-primary hover:underline">
-                  {isRu ? '→ Политика конфиденциальности' : '→ Maxfiylik siyosati'}
-                </Link>
-              </li>
-            </ul>
-          </section>
-
-        </article>
+        {/* Links */}
+        <div className="mt-8 pb-8 flex flex-wrap gap-4 text-sm">
+          <Link href="/help" className="text-blue-600 hover:underline">
+            {isRu ? 'Центр помощи →' : 'Yordam markazi →'}
+          </Link>
+          <Link href="/terms" className="text-blue-600 hover:underline">
+            {isRu ? 'Соглашение →' : 'Foydalanish shartlari →'}
+          </Link>
+          <Link href="/privacy" className="text-blue-600 hover:underline">
+            {isRu ? 'Конфиденциальность →' : 'Maxfiylik siyosati →'}
+          </Link>
+        </div>
       </div>
     </div>
   )

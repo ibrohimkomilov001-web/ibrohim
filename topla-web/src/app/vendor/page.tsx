@@ -1,1 +1,5 @@
-export { default } from "./become-seller/page";
+import { redirect } from 'next/navigation'
+
+export default function VendorPage() {
+  redirect('/vendor/become-seller')
+}

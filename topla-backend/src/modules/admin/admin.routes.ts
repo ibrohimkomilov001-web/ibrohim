@@ -229,6 +229,86 @@ export async function adminRoutes(app: FastifyInstance) {
   });
 
   // ==========================================
+  // AUTH: Admin Login — Secret Key
+  // ==========================================
+  app.post('/auth/admin/key-login', async (request, reply) => {
+    const { key } = z.object({ key: z.string().min(10) }).parse(request.body);
+
+    const rateLimitKey = `login:admin:key:${request.ip}`;
+    const rateCheck = await checkRateLimit(rateLimitKey, 5, 1800);
+    if (!rateCheck.allowed) {
+      throw new AppError(
+        `Juda ko'p urinish. ${Math.ceil((rateCheck.retryAfter || 1800) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
+    const adminSecretKey = process.env.ADMIN_SECRET_KEY;
+    if (!adminSecretKey) {
+      throw new AppError('Kalit orqali kirish sozlanmagan', 503);
+    }
+
+    // Constant-time comparison
+    const crypto = await import('crypto');
+    const keyBuf = Buffer.from(key);
+    const secretBuf = Buffer.from(adminSecretKey);
+    if (keyBuf.length !== secretBuf.length || !crypto.timingSafeEqual(keyBuf, secretBuf)) {
+      throw new AppError('Kalit noto\'g\'ri', 401);
+    }
+
+    // Find the primary admin (first super_admin)
+    const adminRoleRecord = await prisma.adminRole.findFirst({
+      where: { level: 'super_admin' },
+      include: { user: true },
+    });
+
+    if (!adminRoleRecord || !adminRoleRecord.user) {
+      throw new AppError('Admin topilmadi', 500);
+    }
+
+    const user = adminRoleRecord.user;
+
+    const tokenPayload = {
+      userId: user.id,
+      role: user.role,
+      phone: user.phone,
+    };
+
+    const token = generateToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+    setAuthCookies(reply, token, refreshToken);
+
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: 'admin.login.key',
+        entityType: 'profile',
+        entityId: user.id,
+        ipAddress: request.ip,
+      },
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        token,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+          avatarUrl: user.avatarUrl,
+        },
+        adminRole: {
+          level: adminRoleRecord.level,
+          permissions: adminRoleRecord.permissions,
+        },
+      },
+    });
+  });
+
+  // ==========================================
   // AUTH: Admin Token Refresh
   // ==========================================
   app.post('/auth/admin/refresh', async (request, reply) => {

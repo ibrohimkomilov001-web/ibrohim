@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, ShoppingBag, User, X, Menu } from 'lucide-react';
@@ -16,6 +16,8 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -30,9 +32,15 @@ export function Header() {
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
+      setSearchFocused(false);
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
     }
+  };
+
+  const handleOverlayClick = () => {
+    setSearchFocused(false);
+    if (searchRef.current) searchRef.current.blur();
   };
 
   return (
@@ -59,10 +67,12 @@ export function Header() {
               <div className="flex items-center h-9 sm:h-10 px-3 rounded-xl bg-gray-50 border border-gray-100 transition-all focus-within:bg-white focus-within:border-primary/30 focus-within:shadow-sm">
                 <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <input
+                  ref={searchRef}
                   type="search"
                   enterKeyHint="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
                   placeholder={t('findProducts')}
                   className="flex-1 bg-transparent border-none outline-none ml-2 text-[16px] sm:text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
                 />
@@ -99,6 +109,15 @@ export function Header() {
           </div>
         </div>
       </header>
+
+      {/* Search overlay */}
+      {searchFocused && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={handleOverlayClick}
+          style={{ top: 'calc(env(safe-area-inset-top) + 3rem)' }}
+        />
+      )}
 
       {/* Spacer */}
       <div className="h-12 sm:h-14" style={{ paddingTop: 'env(safe-area-inset-top)' }} />

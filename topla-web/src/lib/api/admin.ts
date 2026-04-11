@@ -89,6 +89,25 @@ export async function adminGoogleLogin(credential: string) {
   }
 }
 
+export async function adminKeyLogin(key: string) {
+  try {
+    const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>('/auth/admin/key-login', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+    });
+    const data = res.data;
+    if (data?.token) {
+      setAdminToken(data.token);
+    }
+    if (data?.adminRole) {
+      setAdminPermissions(data.adminRole);
+    }
+    return data;
+  } catch (err: any) {
+    throw new Error(err.message || 'Kalit orqali kirishda xatolik yuz berdi.');
+  }
+}
+
 // ============================================
 // Admin Me — get current admin profile + RBAC permissions
 // ============================================

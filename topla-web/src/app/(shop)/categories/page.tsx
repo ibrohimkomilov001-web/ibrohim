@@ -13,7 +13,7 @@ function renderIcon(icon?: string) {
   const opt = ICON_BY_VALUE[icon];
   if (!opt) return <span className="text-3xl">📦</span>;
   const IconComp = opt.Icon;
-  return <IconComp size={28} color="hsl(var(--primary))" />;
+  return <span className="text-primary"><IconComp size={28} color="currentColor" /></span>;
 }
 
 export default function CategoriesPage() {
