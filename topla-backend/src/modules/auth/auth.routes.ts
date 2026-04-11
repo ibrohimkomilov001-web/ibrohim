@@ -325,7 +325,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const result = await sendOtp(phone, channel);
 
     if (!result.success) {
-      throw new AppError(result.error || 'OTP yuborib bo\'lmadi', 429);
+      request.log.error({ error: result.error, phone }, 'OTP yuborish xatoligi');
+      throw new AppError('SMS yuborib bo\'lmadi. Iltimos keyinroq urinib ko\'ring.', 503);
     }
 
     // Dev mode: OTP'ni faqat server logga yozish (responsga HECH QACHON bermang!)
@@ -1394,7 +1395,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const otpSendResult = await sendOtp(profile.phone, 'sms');
     if (!otpSendResult.success) {
-      throw new AppError(otpSendResult.error || "SMS yuborib bo'lmadi", 500);
+      request.log.error({ error: otpSendResult.error, phone: profile.phone }, 'OTP yuborish xatoligi (email flow)');
+      throw new AppError('SMS yuborib bo\'lmadi. Iltimos keyinroq urinib ko\'ring.', 503);
     }
 
     if (env.NODE_ENV !== 'production') {
@@ -1585,7 +1587,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // OTP yuborish
     const otpResult = await sendOtp(phone, 'sms');
     if (!otpResult.success) {
-      throw new AppError(otpResult.error || 'SMS yuborib bo\'lmadi', 500);
+      request.log.error({ error: otpResult.error, phone }, 'OTP yuborish xatoligi (password reset)');
+      throw new AppError('SMS yuborib bo\'lmadi. Iltimos keyinroq urinib ko\'ring.', 503);
     }
 
     // Rate limit o'rnatish

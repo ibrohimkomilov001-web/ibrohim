@@ -171,7 +171,6 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 app.addHook('onRequest', async (request, reply) => {
   const reqId = (request.headers['x-request-id'] as string) || randomUUID();
   request.id = reqId;
-  reply.header('x-request-id', reqId);
 });
 
 // ============================================
