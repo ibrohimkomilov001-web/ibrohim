@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { Star, MapPin, ExternalLink, Package, TrendingUp, MessageCircle } from 'lucide-react';
@@ -21,6 +22,8 @@ export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClie
   const { t, locale } = useTranslation();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const [bannerError, setBannerError] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const { data: shop, isLoading } = useQuery({
     queryKey: ['shop', id],
@@ -69,8 +72,8 @@ export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClie
     <div>
       {/* Banner */}
       <div className="relative h-48 sm:h-64 lg:h-72">
-        {shop.bannerUrl ? (
-          <Image src={resolveImageUrl(shop.bannerUrl)} alt="" fill className="object-cover" unoptimized />
+        {shop.bannerUrl && !bannerError ? (
+          <Image src={resolveImageUrl(shop.bannerUrl)} alt="" fill className="object-cover" unoptimized onError={() => setBannerError(true)} />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5" />
         )}
@@ -86,8 +89,8 @@ export default function ShopDetailClient({ shopId, initialShop }: ShopDetailClie
         >
           <div className="flex items-start gap-4 sm:gap-6">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white dark:bg-card shadow-lg overflow-hidden shrink-0 -mt-12 border-4 border-background ring-2 ring-border/50">
-              {shop.logoUrl ? (
-                <Image src={resolveImageUrl(shop.logoUrl)} alt="" width={96} height={96} className="object-cover w-full h-full" />
+              {shop.logoUrl && !logoError ? (
+                <Image src={resolveImageUrl(shop.logoUrl)} alt="" width={96} height={96} className="object-cover w-full h-full" onError={() => setLogoError(true)} />
               ) : (
                 <div className="w-full h-full bg-primary/10 flex items-center justify-center text-3xl">🏪</div>
               )}

@@ -197,6 +197,70 @@ export const userAuthApi = {
   getMyReviews: (page = 1) =>
     userRequest<any>(`/my/reviews?page=${page}&limit=20`),
 
+  /** Submit a product review */
+  submitReview: (productId: string, data: { rating: number; comment?: string }) =>
+    userRequest<any>(`/products/${encodeURIComponent(productId)}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /** Get my orders */
+  getMyOrders: (params?: { status?: string; page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return userRequest<any>(`/orders${qs ? `?${qs}` : ''}`);
+  },
+
+  /** Get order details */
+  getOrder: (id: string) =>
+    userRequest<any>(`/orders/${encodeURIComponent(id)}`),
+
+  /** Cancel order */
+  cancelOrder: (id: string, reason?: string) =>
+    userRequest<any>(`/orders/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  /** Get my addresses */
+  getAddresses: () =>
+    userRequest<any>(`/addresses`),
+
+  /** Create address */
+  createAddress: (data: {
+    name: string;
+    fullAddress: string;
+    latitude: number;
+    longitude: number;
+    street?: string;
+    building?: string;
+    apartment?: string;
+    entrance?: string;
+    floor?: string;
+    comment?: string;
+    isDefault?: boolean;
+  }) =>
+    userRequest<any>(`/addresses`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /** Update address */
+  updateAddress: (id: string, data: Record<string, any>) =>
+    userRequest<any>(`/addresses/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  /** Delete address */
+  deleteAddress: (id: string) =>
+    userRequest<any>(`/addresses/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
   /** Passkey login — 1-qadam: options olish */
   passkeyLoginBegin: () =>
     userRequest<{ options: any; sessionId: string }>('/auth/passkey/login/begin', {

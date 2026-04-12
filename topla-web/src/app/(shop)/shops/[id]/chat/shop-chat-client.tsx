@@ -25,6 +25,7 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState('');
   const [roomId, setRoomId] = useState<string | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Redirect to profile/login if not authenticated
   useEffect(() => {
@@ -52,29 +53,36 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
   }, [room]);
 
   // Fetch messages
-  const { data: messages = [], isLoading: isLoadingMessages } = useQuery({
+  const { data: messagesRaw, isLoading: isLoadingMessages } = useQuery({
     queryKey: ['chat-messages', roomId],
     queryFn: () => chatApi.getMessages(roomId!),
     enabled: !!roomId,
-    refetchInterval: 5000,
+    refetchInterval: connected ? false : 5000,
   });
+  const messages: ChatMessage[] = Array.isArray(messagesRaw) ? messagesRaw : (messagesRaw as any)?.data ?? [];
 
   // Socket.IO for real-time messages
   const onNewMessage = useCallback(
     (msg: ChatMessage) => {
       if (msg.roomId === roomId) {
-        queryClient.setQueryData<ChatMessage[]>(
+        queryClient.setQueryData(
           ['chat-messages', roomId],
-          (old) => (old ? [...old, msg] : [msg]),
+          (old: any) => {
+            const list: ChatMessage[] = Array.isArray(old) ? old : old?.data ?? [];
+            if (list.some((m) => m.id === msg.id)) return old;
+            return [...list, msg];
+          },
         );
       }
     },
     [roomId, queryClient],
   );
 
-  const { joinRoom, leaveRoom, connected } = useChatSocket({
+  const { joinRoom, leaveRoom, connected, startTyping, stopTyping, isRoomTyping } = useChatSocket({
     onNewMessage,
   });
+
+  const sellerIsTyping = roomId ? isRoomTyping(roomId) : false;
 
   useEffect(() => {
     if (roomId && connected) {
@@ -86,18 +94,23 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, sellerIsTyping]);
 
   // Send message
   const sendMutation = useMutation({
     mutationFn: ({ roomId, message }: { roomId: string; message: string }) =>
       chatApi.sendMessage(roomId, message),
     onSuccess: (newMsg) => {
-      queryClient.setQueryData<ChatMessage[]>(
+      queryClient.setQueryData(
         ['chat-messages', roomId],
-        (old) => (old ? [...old, newMsg] : [newMsg]),
+        (old: any) => {
+          const list: ChatMessage[] = Array.isArray(old) ? old : old?.data ?? [];
+          if (list.some((m) => m.id === newMsg.id)) return old;
+          return [...list, newMsg];
+        },
       );
       setInput('');
+      if (roomId) stopTyping(roomId);
     },
   });
 
@@ -105,6 +118,17 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
     const trimmed = input.trim();
     if (!trimmed || !roomId || sendMutation.isPending) return;
     sendMutation.mutate({ roomId, message: trimmed });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    if (roomId && connected) {
+      startTyping(roomId);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        if (roomId) stopTyping(roomId);
+      }, 2000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -178,7 +202,11 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
             <div className="min-w-0">
               <p className="font-semibold truncate">{shop.name}</p>
               <p className="text-xs text-muted-foreground">
-                {connected ? (locale === 'ru' ? 'Онлайн' : 'Onlayn') : ''}
+                {sellerIsTyping
+                  ? (locale === 'ru' ? 'печатает...' : 'yozmoqda...')
+                  : connected
+                    ? (locale === 'ru' ? 'Онлайн' : 'Onlayn')
+                    : ''}
               </p>
             </div>
           </div>
@@ -254,13 +282,23 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
               <div ref={messagesEndRef} />
             </>
           )}
+          {/* Typing indicator */}
+          {sellerIsTyping && (
+            <div className="flex justify-start mb-1 px-1">
+              <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5 flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Input area */}
         <div className="border-t p-3 flex items-end gap-2">
           <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={t('typeMessage')}
             rows={1}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   ShoppingBag, Heart, MapPin, CreditCard, Globe,
   HelpCircle, ChevronRight, Store, Star, ArrowLeft,
-  User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2,
+  User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2, MapPinned, Laptop,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation, useLocaleStore } from '@/store/locale-store';
@@ -41,6 +41,8 @@ export default function ProfilePage() {
 
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
+  const [devicesModalOpen, setDevicesModalOpen] = useState(false);
   const [loginStep, setLoginStep] = useState<LoginStep>('phone');
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -729,7 +731,7 @@ export default function ProfilePage() {
           <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 overflow-hidden divide-y divide-gray-100">
             {/* Language */}
             <button
-              onClick={() => setLangMenuOpen(!langMenuOpen)}
+              onClick={() => setLangMenuOpen(true)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group"
             >
               <Globe className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
@@ -739,40 +741,63 @@ export default function ProfilePage() {
               <span className="text-[13px] text-gray-400">
                 {locale === 'uz' ? "O'zbek" : 'Русский'}
               </span>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
             </button>
 
-            {/* Language selector */}
+            {/* Language modal */}
             <AnimatePresence>
               {langMenuOpen && (
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden rounded-xl bg-white/60 backdrop-blur-sm border border-white/50"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+                  onClick={() => setLangMenuOpen(false)}
                 >
-                  <button
-                    onClick={() => { setLocale('uz'); setLangMenuOpen(false); }}
-                    className={`w-full px-4 py-3 text-sm text-left transition-colors ${
-                      locale === 'uz' ? 'text-primary font-semibold bg-primary/5' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                  <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 100, opacity: 0 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-8 sm:pb-5"
                   >
-                    {"O'zbek tili"}
-                  </button>
-                  <button
-                    onClick={() => { setLocale('ru'); setLangMenuOpen(false); }}
-                    className={`w-full px-4 py-3 text-sm text-left transition-colors border-t border-gray-100 ${
-                      locale === 'ru' ? 'text-primary font-semibold bg-primary/5' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Русский язык
-                  </button>
+                    <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
+                      {locale === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
+                    </h3>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => { setLocale('uz'); setLangMenuOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all ${
+                          locale === 'uz' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="text-lg">🇺🇿</span>
+                        <span className="flex-1 text-left">{"O'zbek tili"}</span>
+                        {locale === 'uz' && <Check className="w-5 h-5 text-primary" />}
+                      </button>
+                      <button
+                        onClick={() => { setLocale('ru'); setLangMenuOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all ${
+                          locale === 'ru' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="text-lg">🇷🇺</span>
+                        <span className="flex-1 text-left">Русский язык</span>
+                        {locale === 'ru' && <Check className="w-5 h-5 text-primary" />}
+                      </button>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Help */}
-            <Link
-              href="/help"
+            {/* Help — opens Telegram support chat */}
+            <a
+              href="https://t.me/toplauz"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group"
             >
               <HelpCircle className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
@@ -780,7 +805,7 @@ export default function ProfilePage() {
                 {t('helpCenter')}
               </span>
               <ChevronRight className="w-4 h-4 text-gray-300" />
-            </Link>
+            </a>
 
             {/* Become seller */}
             <Link
@@ -797,6 +822,42 @@ export default function ProfilePage() {
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300" />
             </Link>
+
+            {/* Open pickup point */}
+            <button
+              onClick={() => setPickupModalOpen(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group text-left"
+            >
+              <MapPinned className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
+              <div className="flex-1">
+                <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors block">
+                  {locale === 'ru' ? 'Открыть пункт выдачи' : 'Topshirish punkti ochish'}
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  {locale === 'ru' ? 'Станьте партнёром Topla.uz' : 'Topla.uz hamkori bo\'ling'}
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
+            </button>
+
+            {/* Devices */}
+            {isAuthenticated && (
+              <button
+                onClick={() => setDevicesModalOpen(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group text-left"
+              >
+                <Laptop className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
+                <div className="flex-1">
+                  <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors block">
+                    {locale === 'ru' ? 'Устройства' : 'Qurilmalar'}
+                  </span>
+                  <span className="text-[11px] text-gray-400">
+                    {locale === 'ru' ? `${devices.length} активных` : `${devices.length} ta faol`}
+                  </span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -876,6 +937,172 @@ export default function ProfilePage() {
         )}
 
       </div>
+
+      {/* ===== PICKUP POINT MODAL ===== */}
+      <AnimatePresence>
+        {pickupModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPickupModalOpen(false)} />
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl"
+            >
+              <button
+                onClick={() => setPickupModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <MapPinned className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">
+                  {locale === 'ru' ? 'Пункт выдачи' : 'Topshirish punkti'}
+                </h3>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                {locale === 'ru'
+                  ? 'Откройте пункт выдачи заказов Topla.uz в своём районе и зарабатывайте с каждой доставки. Свяжитесь с нами для получения подробной информации.'
+                  : 'O\'z hududingizda Topla.uz buyurtmalarini topshirish punktini oching va har bir yetkazilishdan daromad oling. Batafsil ma\'lumot uchun biz bilan bog\'laning.'}
+              </p>
+
+              <div className="space-y-2 mb-5 text-sm text-gray-500">
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                  <span>{locale === 'ru' ? 'Бесплатная регистрация' : 'Bepul ro\'yxatdan o\'tish'}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                  <span>{locale === 'ru' ? 'Доход с каждой посылки' : 'Har bir jo\'natmadan daromad'}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                  <span>{locale === 'ru' ? 'Поддержка 24/7' : '24/7 qo\'llab-quvvatlash'}</span>
+                </div>
+              </div>
+
+              <a
+                href="https://t.me/toplauz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 text-center text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-xl transition-colors"
+              >
+                {locale === 'ru' ? 'Связаться с нами' : 'Biz bilan bog\'lanish'}
+              </a>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== DEVICES MODAL ===== */}
+      <AnimatePresence>
+        {devicesModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDevicesModalOpen(false)} />
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+            >
+              <button
+                onClick={() => setDevicesModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Laptop className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">
+                  {locale === 'ru' ? 'Активные устройства' : 'Faol qurilmalar'}
+                </h3>
+              </div>
+
+              {devicesLoading ? (
+                <div className="py-8 text-center text-sm text-gray-400">
+                  {locale === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
+                </div>
+              ) : devices.length === 0 ? (
+                <div className="py-8 text-center text-sm text-gray-400">
+                  {locale === 'ru' ? 'Нет активных устройств' : 'Faol qurilmalar yo\'q'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {devices.map((device) => {
+                    const DeviceIcon = device.platform === 'web' ? Monitor
+                      : device.platform === 'ios' ? Smartphone
+                      : Smartphone;
+                    return (
+                      <div key={device.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50">
+                        <DeviceIcon className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={1.5} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium text-gray-700 truncate">
+                            {device.deviceName || device.browser || (locale === 'ru' ? 'Устройство' : 'Qurilma')}
+                          </p>
+                          <p className="text-[11px] text-gray-400">
+                            {device.ipAddress}{device.location ? ` · ${device.location}` : ''} ·{' '}
+                            {new Date(device.lastActiveAt).toLocaleDateString(locale === 'ru' ? 'ru' : 'uz')}
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await userAuthApi.deleteDevice(device.id);
+                              setDevices(prev => prev.filter(d => d.id !== device.id));
+                            } catch { /* ignore */ }
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
+                          title={locale === 'ru' ? 'Удалить' : 'O\'chirish'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {devices.length > 1 && (
+                <button
+                  onClick={async () => {
+                    if (!confirm(locale === 'ru'
+                      ? 'Выйти со всех других устройств?'
+                      : 'Barcha boshqa qurilmalardan chiqishni xohlaysizmi?')) return;
+                    try {
+                      await userAuthApi.terminateOtherDevices();
+                      await loadDevices();
+                    } catch { /* ignore */ }
+                  }}
+                  className="mt-4 w-full py-2.5 text-sm font-medium text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                >
+                  {locale === 'ru' ? 'Выйти со всех устройств' : 'Barcha qurilmalardan chiqish'}
+                </button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

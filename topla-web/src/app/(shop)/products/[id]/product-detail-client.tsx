@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { resolveImageUrl } from '@/lib/api/upload';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Share2, Heart, Star, ShoppingCart, Plus, Minus,
-  Store, ChevronRight, Truck, Shield, RotateCcw,
+  Store, ChevronRight, Truck, Shield, RotateCcw, Loader2,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { shopApi, type ProductDetail } from '@/lib/api/shop';
@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart-store';
 import { useFavoritesStore } from '@/store/favorites-store';
 import { useTranslation } from '@/store/locale-store';
+import { useAuthStore } from '@/store/auth-store';
+import { userAuthApi } from '@/lib/api/user-auth';
 import { ProductCard } from '@/components/shop/product-card';
 
 interface ProductDetailClientProps {
@@ -35,7 +37,12 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
 
   const { addItem } = useCartStore();
   const { toggleFavorite, isFavorite } = useFavoritesStore();
+  const { isAuthenticated } = useAuthStore();
+  const queryClient = useQueryClient();
   const isFav = isFavorite(id);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewHover, setReviewHover] = useState(0);
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', id],
@@ -60,6 +67,19 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   });
   const reviews = reviewsData?.data ?? reviewsData ?? [];
   const reviewsMeta = reviewsData?.meta;
+
+  const submitReviewMutation = useMutation({
+    mutationFn: () =>
+      userAuthApi.submitReview(id, {
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-reviews', id] });
+      setReviewRating(0);
+      setReviewComment('');
+    },
+  });
 
   if (isLoading) {
     return (
@@ -415,6 +435,66 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
 
           {activeTab === 'reviews' && (
             <div>
+              {/* Review submission form */}
+              {isAuthenticated && (
+                <div className="border rounded-xl p-4 mb-6">
+                  <h3 className="font-semibold text-sm mb-3">
+                    {locale === 'ru' ? 'Оставить отзыв' : 'Sharh qoldirish'}
+                  </h3>
+                  <div className="flex gap-1 mb-3">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onMouseEnter={() => setReviewHover(s)}
+                        onMouseLeave={() => setReviewHover(0)}
+                        onClick={() => setReviewRating(s)}
+                        className="p-0.5 transition-transform hover:scale-110"
+                      >
+                        <Star
+                          className={`w-7 h-7 ${
+                            s <= (reviewHover || reviewRating)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          } transition-colors`}
+                        />
+                      </button>
+                    ))}
+                    {reviewRating > 0 && (
+                      <span className="ml-2 text-sm text-muted-foreground self-center">
+                        {reviewRating}/5
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder={locale === 'ru' ? 'Напишите ваш отзыв...' : 'Sharhingizni yozing...'}
+                    rows={3}
+                    className="w-full resize-none bg-muted rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 transition-all mb-3"
+                  />
+                  {submitReviewMutation.isError && (
+                    <p className="text-red-500 text-xs mb-2">
+                      {(submitReviewMutation.error as any)?.message ||
+                        (locale === 'ru' ? 'Ошибка при отправке' : 'Yuborishda xatolik')}
+                    </p>
+                  )}
+                  {submitReviewMutation.isSuccess && (
+                    <p className="text-green-600 text-xs mb-2">
+                      {locale === 'ru' ? 'Отзыв отправлен!' : 'Sharh yuborildi!'}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => submitReviewMutation.mutate()}
+                    disabled={reviewRating === 0 || submitReviewMutation.isPending}
+                    className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40 hover:bg-primary/90 transition-all flex items-center gap-2"
+                  >
+                    {submitReviewMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {locale === 'ru' ? 'Отправить' : 'Yuborish'}
+                  </button>
+                </div>
+              )}
+
               {reviewsMeta && reviewsMeta.totalReviews > 0 && (
                 <div className="flex items-center gap-4 mb-6 pb-4 border-b">
                   <div className="text-center">
