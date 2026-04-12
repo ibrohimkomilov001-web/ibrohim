@@ -2,7 +2,15 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { verifyToken, isTokenBlacklisted, JwtPayload } from '../utils/jwt.js';
 import { extractToken } from '../utils/cookie.js';
 import { prisma } from '../config/database.js';
+import { checkRateLimit } from '../config/redis.js';
 import { AppError } from './error.js';
+
+export interface ApiKeyContext {
+  keyId: string;
+  userId: string;
+  permissions: string[];
+  rateLimit: number;
+}
 
 // Extend FastifyRequest to include user and admin permissions
 declare module 'fastify' {
@@ -10,6 +18,7 @@ declare module 'fastify' {
     user?: JwtPayload;
     adminPermissions?: string[];
     adminLevel?: string;
+    apiKeyContext?: ApiKeyContext;
   }
 }
 
@@ -161,6 +170,76 @@ export function requireActiveShop() {
         error: 'ShopNotActive',
         message: "Do'koningiz hali tasdiqlanmagan. Admin tekshiruvini kuting.",
         shopStatus: shop.status,
+      });
+    }
+  };
+}
+
+/**
+ * API Key authentication middleware for partner/external integrations.
+ * Reads X-API-Key header (tpk_... prefix), validates against DB, enforces rate limits.
+ * Attaches apiKeyContext to the request on success.
+ */
+export async function apiKeyAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const apiKey = request.headers['x-api-key'] as string | undefined;
+
+  if (!apiKey || !apiKey.startsWith('tpk_')) {
+    return reply.status(401).send({
+      error: 'Unauthorized',
+      message: 'X-API-Key header majburiy (tpk_ prefiksi bilan)',
+    });
+  }
+
+  const record = await prisma.apiKey.findUnique({
+    where: { key: apiKey },
+    select: { id: true, userId: true, permissions: true, rateLimit: true, isActive: true },
+  });
+
+  if (!record || !record.isActive) {
+    return reply.status(401).send({
+      error: 'Unauthorized',
+      message: 'API kalit topilmadi yoki nofaol',
+    });
+  }
+
+  // Rate limit: per-key sliding window (hourly)
+  const rateCheck = await checkRateLimit(`apikey:${record.id}`, record.rateLimit, 3600);
+  if (!rateCheck.allowed) {
+    return reply.status(429).send({
+      error: 'TooManyRequests',
+      message: `Rate limit oshib ketdi. ${rateCheck.retryAfter} soniyadan keyin urinib ko'ring`,
+      retryAfter: rateCheck.retryAfter,
+    });
+  }
+
+  // Update lastUsedAt (fire and forget)
+  prisma.apiKey.update({ where: { id: record.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
+
+  request.apiKeyContext = {
+    keyId: record.id,
+    userId: record.userId,
+    permissions: record.permissions,
+    rateLimit: record.rateLimit,
+  };
+}
+
+/**
+ * Check that the API key has the required permission(s)
+ */
+export function requireApiPermission(...requiredPermissions: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const ctx = request.apiKeyContext;
+    if (!ctx) {
+      return reply.status(401).send({ error: 'Unauthorized', message: 'API kalit talab qilinadi' });
+    }
+    const hasAll = requiredPermissions.every(p => ctx.permissions.includes(p));
+    if (!hasAll) {
+      return reply.status(403).send({
+        error: 'Forbidden',
+        message: `API kalitda "${requiredPermissions.join('" va "')}" ruxsati yo'q`,
       });
     }
   };

@@ -43,6 +43,7 @@ import {
   TrendingUp,
   DollarSign,
   Gauge,
+  Code2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./components/NotificationBell";
@@ -75,6 +76,7 @@ const sidebarItems: SidebarItem[] = [
   { icon: MessageCircle, key: 'vendorChat', href: "/vendor/chat" },
   'separator',
   // Tizim
+  { icon: Code2, key: 'vendorApiKeys', href: "/vendor/api-keys" },
   { icon: Settings, key: 'vendorSettings', href: "/vendor/settings" },
   { icon: HelpCircle, key: 'help', href: "/vendor/help" },
 ];

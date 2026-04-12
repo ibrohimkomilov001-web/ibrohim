@@ -589,6 +589,35 @@ export const vendorApi = {
   // V-NEW-01: Full shop settings update
   updateShopSettings: (settings: Partial<ShopSettings>) =>
     api.put<any>('/vendor/shop/settings', settings),
+
+  // API KEYS
+  getApiKeys: () =>
+    api.get<{ success: boolean; data: VendorApiKey[] }>('/vendor/api-keys').then(r => r.data),
+
+  createApiKey: (body: { name: string; permissions?: string[]; rateLimit?: number }) =>
+    api.post<{ success: boolean; data: VendorApiKey }>('/vendor/api-keys', body).then(r => r.data),
+
+  updateApiKey: (id: string, body: { name?: string; isActive?: boolean; permissions?: string[] }) =>
+    api.patch<{ success: boolean; data: VendorApiKey }>(`/vendor/api-keys/${id}`, body).then(r => r.data),
+
+  deleteApiKey: (id: string) =>
+    api.delete<{ success: boolean }>(`/vendor/api-keys/${id}`),
+
+  getApiUsage: () =>
+    api.get<{ success: boolean; data: any[] }>('/vendor/api-usage').then(r => r.data),
+
+  // WEBHOOKS
+  getWebhooks: () =>
+    api.get<{ success: boolean; data: VendorWebhook[] }>('/vendor/webhooks').then(r => r.data),
+
+  createWebhook: (body: { apiKeyId: string; url: string; events: string[] }) =>
+    api.post<{ success: boolean; data: VendorWebhook }>('/vendor/webhooks', body).then(r => r.data),
+
+  deleteWebhook: (id: string) =>
+    api.delete<{ success: boolean }>(`/vendor/webhooks/${id}`),
+
+  testWebhook: (id: string) =>
+    api.post<{ success: boolean; data: { statusCode: number; ok: boolean; error?: string } }>(`/vendor/webhooks/${id}/test`, {}).then(r => r.data),
 };
 
 export interface PromoCode {
@@ -681,6 +710,32 @@ export interface BulkImportResult {
   imported: number;
   errors: { row: number; error: string }[];
   total: number;
+}
+
+// ===== API Keys & Webhooks =====
+
+export interface VendorApiKey {
+  id: string;
+  name: string;
+  key: string; // masked: "tpk_abc123..."
+  secret: string; // masked on list, full only on creation
+  permissions: string[];
+  rateLimit: number;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  webhooks: VendorWebhook[];
+}
+
+export interface VendorWebhook {
+  id: string;
+  apiKeyId: string;
+  url: string;
+  events: string[];
+  secret: string;
+  isActive: boolean;
+  failCount: number;
+  createdAt: string;
 }
 
 export interface ShopSettings {

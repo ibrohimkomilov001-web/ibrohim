@@ -29,6 +29,7 @@ import { addressRoutes } from './modules/addresses/address.routes.js';
 import { bannerRoutes } from './modules/banners/banner.routes.js';
 import { uploadRoutes } from './modules/upload/upload.routes.js';
 import { vendorRoutes } from './modules/vendor/vendor.routes.js';
+import { partnerRoutes } from './modules/partner/partner.routes.js';
 import { documentRoutes } from './modules/vendor/document.routes.js';
 import { paymentRoutes } from './modules/payments/payment.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
@@ -266,6 +267,7 @@ await app.register(
     await api.register(bannerRoutes);
     await api.register(uploadRoutes);
     await api.register(vendorRoutes);
+    await api.register(partnerRoutes);
     await api.register(documentRoutes);
     await api.register(paymentRoutes);
     await api.register(adminRoutes);

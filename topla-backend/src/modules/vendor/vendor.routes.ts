@@ -1795,4 +1795,191 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.send({ success: true, data: updated });
   });
+
+  // ============================================
+  // API KEYS — Vendor manages their own integration keys
+  // ============================================
+
+  app.get('/vendor/api-keys', { preHandler: vendorAuth }, async (request, reply) => {
+    const keys = await prisma.apiKey.findMany({
+      where: { userId: request.user!.userId },
+      include: { webhooks: { orderBy: { createdAt: 'desc' } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const masked = keys.map(k => ({
+      ...k,
+      secret: k.secret.slice(0, 8) + '...',
+      key: k.key.slice(0, 12) + '...',
+    }));
+
+    return reply.send({ success: true, data: masked });
+  });
+
+  app.post('/vendor/api-keys', { preHandler: vendorWriteAuth }, async (request, reply) => {
+    const count = await prisma.apiKey.count({ where: { userId: request.user!.userId } });
+    if (count >= 5) {
+      return reply.status(400).send({
+        error: 'BadRequest',
+        message: 'Maksimal 5 ta API kalit yaratishingiz mumkin',
+      });
+    }
+
+    const body = z.object({
+      name: z.string().min(2).max(50),
+      permissions: z.array(z.string()).default(['products.read', 'orders.read']),
+      rateLimit: z.number().min(100).max(5000).default(1000),
+    }).parse(request.body);
+
+    const crypto = await import('crypto');
+    const key = 'tpk_' + crypto.randomBytes(24).toString('hex');
+    const secret = 'tps_' + crypto.randomBytes(32).toString('hex');
+
+    const apiKey = await prisma.apiKey.create({
+      data: {
+        userId: request.user!.userId,
+        name: body.name,
+        key,
+        secret,
+        permissions: body.permissions,
+        rateLimit: body.rateLimit,
+      },
+    });
+
+    // Return full key + secret only once on creation
+    return reply.status(201).send({ success: true, data: { ...apiKey, key, secret } });
+  });
+
+  app.patch('/vendor/api-keys/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const apiKey = await prisma.apiKey.findFirst({ where: { id, userId: request.user!.userId } });
+    if (!apiKey) throw new NotFoundError('API kalit');
+
+    const body = z.object({
+      name: z.string().min(2).max(50).optional(),
+      isActive: z.boolean().optional(),
+      permissions: z.array(z.string()).optional(),
+    }).parse(request.body);
+
+    const updated = await prisma.apiKey.update({ where: { id }, data: body });
+
+    return reply.send({
+      success: true,
+      data: { ...updated, secret: updated.secret.slice(0, 8) + '...', key: updated.key.slice(0, 12) + '...' },
+    });
+  });
+
+  app.delete('/vendor/api-keys/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const apiKey = await prisma.apiKey.findFirst({ where: { id, userId: request.user!.userId } });
+    if (!apiKey) throw new NotFoundError('API kalit');
+
+    await prisma.apiKey.delete({ where: { id } });
+    return reply.send({ success: true, message: "API kalit o'chirildi" });
+  });
+
+  // ============================================
+  // WEBHOOKS
+  // ============================================
+
+  app.get('/vendor/webhooks', { preHandler: vendorAuth }, async (request, reply) => {
+    const myKeyIds = await prisma.apiKey
+      .findMany({ where: { userId: request.user!.userId }, select: { id: true } })
+      .then(keys => keys.map(k => k.id));
+
+    const webhooks = await prisma.webhook.findMany({
+      where: { apiKeyId: { in: myKeyIds } },
+      include: { apiKey: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return reply.send({ success: true, data: webhooks });
+  });
+
+  app.post('/vendor/webhooks', { preHandler: vendorWriteAuth }, async (request, reply) => {
+    const body = z.object({
+      apiKeyId: z.string().uuid(),
+      url: z.string().url(),
+      events: z.array(z.string()).min(1),
+    }).parse(request.body);
+
+    const apiKey = await prisma.apiKey.findFirst({
+      where: { id: body.apiKeyId, userId: request.user!.userId },
+    });
+    if (!apiKey) throw new NotFoundError('API kalit');
+
+    const crypto = await import('crypto');
+    const webhook = await prisma.webhook.create({
+      data: {
+        apiKeyId: body.apiKeyId,
+        url: body.url,
+        events: body.events,
+        secret: 'whs_' + crypto.randomBytes(16).toString('hex'),
+      },
+    });
+
+    return reply.status(201).send({ success: true, data: webhook });
+  });
+
+  app.delete('/vendor/webhooks/:id', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const webhook = await prisma.webhook.findFirst({
+      where: { id },
+      include: { apiKey: { select: { userId: true } } },
+    });
+    if (!webhook || webhook.apiKey.userId !== request.user!.userId) throw new NotFoundError('Webhook');
+
+    await prisma.webhook.delete({ where: { id } });
+    return reply.send({ success: true, message: "Webhook o'chirildi" });
+  });
+
+  app.post('/vendor/webhooks/:id/test', { preHandler: vendorAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const webhook = await prisma.webhook.findFirst({
+      where: { id },
+      include: { apiKey: { select: { userId: true } } },
+    });
+    if (!webhook || webhook.apiKey.userId !== request.user!.userId) throw new NotFoundError('Webhook');
+
+    const crypto = await import('crypto');
+    const payload = JSON.stringify({
+      event: 'test.ping',
+      timestamp: new Date().toISOString(),
+      data: { message: 'Test webhook from Topla.uz' },
+    });
+    const sig = crypto.createHmac('sha256', webhook.secret).update(payload).digest('hex');
+
+    try {
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Topla-Signature': `sha256=${sig}`,
+          'X-Topla-Event': 'test.ping',
+          'X-Topla-Timestamp': new Date().toISOString(),
+        },
+        body: payload,
+        signal: AbortSignal.timeout(8000),
+      });
+      return reply.send({ success: true, data: { statusCode: response.status, ok: response.ok } });
+    } catch (err: any) {
+      return reply.send({ success: false, data: { error: err.message } });
+    }
+  });
+
+  app.get('/vendor/api-usage', { preHandler: vendorAuth }, async (request, reply) => {
+    const keys = await prisma.apiKey.findMany({
+      where: { userId: request.user!.userId },
+      select: { id: true, name: true, key: true, lastUsedAt: true, rateLimit: true, isActive: true, createdAt: true },
+    });
+
+    return reply.send({
+      success: true,
+      data: keys.map(k => ({ ...k, key: k.key.slice(0, 12) + '...' })),
+    });
+  });
 }
