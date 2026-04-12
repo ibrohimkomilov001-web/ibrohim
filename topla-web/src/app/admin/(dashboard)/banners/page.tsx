@@ -54,19 +54,9 @@ export default function AdminBannersPage() {
   // ---- Resolve banner image URL ----
   const resolveImageUrl = (url: string | null | undefined): string => {
     if (!url) return ''
-    // Already absolute URL (S3, https, http)
+    // Already absolute URL (S3, https, http, data:)
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
-    // Relative /uploads/... path — resolve against API base
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || ''
-    if (apiBase && url.startsWith('/')) {
-      // Extract origin from API URL (e.g., https://topla.uz from https://topla.uz/api/v1)
-      try {
-        const origin = new URL(apiBase).origin
-        return `${origin}${url}`
-      } catch {
-        return url
-      }
-    }
+    // Relative /uploads/... — nginx on manage.topla.uz proxies /uploads/ to the backend
     return url
   }
 
@@ -418,7 +408,9 @@ export default function AdminBannersPage() {
         {/* Add Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setFormData({ ...emptyForm }); handleRemoveImage() } }}>
           <DialogTrigger asChild>
-            <Button>+ {t('addBanner')}</Button>
+            <Button className="bg-[#2AABEE] hover:bg-[#1A9FE2] text-white rounded-full px-6 font-semibold border-0 shadow-[0_4px_14px_rgba(42,171,238,0.35)] hover:shadow-[0_6px_20px_rgba(42,171,238,0.5)] transition-all duration-200 hover:scale-[1.02]">
+              + {t('addBanner')}
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -535,11 +527,13 @@ export default function AdminBannersPage() {
                 {banner.actionValue && (
                   <p className="text-xs text-blue-600 truncate mt-1">{banner.actionValue}</p>
                 )}
-                <CardDescription className="flex items-center gap-2">
-                  <GripVertical className="h-3 w-3" />
-                  Tartib: {banner.sortOrder}
+                <CardDescription className="flex items-center gap-1.5 mt-1">
+                  <span className="inline-flex items-center gap-0.5 bg-muted rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <GripVertical className="h-2.5 w-2.5 opacity-70" />
+                    {banner.sortOrder}
+                  </span>
                   {banner.actionType !== 'none' && (
-                    <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                       {banner.actionType}
                     </Badge>
                   )}
@@ -548,17 +542,21 @@ export default function AdminBannersPage() {
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 rounded-full border border-[#2AABEE] text-[#2AABEE] hover:bg-[#2AABEE] hover:text-white transition-all duration-200 font-medium"
                     onClick={() => openEditDialog(banner)}
                   >
                     <Pencil className="h-3 w-3 mr-1" />
                     {t('edit')}
                   </Button>
                   <Button
-                    variant={banner.isActive ? 'destructive' : 'default'}
+                    variant="ghost"
                     size="sm"
+                    className={banner.isActive
+                      ? 'rounded-full bg-red-500 hover:bg-red-600 text-white font-medium border-0 shadow-sm transition-all duration-200'
+                      : 'rounded-full bg-[#2AABEE] hover:bg-[#1A9FE2] text-white font-medium border-0 shadow-sm transition-all duration-200'
+                    }
                     onClick={() => handleToggle(banner)}
                   >
                     {banner.isActive ? t('deactivate') : t('activate')}
@@ -566,7 +564,7 @@ export default function AdminBannersPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-destructive hover:text-destructive"
+                    className="rounded-full h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
                     onClick={() => handleDelete(banner.id)}
                   >
                     <X className="h-4 w-4" />

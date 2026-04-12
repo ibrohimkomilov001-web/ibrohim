@@ -530,4 +530,24 @@ export async function supportRoutes(app: FastifyInstance) {
       },
     };
   });
+
+  // ==========================================
+  // ADMIN: PATCH /support/admin/tickets/:id/status — close or reopen ticket
+  // ==========================================
+  app.patch('/support/admin/tickets/:id/status', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+    const { status } = z.object({
+      status: z.enum(['open', 'closed']),
+    }).parse(request.body);
+
+    const ticket = await prisma.supportTicket.update({
+      where: { id },
+      data: { status, updatedAt: new Date() },
+      select: { id: true, status: true, updatedAt: true },
+    });
+
+    return { success: true, data: ticket };
+  });
 }

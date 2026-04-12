@@ -1,0 +1,5 @@
+9272404 feat: vendor API keys, partner API, webhook service [Phase 1+2]
+94d66af feat: vendor API keys, partner API, webhook service [Phase 1+2]
+522afa7 fix: dimension labels, product creation, banner save + Gemini AI moderation
+c9d33b1 fix: increase admin geo radius to 5km, add ADMIN_SECRET_KEY, link Google to admin account
+f059650 fix: add /api/ location to vendor.topla.uz nginx config

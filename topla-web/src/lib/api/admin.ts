@@ -1111,3 +1111,36 @@ export async function deleteProductReview(id: string) {
 export async function deleteShopReview(id: string) {
   return adminRequest(`/admin/reviews/shops/${id}`, { method: 'DELETE' });
 }
+
+// ============================================
+// Support Admin API
+// ============================================
+export async function getSupportTickets(params: { status?: string; page?: number; limit?: number } = {}) {
+  const q = new URLSearchParams({
+    status: params.status || 'open',
+    page: String(params.page || 1),
+    limit: String(params.limit || 20),
+  });
+  const res = await adminRequest<{ success: boolean; data: { items: any[]; pagination: any } }>(`/support/admin/tickets?${q}`);
+  return res;
+}
+
+export async function getSupportTicketMessages(ticketId: string) {
+  const res = await adminRequest<{ success: boolean; data: { items: any[]; pagination: any } }>(`/support/admin/tickets/${ticketId}/messages?limit=100`);
+  return res;
+}
+
+export async function sendSupportAdminReply(ticketId: string, message: string) {
+  return adminRequest<{ success: boolean; data: any }>(`/support/admin/tickets/${ticketId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function updateSupportTicketStatus(ticketId: string, status: 'open' | 'closed') {
+  return adminRequest<{ success: boolean; data: any }>(`/support/admin/tickets/${ticketId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+

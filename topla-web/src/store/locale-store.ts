@@ -150,7 +150,6 @@ const translations: Record<Locale, Record<string, string>> = {
     reports: 'Hisobotlar',
     logs: 'Loglar',
     chat: 'Chat',
-    admin: 'Admin',
     exit: 'Chiqish',
     // Vendor panel
     vendorPanel: 'Sotuvchi paneli',

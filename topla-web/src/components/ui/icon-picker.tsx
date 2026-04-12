@@ -112,7 +112,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
   )
 }
 
-/** Inline icon renderer — shows proper Iconsax icon for a DB value */
+/** Inline icon renderer — shows Iconsax icon with colored tile (matches topla.uz website style) */
 export function CategoryIcon({
   iconName,
   size = 20,
@@ -123,8 +123,17 @@ export function CategoryIcon({
   className?: string
 }) {
   const opt = iconName ? ICON_BY_VALUE[iconName] : null
-  if (opt) {
-    return <span className={className}><opt.Icon size={size} variant="Bold" /></span>
-  }
-  return <span className={className}><DefaultIcon size={size} /></span>
+  const Icon = opt ? opt.Icon : DefaultIcon
+  const padding = Math.round(size * 0.35)
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0',
+        className
+      )}
+      style={{ width: size + padding * 2, height: size + padding * 2 }}
+    >
+      <Icon size={size} color="currentColor" />
+    </span>
+  )
 }

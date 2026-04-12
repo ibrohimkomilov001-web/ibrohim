@@ -92,17 +92,7 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
           )}
         </motion.div>
       </AnimatePresence>
-      {banners.length > 1 && (
-        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
-          {banners.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrent(i)}
-              className={`h-1 rounded-full transition-all ${i === current ? 'bg-white w-4' : 'bg-white/50 w-1'}`}
-            />
-          ))}
-        </div>
-      )}
+
     </div>
   );
 }

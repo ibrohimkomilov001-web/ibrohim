@@ -57,6 +57,7 @@ import {
   Star,
   Languages,
   Check,
+  Headphones,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { isAdminAuthenticated, removeAdminToken, hasPermission, fetchAdminMe, setAdminPermissions } from "@/lib/api/admin";
@@ -87,6 +88,7 @@ const sidebarItems = [
   { icon: ClipboardList, key: 'pickupApplications', href: "/admin/pickup-applications", permission: 'settings.manage' },
   { icon: FileCheck, key: 'documents', href: "/admin/documents", permission: 'shops.manage' },
   { icon: MessageCircle, key: 'chat', href: "/admin/chat" },
+  { icon: Headphones, key: 'support', href: "/admin/support" },
   { icon: Bell, key: 'notifications', href: "/admin/notifications" },
   { icon: LineChart, key: 'analytics', href: "/admin/analytics", permission: 'analytics.view' },
   { icon: BarChart3, key: 'reports', href: "/admin/reports", permission: 'analytics.view' },
