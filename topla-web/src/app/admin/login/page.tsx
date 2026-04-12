@@ -8,7 +8,7 @@ import { adminLogin, adminGoogleLogin, adminKeyLogin } from "@/lib/api/admin";
 // ── Geolocation helpers ──────────────────────────────────────────────────────
 
 const TRUSTED_LOCATION_KEY = "admin_trusted_location";
-const GEO_RADIUS_METERS = 200;
+const GEO_RADIUS_METERS = 5000;
 
 interface LatLng { lat: number; lng: number }
 

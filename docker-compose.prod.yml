@@ -52,6 +52,7 @@ services:
       - SENTRY_DSN=${SENTRY_DSN:-}
       - SENTRY_ENVIRONMENT=production
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
