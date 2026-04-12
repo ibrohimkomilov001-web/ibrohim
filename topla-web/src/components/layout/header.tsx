@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingBag, User, X, Menu } from 'lucide-react';
+import { Search, ShoppingCart, User, X, Menu } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useTranslation } from '@/store/locale-store';
+import { shopApi } from '@/lib/api/shop';
 import { CategoryDrawer } from './category-drawer';
 
 export function Header() {
@@ -18,6 +20,17 @@ export function Header() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const { data: suggestions } = useQuery({
+    queryKey: ['header-suggest', searchQuery],
+    queryFn: () => shopApi.searchSuggest(searchQuery),
+    enabled: searchQuery.length >= 2 && searchFocused,
+    staleTime: 30 * 1000,
+  });
+
+  const suggestItems: string[] = Array.isArray(suggestions)
+    ? suggestions.map((s: any) => s.nameUz || s.name || s.query || String(s)).slice(0, 6)
+    : [];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -63,7 +76,7 @@ export function Header() {
             </button>
 
             {/* Search bar */}
-            <form onSubmit={handleSearch} className="flex-1 min-w-0">
+            <form onSubmit={handleSearch} className="flex-1 min-w-0 relative">
               <div className="flex items-center h-9 sm:h-10 px-3 rounded-xl bg-gray-50 border border-gray-100 transition-all focus-within:bg-white focus-within:border-primary/30 focus-within:shadow-sm">
                 <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <input
@@ -82,6 +95,29 @@ export function Header() {
                   </button>
                 )}
               </div>
+              {/* Search suggestions dropdown */}
+              {searchFocused && suggestItems.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-[60]">
+                  {suggestItems.map((item, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSearchQuery(item);
+                        setSearchFocused(false);
+                        if (searchRef.current) searchRef.current.blur();
+                        router.push(`/search?q=${encodeURIComponent(item)}`);
+                        setSearchQuery('');
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <Search className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 truncate">{item}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </form>
 
             {/* Cart */}
@@ -90,7 +126,7 @@ export function Header() {
               aria-label={`${t('cart')}${cartCount > 0 ? ` (${cartCount})` : ''}`}
               className="relative flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
             >
-              <ShoppingBag className="w-[18px] h-[18px] text-gray-500" />
+              <ShoppingCart className="w-[18px] h-[18px] text-gray-500" />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-0.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {cartCount > 99 ? '99+' : cartCount}

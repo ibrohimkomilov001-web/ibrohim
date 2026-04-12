@@ -128,9 +128,9 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
             <button
               key={f.key}
               onClick={() => onSelect(f.key)}
-              className={`relative whitespace-nowrap pb-0.5 text-sm transition-all ${
+              className={`relative whitespace-nowrap pb-2 text-sm transition-all ${
                 isActive
-                  ? 'text-black font-semibold border-b-2 border-black -mb-px'
+                  ? 'text-black font-semibold border-b-2 border-black'
                   : 'text-gray-400 font-normal hover:text-gray-700'
               }`}
             >
@@ -204,9 +204,9 @@ export default function HomePage() {
   if (isLoading && !productsData) return <HomeSkeleton />;
 
   return (
-    <div className="space-y-3 pb-8">
+    <div className="space-y-1.5 pb-8">
       {/* Banner */}
-      <section className="site-container pt-1">
+      <section className="site-container">
         <BannerCarousel banners={banners} />
       </section>
 

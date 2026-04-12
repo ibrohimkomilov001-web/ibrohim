@@ -44,17 +44,17 @@ export default function ReviewsPage() {
         </div>
 
         {/* Tab buttons */}
-        <div className="flex gap-2 mb-5">
+        <div className="flex gap-6 mb-5 border-b border-gray-100">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 pb-2.5 text-sm font-medium transition-all border-b-2 ${
                   activeTab === tab.key
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <Icon className="w-4 h-4" />

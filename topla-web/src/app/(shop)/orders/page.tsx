@@ -81,15 +81,15 @@ export default function OrdersPage() {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar">
+        <div className="flex gap-6 mb-5 overflow-x-auto no-scrollbar border-b border-gray-100">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              className={`pb-2.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
                 activeTab === tab.key
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
             >
               {tab.label}

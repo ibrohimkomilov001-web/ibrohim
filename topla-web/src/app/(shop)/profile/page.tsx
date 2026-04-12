@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   ShoppingBag, Heart, MapPin, CreditCard, Globe,
   HelpCircle, ChevronRight, Store, Star, ArrowLeft,
-  User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2, MapPinned, Laptop,
+  User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2, MapPinned, Laptop, Pencil,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation, useLocaleStore } from '@/store/locale-store';
@@ -57,6 +57,12 @@ export default function ProfilePage() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editGender, setEditGender] = useState<'male' | 'female' | ''>('');
+  const [editBirthDate, setEditBirthDate] = useState('');
+  const [editRegion, setEditRegion] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
 
@@ -667,6 +673,77 @@ export default function ProfilePage() {
 
         {/* User info or Login button */}
         {isAuthenticated && user ? (
+          editMode ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 mb-6 rounded-2xl bg-white border border-gray-200 space-y-3"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  {locale === 'ru' ? 'Редактировать профиль' : 'Profilni tahrirlash'}
+                </h3>
+                <button onClick={() => setEditMode(false)} className="p-1 rounded-lg hover:bg-gray-100">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={locale === 'ru' ? 'Полное имя' : 'To\'liq ism'}
+                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm outline-none focus:border-primary/40 focus:bg-white transition-all"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditGender('male')}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'male' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-50 text-gray-500'}`}
+                >
+                  {locale === 'ru' ? 'Мужской' : 'Erkak'}
+                </button>
+                <button
+                  onClick={() => setEditGender('female')}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'female' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-50 text-gray-500'}`}
+                >
+                  {locale === 'ru' ? 'Женский' : 'Ayol'}
+                </button>
+              </div>
+              <input
+                type="date"
+                value={editBirthDate}
+                onChange={(e) => setEditBirthDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm outline-none focus:border-primary/40 focus:bg-white transition-all"
+              />
+              <select
+                value={editRegion}
+                onChange={(e) => setEditRegion(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm outline-none focus:border-primary/40 focus:bg-white transition-all"
+              >
+                <option value="">{locale === 'ru' ? 'Выберите регион' : 'Viloyatni tanlang'}</option>
+                {UZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button
+                disabled={editLoading || !editName.trim()}
+                onClick={async () => {
+                  setEditLoading(true);
+                  try {
+                    const payload: Record<string, any> = { fullName: editName.trim() };
+                    if (editGender) payload.gender = editGender;
+                    if (editBirthDate) payload.birthDate = new Date(editBirthDate).toISOString();
+                    if (editRegion) payload.region = editRegion;
+                    const updated = await userAuthApi.updateProfile(payload);
+                    setUser(updated);
+                    setEditMode(false);
+                  } catch { /* ignore */ }
+                  setEditLoading(false);
+                }}
+                className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-50 transition-all"
+              >
+                {editLoading
+                  ? (locale === 'ru' ? 'Сохранение...' : 'Saqlanmoqda...')
+                  : (locale === 'ru' ? 'Сохранить' : 'Saqlash')}
+              </button>
+            </motion.div>
+          ) : (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -684,7 +761,21 @@ export default function ProfilePage() {
                 <span className="text-[10px] text-primary/60 font-mono">Topla ID: {user.referralCode}</span>
               )}
             </div>
+            <button
+              onClick={() => {
+                setEditName(user.fullName || '');
+                setEditGender((user as any).gender || '');
+                setEditBirthDate((user as any).birthDate ? new Date((user as any).birthDate).toISOString().split('T')[0] : '');
+                setEditRegion((user as any).region || '');
+                setEditMode(true);
+              }}
+              className="p-2 rounded-xl hover:bg-white/60 transition-colors"
+              title={locale === 'ru' ? 'Редактировать' : 'Tahrirlash'}
+            >
+              <Pencil className="w-4 h-4 text-gray-400" />
+            </button>
           </motion.div>
+          )
         ) : (
           <motion.button
             initial={{ opacity: 0, y: 10 }}
@@ -751,18 +842,17 @@ export default function ProfilePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+                  className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-md flex items-center justify-center px-4"
                   onClick={() => setLangMenuOpen(false)}
                 >
                   <motion.div
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 100, opacity: 0 }}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-8 sm:pb-5"
+                    className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-2xl"
                   >
-                    <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
                     <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
                       {locale === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
                     </h3>
@@ -793,11 +883,9 @@ export default function ProfilePage() {
               )}
             </AnimatePresence>
 
-            {/* Help — opens Telegram support chat */}
-            <a
-              href="https://t.me/toplauz"
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Help — opens help page */}
+            <Link
+              href="/help"
               className="flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group"
             >
               <HelpCircle className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
@@ -805,7 +893,7 @@ export default function ProfilePage() {
                 {t('helpCenter')}
               </span>
               <ChevronRight className="w-4 h-4 text-gray-300" />
-            </a>
+            </Link>
 
             {/* Become seller */}
             <Link
@@ -824,8 +912,8 @@ export default function ProfilePage() {
             </Link>
 
             {/* Open pickup point */}
-            <button
-              onClick={() => setPickupModalOpen(true)}
+            <Link
+              href="/pickup"
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group text-left"
             >
               <MapPinned className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
@@ -838,7 +926,7 @@ export default function ProfilePage() {
                 </span>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300" />
-            </button>
+            </Link>
 
             {/* Devices */}
             {isAuthenticated && (
@@ -874,136 +962,7 @@ export default function ProfilePage() {
           </motion.button>
         )}
 
-        {/* ===== DEVICES SECTION (only when authenticated) ===== */}
-        {isAuthenticated && devices.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
-              {locale === 'ru' ? 'Активные устройства' : 'Faol qurilmalar'}
-            </h3>
-            <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 overflow-hidden divide-y divide-gray-100">
-              {devicesLoading ? (
-                <div className="px-4 py-3 text-sm text-gray-400 text-center">
-                  {locale === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
-                </div>
-              ) : devices.map((device) => {
-                const DeviceIcon = device.platform === 'web' ? Monitor
-                  : device.platform === 'ios' ? Smartphone
-                  : Smartphone;
-                return (
-                  <div key={device.id} className="flex items-center gap-3 px-4 py-3">
-                    <DeviceIcon className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={1.5} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-gray-700 truncate">
-                        {device.deviceName || device.browser || 'Qurilma'}
-                      </p>
-                      <p className="text-[11px] text-gray-400">
-                        {device.ipAddress}{device.location ? ` · ${device.location}` : ''} ·{' '}
-                        {new Date(device.lastActiveAt).toLocaleDateString(locale === 'ru' ? 'ru' : 'uz')}
-                      </p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await userAuthApi.deleteDevice(device.id);
-                          setDevices(prev => prev.filter(d => d.id !== device.id));
-                        } catch { /* ignore */ }
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
-                      title={locale === 'ru' ? 'Удалить' : 'O\'chirish'}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            {devices.length > 1 && (
-              <button
-                onClick={async () => {
-                  if (!confirm(locale === 'ru'
-                    ? 'Выйти со всех других устройств?'
-                    : 'Barcha boshqa qurilmalardan chiqishni xohlaysizmi?')) return;
-                  try {
-                    await userAuthApi.terminateOtherDevices();
-                    await loadDevices();
-                  } catch { /* ignore */ }
-                }}
-                className="mt-3 w-full py-2.5 text-sm font-medium text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
-              >
-                {locale === 'ru' ? 'Выйти со всех устройств' : 'Barcha qurilmalardan chiqish'}
-              </button>
-            )}
-          </div>
-        )}
-
       </div>
-
-      {/* ===== PICKUP POINT MODAL ===== */}
-      <AnimatePresence>
-        {pickupModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
-          >
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPickupModalOpen(false)} />
-            <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl"
-            >
-              <button
-                onClick={() => setPickupModalOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <MapPinned className="w-5 h-5 text-primary" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-800">
-                  {locale === 'ru' ? 'Пункт выдачи' : 'Topshirish punkti'}
-                </h3>
-              </div>
-
-              <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                {locale === 'ru'
-                  ? 'Откройте пункт выдачи заказов Topla.uz в своём районе и зарабатывайте с каждой доставки. Свяжитесь с нами для получения подробной информации.'
-                  : 'O\'z hududingizda Topla.uz buyurtmalarini topshirish punktini oching va har bir yetkazilishdan daromad oling. Batafsil ma\'lumot uchun biz bilan bog\'laning.'}
-              </p>
-
-              <div className="space-y-2 mb-5 text-sm text-gray-500">
-                <div className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                  <span>{locale === 'ru' ? 'Бесплатная регистрация' : 'Bepul ro\'yxatdan o\'tish'}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                  <span>{locale === 'ru' ? 'Доход с каждой посылки' : 'Har bir jo\'natmadan daromad'}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                  <span>{locale === 'ru' ? 'Поддержка 24/7' : '24/7 qo\'llab-quvvatlash'}</span>
-                </div>
-              </div>
-
-              <a
-                href="https://t.me/toplauz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full py-3 text-center text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-xl transition-colors"
-              >
-                {locale === 'ru' ? 'Связаться с нами' : 'Biz bilan bog\'lanish'}
-              </a>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ===== DEVICES MODAL ===== */}
       <AnimatePresence>
