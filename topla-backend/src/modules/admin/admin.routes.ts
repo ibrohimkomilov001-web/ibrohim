@@ -1298,6 +1298,24 @@ export async function adminRoutes(app: FastifyInstance) {
     return { success: true, data: product };
   });
 
+  // POST /admin/products/:id/ai-review — AI orqali mahsulotni tekshirish
+  app.post('/admin/products/:id/ai-review', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const { id } = request.params as { id: string };
+
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundError('Mahsulot');
+
+    const { runAiModeration, isAiModerationAvailable } = await import('../../services/ai-moderation.service.js');
+    if (!isAiModerationAvailable()) {
+      throw new AppError('AI moderation sozlanmagan (GEMINI_API_KEY)', 400);
+    }
+
+    const result = await runAiModeration(id);
+    return { success: true, data: result };
+  });
+
   // PUT /admin/products/:id/reject — mahsulotni rad etish
   app.put('/admin/products/:id/reject', {
     preHandler: [authMiddleware, requireRole('admin')],

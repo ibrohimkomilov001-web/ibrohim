@@ -26,6 +26,7 @@ function getConnectionOpts(): ConnectionOptions {
 let notificationQueue: Queue | null = null;
 let searchIndexQueue: Queue | null = null;
 let courierQueue: Queue | null = null;
+let aiModerationQueue: Queue | null = null;
 
 function getNotificationQueue(): Queue {
   if (!notificationQueue) {
@@ -46,6 +47,13 @@ function getCourierQueue(): Queue {
     courierQueue = new Queue('courier', { connection: getConnectionOpts() });
   }
   return courierQueue;
+}
+
+function getAiModerationQueue(): Queue {
+  if (!aiModerationQueue) {
+    aiModerationQueue = new Queue('ai-moderation', { connection: getConnectionOpts() });
+  }
+  return aiModerationQueue;
 }
 
 // ============================================
@@ -81,6 +89,10 @@ export interface CourierAssignJobData {
   attempt: number;
   maxAttempts: number;
   excludeCourierIds: string[];
+}
+
+export interface AiModerationJobData {
+  productId: string;
 }
 
 // ============================================
@@ -138,6 +150,23 @@ export async function enqueueCourierAssignment(data: CourierAssignJobData, delay
     });
   } catch (err) {
     console.error('Failed to enqueue courier assignment:', err);
+  }
+}
+
+/**
+ * Enqueue AI moderation for a product (non-blocking, 5s delay to allow images to settle)
+ */
+export async function enqueueAiModeration(data: AiModerationJobData): Promise<void> {
+  try {
+    await getAiModerationQueue().add('moderate', data, {
+      delay: 5000,
+      attempts: 2,
+      backoff: { type: 'exponential', delay: 10000 },
+      removeOnComplete: 100,
+      removeOnFail: 200,
+    });
+  } catch (err) {
+    console.error('Failed to enqueue AI moderation:', err);
   }
 }
 
@@ -296,8 +325,23 @@ export async function startWorkers(): Promise<void> {
     { connection: conn, concurrency: 1 },
   );
 
+  // ---- AI Moderation Worker ----
+  const aiWorker = new Worker(
+    'ai-moderation',
+    async (job: Job<AiModerationJobData>) => {
+      const { runAiModeration, isAiModerationAvailable } = await import('./ai-moderation.service.js');
+      if (!isAiModerationAvailable()) return;
+
+      const result = await runAiModeration(job.data.productId);
+      if (result) {
+        console.log(`[AI] Product ${job.data.productId}: ${result.approved ? 'approved' : 'rejected'} (${result.score}/100)`);
+      }
+    },
+    { connection: conn, concurrency: 1 },
+  );
+
   // Error handlers
-  [notifWorker, searchWorker, courierWorker].forEach((worker) => {
+  [notifWorker, searchWorker, courierWorker, aiWorker].forEach((worker) => {
     worker.on('failed', (job, err) => {
       console.error(`[Queue] Job ${job?.name} failed:`, err.message);
     });
@@ -306,14 +350,14 @@ export async function startWorkers(): Promise<void> {
     });
   });
 
-  console.log('✅ BullMQ workers started (notifications, search-index, courier)');
+  console.log('✅ BullMQ workers started (notifications, search-index, courier, ai-moderation)');
 }
 
 // ============================================
 // Graceful Shutdown
 // ============================================
 export async function closeQueues(): Promise<void> {
-  const queues = [notificationQueue, searchIndexQueue, courierQueue].filter(Boolean) as Queue[];
+  const queues = [notificationQueue, searchIndexQueue, courierQueue, aiModerationQueue].filter(Boolean) as Queue[];
   await Promise.allSettled(queues.map((q) => q.close()));
   console.log('🛑 BullMQ queues closed');
 }

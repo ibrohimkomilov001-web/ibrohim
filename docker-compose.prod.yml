@@ -53,6 +53,7 @@ services:
       - SENTRY_ENVIRONMENT=production
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

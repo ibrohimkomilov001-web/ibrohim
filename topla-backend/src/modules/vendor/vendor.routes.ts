@@ -1740,12 +1740,14 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
   const shopSettingsSchema = z.object({
     // Basic info
     name: z.string().min(2).max(100).optional(),
+    nameRu: z.string().max(100).optional().nullable(),
     description: z.string().max(2000).optional(),
+    descriptionRu: z.string().max(2000).optional().nullable(),
     phone: z.string().max(20).optional(),
-    email: z.string().email().optional(),
+    email: z.string().email().optional().or(z.literal('')),
     address: z.string().max(300).optional(),
     city: z.string().max(100).optional(),
-    website: z.string().url().optional().nullable(),
+    website: z.string().url().optional().nullable().or(z.literal('')),
     // Social
     telegram: z.string().max(100).optional().nullable(),
     instagram: z.string().max(100).optional().nullable(),
@@ -1777,9 +1779,18 @@ export async function vendorRoutes(app: FastifyInstance): Promise<void> {
     const body = shopSettingsSchema.parse(request.body);
     const shop = await getVendorShop(request.user!.userId);
 
+    // Clean empty strings to null for optional fields
+    const cleanBody = {
+      ...body,
+      ...(body.website === '' && { website: null }),
+      ...(body.email === '' && { email: null }),
+      ...(body.nameRu === '' && { nameRu: null }),
+      ...(body.descriptionRu === '' && { descriptionRu: null }),
+    };
+
     const updated = await prisma.shop.update({
       where: { id: shop.id },
-      data: body,
+      data: cleanBody,
     });
 
     return reply.send({ success: true, data: updated });

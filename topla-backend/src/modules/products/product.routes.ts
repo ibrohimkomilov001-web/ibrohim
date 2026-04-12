@@ -6,7 +6,7 @@ import { authMiddleware, requireRole, optionalAuth } from '../../middleware/auth
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { validateProduct, calculateQualityScore } from '../../services/product-validation.service.js';
 import { indexProduct, removeProductFromIndex, searchProducts } from '../../services/search.service.js';
-import { enqueueSearchIndex } from '../../services/queue.service.js';
+import { enqueueSearchIndex, enqueueAiModeration } from '../../services/queue.service.js';
 import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js';
 import { CacheKeys } from '../../utils/constants.js';
 import { generateProductSlug } from '../../utils/slug.js';
@@ -1582,6 +1582,9 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       if (status === 'active') {
         enqueueSearchIndex({ type: 'index_product', product }).catch(() => {});
       }
+
+      // AI moderation via Gemini (non-blocking background job)
+      enqueueAiModeration({ productId: product.id }).catch(() => {});
 
       // Create moderation log
       await prisma.productModerationLog.create({

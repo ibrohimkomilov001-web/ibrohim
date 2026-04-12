@@ -295,7 +295,7 @@ export const vendorApi = {
   // --- Shop ---
   getShop: () => api.get<Shop>('/vendor/shop'),
 
-  updateShop: (data: Partial<Shop>) => api.put<Shop>('/vendor/shop', data),
+  updateShop: (data: Partial<Shop>) => api.put<Shop>('/vendor/shop/settings', data),
 
   // --- Stats ---
   getStats: () => api.get<VendorStats>('/vendor/stats'),

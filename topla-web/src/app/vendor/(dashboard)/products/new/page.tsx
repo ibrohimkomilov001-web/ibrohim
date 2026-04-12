@@ -346,7 +346,7 @@ export default function NewProductPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) { toast.error(t('nameRequired')); return; }
+    if (!(nameUz.trim() || name.trim())) { toast.error(t('nameRequired')); return; }
     if (!price || Number(price) <= 0) { toast.error(t('priceRequired')); return; }
     if (!categoryId) { toast.error(t('selectCategory')); return; }
 
@@ -459,7 +459,7 @@ export default function NewProductPage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <div className="space-y-6">
 
         {/* ===== STEP 1: Asosiy ma'lumot ===== */}
@@ -903,15 +903,15 @@ export default function NewProductPage() {
               <CardContent>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="widthCm2">Kengligi (sm)</Label>
-                    <Input id="widthCm2" type="number" placeholder="0" value={widthCm} onChange={(e) => setWidthCm(e.target.value)} min={0} />
-                  </div>
-                  <div className="space-y-1.5">
                     <Label htmlFor="heightCm2">Balandligi (sm)</Label>
                     <Input id="heightCm2" type="number" placeholder="0" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} min={0} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="lengthCm2">Uzunligi (sm)</Label>
+                    <Label htmlFor="widthCm2">Kengligi (sm)</Label>
+                    <Input id="widthCm2" type="number" placeholder="0" value={widthCm} onChange={(e) => setWidthCm(e.target.value)} min={0} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lengthCm2">Qalinligi (sm)</Label>
                     <Input id="lengthCm2" type="number" placeholder="0" value={lengthCm} onChange={(e) => setLengthCm(e.target.value)} min={0} />
                   </div>
                 </div>
