@@ -52,15 +52,6 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
     if (room?.id) setRoomId(room.id);
   }, [room]);
 
-  // Fetch messages
-  const { data: messagesRaw, isLoading: isLoadingMessages } = useQuery({
-    queryKey: ['chat-messages', roomId],
-    queryFn: () => chatApi.getMessages(roomId!),
-    enabled: !!roomId,
-    refetchInterval: connected ? false : 5000,
-  });
-  const messages: ChatMessage[] = Array.isArray(messagesRaw) ? messagesRaw : (messagesRaw as any)?.data ?? [];
-
   // Socket.IO for real-time messages
   const onNewMessage = useCallback(
     (msg: ChatMessage) => {
@@ -83,6 +74,15 @@ export default function ShopChatClient({ shopId }: ShopChatClientProps) {
   });
 
   const sellerIsTyping = roomId ? isRoomTyping(roomId) : false;
+
+  // Fetch messages (only poll when socket disconnected)
+  const { data: messagesRaw, isLoading: isLoadingMessages } = useQuery({
+    queryKey: ['chat-messages', roomId],
+    queryFn: () => chatApi.getMessages(roomId!),
+    enabled: !!roomId,
+    refetchInterval: connected ? false : 5000,
+  });
+  const messages: ChatMessage[] = Array.isArray(messagesRaw) ? messagesRaw : (messagesRaw as any)?.data ?? [];
 
   useEffect(() => {
     if (roomId && connected) {
