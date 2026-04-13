@@ -44,6 +44,8 @@ import {
   DollarSign,
   Gauge,
   Code2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./components/NotificationBell";
@@ -84,7 +86,7 @@ const sidebarItems: SidebarItem[] = [
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
@@ -105,12 +107,6 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     enabled: isAuthenticated,
     retry: 1,
   });
-
-  // Auto-detect system theme on vendor pages
-  useEffect(() => {
-    setTheme('system');
-    return () => { setTheme('light'); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -278,6 +274,15 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <h1 className="text-lg font-semibold">{shopName}</h1>
               <p className="text-xs text-muted-foreground">{t('vendorCabinet')}</p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden sm:inline-flex h-9 w-9 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              aria-label="Mavzuni almashtirish"
+            >
+              {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
           </div>
 
           <div className="flex items-center gap-2">

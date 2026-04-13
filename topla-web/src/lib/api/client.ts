@@ -8,6 +8,7 @@ const tokenHelpers = createTokenHelpers('vendor');
 const request = createRequest({
   tokenKey: 'vendor',
   loginRedirect: '/vendor/login',
+  useRelativeUrl: true,
 });
 
 // Backward-compat alias

@@ -31,8 +31,8 @@ export default function AIPricingPage() {
     enabled: !!selectedProduct,
   });
 
-  const alertList = alerts?.data || [];
-  const suggData = suggestion?.data;
+  const alertList = Array.isArray(alerts) ? alerts : [];
+  const suggData = suggestion;
 
   return (
     <div className="space-y-6">
