@@ -115,7 +115,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
 
         {/* Content */}
         <div className="p-2 sm:p-2.5">
-          <p className="text-xs sm:text-sm font-medium line-clamp-2 leading-snug mb-1 text-gray-800 min-h-[2.75em]">
+          <p className="text-xs sm:text-sm font-medium leading-snug mb-1 text-gray-800 min-h-[2.5em] line-clamp-1">
             {name}
           </p>
 
@@ -133,11 +133,6 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
 
           <div className="flex items-end gap-1.5">
             <span className="font-bold text-sm sm:text-base text-gray-900">{formatPrice(product.price)}</span>
-            {hasDiscount && (
-              <span className="text-[10px] sm:text-xs text-gray-400 line-through">
-                {formatPrice(oldPrice!)}
-              </span>
-            )}
           </div>
         </div>
       </Link>

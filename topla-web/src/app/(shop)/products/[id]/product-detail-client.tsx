@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -33,6 +33,16 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   const { t, locale } = useTranslation();
   const [currentImage, setCurrentImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Lock body scroll when lightbox is open
+  useEffect(() => {
+    if (lightboxOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [lightboxOpen]);
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description');
 
@@ -195,13 +205,14 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
               {/* Actions */}
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <button
-                  onClick={() => toggleFavorite(id)}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(id); }}
                   className="w-11 h-11 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
                 >
                   <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
                 </button>
                 <button
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    e.stopPropagation();
                     const url = window.location.href;
                     const title = name;
                     if (navigator.share) {
@@ -253,7 +264,14 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
 
           {/* Rating & stats */}
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1">
+            <button
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+              onClick={() => {
+                setActiveTab('reviews');
+                document.getElementById('product-tabs')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              type="button"
+            >
               {[1, 2, 3, 4, 5].map((s) => (
                 <Star
                   key={s}
@@ -265,25 +283,24 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                 />
               ))}
               <span className="ml-1 text-sm font-medium">{product.rating?.toFixed(1) || '0.0'}</span>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {product.salesCount || 0} {t('sold')}
-            </span>
+            </button>
+            {(product.salesCount || 0) > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {product.salesCount} {t('sold')}
+              </span>
+            )}
           </div>
 
           {/* Price */}
           <div className="glass rounded-2xl p-4 sm:p-5">
-            <div className="flex items-baseline gap-3">
+            <div>
               <span className="text-3xl sm:text-4xl font-bold text-primary">{formatPrice(product.price)}</span>
               {hasDiscount && (
-                <>
-                  <span className="text-lg text-muted-foreground line-through">
+                <div className="mt-1">
+                  <span className="text-base text-muted-foreground line-through">
                     {formatPrice(oldPrice!)}
                   </span>
-                  <span className="text-sm font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 px-2.5 py-1 rounded-full">
-                    -{discountPercent}%
-                  </span>
-                </>
+                </div>
               )}
             </div>
             <p className={`text-sm mt-2 ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
@@ -364,7 +381,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
       </div>
 
       {/* Tabs section */}
-      <div className="mt-10 sm:mt-14">
+      <div id="product-tabs" className="mt-10 sm:mt-14 scroll-mt-20">
         {/* Tab buttons */}
         <div className="flex gap-1 border-b border-border">
           {tabs.map((tab) => (
@@ -597,7 +614,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
           >
             {/* Backdrop */}
             <div
-              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              className="absolute inset-0 bg-black"
               onClick={() => setLightboxOpen(false)}
             />
 
