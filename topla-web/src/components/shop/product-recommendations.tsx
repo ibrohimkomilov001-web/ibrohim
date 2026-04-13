@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import { Star, ChevronRight } from "lucide-react";
+import { resolveImageUrl } from "@/lib/api/upload";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/store/locale-store";
 import { formatPrice } from "@/lib/utils";
@@ -23,8 +24,8 @@ interface ProductCardMiniProps {
 
 function ProductCardMini({ product }: ProductCardMiniProps) {
   const image = product.images?.[0];
-  const effectivePrice = product.discountPrice ?? product.price;
-  const hasDiscount = product.discountPrice && product.discountPrice < product.price;
+  const oldPrice = product.originalPrice || product.compareAtPrice;
+  const hasDiscount = oldPrice && oldPrice > product.price;
 
   return (
     <Link
@@ -34,7 +35,7 @@ function ProductCardMini({ product }: ProductCardMiniProps) {
       <div className="aspect-square relative bg-gray-50">
         {image ? (
           <Image
-            src={image}
+            src={resolveImageUrl(image)}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform"
@@ -51,9 +52,9 @@ function ProductCardMini({ product }: ProductCardMiniProps) {
           <span className="text-[10px] text-gray-500">{product.rating?.toFixed(1) || '0.0'}</span>
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-sm font-bold text-primary">{formatPrice(effectivePrice)}</span>
+          <span className="text-sm font-bold text-primary">{formatPrice(product.price)}</span>
           {hasDiscount && (
-            <span className="text-[10px] line-through text-gray-400">{formatPrice(product.price)}</span>
+            <span className="text-[10px] line-through text-gray-400">{formatPrice(oldPrice!)}</span>
           )}
         </div>
       </div>

@@ -19,14 +19,9 @@ export interface MultiUploadResponse {
  */
 export function resolveImageUrl(url: string): string {
   if (!url) return url;
-  if (url.startsWith('http')) return url;
-  try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-    const origin = new URL(apiBase).origin;
-    return `${origin}${url}`;
-  } catch {
-    return url;
-  }
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  // Relative /uploads/... paths — nginx on all subdomains proxies to backend
+  return url;
 }
 
 export const uploadApi = {

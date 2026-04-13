@@ -23,9 +23,10 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
   const isFav = isFavorite(product.id);
 
   const name = locale === 'ru' && product.nameRu ? product.nameRu : product.nameUz;
-  const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
+  const oldPrice = product.compareAtPrice || product.originalPrice;
+  const hasDiscount = oldPrice && oldPrice > product.price;
   const discountPercent = hasDiscount
-    ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)
+    ? Math.round(((oldPrice! - product.price) / oldPrice!) * 100)
     : 0;
 
   if (variant === 'horizontal') {
@@ -55,7 +56,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           <div className="flex items-end gap-2">
             <span className="font-bold text-base text-foreground">{formatPrice(product.price)}</span>
             {hasDiscount && (
-              <span className="text-xs text-muted-foreground line-through">{formatPrice(product.compareAtPrice!)}</span>
+              <span className="text-xs text-muted-foreground line-through">{formatPrice(oldPrice!)}</span>
             )}
           </div>
         </div>
@@ -134,7 +135,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
             <span className="font-bold text-sm sm:text-base text-gray-900">{formatPrice(product.price)}</span>
             {hasDiscount && (
               <span className="text-[10px] sm:text-xs text-gray-400 line-through">
-                {formatPrice(product.compareAtPrice!)}
+                {formatPrice(oldPrice!)}
               </span>
             )}
           </div>

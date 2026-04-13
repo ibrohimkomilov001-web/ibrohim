@@ -8,9 +8,9 @@ import { resolveImageUrl } from '@/lib/api/upload';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Share2, Heart, Star, ShoppingCart, Plus, Minus,
-  Store, ChevronRight, Truck, Shield, RotateCcw, Loader2,
+  Store, ChevronRight, Truck, Shield, RotateCcw, Loader2, X,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { shopApi, type ProductDetail } from '@/lib/api/shop';
 import { formatPrice } from '@/lib/utils';
 import { ProductRecommendations } from '@/components/shop/product-recommendations';
@@ -32,6 +32,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   const router = useRouter();
   const { t, locale } = useTranslation();
   const [currentImage, setCurrentImage] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description');
 
@@ -115,9 +116,10 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
     ? product.descriptionRu
     : (product.descriptionUz || product.description || '');
   const images = product.images?.length ? product.images : [];
-  const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price;
+  const oldPrice = product.compareAtPrice || product.originalPrice;
+  const hasDiscount = oldPrice && oldPrice > product.price;
   const discountPercent = hasDiscount
-    ? Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)
+    ? Math.round(((oldPrice! - product.price) / oldPrice!) * 100)
     : 0;
 
   const handleAddToCart = () => {
@@ -166,7 +168,10 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
           <div className="sticky top-24">
             {/* Main image */}
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-muted">
+            <div
+              className="relative aspect-square rounded-2xl overflow-hidden bg-muted cursor-zoom-in"
+              onClick={() => images.length > 0 && setLightboxOpen(true)}
+            >
               {images.length > 0 ? (
                 <Image
                   src={resolveImageUrl(images[currentImage])}
@@ -273,7 +278,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
               {hasDiscount && (
                 <>
                   <span className="text-lg text-muted-foreground line-through">
-                    {formatPrice(product.compareAtPrice!)}
+                    {formatPrice(oldPrice!)}
                   </span>
                   <span className="text-sm font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 px-2.5 py-1 rounded-full">
                     -{discountPercent}%
@@ -579,6 +584,73 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
 
       {/* AI Recommendations: Cross-sell & Up-sell */}
       <ProductRecommendations productId={id} />
+
+      {/* Fullscreen Image Lightbox */}
+      <AnimatePresence>
+        {lightboxOpen && images.length > 0 && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex flex-col"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+              onClick={() => setLightboxOpen(false)}
+            />
+
+            {/* Close button */}
+            <button
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              aria-label="Yopish"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Main image */}
+            <div className="flex-1 relative flex items-center justify-center p-4 sm:p-8">
+              <motion.div
+                key={currentImage}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                className="relative w-full h-full max-w-3xl max-h-[75vh]"
+              >
+                <Image
+                  src={resolveImageUrl(images[currentImage])}
+                  alt={name}
+                  fill
+                  className="object-contain"
+                  sizes="100vw"
+                  priority
+                />
+              </motion.div>
+            </div>
+
+            {/* Thumbnails */}
+            {images.length > 1 && (
+              <div className="relative z-10 flex justify-center gap-2 pb-6 px-4">
+                {images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentImage(i)}
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
+                      i === currentImage
+                        ? 'border-white ring-2 ring-white/30 opacity-100'
+                        : 'border-transparent opacity-50 hover:opacity-80'
+                    }`}
+                  >
+                    <Image src={resolveImageUrl(img)} alt="" width={64} height={64} className="object-cover w-full h-full" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
