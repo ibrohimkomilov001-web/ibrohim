@@ -30,9 +30,9 @@ function ProductCardMini({ product }: ProductCardMiniProps) {
   return (
     <Link
       href={`/products/${product.id}`}
-      className="group block bg-white rounded-xl overflow-hidden border hover:shadow-md transition-shadow"
+      className="group block bg-card rounded-xl overflow-hidden border border-border hover:shadow-md transition-shadow"
     >
-      <div className="aspect-square relative bg-gray-50">
+      <div className="aspect-square relative bg-muted">
         {image ? (
           <Image
             src={resolveImageUrl(image)}
@@ -42,19 +42,19 @@ function ProductCardMini({ product }: ProductCardMiniProps) {
             sizes="150px"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No image</div>
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No image</div>
         )}
       </div>
       <div className="p-2">
         <p className="text-xs font-medium line-clamp-2 leading-snug mb-1">{product.name}</p>
         <div className="flex items-center gap-1 mb-0.5">
           <Star className="w-3 h-3 text-amber-400 fill-current" />
-          <span className="text-[10px] text-gray-500">{product.rating?.toFixed(1) || '0.0'}</span>
+          <span className="text-[10px] text-muted-foreground">{product.rating?.toFixed(1) || '0.0'}</span>
         </div>
         <div className="flex items-baseline gap-1">
           <span className="text-sm font-bold text-primary">{formatPrice(product.price)}</span>
           {hasDiscount && (
-            <span className="text-[10px] line-through text-gray-400">{formatPrice(oldPrice!)}</span>
+            <span className="text-[10px] line-through text-muted-foreground">{formatPrice(oldPrice!)}</span>
           )}
         </div>
       </div>

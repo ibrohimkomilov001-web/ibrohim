@@ -193,7 +193,7 @@ export default function CartPage() {
                 {/* Promo code */}
                 <div className="pt-2">
                   <div className="flex gap-2">
-                    <div className="flex-1 bg-gray-50 border border-gray-200 flex items-center gap-2 px-3 py-2 rounded-xl box-border">
+                    <div className="flex-1 bg-muted border border-border flex items-center gap-2 px-3 py-2 rounded-xl box-border">
                       <Tag className="w-4 h-4 text-muted-foreground shrink-0" />
                       <input
                         type="text"

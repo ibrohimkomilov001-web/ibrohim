@@ -110,7 +110,7 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
   ];
 
   return (
-    <div className="overflow-x-auto no-scrollbar border-b border-gray-100">
+    <div className="overflow-x-auto no-scrollbar border-b border-border">
       <div className="inline-flex items-center gap-4">
         {filters.map((f) => {
           const isActive = selected === f.key;
@@ -120,8 +120,8 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
               onClick={() => onSelect(f.key)}
               className={`relative whitespace-nowrap pb-2 text-sm transition-all ${
                 isActive
-                  ? 'text-black font-semibold border-b-2 border-black'
-                  : 'text-gray-400 font-normal hover:text-gray-700'
+                  ? 'text-foreground font-semibold border-b-2 border-foreground'
+                  : 'text-muted-foreground font-normal hover:text-foreground'
               }`}
             >
               {f.label}
@@ -223,7 +223,7 @@ export default function HomePage() {
           <ProductGrid products={products} columns={4} />
         ) : (
           <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">{t('noResults')}</p>
+            <p className="text-muted-foreground text-sm">{t('noResults')}</p>
           </div>
         )}
       </section>

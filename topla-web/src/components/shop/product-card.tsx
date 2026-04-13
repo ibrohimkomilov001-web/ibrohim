@@ -78,7 +78,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
           ) : (
-            <div className="w-full h-full bg-gray-50 flex items-center justify-center text-3xl">📦</div>
+            <div className="w-full h-full bg-muted flex items-center justify-center text-3xl">📦</div>
           )}
 
           {/* Discount badge */}
@@ -95,7 +95,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           <button
             aria-label={isFav ? 'Sevimlilardan olib tashlash' : "Sevimlilarga qo'shish"}
             className={cn(
-              'absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
+              'absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
               'sm:opacity-0 sm:group-hover:opacity-100'
             )}
             onClick={(e) => {
@@ -107,7 +107,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
             <Heart
               className={cn(
                 'w-3.5 h-3.5 transition-colors',
-                isFav ? 'fill-red-500 text-red-500' : 'text-gray-400'
+                isFav ? 'fill-red-500 text-red-500' : 'text-muted-foreground'
               )}
             />
           </button>
@@ -115,24 +115,24 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
 
         {/* Content */}
         <div className="p-2 sm:p-2.5">
-          <p className="text-xs sm:text-sm font-medium leading-snug mb-1 text-gray-800 min-h-[2.5em] line-clamp-1">
+          <p className="text-xs sm:text-sm font-medium leading-snug mb-1 text-foreground min-h-[2.5em] line-clamp-1">
             {name}
           </p>
 
           <div className="flex items-center gap-1 mb-1">
             <Star className="w-3 h-3 text-amber-400 fill-current" />
-            <span className="text-[10px] sm:text-xs text-gray-400">
+            <span className="text-[10px] sm:text-xs text-muted-foreground">
               {product.rating?.toFixed(1) || '0.0'}
             </span>
             {product.salesCount > 0 && (
-              <span className="text-[10px] sm:text-xs text-gray-400">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
                 • {product.salesCount}
               </span>
             )}
           </div>
 
           <div className="flex items-end gap-1.5">
-            <span className="font-bold text-sm sm:text-base text-gray-900">{formatPrice(product.price)}</span>
+            <span className="font-bold text-sm sm:text-base text-foreground">{formatPrice(product.price)}</span>
           </div>
         </div>
       </Link>

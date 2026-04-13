@@ -14,14 +14,14 @@ export function Footer() {
   const youtubeLink = useYoutubeLink();
 
   return (
-    <footer className="relative mt-8 border-t border-gray-100 bg-gray-50/50">
+    <footer className="relative mt-8 border-t border-border bg-muted/50">
       <div className="site-container py-8 sm:py-10">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-10">
 
           {/* Company */}
           <div className="col-span-2 sm:col-span-1">
-            <h3 className="text-base font-bold text-gray-800 mb-3">TOPLA.UZ</h3>
-            <p className="text-xs text-gray-500 mb-4 max-w-xs leading-relaxed">
+            <h3 className="text-base font-bold text-foreground mb-3">TOPLA.UZ</h3>
+            <p className="text-xs text-muted-foreground mb-4 max-w-xs leading-relaxed">
               {t('about') === 'О нас'
                 ? "Узбекистанский маркетплейс. Тысячи магазинов, миллионы товаров."
                 : "O'zbekistonning eng yirik marketplace platformasi."
@@ -60,7 +60,7 @@ export function Footer() {
 
           {/* For Buyers */}
           <div>
-            <h4 className="font-semibold text-xs text-gray-700 mb-3">{t('forBuyers')}</h4>
+            <h4 className="font-semibold text-xs text-foreground mb-3">{t('forBuyers')}</h4>
             <ul className="space-y-2">
               {[
                 { href: '/about', label: t('about') },
@@ -69,7 +69,7 @@ export function Footer() {
                 { href: '/privacy', label: t('privacyPolicy') },
               ].map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                  <Link href={link.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -79,18 +79,18 @@ export function Footer() {
 
           {/* For Sellers */}
           <div>
-            <h4 className="font-semibold text-xs text-gray-700 mb-3">{t('forSellers')}</h4>
+            <h4 className="font-semibold text-xs text-foreground mb-3">{t('forSellers')}</h4>
             <ul className="space-y-2">
               <li>
                 <a
                   href="https://vendor.topla.uz"
-                  className="text-xs text-gray-500 hover:text-gray-800 transition-colors inline-flex items-center gap-1"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
                 >
                   {t('sellerCenter')} <ExternalLink className="w-2.5 h-2.5 opacity-50" />
                 </a>
               </li>
               <li>
-                <a href="https://vendor.topla.uz/register" className="text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                <a href="https://vendor.topla.uz/register" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                   {t('becomeSeller')}
                 </a>
               </li>
@@ -99,20 +99,20 @@ export function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-semibold text-xs text-gray-700 mb-3">{t('contactUs')}</h4>
+            <h4 className="font-semibold text-xs text-foreground mb-3">{t('contactUs')}</h4>
             <ul className="space-y-2">
               <li>
-                <SupportPhoneLink className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                <SupportPhoneLink className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <Phone className="w-3 h-3" />
                 </SupportPhoneLink>
               </li>
               <li>
-                <a href={`mailto:${email}`} className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                <a href={`mailto:${email}`} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <Mail className="w-3 h-3" /> {email}
                 </a>
               </li>
               <li>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <MapPin className="w-3 h-3" /> Toshkent, O&apos;zbekiston
                 </div>
               </li>
@@ -122,15 +122,15 @@ export function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-[10px] text-gray-400">
+        <div className="mt-8 pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-[10px] text-muted-foreground">
             © {currentYear} TOPLA.UZ — {t('allRightsReserved')}
           </p>
           <div className="flex gap-3">
-            <Link href="/terms" className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors">
+            <Link href="/terms" className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
               {t('termsOfService')}
             </Link>
-            <Link href="/privacy" className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors">
+            <Link href="/privacy" className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
               {t('privacyPolicy')}
             </Link>
           </div>

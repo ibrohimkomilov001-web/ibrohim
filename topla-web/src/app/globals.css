@@ -218,8 +218,8 @@
 
 /* ── PRODUCT CARD ─────────────────────────────────────────────── */
 .product-card {
-  background: white;
-  border: 1px solid #f0f0f0;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
   overflow: hidden;
   transition: box-shadow 0.2s ease;

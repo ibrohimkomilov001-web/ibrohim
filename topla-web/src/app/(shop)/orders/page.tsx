@@ -11,16 +11,16 @@ import { resolveImageUrl } from '@/lib/api/upload';
 import { formatPrice } from '@/lib/utils';
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  processing: 'bg-blue-100 text-blue-700',
-  ready_for_pickup: 'bg-indigo-100 text-indigo-700',
-  courier_assigned: 'bg-indigo-100 text-indigo-700',
-  courier_picked_up: 'bg-indigo-100 text-indigo-700',
-  shipping: 'bg-purple-100 text-purple-700',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  at_pickup_point: 'bg-teal-100 text-teal-700',
+  pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+  confirmed: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  processing: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  ready_for_pickup: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
+  courier_assigned: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
+  courier_picked_up: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
+  shipping: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+  delivered: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+  cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+  at_pickup_point: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
 };
 
 function getStatusLabel(status: string, locale: string): string {
@@ -73,15 +73,15 @@ export default function OrdersPage() {
         <div className="flex items-center gap-3 mb-4">
           <Link
             href="/profile"
-            className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-muted transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </Link>
-          <h1 className="text-lg font-bold text-gray-800">{t('myOrders')}</h1>
+          <h1 className="text-lg font-bold text-foreground">{t('myOrders')}</h1>
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-6 mb-5 overflow-x-auto no-scrollbar border-b border-gray-100">
+        <div className="flex gap-6 mb-5 overflow-x-auto no-scrollbar border-b border-border">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -89,7 +89,7 @@ export default function OrdersPage() {
               className={`pb-2.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
                 activeTab === tab.key
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               {tab.label}
@@ -99,8 +99,8 @@ export default function OrdersPage() {
 
         {!isAuth ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <ShoppingBag className="w-12 h-12 text-gray-300 mb-3" />
-            <p className="text-sm text-gray-400 mb-4">
+            <ShoppingBag className="w-12 h-12 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground mb-4">
               {locale === 'ru' ? 'Войдите чтобы увидеть заказы' : 'Buyurtmalarni ko\'rish uchun kiring'}
             </p>
             <Link href="/profile" className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold">
@@ -120,10 +120,10 @@ export default function OrdersPage() {
             <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-4">
               <ShoppingBag className="w-9 h-9 text-blue-400" />
             </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-1">
+            <h2 className="text-base font-semibold text-foreground mb-1">
               {locale === 'ru' ? 'Пока нет заказов' : 'Buyurtmalar hali yo\'q'}
             </h2>
-            <p className="text-sm text-gray-400 text-center max-w-xs">
+            <p className="text-sm text-muted-foreground text-center max-w-xs">
               {locale === 'ru'
                 ? 'Ваши заказы появятся здесь после покупки'
                 : 'Xarid qilganingizdan keyin buyurtmalaringiz shu yerda ko\'rinadi'}
@@ -145,8 +145,8 @@ export default function OrdersPage() {
                 className="border rounded-xl p-4 hover:shadow-sm transition-shadow"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono text-gray-400">#{order.orderNumber}</span>
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'}`}>
+                  <span className="text-xs font-mono text-muted-foreground">#{order.orderNumber}</span>
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[order.status] || 'bg-muted text-muted-foreground'}`}>
                     {getStatusLabel(order.status, locale)}
                   </span>
                 </div>
@@ -162,22 +162,22 @@ export default function OrdersPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.name}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground">
                           {item.quantity} x {formatPrice(Number(item.price))}
                         </p>
                       </div>
                     </div>
                   ))}
                   {order.items?.length > 3 && (
-                    <p className="text-xs text-gray-400 pl-15">
+                    <p className="text-xs text-muted-foreground pl-15">
                       +{order.items.length - 3} {locale === 'ru' ? 'ещё' : 'yana'}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                   <div>
                     <span className="text-sm font-semibold">{formatPrice(Number(order.total))}</span>
-                    <span className="text-xs text-gray-400 ml-2">
+                    <span className="text-xs text-muted-foreground ml-2">
                       {new Date(order.createdAt).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'uz-UZ', { day: 'numeric', month: 'short' })}
                     </span>
                   </div>

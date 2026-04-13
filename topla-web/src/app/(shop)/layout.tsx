@@ -13,7 +13,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
   const showFooter = !NO_FOOTER_PAGES.some((p) => pathname.startsWith(p));
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {showHeader && <Header />}
 
       {/* Main content */}

@@ -63,7 +63,7 @@ export function CategoryDrawer({ open, onClose }: CategoryDrawerProps) {
     const opt = ICON_BY_VALUE[icon];
     if (!opt) return null;
     const IconComp = opt.Icon;
-    return <IconComp size={20} color="#6b7280" />;
+    return <span className="text-muted-foreground"><IconComp size={20} color="currentColor" /></span>;
   };
 
   return (
@@ -88,28 +88,28 @@ export function CategoryDrawer({ open, onClose }: CategoryDrawerProps) {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-0 top-0 bottom-0 z-[61] w-[85%] max-w-[320px] bg-white shadow-2xl flex flex-col"
+            className="fixed left-0 top-0 bottom-0 z-[61] w-[85%] max-w-[320px] bg-background shadow-2xl flex flex-col"
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 h-14 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-border flex-shrink-0">
               {selected ? (
                 <button
                   onClick={() => setSelected(null)}
-                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   {t('catalog')}
                 </button>
               ) : (
-                <h2 className="text-base font-semibold text-gray-900">{t('catalog')}</h2>
+                <h2 className="text-base font-semibold text-foreground">{t('catalog')}</h2>
               )}
               <button
                 onClick={() => { onClose(); setSelected(null); }}
-                className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-muted transition-colors"
                 aria-label="Yopish"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
@@ -118,7 +118,7 @@ export function CategoryDrawer({ open, onClose }: CategoryDrawerProps) {
               {loading ? (
                 <div className="p-4 space-y-3">
                   {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="h-11 bg-gray-100 rounded-lg animate-pulse" />
+                    <div key={i} className="h-11 bg-muted rounded-lg animate-pulse" />
                   ))}
                 </div>
               ) : selected ? (
@@ -141,11 +141,11 @@ export function CategoryDrawer({ open, onClose }: CategoryDrawerProps) {
                           handleSubClick(sub);
                         }
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <span>{getName(sub)}</span>
                       {sub.children && sub.children.length > 0 && (
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       )}
                     </button>
                   ))}
@@ -157,16 +157,16 @@ export function CategoryDrawer({ open, onClose }: CategoryDrawerProps) {
                     <button
                       key={cat.id}
                       onClick={() => handleCategoryClick(cat)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted">
                           {renderIcon(cat.icon)}
                         </div>
-                        <span className="text-sm text-gray-800 font-medium">{getName(cat)}</span>
+                        <span className="text-sm text-foreground font-medium">{getName(cat)}</span>
                       </div>
                       {cat.children && cat.children.length > 0 && (
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       )}
                     </button>
                   ))}

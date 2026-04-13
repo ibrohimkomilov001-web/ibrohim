@@ -533,7 +533,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                       <div key={r} className="flex items-center gap-2 text-xs">
                         <span className="w-3">{r}</span>
                         <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${reviewsMeta.totalReviews > 0 ? (reviewsMeta.ratingDistribution?.[r] || 0) / reviewsMeta.totalReviews * 100 : 0}%` }} />
                         </div>
                         <span className="w-6 text-right text-muted-foreground">{reviewsMeta.ratingDistribution?.[r] || 0}</span>

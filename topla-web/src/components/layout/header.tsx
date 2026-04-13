@@ -60,7 +60,7 @@ export function Header() {
     <>
       <header
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 bg-white/75 backdrop-blur-xl border-b border-gray-100/60 transition-shadow duration-200',
+          'fixed top-0 left-0 right-0 z-50 bg-background/75 backdrop-blur-xl border-b border-border/60 transition-shadow duration-200',
           scrolled && 'shadow-sm'
         )}
       >
@@ -70,15 +70,15 @@ export function Header() {
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label={t('catalog')}
-              className="flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+              className="flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <Menu className="w-[20px] h-[20px] text-gray-600" />
+              <Menu className="w-[20px] h-[20px] text-muted-foreground" />
             </button>
 
             {/* Search bar */}
             <form onSubmit={handleSearch} className="flex-1 min-w-0 relative">
-              <div className="flex items-center h-9 sm:h-10 px-3 rounded-xl bg-gray-50 border border-gray-100 transition-all focus-within:bg-white focus-within:border-primary/30 focus-within:shadow-sm">
-                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <div className="flex items-center h-9 sm:h-10 px-3 rounded-xl bg-muted border border-border transition-all focus-within:bg-background focus-within:border-primary/30 focus-within:shadow-sm">
+                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <input
                   ref={searchRef}
                   type="search"
@@ -87,17 +87,17 @@ export function Header() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   placeholder={t('findProducts')}
-                  className="flex-1 bg-transparent border-none outline-none ml-2 text-[16px] sm:text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
+                  className="flex-1 bg-transparent border-none outline-none ml-2 text-[16px] sm:text-sm text-foreground placeholder:text-muted-foreground min-w-0"
                 />
                 {searchQuery && (
                   <button type="button" onClick={() => setSearchQuery('')} className="p-2" aria-label="Qidiruvni tozalash">
-                    <X className="w-3.5 h-3.5 text-gray-400" />
+                    <X className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                 )}
               </div>
               {/* Search suggestions dropdown */}
               {searchFocused && suggestItems.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-[60]">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-background rounded-xl shadow-lg border border-border overflow-hidden z-[60]">
                   {suggestItems.map((item, i) => (
                     <button
                       key={i}
@@ -110,10 +110,10 @@ export function Header() {
                         router.push(`/search?q=${encodeURIComponent(item)}`);
                         setSearchQuery('');
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted transition-colors"
                     >
-                      <Search className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 truncate">{item}</span>
+                      <Search className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
+                      <span className="text-sm text-foreground truncate">{item}</span>
                     </button>
                   ))}
                 </div>
@@ -124,9 +124,9 @@ export function Header() {
             <Link
               href="/cart"
               aria-label={`${t('cart')}${cartCount > 0 ? ` (${cartCount})` : ''}`}
-              className="relative flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+              className="relative flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <ShoppingCart className="w-[18px] h-[18px] text-gray-500" />
+              <ShoppingCart className="w-[18px] h-[18px] text-muted-foreground" />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-0.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {cartCount > 99 ? '99+' : cartCount}
@@ -138,9 +138,9 @@ export function Header() {
             <Link
               href="/profile"
               aria-label={t('profile')}
-              className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+              className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <User className="w-[18px] h-[18px] text-gray-500" />
+              <User className="w-[18px] h-[18px] text-muted-foreground" />
             </Link>
           </div>
         </div>

@@ -346,7 +346,7 @@ export default function CheckoutPage() {
                       type="text"
                       value={address.fullName}
                       onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
+                      className="w-full bg-muted border border-border focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
                       placeholder={t('checkoutNamePlaceholder')}
                     />
                   </div>
@@ -361,7 +361,7 @@ export default function CheckoutPage() {
                       inputMode="numeric"
                       value={address.phone}
                       onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
+                      className="w-full bg-muted border border-border focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none transition-all box-border"
                       placeholder="+998 90 123 45 67"
                     />
                   </div>
@@ -376,7 +376,7 @@ export default function CheckoutPage() {
                         type="text"
                         value={address.street}
                         onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 pr-12 rounded-xl text-[16px] outline-none transition-all box-border"
+                        className="w-full bg-muted border border-border focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 pr-12 rounded-xl text-[16px] outline-none transition-all box-border"
                         placeholder={t('checkoutStreetPlaceholder')}
                       />
                       <button
@@ -399,7 +399,7 @@ export default function CheckoutPage() {
                     <textarea
                       value={address.note}
                       onChange={(e) => setAddress({ ...address, note: e.target.value })}
-                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none resize-none transition-all box-border"
+                      className="w-full bg-muted border border-border focus:border-primary/40 focus:ring-2 focus:ring-primary/10 px-4 py-3 rounded-xl text-[16px] outline-none resize-none transition-all box-border"
                       rows={3}
                       placeholder={t('checkoutCommentPlaceholder')}
                     />
@@ -426,7 +426,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setShowPickupModal(true)}
-                    className="w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all hover:ring-2 hover:ring-gray-200"
+                    className="w-full glass rounded-xl p-4 text-left flex items-center gap-4 transition-all hover:ring-2 hover:ring-border"
                   >
                     <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
                       <Package className="w-5 h-5 text-orange-500" />
@@ -739,7 +739,7 @@ export default function CheckoutPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center"
+              className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center"
             >
               <div className="w-16 h-16 rounded-full bg-orange-50 mx-auto flex items-center justify-center mb-4">
                 <Package className="w-8 h-8 text-orange-500" />

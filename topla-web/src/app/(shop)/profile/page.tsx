@@ -6,8 +6,10 @@ import {
   ShoppingBag, Heart, MapPin, CreditCard, Globe,
   HelpCircle, ChevronRight, Store, Star, ArrowLeft,
   User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2, MapPinned, Laptop, Pencil,
+  Sun, Moon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from 'next-themes';
 import { useTranslation, useLocaleStore } from '@/store/locale-store';
 import { useAuthStore } from '@/store/auth-store';
 import { userAuthApi, type UserDevice } from '@/lib/api/user-auth';
@@ -38,6 +40,7 @@ export default function ProfilePage() {
   const { t, locale } = useTranslation();
   const { setLocale } = useLocaleStore();
   const { user, isAuthenticated, login, loginWithGoogle, loginWithPasskey, logout, setUser } = useAuthStore();
+  const { theme, setTheme } = useTheme();
 
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -284,14 +287,14 @@ export default function ProfilePage() {
 
   // ===== SECTIONS =====
   const shoppingItems = [
-    { href: '/orders', icon: ShoppingBag, label: t('myOrders'), color: 'text-gray-500' },
-    { href: '/reviews', icon: Star, label: t('reviewsAndQuestions'), color: 'text-gray-500' },
+    { href: '/orders', icon: ShoppingBag, label: t('myOrders'), color: 'text-muted-foreground' },
+    { href: '/reviews', icon: Star, label: t('reviewsAndQuestions'), color: 'text-muted-foreground' },
   ];
 
   const accountItems = [
-    { href: '/favorites', icon: Heart, label: t('favorites'), color: 'text-gray-500' },
-    { href: '/addresses', icon: MapPin, label: t('myAddresses'), color: 'text-gray-500' },
-    { href: '/payments', icon: CreditCard, label: t('paymentMethods'), color: 'text-gray-500' },
+    { href: '/favorites', icon: Heart, label: t('favorites'), color: 'text-muted-foreground' },
+    { href: '/addresses', icon: MapPin, label: t('myAddresses'), color: 'text-muted-foreground' },
+    { href: '/payments', icon: CreditCard, label: t('paymentMethods'), color: 'text-muted-foreground' },
   ];
 
   const MenuItem = ({ item, index }: { item: typeof shoppingItems[0]; index: number }) => {
@@ -304,13 +307,13 @@ export default function ProfilePage() {
       >
         <Link
           href={item.href}
-          className="flex items-center gap-3 px-4 py-3 hover:bg-white/80 active:scale-[0.98] transition-all group"
+          className="flex items-center gap-3 px-4 py-3 hover:bg-muted active:scale-[0.98] transition-all group"
         >
           <Icon className={`w-5 h-5 ${item.color}`} strokeWidth={1.5} />
-          <span className="flex-1 text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors">
+          <span className="flex-1 text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">
             {item.label}
           </span>
-          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-primary/50 group-hover:translate-x-0.5 transition-all" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary/50 group-hover:translate-x-0.5 transition-all" />
         </Link>
       </motion.div>
     );
@@ -330,14 +333,14 @@ export default function ProfilePage() {
                 else if (loginStep === 'details') { /* optional — skip forward */ }
                 else { resetLogin(); }
               }}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 transition-colors"
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
               <span className="text-sm font-medium">
                 {locale === 'ru' ? 'Назад' : 'Orqaga'}
               </span>
             </button>
-            <Link href="/" className="flex items-center gap-1 text-sm text-gray-400 hover:text-primary transition-colors">
+            <Link href="/" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors">
               <Home className="w-4 h-4" />
               <span>{locale === 'ru' ? 'На главную' : 'Bosh sahifa'}</span>
             </Link>
@@ -347,7 +350,7 @@ export default function ProfilePage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6"
+            className="rounded-2xl bg-card border border-border shadow-sm p-6"
           >
             <AnimatePresence mode="wait">
               {/* ===== STEP 1: PHONE ===== */}
@@ -357,18 +360,18 @@ export default function ProfilePage() {
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                       <Phone className="w-7 h-7 text-primary" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-bold text-foreground">
                       {locale === 'ru' ? 'Вход в аккаунт' : 'Hisobga kirish'}
                     </h2>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {locale === 'ru' ? 'Введите номер телефона' : 'Telefon raqamingizni kiriting'}
                     </p>
                   </div>
 
                   <form onSubmit={handleSendOtp}>
-                    <div className="flex items-center h-12 rounded-xl bg-gray-50 border border-gray-200 focus-within:border-primary/40 focus-within:bg-white transition-all px-3 gap-2">
-                      <span className="text-[16px] text-gray-500 font-medium select-none">+998</span>
-                      <div className="w-px h-6 bg-gray-200" />
+                    <div className="flex items-center h-12 rounded-xl bg-muted border border-border focus-within:border-primary/40 focus-within:bg-background transition-all px-3 gap-2">
+                      <span className="text-[16px] text-muted-foreground font-medium select-none">+998</span>
+                      <div className="w-px h-6 bg-border" />
                       <input
                         ref={inputRef}
                         type="tel"
@@ -377,12 +380,12 @@ export default function ProfilePage() {
                         value={phone}
                         onChange={handlePhoneChange}
                         placeholder="90 123 45 67"
-                        className="flex-1 bg-transparent border-none outline-none text-[16px] text-gray-800 placeholder:text-gray-300 min-w-0"
+                        className="flex-1 bg-transparent border-none outline-none text-[16px] text-foreground placeholder:text-muted-foreground min-w-0"
                         autoFocus
                       />
                       {phone && (
                         <button type="button" onClick={() => setPhone('')} className="p-1">
-                          <X className="w-4 h-4 text-gray-400" />
+                          <X className="w-4 h-4 text-muted-foreground" />
                         </button>
                       )}
                     </div>
@@ -400,7 +403,7 @@ export default function ProfilePage() {
                     </button>
                   </form>
 
-                  <p className="text-[11px] text-gray-400 text-center mt-4 leading-relaxed">
+                  <p className="text-[11px] text-muted-foreground text-center mt-4 leading-relaxed">
                     {locale === 'ru'
                       ? 'Нажимая кнопку, вы соглашаетесь с условиями использования'
                       : "Davom etish orqali foydalanish shartlariga rozilik bildirasiz"}
@@ -408,9 +411,9 @@ export default function ProfilePage() {
 
                   {/* Ajratuvchi */}
                   <div className="flex items-center gap-3 mt-5">
-                    <div className="flex-1 h-px bg-gray-100" />
-                    <span className="text-xs text-gray-400">{locale === 'ru' ? 'или' : 'yoki'}</span>
-                    <div className="flex-1 h-px bg-gray-100" />
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">{locale === 'ru' ? 'или' : 'yoki'}</span>
+                    <div className="flex-1 h-px bg-border" />
                   </div>
 
                   {/* Google orqali kirish */}
@@ -418,10 +421,10 @@ export default function ProfilePage() {
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={googleLoading || loading}
-                    className="w-full mt-4 h-11 rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full mt-4 h-11 rounded-xl border border-border bg-card flex items-center justify-center gap-2.5 text-sm font-medium text-foreground hover:bg-muted active:scale-[0.98] transition-all disabled:opacity-50"
                   >
                     {googleLoading ? (
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-primary rounded-full animate-spin" />
                     ) : (
                       <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -438,10 +441,10 @@ export default function ProfilePage() {
                     type="button"
                     onClick={handlePasskeyLogin}
                     disabled={passkeyLoading || loading}
-                    className="w-full mt-3 h-11 rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="w-full mt-3 h-11 rounded-xl border border-border bg-card flex items-center justify-center gap-2.5 text-sm font-medium text-foreground hover:bg-muted active:scale-[0.98] transition-all disabled:opacity-50"
                   >
                     {passkeyLoading ? (
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-muted-foreground border-t-primary rounded-full animate-spin" />
                     ) : (
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
@@ -460,10 +463,10 @@ export default function ProfilePage() {
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                       <Check className="w-7 h-7 text-primary" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-bold text-foreground">
                       {locale === 'ru' ? 'Введите код' : 'Kodni kiriting'}
                     </h2>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {locale === 'ru'
                         ? `Код отправлен на +998 ${phone}`
                         : `Kod +998 ${phone} raqamiga yuborildi`}
@@ -480,7 +483,7 @@ export default function ProfilePage() {
                       onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 5)); setError(''); }}
                       placeholder="• • • • •"
                       maxLength={5}
-                      className="w-full h-14 rounded-xl bg-gray-50 border border-gray-200 text-center text-2xl font-bold tracking-[0.5em] text-gray-800 placeholder:text-gray-300 focus:border-primary/40 focus:bg-white outline-none transition-all"
+                      className="w-full h-14 rounded-xl bg-muted border border-border text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background outline-none transition-all"
                       autoFocus
                     />
 
@@ -499,7 +502,7 @@ export default function ProfilePage() {
 
                   <div className="text-center mt-4">
                     {countdown > 0 ? (
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {locale === 'ru' ? `Повторная отправка через ${countdown}с` : `Qayta yuborish ${countdown}s`}
                       </p>
                     ) : (
@@ -519,13 +522,13 @@ export default function ProfilePage() {
               {loginStep === 'name' && (
                 <motion.div key="name-step" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                   <div className="text-center mb-6">
-                    <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-3">
-                      <User className="w-7 h-7 text-green-600" />
+                    <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center mx-auto mb-3">
+                      <User className="w-7 h-7 text-green-600 dark:text-green-400" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-bold text-foreground">
                       {locale === 'ru' ? 'Как вас зовут?' : 'Ismingiz nima?'}
                     </h2>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {locale === 'ru'
                         ? 'Укажите ваше полное имя для доставки'
                         : 'Yetkazib berish uchun to\'liq ismingizni kiriting'}
@@ -538,7 +541,7 @@ export default function ProfilePage() {
                       value={fullName}
                       onChange={(e) => { setFullName(e.target.value); setError(''); }}
                       placeholder={locale === 'ru' ? 'Иван Иванов' : 'Ism Familiya'}
-                      className="w-full h-12 rounded-xl bg-gray-50 border border-gray-200 px-4 text-[16px] text-gray-800 placeholder:text-gray-300 focus:border-primary/40 focus:bg-white outline-none transition-all"
+                      className="w-full h-12 rounded-xl bg-muted border border-border px-4 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:bg-background outline-none transition-all"
                       autoFocus
                     />
 
@@ -561,13 +564,13 @@ export default function ProfilePage() {
               {loginStep === 'details' && (
                 <motion.div key="details-step" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                   <div className="text-center mb-6">
-                    <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
-                      <User className="w-7 h-7 text-blue-600" />
+                    <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mx-auto mb-3">
+                      <User className="w-7 h-7 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-bold text-foreground">
                       {locale === 'ru' ? 'О вас' : 'Siz haqingizda'}
                     </h2>
-                    <p className="text-sm text-gray-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {locale === 'ru' ? 'Необязательно — можно пропустить' : 'Ixtiyoriy — o\'tkazib yuborish mumkin'}
                     </p>
                   </div>
@@ -575,7 +578,7 @@ export default function ProfilePage() {
                   <form onSubmit={handleSaveDetails} className="space-y-4">
                     {/* Gender */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                         {locale === 'ru' ? 'Пол' : 'Jins'}
                       </p>
                       <div className="grid grid-cols-2 gap-2">
@@ -587,7 +590,7 @@ export default function ProfilePage() {
                             className={`h-10 rounded-xl text-sm font-medium border transition-all ${
                               gender === g
                                 ? 'bg-primary text-white border-primary'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-primary/30'
+                                : 'bg-muted text-muted-foreground border-border hover:border-primary/30'
                             }`}
                           >
                             {g === 'male'
@@ -600,7 +603,7 @@ export default function ProfilePage() {
 
                     {/* Birth date */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                         {locale === 'ru' ? 'Дата рождения' : 'Tug\'ilgan sana'}
                       </p>
                       <input
@@ -608,19 +611,19 @@ export default function ProfilePage() {
                         value={birthDate}
                         onChange={(e) => setBirthDate(e.target.value)}
                         max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
-                        className="w-full h-12 rounded-xl bg-gray-50 border border-gray-200 px-4 text-[16px] text-gray-800 focus:border-primary/40 focus:bg-white outline-none transition-all"
+                        className="w-full h-12 rounded-xl bg-muted border border-border px-4 text-[16px] text-foreground focus:border-primary/40 focus:bg-background outline-none transition-all"
                       />
                     </div>
 
                     {/* Region */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                         {locale === 'ru' ? 'Регион' : 'Viloyat'}
                       </p>
                       <select
                         value={region}
                         onChange={(e) => setRegion(e.target.value)}
-                        className="w-full h-12 rounded-xl bg-gray-50 border border-gray-200 px-4 text-[16px] text-gray-800 focus:border-primary/40 focus:bg-white outline-none transition-all"
+                        className="w-full h-12 rounded-xl bg-muted border border-border px-4 text-[16px] text-foreground focus:border-primary/40 focus:bg-background outline-none transition-all"
                       >
                         <option value="">{locale === 'ru' ? 'Выберите регион' : 'Viloyatni tanlang'}</option>
                         {UZ_REGIONS.map((r) => (
@@ -643,7 +646,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={resetLogin}
-                      className="w-full h-10 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                      className="w-full h-10 text-sm text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {locale === 'ru' ? 'Пропустить' : 'O\'tkazib yuborish'}
                     </button>
@@ -665,7 +668,7 @@ export default function ProfilePage() {
         {/* Bosh sahifaga qaytish */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-4"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>{locale === 'ru' ? 'На главную' : 'Bosh sahifa'}</span>
@@ -677,32 +680,32 @@ export default function ProfilePage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 mb-6 rounded-2xl bg-white border border-gray-200 space-y-3"
+              className="p-4 mb-6 rounded-2xl bg-card border border-border space-y-3"
             >
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold text-gray-700">
+                <h3 className="text-sm font-semibold text-foreground">
                   {locale === 'ru' ? 'Редактировать профиль' : 'Profilni tahrirlash'}
                 </h3>
-                <button onClick={() => setEditMode(false)} className="p-1 rounded-lg hover:bg-gray-100">
-                  <X className="w-4 h-4 text-gray-400" />
+                <button onClick={() => setEditMode(false)} className="p-1 rounded-lg hover:bg-muted">
+                  <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
               <input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 placeholder={locale === 'ru' ? 'Полное имя' : 'To\'liq ism'}
-                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm outline-none focus:border-primary/40 focus:bg-white transition-all"
+                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-sm outline-none focus:border-primary/40 focus:bg-background transition-all"
               />
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditGender('male')}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'male' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-50 text-gray-500'}`}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'male' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-muted text-muted-foreground'}`}
                 >
                   {locale === 'ru' ? 'Мужской' : 'Erkak'}
                 </button>
                 <button
                   onClick={() => setEditGender('female')}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'female' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-gray-50 text-gray-500'}`}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'female' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-muted text-muted-foreground'}`}
                 >
                   {locale === 'ru' ? 'Женский' : 'Ayol'}
                 </button>
@@ -711,12 +714,12 @@ export default function ProfilePage() {
                 type="date"
                 value={editBirthDate}
                 onChange={(e) => setEditBirthDate(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm outline-none focus:border-primary/40 focus:bg-white transition-all"
+                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-sm outline-none focus:border-primary/40 focus:bg-background transition-all"
               />
               <select
                 value={editRegion}
                 onChange={(e) => setEditRegion(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm outline-none focus:border-primary/40 focus:bg-white transition-all"
+                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-sm outline-none focus:border-primary/40 focus:bg-background transition-all"
               >
                 <option value="">{locale === 'ru' ? 'Выберите регион' : 'Viloyatni tanlang'}</option>
                 {UZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -753,10 +756,10 @@ export default function ProfilePage() {
               <User className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="text-[15px] font-semibold text-gray-800 block truncate">
+              <span className="text-[15px] font-semibold text-foreground block truncate">
                 {user.fullName || (locale === 'ru' ? 'Пользователь' : 'Foydalanuvchi')}
               </span>
-              <span className="text-xs text-gray-400 block">{user.phone}</span>
+              <span className="text-xs text-muted-foreground block">{user.phone}</span>
               {user.referralCode && (
                 <span className="text-[10px] text-primary/60 font-mono">Topla ID: {user.referralCode}</span>
               )}
@@ -769,10 +772,10 @@ export default function ProfilePage() {
                 setEditRegion((user as any).region || '');
                 setEditMode(true);
               }}
-              className="p-2 rounded-xl hover:bg-white/60 transition-colors"
+              className="p-2 rounded-xl hover:bg-muted transition-colors"
               title={locale === 'ru' ? 'Редактировать' : 'Tahrirlash'}
             >
-              <Pencil className="w-4 h-4 text-gray-400" />
+              <Pencil className="w-4 h-4 text-muted-foreground" />
             </button>
           </motion.div>
           )
@@ -786,7 +789,7 @@ export default function ProfilePage() {
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-[15px] font-semibold text-gray-800">
+            <span className="text-[15px] font-semibold text-foreground">
               {locale === 'ru' ? 'Войти в профиль' : 'Profilga kirish'}
             </span>
             <ChevronRight className="w-5 h-5 text-primary/40 ml-auto" />
@@ -795,10 +798,10 @@ export default function ProfilePage() {
 
         {/* ===== SHOPPING SECTION ===== */}
         <div className="mb-5">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
             {t('shopping')}
           </h3>
-          <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 overflow-hidden divide-y divide-gray-100">
+          <div className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 overflow-hidden divide-y divide-border">
             {shoppingItems.map((item, i) => (
               <MenuItem key={item.href} item={item} index={i} />
             ))}
@@ -807,10 +810,10 @@ export default function ProfilePage() {
 
         {/* ===== ACCOUNT SECTION ===== */}
         <div className="mb-5">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-1">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
             {t('account')}
           </h3>
-          <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 overflow-hidden divide-y divide-gray-100">
+          <div className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 overflow-hidden divide-y divide-border">
             {accountItems.map((item, i) => (
               <MenuItem key={item.href} item={item} index={i + shoppingItems.length} />
             ))}
@@ -819,20 +822,39 @@ export default function ProfilePage() {
 
         {/* ===== SETTINGS SECTION ===== */}
         <div className="mb-6">
-          <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-white/50 overflow-hidden divide-y divide-gray-100">
+          <div className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 overflow-hidden divide-y divide-border">
+            {/* Theme toggle */}
+            <div className="flex items-center gap-3 px-4 py-3">
+              {theme === 'dark' ? (
+                <Moon className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
+              ) : (
+                <Sun className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
+              )}
+              <span className="flex-1 text-[13px] font-medium text-foreground">
+                {locale === 'ru' ? 'Тёмная тема' : 'Tungi mavzu'}
+              </span>
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`relative w-11 h-6 rounded-full transition-colors ${theme === 'dark' ? 'bg-primary' : 'bg-muted'}`}
+                aria-label="Toggle theme"
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
             {/* Language */}
             <button
               onClick={() => setLangMenuOpen(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-all group"
             >
-              <Globe className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
-              <span className="flex-1 text-[13px] font-medium text-gray-700 text-left">
+              <Globe className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
+              <span className="flex-1 text-[13px] font-medium text-foreground text-left">
                 {t('language')}
               </span>
-              <span className="text-[13px] text-gray-400">
+              <span className="text-[13px] text-muted-foreground">
                 {locale === 'uz' ? "O'zbek" : 'Русский'}
               </span>
-              <ChevronRight className="w-4 h-4 text-gray-300" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
             {/* Language modal */}
@@ -851,16 +873,16 @@ export default function ProfilePage() {
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-2xl"
+                    className="w-full max-w-sm bg-card rounded-2xl p-5 shadow-2xl"
                   >
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
+                    <h3 className="text-lg font-bold text-foreground mb-4 text-center">
                       {locale === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
                     </h3>
                     <div className="space-y-2">
                       <button
                         onClick={() => { setLocale('uz'); setLangMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all ${
-                          locale === 'uz' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          locale === 'uz' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-muted text-foreground hover:bg-muted/80'
                         }`}
                       >
                         <span className="text-lg">🇺🇿</span>
@@ -870,7 +892,7 @@ export default function ProfilePage() {
                       <button
                         onClick={() => { setLocale('ru'); setLangMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all ${
-                          locale === 'ru' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          locale === 'ru' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-muted text-foreground hover:bg-muted/80'
                         }`}
                       >
                         <span className="text-lg">🇷🇺</span>
@@ -886,64 +908,64 @@ export default function ProfilePage() {
             {/* Help — opens help page */}
             <Link
               href="/help"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-muted transition-all group"
             >
-              <HelpCircle className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
-              <span className="flex-1 text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors">
+              <HelpCircle className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
+              <span className="flex-1 text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">
                 {t('helpCenter')}
               </span>
-              <ChevronRight className="w-4 h-4 text-gray-300" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </Link>
 
             {/* Become seller */}
             <Link
               href="https://vendor.topla.uz/register"
               target="_blank"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-muted transition-all group"
             >
-              <Store className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
+              <Store className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
               <div className="flex-1">
-                <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors block">
+                <span className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors block">
                   {t('openShopAction')}
                 </span>
-                <span className="text-[11px] text-gray-400">{t('becomeSellerDesc')}</span>
+                <span className="text-[11px] text-muted-foreground">{t('becomeSellerDesc')}</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-300" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </Link>
 
             {/* Open pickup point */}
             <Link
               href="/pickup"
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-all group text-left"
             >
-              <MapPinned className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
+              <MapPinned className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
               <div className="flex-1">
-                <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors block">
+                <span className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors block">
                   {locale === 'ru' ? 'Открыть пункт выдачи' : 'Topshirish punkti ochish'}
                 </span>
-                <span className="text-[11px] text-gray-400">
+                <span className="text-[11px] text-muted-foreground">
                   {locale === 'ru' ? 'Станьте партнёром Topla.uz' : 'Topla.uz hamkori bo\'ling'}
                 </span>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-300" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </Link>
 
             {/* Devices */}
             {isAuthenticated && (
               <button
                 onClick={() => setDevicesModalOpen(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/80 transition-all group text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-all group text-left"
               >
-                <Laptop className="w-5 h-5 text-gray-500" strokeWidth={1.5} />
+                <Laptop className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
                 <div className="flex-1">
-                  <span className="text-[13px] font-medium text-gray-700 group-hover:text-primary transition-colors block">
+                  <span className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors block">
                     {locale === 'ru' ? 'Устройства' : 'Qurilmalar'}
                   </span>
-                  <span className="text-[11px] text-gray-400">
+                  <span className="text-[11px] text-muted-foreground">
                     {locale === 'ru' ? `${devices.length} активных` : `${devices.length} ta faol`}
                   </span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
           </div>
@@ -979,30 +1001,30 @@ export default function ProfilePage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+              className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl max-h-[80vh] overflow-y-auto"
             >
               <button
                 onClick={() => setDevicesModalOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
 
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Laptop className="w-5 h-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800">
+                <h3 className="text-lg font-bold text-foreground">
                   {locale === 'ru' ? 'Активные устройства' : 'Faol qurilmalar'}
                 </h3>
               </div>
 
               {devicesLoading ? (
-                <div className="py-8 text-center text-sm text-gray-400">
+                <div className="py-8 text-center text-sm text-muted-foreground">
                   {locale === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
                 </div>
               ) : devices.length === 0 ? (
-                <div className="py-8 text-center text-sm text-gray-400">
+                <div className="py-8 text-center text-sm text-muted-foreground">
                   {locale === 'ru' ? 'Нет активных устройств' : 'Faol qurilmalar yo\'q'}
                 </div>
               ) : (
@@ -1012,13 +1034,13 @@ export default function ProfilePage() {
                       : device.platform === 'ios' ? Smartphone
                       : Smartphone;
                     return (
-                      <div key={device.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50">
-                        <DeviceIcon className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={1.5} />
+                      <div key={device.id} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-muted">
+                        <DeviceIcon className="w-5 h-5 text-muted-foreground shrink-0" strokeWidth={1.5} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium text-gray-700 truncate">
+                          <p className="text-[13px] font-medium text-foreground truncate">
                             {device.deviceName || device.browser || (locale === 'ru' ? 'Устройство' : 'Qurilma')}
                           </p>
-                          <p className="text-[11px] text-gray-400">
+                          <p className="text-[11px] text-muted-foreground">
                             {device.ipAddress}{device.location ? ` · ${device.location}` : ''} ·{' '}
                             {new Date(device.lastActiveAt).toLocaleDateString(locale === 'ru' ? 'ru' : 'uz')}
                           </p>
@@ -1030,7 +1052,7 @@ export default function ProfilePage() {
                               setDevices(prev => prev.filter(d => d.id !== device.id));
                             } catch { /* ignore */ }
                           }}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-400 transition-colors"
                           title={locale === 'ru' ? 'Удалить' : 'O\'chirish'}
                         >
                           <Trash2 className="w-4 h-4" />
