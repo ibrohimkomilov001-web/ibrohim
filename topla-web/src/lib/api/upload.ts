@@ -20,8 +20,13 @@ export interface MultiUploadResponse {
 export function resolveImageUrl(url: string): string {
   if (!url) return url;
   if (url.startsWith('http') || url.startsWith('data:')) return url;
-  // Relative /uploads/... paths — nginx on all subdomains proxies to backend
-  return url;
+  // Next.js Image needs absolute URLs to match remotePatterns
+  try {
+    const origin = new URL(process.env.NEXT_PUBLIC_API_URL || '').origin;
+    return `${origin}${url}`;
+  } catch {
+    return url;
+  }
 }
 
 export const uploadApi = {
