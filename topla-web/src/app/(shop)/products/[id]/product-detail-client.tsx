@@ -39,18 +39,6 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   const lightboxTouchStartX = useRef(0);
   const lightboxTouchEndX = useRef(0);
 
-  const handleSwipe = useCallback((startX: number, endX: number) => {
-    const diff = startX - endX;
-    const threshold = 50;
-    const imgCount = product?.images?.length ?? 0;
-    if (Math.abs(diff) < threshold) return;
-    if (diff > 0 && currentImage < imgCount - 1) {
-      setCurrentImage((p) => p + 1);
-    } else if (diff < 0 && currentImage > 0) {
-      setCurrentImage((p) => p - 1);
-    }
-  }, [currentImage, product?.images?.length]);
-
   // Lock body scroll when lightbox is open
   useEffect(() => {
     if (lightboxOpen) {
@@ -78,6 +66,18 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
     enabled: !!id,
     initialData: initialProduct ?? undefined,
   });
+
+  const handleSwipe = useCallback((startX: number, endX: number) => {
+    const diff = startX - endX;
+    const threshold = 50;
+    const imgCount = product?.images?.length ?? 0;
+    if (Math.abs(diff) < threshold) return;
+    if (diff > 0 && currentImage < imgCount - 1) {
+      setCurrentImage((p) => p + 1);
+    } else if (diff < 0 && currentImage > 0) {
+      setCurrentImage((p) => p - 1);
+    }
+  }, [currentImage, product?.images?.length]);
 
   // Similar products
   const { data: similarData } = useQuery({
