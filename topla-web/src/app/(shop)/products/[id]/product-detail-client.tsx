@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -33,6 +33,23 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   const { t, locale } = useTranslation();
   const [currentImage, setCurrentImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const isSwiping = useRef(false);
+  const lightboxTouchStartX = useRef(0);
+  const lightboxTouchEndX = useRef(0);
+
+  const handleSwipe = useCallback((startX: number, endX: number) => {
+    const diff = startX - endX;
+    const threshold = 50;
+    const imgCount = product?.images?.length ?? 0;
+    if (Math.abs(diff) < threshold) return;
+    if (diff > 0 && currentImage < imgCount - 1) {
+      setCurrentImage((p) => p + 1);
+    } else if (diff < 0 && currentImage > 0) {
+      setCurrentImage((p) => p - 1);
+    }
+  }, [currentImage, product?.images?.length]);
 
   // Lock body scroll when lightbox is open
   useEffect(() => {
@@ -176,11 +193,14 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
         {/* Left - Image gallery */}
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
-          <div className="sticky top-24">
+          <div className="lg:sticky lg:top-24">
             {/* Main image */}
             <div
-              className="relative aspect-square rounded-2xl overflow-hidden bg-muted cursor-zoom-in"
-              onClick={() => images.length > 0 && setLightboxOpen(true)}
+              className="relative aspect-square rounded-2xl overflow-hidden bg-muted cursor-pointer select-none"
+              onClick={() => { if (!isSwiping.current && images.length > 0) setLightboxOpen(true); }}
+              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; isSwiping.current = false; }}
+              onTouchMove={(e) => { touchEndX.current = e.touches[0].clientX; if (Math.abs(touchStartX.current - e.touches[0].clientX) > 10) isSwiping.current = true; }}
+              onTouchEnd={() => { handleSwipe(touchStartX.current, touchEndX.current); touchStartX.current = 0; touchEndX.current = 0; }}
             >
               {images.length > 0 ? (
                 <Image
@@ -602,39 +622,50 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
       {/* AI Recommendations: Cross-sell & Up-sell */}
       <ProductRecommendations productId={id} />
 
-      {/* Fullscreen Image Lightbox */}
+      {/* Fullscreen Image Viewer */}
       <AnimatePresence>
         {lightboxOpen && images.length > 0 && (
           <motion.div
-            className="fixed inset-0 z-[100] flex flex-col"
+            className="fixed inset-0 z-[100] flex flex-col bg-black touch-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {/* Backdrop */}
+            {/* Top bar */}
+            <div className="relative z-10 flex items-center justify-between px-4 h-14" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                aria-label="Yopish"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              {images.length > 1 && (
+                <span className="text-white/80 text-sm font-medium">
+                  {currentImage + 1} / {images.length}
+                </span>
+              )}
+              <div className="w-10" />
+            </div>
+
+            {/* Swipeable image area */}
             <div
-              className="absolute inset-0 bg-black"
-              onClick={() => setLightboxOpen(false)}
-            />
-
-            {/* Close button */}
-            <button
-              onClick={() => setLightboxOpen(false)}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-              aria-label="Yopish"
+              className="flex-1 relative flex items-center justify-center"
+              onTouchStart={(e) => { lightboxTouchStartX.current = e.touches[0].clientX; }}
+              onTouchMove={(e) => { lightboxTouchEndX.current = e.touches[0].clientX; }}
+              onTouchEnd={() => {
+                handleSwipe(lightboxTouchStartX.current, lightboxTouchEndX.current);
+                lightboxTouchStartX.current = 0;
+                lightboxTouchEndX.current = 0;
+              }}
             >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Main image */}
-            <div className="flex-1 relative flex items-center justify-center p-4 sm:p-8">
               <motion.div
                 key={currentImage}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.2 }}
-                className="relative w-full h-full max-w-3xl max-h-[75vh]"
+                className="relative w-full h-full"
               >
                 <Image
                   src={resolveImageUrl(images[currentImage])}
@@ -643,13 +674,14 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                   className="object-contain"
                   sizes="100vw"
                   priority
+                  draggable={false}
                 />
               </motion.div>
             </div>
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="relative z-10 flex justify-center gap-2 pb-6 px-4">
+              <div className="relative z-10 flex justify-center gap-2 pb-6 px-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)' }}>
                 {images.map((img, i) => (
                   <button
                     key={i}

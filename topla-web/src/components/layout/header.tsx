@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, User, X, Menu } from 'lucide-react';
+import { Search, ShoppingCart, X, Menu } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
@@ -140,7 +140,10 @@ export function Header() {
               aria-label={t('profile')}
               className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <User className="w-[18px] h-[18px] text-muted-foreground" />
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px] text-muted-foreground">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M20 21c0-3.87-3.58-7-8-7s-8 3.13-8 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </Link>
           </div>
         </div>

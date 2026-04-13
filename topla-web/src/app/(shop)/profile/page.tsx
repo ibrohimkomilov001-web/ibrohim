@@ -6,7 +6,7 @@ import {
   ShoppingBag, Heart, MapPin, CreditCard, Globe,
   HelpCircle, ChevronRight, Store, Star, ArrowLeft,
   User, Phone, X, LogOut, Check, Home, Monitor, Smartphone, Tablet, Trash2, MapPinned, Laptop, Pencil,
-  Sun, Moon,
+  Sun, Moon, RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
@@ -68,6 +68,16 @@ export default function ProfilePage() {
   const [editLoading, setEditLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
+
+  // Lock body scroll when modals are open
+  useEffect(() => {
+    if (langMenuOpen || devicesModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [langMenuOpen, devicesModalOpen]);
 
   // Countdown timer for resend
   useEffect(() => {
@@ -288,6 +298,7 @@ export default function ProfilePage() {
   // ===== SECTIONS =====
   const shoppingItems = [
     { href: '/orders', icon: ShoppingBag, label: t('myOrders'), color: 'text-muted-foreground' },
+    { href: '/returns', icon: RotateCcw, label: t('returnsAndRefunds'), color: 'text-muted-foreground' },
     { href: '/reviews', icon: Star, label: t('reviewsAndQuestions'), color: 'text-muted-foreground' },
   ];
 
@@ -857,48 +868,77 @@ export default function ProfilePage() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            {/* Language modal */}
+            {/* Language bottom sheet */}
             <AnimatePresence>
               {langMenuOpen && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-md flex items-center justify-center px-4"
-                  onClick={() => setLangMenuOpen(false)}
+                  className="fixed inset-0 z-[100]"
                 >
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-sm bg-card rounded-2xl p-5 shadow-2xl"
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLangMenuOpen(false)} />
+                  {/* X button at ~30% from top */}
+                  <button
+                    onClick={() => setLangMenuOpen(false)}
+                    className="absolute top-[28%] right-5 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                    aria-label="Yopish"
                   >
-                    <h3 className="text-lg font-bold text-foreground mb-4 text-center">
-                      {locale === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
-                    </h3>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => { setLocale('uz'); setLangMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all ${
-                          locale === 'uz' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-muted text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        <span className="text-lg">🇺🇿</span>
-                        <span className="flex-1 text-left">{"O'zbek tili"}</span>
-                        {locale === 'uz' && <Check className="w-5 h-5 text-primary" />}
-                      </button>
-                      <button
-                        onClick={() => { setLocale('ru'); setLangMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all ${
-                          locale === 'ru' ? 'bg-primary/10 text-primary font-semibold ring-2 ring-primary/20' : 'bg-muted text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        <span className="text-lg">🇷🇺</span>
-                        <span className="flex-1 text-left">Русский язык</span>
-                        {locale === 'ru' && <Check className="w-5 h-5 text-primary" />}
-                      </button>
+                    <X className="w-5 h-5" />
+                  </button>
+                  <motion.div
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                    className="absolute bottom-0 left-0 right-0 bg-card rounded-t-3xl shadow-2xl"
+                    style={{ height: '65%', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                  >
+                    <div className="w-12 h-1.5 rounded-full bg-muted-foreground/20 mx-auto mt-3 mb-6" />
+                    <div className="px-6">
+                      <h3 className="text-xl font-bold text-foreground mb-8 text-center">
+                        {locale === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
+                      </h3>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => { setLocale('uz'); setLangMenuOpen(false); }}
+                          className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-[15px] transition-all ${
+                            locale === 'uz' ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-muted hover:bg-muted/80'
+                          }`}
+                        >
+                          <svg viewBox="0 0 30 20" className="w-10 h-7 rounded-md shadow-sm shrink-0" aria-hidden="true">
+                            <rect width="30" height="20" fill="#1EB53A"/>
+                            <rect width="30" height="7" fill="#0099B5"/>
+                            <rect y="7" width="30" height="1" fill="#CE1126"/>
+                            <rect width="30" height="6" y="8" fill="#fff"/>
+                            <rect y="14" width="30" height="1" fill="#CE1126"/>
+                            <circle cx="9" cy="3.5" r="2.2" fill="#fff"/>
+                            <circle cx="10" cy="3.5" r="1.8" fill="#0099B5"/>
+                            {[0,1,2,3,4,5,6,7,8,9,10,11].map((i) => {
+                              const row = Math.floor(i / 4);
+                              const col = i % 4;
+                              return <circle key={i} cx={13 + col * 1.8} cy={1.5 + row * 1.8} r="0.5" fill="#fff" />;
+                            })}
+                          </svg>
+                          <span className={`flex-1 text-left font-medium ${locale === 'uz' ? 'text-primary' : 'text-foreground'}`}>{"O'zbek tili"}</span>
+                          {locale === 'uz' && <Check className="w-5 h-5 text-primary" />}
+                        </button>
+                        <button
+                          onClick={() => { setLocale('ru'); setLangMenuOpen(false); }}
+                          className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-[15px] transition-all ${
+                            locale === 'ru' ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-muted hover:bg-muted/80'
+                          }`}
+                        >
+                          <svg viewBox="0 0 30 20" className="w-10 h-7 rounded-md shadow-sm shrink-0" aria-hidden="true">
+                            <rect width="30" height="20" rx="1" fill="#fff"/>
+                            <rect y="7" width="30" height="7" fill="#0039A6"/>
+                            <rect y="14" width="30" height="6" fill="#D52B1E"/>
+                            <rect width="30" height="20" rx="1" fill="none" stroke="#d1d5db" strokeWidth="0.8"/>
+                          </svg>
+                          <span className={`flex-1 text-left font-medium ${locale === 'ru' ? 'text-primary' : 'text-foreground'}`}>Русский язык</span>
+                          {locale === 'ru' && <Check className="w-5 h-5 text-primary" />}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 </motion.div>
@@ -977,7 +1017,7 @@ export default function ProfilePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 text-red-500 font-medium text-sm hover:bg-red-100 active:scale-[0.98] transition-all mb-6"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-black/5 dark:bg-white/5 backdrop-blur-sm text-muted-foreground font-medium text-sm hover:bg-black/10 dark:hover:bg-white/10 active:scale-[0.98] transition-all mb-6"
           >
             <LogOut className="w-4 h-4" />
             {locale === 'ru' ? 'Выйти' : 'Chiqish'}
@@ -993,21 +1033,22 @@ export default function ProfilePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+            className="fixed inset-0 z-[100]"
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDevicesModalOpen(false)} />
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl max-h-[80vh] overflow-y-auto"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="absolute bottom-0 left-0 right-0 w-full sm:relative sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl max-h-[80vh] overflow-y-auto overscroll-contain"
+              style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 2rem)' }}
             >
               <button
                 onClick={() => setDevicesModalOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted transition-colors"
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
               >
-                <X className="w-5 h-5 text-muted-foreground" />
+                <X className="w-4.5 h-4.5 text-muted-foreground" />
               </button>
 
               <div className="flex items-center gap-3 mb-4">
