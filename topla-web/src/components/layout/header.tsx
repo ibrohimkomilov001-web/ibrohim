@@ -140,9 +140,9 @@ export function Header() {
               aria-label={t('profile')}
               className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px] text-muted-foreground">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M20 21c0-3.87-3.58-7-8-7s-8 3.13-8 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] text-muted-foreground">
+                <circle cx="12" cy="8" r="3.5"/>
+                <path d="M20 21c0-3.37-3.58-6.5-8-6.5s-8 3.13-8 6.5"/>
               </svg>
             </Link>
           </div>

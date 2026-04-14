@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -623,10 +624,11 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
       <ProductRecommendations productId={id} />
 
       {/* Fullscreen Image Viewer */}
+      {typeof document !== 'undefined' && createPortal(
       <AnimatePresence>
         {lightboxOpen && images.length > 0 && (
           <motion.div
-            className="fixed inset-0 z-[100] flex flex-col bg-black touch-none"
+            className="fixed inset-0 z-[9999] flex flex-col bg-black touch-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -699,7 +701,9 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
             )}
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 }
