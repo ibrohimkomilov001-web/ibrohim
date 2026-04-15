@@ -40,8 +40,6 @@ import 'features/notifications/notifications_screen.dart';
 import 'features/profile/my_promo_codes_screen.dart';
 import 'features/lucky_wheel/all_prizes_screen.dart';
 import 'features/lucky_wheel/spin_history_screen.dart';
-import 'features/comparison/comparison_screen.dart';
-import 'providers/comparison_provider.dart';
 import 'core/widgets/auth_guard.dart';
 import 'services/cache_service.dart';
 
@@ -194,7 +192,6 @@ class ToplaApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => ConnectivityProvider(ConnectivityService()),
         ),
-        ChangeNotifierProvider(create: (_) => ComparisonProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
@@ -265,7 +262,6 @@ class ToplaApp extends StatelessWidget {
                   const AuthGuard(child: AllPrizesScreen()),
               '/lucky-wheel/history': (context) =>
                   const AuthGuard(child: SpinHistoryScreen()),
-              '/comparison': (context) => const ComparisonScreen(),
               '/': (context) => const SplashScreen(),
             },
             onGenerateRoute: (settings) {

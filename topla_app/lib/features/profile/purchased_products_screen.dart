@@ -8,6 +8,7 @@ import '../../widgets/empty_states.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../providers/providers.dart';
 import '../../models/order_model.dart';
+import '../../widgets/glass_back_button.dart';
 
 class PurchasedProductsScreen extends StatefulWidget {
   const PurchasedProductsScreen({super.key});
@@ -73,10 +74,7 @@ class _PurchasedProductsScreenState extends State<PurchasedProductsScreen> {
           context.l10n.translate('purchased_products'),
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const GlassBackButton(),
       ),
       body: _isLoading
           ? const PurchasedProductsSkeleton()

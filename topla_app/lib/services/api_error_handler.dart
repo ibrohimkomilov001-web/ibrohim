@@ -200,77 +200,23 @@ class ApiErrorHandler {
     }
   }
 
-  /// Show error snackbar
+  /// Show error snackbar — faqat terminalda ko'rsatish
   static void showErrorSnackbar(BuildContext context, dynamic error) {
     final apiError = error is ApiException ? error : handle(error);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(apiError.icon, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(apiError.userMessage),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.red.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
-      ),
-    );
+    debugPrint('API Error: ${apiError.userMessage}');
   }
 
-  /// Show error dialog
+  /// Show error dialog — faqat terminalda ko'rsatish
   static Future<void> showErrorDialog(
     BuildContext context,
     dynamic error, {
     VoidCallback? onRetry,
   }) async {
     final apiError = error is ApiException ? error : handle(error);
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        icon: Icon(
-          apiError.icon,
-          size: 48,
-          color: Colors.red,
-        ),
-        title: const Text('Xatolik'),
-        content: Text(
-          apiError.userMessage,
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          if (onRetry != null)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                onRetry();
-              },
-              child: const Text('Qayta urinish'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    debugPrint('API Error Dialog: ${apiError.userMessage}');
+    if (onRetry != null) {
+      onRetry();
+    }
   }
 }
 

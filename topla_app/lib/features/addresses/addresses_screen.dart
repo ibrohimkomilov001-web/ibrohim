@@ -8,6 +8,7 @@ import '../../core/services/nominatim_service.dart';
 import '../../models/address_model.dart';
 import '../../providers/addresses_provider.dart';
 import '../../widgets/topla_refresh_indicator.dart';
+import '../../widgets/glass_back_button.dart';
 import 'map_picker_screen.dart';
 
 class AddressesScreen extends StatefulWidget {
@@ -32,14 +33,16 @@ class _AddressesScreenState extends State<AddressesScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        leading: const GlassBackButton(),
         title: Text(
           context.l10n.myAddresses,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         actions: [
-          IconButton(
+          GlassActionButton(
+            icon: Icons.add,
+            iconSize: 20,
             onPressed: _showAddAddressSheet,
-            icon: const Icon(Icons.add, size: 26),
           ),
         ],
       ),

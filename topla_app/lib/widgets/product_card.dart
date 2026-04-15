@@ -12,6 +12,7 @@ class ProductCard extends StatefulWidget {
   final double? rating;
   final int? sold;
   final String? imageUrl;
+  final List<String> images;
   final bool isFavorite;
   final bool isFreeDelivery;
   final String? deliveryTime;
@@ -29,6 +30,7 @@ class ProductCard extends StatefulWidget {
     this.rating,
     this.sold,
     this.imageUrl,
+    this.images = const [],
     this.isFavorite = false,
     this.isFreeDelivery = false,
     this.deliveryTime,
@@ -47,6 +49,7 @@ class _ProductCardState extends State<ProductCard>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   bool _isPressed = false;
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
@@ -115,7 +118,7 @@ class _ProductCardState extends State<ProductCard>
               // Image section
               Stack(
                 children: [
-                  // Product image
+                  // Product image(s)
                   Container(
                     height: AppSizes.productImageHeight,
                     width: double.infinity,
@@ -125,22 +128,33 @@ class _ProductCardState extends State<ProductCard>
                         top: Radius.circular(AppSizes.radiusMd),
                       ),
                     ),
-                    child:
-                        widget.imageUrl != null && widget.imageUrl!.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(AppSizes.radiusMd),
-                                ),
-                                child: CachedNetworkImage(
-                                  imageUrl: widget.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => _buildShimmer(),
-                                  errorWidget: (_, __, ___) =>
-                                      _buildImagePlaceholder(),
-                                ),
-                              )
-                            : _buildImagePlaceholder(),
+                    child: _buildImageContent(),
                   ),
+
+                  // Image dots
+                  if (_allImages.length > 1)
+                    Positioned(
+                      bottom: 6,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          _allImages.length > 5 ? 5 : _allImages.length,
+                          (i) => Container(
+                            width: _currentImageIndex == i ? 12 : 5,
+                            height: 5,
+                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                            decoration: BoxDecoration(
+                              color: _currentImageIndex == i
+                                  ? AppColors.primary
+                                  : Colors.white.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
 
                   // TOP badge
                   if (widget.isTop)
@@ -375,9 +389,9 @@ class _ProductCardState extends State<ProductCard>
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
-                                Icons.add,
+                                Iconsax.bag_2,
                                 color: AppColors.primary,
-                                size: 20,
+                                size: 18,
                               ),
                             ),
                           ),
@@ -389,6 +403,49 @@ class _ProductCardState extends State<ProductCard>
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  List<String> get _allImages {
+    if (widget.images.isNotEmpty) return widget.images;
+    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) return [widget.imageUrl!];
+    return [];
+  }
+
+  Widget _buildImageContent() {
+    final imgs = _allImages;
+    if (imgs.isEmpty) return _buildImagePlaceholder();
+    if (imgs.length == 1) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppSizes.radiusMd),
+        ),
+        child: CachedNetworkImage(
+          imageUrl: imgs[0],
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (_, __) => _buildShimmer(),
+          errorWidget: (_, __, ___) => _buildImagePlaceholder(),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppSizes.radiusMd),
+      ),
+      child: PageView.builder(
+        itemCount: imgs.length,
+        onPageChanged: (i) => setState(() => _currentImageIndex = i),
+        itemBuilder: (_, i) => CachedNetworkImage(
+          imageUrl: imgs[i],
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (_, __) => _buildShimmer(),
+          errorWidget: (_, __, ___) => _buildImagePlaceholder(),
         ),
       ),
     );

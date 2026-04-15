@@ -10,7 +10,6 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/utils/haptic_utils.dart';
 import '../../providers/providers.dart';
-import '../../providers/comparison_provider.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../checkout/checkout_screen.dart';

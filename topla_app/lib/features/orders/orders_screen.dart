@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../../widgets/empty_states.dart';
 import '../../widgets/topla_refresh_indicator.dart';
+import '../../widgets/glass_back_button.dart';
 import '../main/main_screen.dart';
 import 'order_detail_screen.dart';
 
@@ -53,7 +54,8 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.build(context);
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: widget.showBackButton,
+        automaticallyImplyLeading: false,
+        leading: widget.showBackButton ? const GlassBackButton() : null,
         title: Text(
           context.l10n.myOrders,
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -64,7 +66,8 @@ class _OrdersScreenState extends State<OrdersScreen>
           labelColor: AppColors.primary,
           unselectedLabelColor: Colors.grey.shade600,
           indicatorColor: AppColors.primary,
-          indicatorWeight: 3,
+          indicatorWeight: 3.5,
+          dividerColor: Colors.transparent,
           labelPadding: const EdgeInsets.symmetric(horizontal: 8),
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w600,

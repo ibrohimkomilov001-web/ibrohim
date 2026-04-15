@@ -507,6 +507,11 @@ class AppLocalizations {
       'russian_lang': 'Русский',
       'logout_question': 'Hisobingizdan chiqmoqchimisiz?',
       'logout_action': 'Hisobdan chiqish',
+      'delete_account': 'Hisobni o\'chirish',
+      'delete_account_question': 'Hisobingizni o\'chirmoqchimisiz?',
+      'delete_account_warning':
+          'Bu amalni ortga qaytarib bo\'lmaydi. Barcha ma\'lumotlaringiz o\'chiriladi.',
+      'delete_account_action': 'Hisobni o\'chirish',
 
       // Order status strings
       'status_order_received': 'Buyurtma qabul qilindi',
@@ -1541,6 +1546,11 @@ class AppLocalizations {
       'russian_lang': 'Русский',
       'logout_question': 'Вы хотите выйти из аккаунта?',
       'logout_action': 'Выйти из аккаунта',
+      'delete_account': 'Удалить аккаунт',
+      'delete_account_question': 'Вы хотите удалить аккаунт?',
+      'delete_account_warning':
+          'Это действие нельзя отменить. Все ваши данные будут удалены.',
+      'delete_account_action': 'Удалить аккаунт',
 
       // Order status strings
       'status_order_received': 'Заказ принят',

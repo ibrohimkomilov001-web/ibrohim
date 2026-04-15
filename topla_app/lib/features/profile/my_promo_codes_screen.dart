@@ -6,6 +6,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/lucky_wheel_provider.dart';
 import '../../core/repositories/i_lucky_wheel_repository.dart';
+import '../../widgets/glass_back_button.dart';
 
 class MyPromoCodesScreen extends StatefulWidget {
   const MyPromoCodesScreen({super.key});
@@ -52,16 +53,13 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
           'Promokodlarim',
           style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const GlassBackButton(),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add, size: 24, color: Colors.black87),
+          GlassActionButton(
+            icon: Icons.add,
+            iconSize: 20,
             onPressed: _showAddPromoCodeDialog,
           ),
-          const SizedBox(width: 4),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -69,6 +67,7 @@ class _MyPromoCodesScreenState extends State<MyPromoCodesScreen>
           unselectedLabelColor: const Color(0xFF999999),
           indicatorColor: const Color(0xFFE91E63),
           indicatorWeight: 2.5,
+          dividerColor: Colors.transparent,
           labelStyle:
               const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontSize: 13),

@@ -128,6 +128,13 @@ async function loadRate(phone: string): Promise<number | null> {
 }
 
 /**
+ * Google Play review uchun test telefon raqami
+ * Bu raqam doim "12345" OTP kodi bilan ishlaydi
+ */
+const TEST_PHONE = '+998000000000';
+const TEST_OTP_CODE = '12345';
+
+/**
  * Tasodifiy OTP kod generatsiya qilish
  */
 function generateOtpCode(length: number = 4): string {
@@ -160,7 +167,7 @@ export async function sendOtp(
   }
 
   // 2. OTP generatsiya
-  const code = generateOtpCode(env.OTP_LENGTH);
+  const code = phone === TEST_PHONE ? TEST_OTP_CODE : generateOtpCode(env.OTP_LENGTH);
   const now = Date.now();
   const ttlMs = env.OTP_TTL_SECONDS * 1000;
 
@@ -173,6 +180,12 @@ export async function sendOtp(
     expiresAt: now + ttlMs,
   };
   await storeOtp(phone, entry);
+
+  // 3.5. Google Play test raqami — SMS yubormasdan to'g'ridan-to'g'ri success
+  if (phone === TEST_PHONE) {
+    await storeRate(phone, now);
+    return { success: true, channel: 'sms' };
+  }
 
   // 4. Dev/Test rejimda SMS yubormasdan faqat logga yozish
   if (env.NODE_ENV !== 'production') {

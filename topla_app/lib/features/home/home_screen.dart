@@ -10,6 +10,7 @@ import '../../core/utils/haptic_utils.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/category_item.dart';
 import '../../widgets/skeleton_widgets.dart';
+import '../../widgets/topla_refresh_indicator.dart';
 import '../../providers/providers.dart';
 import '../../models/models.dart';
 import '../search/search_screen.dart';
@@ -73,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen>
         },
         child: Builder(
           builder: (context) {
-            return RefreshIndicator(
+            return ToplaRefreshIndicator(
               onRefresh: () => context.read<ProductsProvider>().loadAll(),
               child: CustomScrollView(
                 slivers: [
@@ -201,10 +202,20 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               );
             },
-            child: const Icon(
-              Icons.emoji_events_rounded,
-              color: Color(0xFFFFD700),
-              size: 30,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF6B35), Color(0xFFFF9800)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ],
@@ -860,6 +871,7 @@ class _HomeScreenState extends State<HomeScreen>
               rating: product.rating,
               sold: product.soldCount,
               imageUrl: product.firstImage,
+              images: product.images,
               isFavorite: productsProvider.isFavorite(product.id),
               onTap: () => _openProductDetail(product),
               onAddToCart: () => _addToCart(product),

@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/api_client.dart';
+import '../../widgets/glass_back_button.dart';
 
 class InviteFriendScreen extends StatefulWidget {
   const InviteFriendScreen({super.key});
@@ -186,11 +187,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         _loadAllData();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
-        );
-      }
+      debugPrint('📨 InviteFriend: Apply code error: $e');
     }
     if (mounted) setState(() => _isApplying = false);
   }
@@ -222,11 +219,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
         _loadAllData();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
-        );
-      }
+      debugPrint('📨 InviteFriend: Claim reward error: $e');
     }
     if (mounted) setState(() => _claimingRewardId = null);
   }
@@ -257,6 +250,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
+        leading: const GlassBackButton(),
         title: Text(
           l10n.translate('invite_friends'),
           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -277,14 +271,10 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.bug_report, size: 48, color: Colors.red),
+              Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              const Text('Sahifani ko\'rsatishda xatolik',
+              const Text('Sahifani yuklashda xatolik',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(e.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 12)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadAllData,
@@ -304,6 +294,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
     }
 
     if (_error != null) {
+      debugPrint('📨 InviteFriend: Error state: $_error');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -317,10 +308,6 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey.shade700)),
-              const SizedBox(height: 8),
-              Text(_error ?? '',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadAllData,
@@ -373,16 +360,7 @@ class _InviteFriendScreenState extends State<InviteFriendScreen> {
       return builder();
     } catch (e, stack) {
       debugPrint('📨 InviteFriend: _safeBuild($name) ERROR: $e\n$stack');
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.shade200),
-        ),
-        child: Text('$name xatolik: $e',
-            style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
-      );
+      return const SizedBox.shrink();
     }
   }
 

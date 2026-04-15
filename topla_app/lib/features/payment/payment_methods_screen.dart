@@ -7,6 +7,7 @@ import '../../models/models.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../services/payment_service.dart';
+import '../../widgets/glass_back_button.dart';
 
 class PaymentMethodsScreen extends StatefulWidget {
   const PaymentMethodsScreen({super.key});
@@ -226,6 +227,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        leading: const GlassBackButton(),
         title: const Text(
           'To\'lov usullari',
           style: TextStyle(
@@ -234,8 +236,9 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add, size: 24, color: Colors.black87),
+          GlassActionButton(
+            icon: Icons.add,
+            iconSize: 20,
             onPressed: _isAddingCard ? null : _addNewCard,
           ),
         ],
@@ -277,9 +280,6 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                     _buildAddCardButton(),
 
                     const SizedBox(height: 16),
-
-                    // Security Info
-                    _buildSecurityInfo(),
                   ],
                 ),
               ),
@@ -553,18 +553,6 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             iconBgColor: const Color(0xFFE8F5E9),
             title: 'Naqd pul',
             subtitle: 'Yetkazib berishda to\'lang',
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Divider(height: 1, color: Colors.grey.shade100),
-          ),
-          _buildPaymentMethodItem(
-            value: 'card',
-            icon: Iconsax.card,
-            iconColor: const Color(0xFF2196F3),
-            iconBgColor: const Color(0xFFE3F2FD),
-            title: 'Karta orqali',
-            subtitle: 'UzCard, HUMO, Visa, Mastercard',
           ),
         ],
       ),

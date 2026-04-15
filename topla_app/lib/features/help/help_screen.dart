@@ -7,6 +7,7 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/api_client.dart';
 import 'support_chat_screen.dart';
+import '../../widgets/glass_back_button.dart';
 
 class HelpScreen extends StatefulWidget {
   const HelpScreen({super.key});
@@ -76,6 +77,7 @@ class _HelpScreenState extends State<HelpScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
+        leading: const GlassBackButton(),
         title: Text(
           l10n.translate('help'),
           style: const TextStyle(fontWeight: FontWeight.w600),

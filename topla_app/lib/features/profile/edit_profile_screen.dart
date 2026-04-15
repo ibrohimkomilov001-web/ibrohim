@@ -8,11 +8,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/services/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../providers/products_provider.dart';
 import 'devices_screen.dart';
+import '../../widgets/glass_back_button.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? profile;
@@ -34,24 +36,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   DateTime? _birthday;
   String _avatarUrl = '';
   String? _selectedGender;
-  String? _selectedRegion;
-
-  static const _uzRegions = [
-    'Toshkent shahri',
-    'Toshkent viloyati',
-    'Andijon',
-    'Buxoro',
-    'Farg\'ona',
-    'Jizzax',
-    'Xorazm',
-    'Namangan',
-    'Navoiy',
-    'Qashqadaryo',
-    'Qoraqalpog\'iston',
-    'Samarqand',
-    'Sirdaryo',
-    'Surxondaryo',
-  ];
 
   // Track changes
   String _initialFirstName = '';
@@ -87,7 +71,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _emailController = TextEditingController(text: _initialEmail);
 
     _selectedGender = widget.profile?['gender'] as String?;
-    _selectedRegion = widget.profile?['region'] as String?;
 
     final birthDateRaw =
         widget.profile?['birth_date'] ?? widget.profile?['birthDate'];
@@ -130,10 +113,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         backgroundColor: const Color(0xFFF2F2F7),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const GlassBackButton(),
         actions: [
           if (_isChanged)
             IconButton(
@@ -161,12 +141,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
           const SizedBox(height: 8),
 
-          // Qurilmalar
-          _buildDevicesButton(),
-          const SizedBox(height: 24),
-
           // Chiqish
           _buildLogoutButton(),
+          const SizedBox(height: 16),
+
+          // Hisobni o'chirish
+          _buildDeleteAccountButton(),
           const SizedBox(height: 32),
         ],
       ),
@@ -355,32 +335,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         const SizedBox(height: 12),
 
         // Gender Section
-        Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Jins', style: TextStyle(fontSize: 16)),
-              Row(
-                children: [
-                  _buildGenderChip('MALE', 'Erkak'),
-                  const SizedBox(width: 8),
-                  _buildGenderChip('FEMALE', 'Ayol'),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Region Section
         GestureDetector(
-          onTap: _pickRegion,
+          onTap: _showGenderPicker,
           child: Container(
             height: 44,
             decoration: BoxDecoration(
@@ -391,14 +347,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Viloyat', style: TextStyle(fontSize: 16)),
+                const Text('Jins', style: TextStyle(fontSize: 16)),
                 Row(
                   children: [
                     Text(
-                      _selectedRegion ?? "Tanlash",
+                      _selectedGender == 'MALE'
+                          ? 'Erkak'
+                          : _selectedGender == 'FEMALE'
+                              ? 'Ayol'
+                              : 'Tanlash',
                       style: TextStyle(
                         fontSize: 16,
-                        color: _selectedRegion != null
+                        color: _selectedGender != null
                             ? const Color(0xFF8E8E93)
                             : const Color(0xFFC4C4C6),
                       ),
@@ -427,12 +387,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Raqamni almashtirish",
+                const Text("Telefon raqam",
                     style: TextStyle(fontSize: 16)),
                 Row(
                   children: [
                     Text(
-                      _hasPhone ? _initialPhone : "Qo'shish",
+                      _hasPhone ? _formatPhone(_initialPhone) : "Qo'shish",
                       style: const TextStyle(
                           fontSize: 16, color: Color(0xFF8E8E93)),
                     ),
@@ -449,7 +409,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildGenderChip(String value, String label) {
+  void _showGenderPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Jinsni tanlang',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              _buildGenderOption('MALE', 'Erkak', ctx),
+              const SizedBox(height: 8),
+              _buildGenderOption('FEMALE', 'Ayol', ctx),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                  ),
+                  child: Text(
+                    'Bekor qilish',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderOption(String value, String label, BuildContext ctx) {
     final selected = _selectedGender == value;
     return GestureDetector(
       onTap: () {
@@ -457,60 +476,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _selectedGender = value;
           _isChanged = true;
         });
+        Navigator.pop(ctx);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        width: double.infinity,
+        height: 48,
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : const Color(0xFFF2F2F7),
-          borderRadius: BorderRadius.circular(16),
+          color: selected ? AppColors.primary.withValues(alpha: 0.08) : const Color(0xFFF2F2F7),
+          borderRadius: BorderRadius.circular(100),
+          border: selected
+              ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
+              : null,
         ),
+        alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : const Color(0xFF8E8E93),
+            color: selected ? AppColors.primary : Colors.black87,
           ),
         ),
       ),
     );
   }
 
-  void _pickRegion() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Viloyatingizni tanlang',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            ..._uzRegions.map((region) => ListTile(
-                  title: Text(region),
-                  trailing: _selectedRegion == region
-                      ? const Icon(Icons.check, color: AppColors.primary)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedRegion = region;
-                      _isChanged = true;
-                    });
-                    Navigator.pop(ctx);
-                  },
-                )),
-          ],
-        ),
-      ),
-    );
+  String _formatPhone(String phone) {
+    final digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length == 12) {
+      return '+${digits.substring(0, 3)} ${digits.substring(3, 5)} ${digits.substring(5, 8)} ${digits.substring(8, 10)} ${digits.substring(10)}';
+    }
+    return phone;
   }
 
   String _getInitials() {
@@ -842,6 +838,95 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  Widget _buildDeleteAccountButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton.icon(
+        onPressed: () => _showDeleteAccountDialog(),
+        icon: Icon(Iconsax.trash_copy, color: Colors.red.shade400, size: 17),
+        label: Text(
+          context.l10n.translate('delete_account'),
+          style: TextStyle(
+            color: Colors.red.shade400,
+            fontWeight: FontWeight.w500,
+            fontSize: 15,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: Colors.red.shade200),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(100),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(
+          context.l10n.translate('delete_account_question'),
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700),
+        ),
+        message: Text(
+          context.l10n.translate('delete_account_warning'),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ApiClient().delete('/auth/account');
+                if (mounted) {
+                  context.read<OrdersProvider>().clearOnLogout();
+                  context.read<CartProvider>().clearOnLogout();
+                  context.read<ProductsProvider>().clearFavoritesOnLogout();
+                  await context.read<AuthProvider>().signOut();
+                  if (mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                }
+              } catch (e) {
+                debugPrint('Delete account error: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${context.l10n.translate('error')}: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(
+              context.l10n.translate('delete_account_action'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(
+            context.l10n.translate('cancel'),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveProfile() async {
     if (_firstNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -867,7 +952,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 : _emailController.text.trim(),
             phone: widget.profile?['phone'],
             gender: _selectedGender?.toLowerCase(),
-            region: _selectedRegion,
             birthDate: _birthday?.toUtc().toIso8601String(),
           );
 

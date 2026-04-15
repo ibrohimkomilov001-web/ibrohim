@@ -9,6 +9,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/services/api_client.dart';
 import '../../providers/orders_provider.dart';
 import '../../models/order_model.dart';
+import '../../widgets/glass_back_button.dart';
 
 class ReturnsScreen extends StatefulWidget {
   const ReturnsScreen({super.key});
@@ -64,16 +65,13 @@ class _ReturnsScreenState extends State<ReturnsScreen>
           context.l10n.translate('returns'),
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const GlassBackButton(),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add, size: 24, color: Colors.black),
+          GlassActionButton(
+            icon: Icons.add,
+            iconSize: 20,
             onPressed: () => _showCreateReturnSheet(),
           ),
-          const SizedBox(width: 4),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -85,6 +83,7 @@ class _ReturnsScreenState extends State<ReturnsScreen>
           unselectedLabelColor: Colors.grey,
           indicatorColor: AppColors.primary,
           indicatorWeight: 3,
+          dividerColor: Colors.transparent,
         ),
       ),
       body: TabBarView(

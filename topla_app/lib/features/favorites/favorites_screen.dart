@@ -10,6 +10,8 @@ import '../../widgets/product_card.dart';
 import '../main/main_screen.dart';
 import '../product/product_detail_screen.dart';
 
+import '../../widgets/glass_back_button.dart';
+
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
 
@@ -32,11 +34,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: Colors.black87, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const GlassBackButton(),
         centerTitle: true,
         title: Text(
           context.l10n.favorites,

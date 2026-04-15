@@ -7,7 +7,6 @@ import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/user_profile.dart';
 import '../../providers/providers.dart';
-import '../../providers/comparison_provider.dart';
 import '../../widgets/skeleton_widgets.dart';
 import 'edit_profile_screen.dart';
 
@@ -316,33 +315,6 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           _divider(),
         ],
-        Consumer<ComparisonProvider>(
-          builder: (context, comparison, _) => _buildMenuItem(
-            icon: Iconsax.chart_21_copy,
-            label: context.l10n.translate('comparison_list'),
-            iconColor: const Color(0xFF7C3AED),
-            trailing: comparison.count > 0
-                ? Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${comparison.count}',
-                      style: const TextStyle(
-                        color: Color(0xFF7C3AED),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                : null,
-            onTap: () => Navigator.pushNamed(context, '/comparison'),
-          ),
-        ),
-        _divider(),
         _buildMenuItem(
           icon: Iconsax.location_copy,
           label: context.l10n.myAddresses,
@@ -375,6 +347,15 @@ class _ProfileScreenState extends State<ProfileScreen>
           onTap: () => Navigator.pushNamed(context, '/invite'),
           showLogin: !isLoggedIn,
         ),
+        if (isLoggedIn) ...[
+          _divider(),
+          _buildMenuItem(
+            icon: Iconsax.mobile_copy,
+            label: 'Qurilmalar',
+            iconColor: const Color(0xFF8E8E93),
+            onTap: () => Navigator.pushNamed(context, '/devices'),
+          ),
+        ],
       ],
     );
   }
@@ -439,8 +420,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.close,
-                        color: Colors.grey.shade400, size: 22),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey.shade100,
+                      ),
+                      child: Icon(Icons.close,
+                          color: Colors.grey.shade600, size: 18),
+                    ),
                   ),
                 ],
               ),

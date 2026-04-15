@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../core/constants/constants.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../widgets/glass_back_button.dart';
 
 class ReviewsQuestionsScreen extends StatefulWidget {
   const ReviewsQuestionsScreen({super.key});
@@ -35,16 +36,14 @@ class _ReviewsQuestionsScreenState extends State<ReviewsQuestionsScreen>
           context.l10n.translate('reviews_and_questions'),
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 18),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const GlassBackButton(),
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,
           unselectedLabelColor: Colors.grey.shade500,
           indicatorColor: AppColors.primary,
           indicatorWeight: 2.5,
+          dividerColor: Colors.transparent,
           labelStyle:
               const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           unselectedLabelStyle:

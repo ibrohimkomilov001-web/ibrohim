@@ -17,25 +17,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _nameController = TextEditingController();
   final _surnameController = TextEditingController();
   String? _selectedGender;
-  String? _selectedRegion;
   bool _isLoading = false;
-
-  static const _uzRegions = [
-    "Toshkent shahri",
-    "Toshkent viloyati",
-    "Andijon",
-    "Farg'ona",
-    "Namangan",
-    "Samarqand",
-    "Buxoro",
-    "Navoiy",
-    "Qashqadaryo",
-    "Surxondaryo",
-    "Jizzax",
-    "Sirdaryo",
-    "Xorazm",
-    "Qoraqalpog'iston",
-  ];
 
   @override
   void dispose() {
@@ -63,7 +45,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             firstName: name,
             lastName: _surnameController.text.trim(),
             gender: _selectedGender,
-            region: _selectedRegion,
           );
 
       if (mounted) {
@@ -231,38 +212,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               ),
 
               const SizedBox(height: 20),
-
-              // Region dropdown
-              Text(
-                'Viloyat (ixtiyoriy)',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedRegion,
-                    isExpanded: true,
-                    hint: Text(
-                      'Viloyatni tanlang',
-                      style: TextStyle(color: Colors.grey.shade500),
-                    ),
-                    items: _uzRegions
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedRegion = v),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
 
               const Spacer(),
 
