@@ -67,6 +67,7 @@ export function Footer() {
                 { href: '/help', label: t('help') },
                 { href: '/terms', label: t('termsOfService') },
                 { href: '/privacy', label: t('privacyPolicy') },
+                { href: '/refund-policy', label: t('refundPolicy') },
               ].map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -132,6 +133,9 @@ export function Footer() {
             </Link>
             <Link href="/privacy" className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
               {t('privacyPolicy')}
+            </Link>
+            <Link href="/refund-policy" className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              {t('refundPolicy')}
             </Link>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "sonner";
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register";
+import { CookieConsent } from "@/components/cookie-consent";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -155,6 +156,7 @@ export default function RootLayout({
               {children}
               <Toaster position="top-right" richColors />
               <ServiceWorkerRegistration />
+              <CookieConsent />
             </ThemeProvider>
           </AuthProvider>
         </QueryProvider>
