@@ -57,7 +57,7 @@ jobs:
 
       - name: Sync files to deploy directory
         run: |
-          rsync -a --delete \
+          sudo rsync -a --no-perms --no-owner --no-group \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.next' \
@@ -67,9 +67,9 @@ jobs:
       - name: Build and deploy
         run: |
           cd /home/yc-user/topla
-          docker compose -f docker-compose.prod.yml build
-          docker compose -f docker-compose.prod.yml up -d --remove-orphans
-          docker compose -f docker-compose.prod.yml ps
+          sudo docker compose -f docker-compose.prod.yml build
+          sudo docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          sudo docker compose -f docker-compose.prod.yml ps
 
       - name: Health check
         run: |
@@ -86,4 +86,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: docker image prune -f
+        run: sudo docker image prune -f
