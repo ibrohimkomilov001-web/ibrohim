@@ -137,7 +137,7 @@ export default function VendorLoginPage() {
       }
 
       // Google OAuth popup ochish
-      const redirectUri = `${window.location.origin.replace(/^https?:\/\/vendor\.topla\.uz/, 'https://topla.uz')}/vendor/login`;
+      const redirectUri = `${window.location.origin}/vendor/login`;
       const scope = "openid email profile";
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
 

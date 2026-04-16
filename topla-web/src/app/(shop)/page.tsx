@@ -111,14 +111,14 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
 
   return (
     <div className="overflow-x-auto no-scrollbar border-b border-border">
-      <div className="inline-flex items-center gap-4">
+      <div className="inline-flex items-center gap-1">
         {filters.map((f) => {
           const isActive = selected === f.key;
           return (
             <button
               key={f.key}
               onClick={() => onSelect(f.key)}
-              className={`relative whitespace-nowrap pb-2 text-sm transition-all ${
+              className={`relative whitespace-nowrap px-3 pb-2 text-sm transition-all ${
                 isActive
                   ? 'text-foreground font-semibold border-b-2 border-foreground'
                   : 'text-muted-foreground font-normal hover:text-foreground'

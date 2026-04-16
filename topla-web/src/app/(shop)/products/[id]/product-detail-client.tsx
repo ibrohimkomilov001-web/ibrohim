@@ -9,7 +9,8 @@ import { resolveImageUrl } from '@/lib/api/upload';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Share2, Heart, Star, ShoppingCart, Plus, Minus,
-  Store, ChevronRight, Truck, Shield, RotateCcw, Loader2, X,
+  Store, Truck, Shield, RotateCcw, Loader2, X,
+  UserPlus, UserCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { shopApi, type ProductDetail } from '@/lib/api/shop';
@@ -26,6 +27,49 @@ import { ProductCard } from '@/components/shop/product-card';
 interface ProductDetailClientProps {
   productId: string;
   initialProduct: ProductDetail | null;
+}
+
+// ─── SHOP FOLLOW BUTTON ────────────────────────────
+function ShopFollowButton({ shopId }: { shopId: string }) {
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    shopApi.isFollowingShop(shopId)
+      .then(res => setIsFollowing(res.isFollowing))
+      .catch(() => {});
+  }, [shopId]);
+
+  const toggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      if (isFollowing) {
+        await shopApi.unfollowShop(shopId);
+        setIsFollowing(false);
+      } else {
+        await shopApi.followShop(shopId);
+        setIsFollowing(true);
+      }
+    } catch { /* auth required */ }
+    setLoading(false);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+        isFollowing
+          ? 'bg-muted text-foreground border border-border hover:bg-muted/80'
+          : 'bg-primary text-primary-foreground hover:bg-primary/90'
+      }`}
+    >
+      {isFollowing ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+      {isFollowing ? 'Obuna' : "Obuna bo'lish"}
+    </button>
+  );
 }
 
 export default function ProductDetailClient({ productId, initialProduct }: ProductDetailClientProps) {
@@ -377,26 +421,25 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
 
           {/* Shop info */}
           {product.shop && (
-            <Link
-              href={`/shops/${product.shop.id}`}
-              className="glass rounded-2xl p-4 flex items-center gap-4 hover-spring group"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-                {product.shop.logoUrl ? (
-                  <Image src={resolveImageUrl(product.shop.logoUrl)} alt="" width={48} height={48} className="object-cover" />
-                ) : (
-                  <Store className="w-6 h-6 text-primary" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold group-hover:text-primary transition-colors">{product.shop.name}</p>
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Star className="w-3.5 h-3.5 rating-star fill-current" />
-                  {product.shop.rating?.toFixed(1) || '0.0'}
+            <div className="glass rounded-2xl p-4 flex items-center gap-4">
+              <Link href={`/shops/${product.shop.id}`} className="flex items-center gap-4 flex-1 min-w-0 hover-spring group">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
+                  {product.shop.logoUrl ? (
+                    <Image src={resolveImageUrl(product.shop.logoUrl)} alt="" width={48} height={48} className="object-cover" />
+                  ) : (
+                    <Store className="w-6 h-6 text-primary" />
+                  )}
                 </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-            </Link>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold group-hover:text-primary transition-colors">{product.shop.name}</p>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Star className="w-3.5 h-3.5 rating-star fill-current" />
+                    {product.shop.rating?.toFixed(1) || '0.0'}
+                  </div>
+                </div>
+              </Link>
+              <ShopFollowButton shopId={product.shop.id} />
+            </div>
           )}
         </motion.div>
       </div>

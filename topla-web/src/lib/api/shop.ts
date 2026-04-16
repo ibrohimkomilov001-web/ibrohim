@@ -185,4 +185,22 @@ export const shopApi = {
 
   // Public settings (support phone, email)
   getPublicSettings: () => clientFetch<Record<string, string>>('/settings/public'),
+
+  // Shop follow (requires auth — uses credentials: include)
+  followShop: (shopId: string) =>
+    clientFetch<{ isFollowing: boolean }>(`/shops/${shopId}/follow`, {
+      method: 'POST',
+      credentials: 'include',
+    }),
+
+  unfollowShop: (shopId: string) =>
+    clientFetch<{ isFollowing: boolean }>(`/shops/${shopId}/follow`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+
+  isFollowingShop: (shopId: string) =>
+    clientFetch<{ isFollowing: boolean }>(`/shops/${shopId}/is-following`, {
+      credentials: 'include',
+    }),
 };

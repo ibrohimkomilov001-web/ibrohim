@@ -121,6 +121,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<Map<String, dynamic>> _wowProducts = [];
   bool _isWowLoading = false;
 
+  // Shop follow state
+  bool _isFollowingShop = false;
+
   // Tab indices
   int _descTabIndex = 0; // 0=Tavsif, 1=Xususiyatlar
   int _bottomTabIndex = 0; // 0=O'xshash, 1=WOW narx
@@ -157,6 +160,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _loadSimilarProducts();
     // WOW narx mahsulotlarni yuklash
     _loadWowProducts();
+    // Shop follow holatini tekshirish
+    _checkShopFollowStatus();
   }
 
   /// O'xshash mahsulotlarni yuklash (shu kategoriya bo'yicha)
@@ -235,6 +240,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     } catch (e) {
       debugPrint('WOW products error: $e');
       if (mounted) setState(() => _isWowLoading = false);
+    }
+  }
+
+  /// Shop follow holatini tekshirish
+  Future<void> _checkShopFollowStatus() async {
+    final shopId = _shop['id']?.toString();
+    if (shopId == null || shopId.isEmpty) return;
+    try {
+      final shopProvider = context.read<ShopProvider>();
+      final isFollowing = await shopProvider.checkIsFollowing(shopId);
+      if (mounted) setState(() => _isFollowingShop = isFollowing);
+    } catch (_) {}
+  }
+
+  /// Shop follow/unfollow toggle
+  Future<void> _toggleShopFollow() async {
+    final shopId = _shop['id']?.toString();
+    if (shopId == null || shopId.isEmpty) return;
+    final shopProvider = context.read<ShopProvider>();
+    HapticUtils.lightImpact();
+    if (_isFollowingShop) {
+      final ok = await shopProvider.unfollowShop(shopId);
+      if (ok && mounted) setState(() => _isFollowingShop = false);
+    } else {
+      final ok = await shopProvider.followShop(shopId);
+      if (ok && mounted) setState(() => _isFollowingShop = true);
     }
   }
 
@@ -962,26 +993,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
             ),
-            // Savol berish — tabletka
+            // Obuna bo'lish + Savol berish
             GestureDetector(
-              onTap: () => _openShopChat(),
+              onTap: () => _toggleShopFollow(),
               child: Container(
                 height: 32,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: _isFollowingShop
+                      ? Colors.grey.shade100
+                      : AppColors.primary,
                   borderRadius: BorderRadius.circular(20),
+                  border: _isFollowingShop
+                      ? Border.all(color: Colors.grey.shade300)
+                      : null,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Iconsax.message_text_1,
-                        size: 14, color: Colors.white),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Savol berish',
+                    Icon(
+                      _isFollowingShop ? Iconsax.tick_circle : Iconsax.add,
+                      size: 14,
+                      color: _isFollowingShop ? Colors.black87 : Colors.white,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _isFollowingShop ? 'Obuna' : 'Obuna bo\'lish',
                       style: TextStyle(
-                        color: Colors.white,
+                        color:
+                            _isFollowingShop ? Colors.black87 : Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
                       ),
