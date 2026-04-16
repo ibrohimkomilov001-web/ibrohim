@@ -343,7 +343,7 @@ export default function ApiKeysPage() {
               <div>
                 <h3 className="font-bold mb-2">Autentifikatsiya</h3>
                 <div className="bg-muted p-4 rounded font-mono text-sm">
-                  <p className="text-muted-foreground">// Har bir so&apos;rovda Header ga API kalitni qo&apos;shing:</p>
+                  <p className="text-muted-foreground">{"// Har bir so'rovda Header ga API kalitni qo'shing:"}</p>
                   <p className="mt-1">Authorization: Bearer YOUR_API_KEY</p>
                 </div>
               </div>
