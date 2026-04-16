@@ -1,0 +1,108 @@
+name: Server Diagnostic
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/server-diagnostic.yml'
+
+jobs:
+  diagnose:
+    name: Server Status Report
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Server Diagnostic via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=========================================="
+            echo "  TOPLA.UZ SERVER DIAGNOSTIC REPORT"
+            echo "  $(date '+%Y-%m-%d %H:%M:%S %Z')"
+            echo "=========================================="
+
+            echo ""
+            echo "=== SYSTEM INFO ==="
+            uname -a
+            uptime
+            free -h
+            df -h / /opt 2>/dev/null || df -h /
+
+            echo ""
+            echo "=== DOCKER CONTAINERS ==="
+            cd /opt/topla
+            docker compose -f docker-compose.prod.yml ps -a
+
+            echo ""
+            echo "=== CONTAINER RESOURCE USAGE ==="
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" 2>/dev/null || echo "docker stats unavailable"
+
+            echo ""
+            echo "=== DOCKER IMAGES ==="
+            docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedSince}}" | head -20
+
+            echo ""
+            echo "=== DOCKER LOGS (last 30 lines each) ==="
+            for container in $(docker compose -f docker-compose.prod.yml ps --format '{{.Name}}'); do
+              echo ""
+              echo "--- $container ---"
+              docker logs --tail 30 --timestamps "$container" 2>&1
+            done
+
+            echo ""
+            echo "=== HEALTH CHECK ==="
+            curl -sf http://localhost:3001/health 2>&1 || echo "Backend health FAILED"
+            echo ""
+            curl -sf http://localhost:3000 -o /dev/null -w "Web frontend: HTTP %{http_code} (%{time_total}s)\n" 2>&1 || echo "Web frontend FAILED"
+
+            echo ""
+            echo "=== NGINX STATUS ==="
+            docker exec topla-nginx nginx -t 2>&1 || echo "nginx test failed"
+
+            echo ""
+            echo "=== SSL CERTIFICATE ==="
+            echo | openssl s_client -servername topla.uz -connect localhost:443 2>/dev/null | openssl x509 -noout -dates -subject 2>/dev/null || echo "SSL check failed (may need external check)"
+
+            echo ""
+            echo "=== DISK USAGE (uploads) ==="
+            du -sh /opt/topla/topla-backend/uploads/ 2>/dev/null || echo "No uploads dir"
+            ls -la /opt/topla/topla-backend/uploads/ 2>/dev/null | head -10
+
+            echo ""
+            echo "=== POSTGRESQL STATUS ==="
+            docker exec topla-postgres pg_isready 2>/dev/null || echo "PostgreSQL check failed"
+            docker exec topla-postgres psql -U topla_user -d topla_db -c "SELECT count(*) as total_users FROM \"User\";" 2>/dev/null || echo "DB query failed"
+            docker exec topla-postgres psql -U topla_user -d topla_db -c "SELECT count(*) as total_products FROM \"Product\";" 2>/dev/null || echo "DB query failed"
+            docker exec topla-postgres psql -U topla_user -d topla_db -c "SELECT count(*) as total_shops FROM \"Shop\";" 2>/dev/null || echo "DB query failed"
+            docker exec topla-postgres psql -U topla_user -d topla_db -c "SELECT count(*) as total_orders FROM \"Order\";" 2>/dev/null || echo "DB query failed"
+            docker exec topla-postgres psql -U topla_user -d topla_db -c "SELECT pg_size_pretty(pg_database_size('topla_db')) as db_size;" 2>/dev/null || echo "DB size query failed"
+
+            echo ""
+            echo "=== REDIS STATUS ==="
+            REDIS_PW=$(grep REDIS_PASSWORD /opt/topla/.env | cut -d= -f2)
+            docker exec topla-redis redis-cli -a "$REDIS_PW" ping 2>/dev/null || echo "Redis ping failed"
+            docker exec topla-redis redis-cli -a "$REDIS_PW" info memory 2>/dev/null | grep "used_memory_human" || echo "Redis info failed"
+
+            echo ""
+            echo "=== MEILISEARCH STATUS ==="
+            curl -sf http://localhost:7700/health 2>&1 || echo "Meilisearch health failed"
+            MEILI_KEY=$(grep MEILISEARCH_API_KEY /opt/topla/.env | cut -d= -f2)
+            curl -sf -H "Authorization: Bearer $MEILI_KEY" http://localhost:7700/stats 2>&1 | head -5 || echo "Meilisearch stats failed"
+
+            echo ""
+            echo "=== RECENT DEPLOY (git log) ==="
+            cd /opt/topla && git log --oneline -5 2>/dev/null || echo "Not a git repo"
+
+            echo ""
+            echo "=== ENVIRONMENT FILES ==="
+            ls -la /opt/topla/.env 2>/dev/null
+            ls -la /opt/topla/docker-compose.prod.yml 2>/dev/null
+
+            echo ""
+            echo "=========================================="
+            echo "  DIAGNOSTIC COMPLETE"
+            echo "=========================================="
