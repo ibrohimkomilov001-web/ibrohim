@@ -1230,7 +1230,14 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
    * Bank webhook callback (Aliance/Octobank)
    * HMAC-SHA256 signature orqali himoyalangan
    */
-  app.post('/payments/callback', async (request, reply) => {
+  app.post('/payments/callback', {
+    config: {
+      rateLimit: {
+        max: 60,        // 1 daqiqada 60 ta so'rov
+        timeWindow: 60000,
+      },
+    },
+  }, async (request, reply) => {
     // IP whitelist tekshiruvi
     const allowedIPs = (env.PAYMENT_WEBHOOK_IPS || '').split(',').map(ip => ip.trim()).filter(Boolean);
     if (allowedIPs.length > 0) {

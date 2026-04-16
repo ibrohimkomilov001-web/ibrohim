@@ -60,7 +60,7 @@ services:
       redis:
         condition: service_healthy
       meilisearch:
-        condition: service_started
+        condition: service_healthy
     networks:
       - topla-network
     healthcheck:
@@ -104,6 +104,11 @@ services:
       - api
     networks:
       - topla-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     logging:
       driver: "json-file"
       options:
@@ -160,7 +165,7 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -168,6 +173,11 @@ services:
       retries: 3
     networks:
       - topla-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -189,6 +199,16 @@ services:
       - meilisearch_data:/meili_data
     networks:
       - topla-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:7700/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -215,6 +235,16 @@ services:
       - web
     networks:
       - topla-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -227,12 +257,23 @@ services:
   certbot:
     image: certbot/certbot:latest
     container_name: topla-certbot
+    restart: unless-stopped
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
       - certbot_www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
     networks:
       - topla-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
 
   # ============================================
   # PostgreSQL Backup (daily)
@@ -248,13 +289,22 @@ services:
       PGUSER: ${POSTGRES_USER:-topla_user}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-topla_db}
+      S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-https://storage.yandexcloud.net}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
     entrypoint: >
       /bin/sh -c 'while true; do
         FILENAME="/backups/topla_$$(date +%Y%m%d_%H%M%S).sql.gz";
+        echo "[BACKUP] Starting dump...";
         pg_dump | gzip > $$FILENAME;
-        echo "[BACKUP] $$FILENAME created";
-        find /backups -name "*.sql.gz" -mtime +7 -delete;
-        echo "[BACKUP] Old backups cleaned";
+        if [ $$? -eq 0 ]; then
+          echo "[BACKUP] $$FILENAME created ($$(du -h $$FILENAME | cut -f1))";
+        else
+          echo "[BACKUP] ERROR: pg_dump failed!";
+        fi;
+        find /backups -name "*.sql.gz" -mtime +14 -delete;
+        echo "[BACKUP] Old backups cleaned (14 kun)";
         sleep 86400;
       done'
     depends_on:
@@ -262,6 +312,16 @@ services:
         condition: service_healthy
     networks:
       - topla-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
 
   # ============================================
   # CLIP Image Embedding Service (visual search)
@@ -280,6 +340,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:

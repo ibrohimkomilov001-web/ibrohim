@@ -9,7 +9,7 @@
  */
 
 import { env } from '../config/env.js';
-import { randomInt } from 'crypto';
+import { randomInt, timingSafeEqual } from 'crypto';
 import { sendSmsViaEskiz } from '../config/eskiz.js';
 import { setWithExpiry, getValue, deleteKey } from '../config/redis.js';
 
@@ -99,6 +99,7 @@ async function getRateLimit(phone: string): Promise<number | null> {
 async function storeOtp(phone: string, entry: OtpEntry): Promise<void> {
   const saved = await saveOtpToRedis(phone, entry);
   if (!saved) {
+    console.warn(`⚠️ [OTP] Redis ishlamayapti — ${phone} uchun OTP in-memory fallback ishlatilmoqda. Production'da bu xavfli!`);
     otpStoreFallback.set(phone, entry);
   }
 }
@@ -117,6 +118,7 @@ async function removeOtp(phone: string): Promise<void> {
 async function storeRate(phone: string, now: number): Promise<void> {
   const saved = await setRateLimit(phone);
   if (!saved) {
+    console.warn(`⚠️ [OTP] Redis ishlamayapti — rate limit in-memory fallback ishlatilmoqda.`);
     rateLimitFallback.set(phone, now);
   }
 }
@@ -234,8 +236,12 @@ export async function verifyOtp(
     return { valid: false, error: 'Juda ko\'p urinish. Qayta yuboring' };
   }
 
-  // Kodlar mos kelmaydimi?
-  if (entry.code !== code) {
+  // Kodlar mos kelmaydimi? (timing-safe comparison)
+  const codeMatch =
+    entry.code.length === code.length &&
+    timingSafeEqual(Buffer.from(entry.code, 'utf8'), Buffer.from(code, 'utf8'));
+
+  if (!codeMatch) {
     entry.attempts++;
     await storeOtp(phone, entry);
     return {

@@ -23,6 +23,17 @@ const CSRF_HEADER_NAME = 'x-csrf-token';
 // State-changing methods (GET/HEAD/OPTIONS xavfsiz)
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+/**
+ * Timing-safe string comparison — timing attack'dan himoya.
+ * Ikkala stringni Buffer ga aylantirib, crypto.timingSafeEqual orqali solishtiradi.
+ */
+function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 // CSRF tekshiruv kerak emas:
 // - Login/register (cookie hali yo'q, unauthenticated flows)
 // - Public endpointlar
@@ -33,8 +44,7 @@ const EXEMPT_PREFIXES = [
   '/api/v1/auth/',          // Barcha auth endpointlari: login, register, OTP, Google, forgot-password
   '/api/v1/pickup/login',
   '/api/v1/pickup-points/apply',
-  '/api/v1/payments/aliance/callback',
-  '/api/v1/payments/octobank/callback',
+  '/api/v1/payments/callback',  // Bank webhook (Aliance/Octobank)
   '/api/v1/webhooks/didox',
 ];
 
@@ -89,7 +99,7 @@ export async function validateCsrf(request: FastifyRequest, reply: FastifyReply)
 
   const headerToken = request.headers[CSRF_HEADER_NAME] as string | undefined;
 
-  if (!headerToken || headerToken !== cookieToken) {
+  if (!headerToken || !safeCompare(headerToken, cookieToken)) {
     reply.status(403).send({
       success: false,
       message: 'CSRF token yaroqsiz. Sahifani yangilab qayta urinib ko\'ring.',

@@ -5,8 +5,8 @@ const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   eslint: {
-    // Uzbek text contains apostrophes that trigger react/no-unescaped-entities
-    ignoreDuringBuilds: true,
+    // O'zbek matndagi apostroflar uchun rule .eslintrc.json da o'chirilgan
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [
