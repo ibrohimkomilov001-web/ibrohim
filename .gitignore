@@ -16,6 +16,10 @@ Thumbs.db
 
 # Environment files
 *.env
+topla-prod.env
+
+# Android signing
+topla_app/android/key.properties
 
 # Uploads
 topla-backend/uploads/*
