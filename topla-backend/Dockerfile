@@ -33,11 +33,15 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 # Copy package.json for scripts
 COPY package.json ./
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+
 EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1
 
-# Run safe versioned migrations then start
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/app.js"]
+# Run migrations with auto-resolve, then start
+CMD ["./docker-entrypoint.sh"]
