@@ -60,6 +60,7 @@ export interface RegisterOtpRequest {
   shopDescription?: string;
   slug?: string;
   category?: string;
+  categoryId?: string;
   city?: string;
   businessType: 'yatt' | 'mchj';
   inn: string;

@@ -34,8 +34,8 @@ export default function FinanceDashboardPage() {
     queryFn: () => vendorApi.getFinanceReports(),
   });
 
-  const fin = summary?.data;
-  const monthlyReports = reports?.data || [];
+  const fin = summary;
+  const monthlyReports = Array.isArray(reports) ? reports : [];
 
   const chartData = fin?.dailyBreakdown?.map((d: any) => ({
     date: d.date,

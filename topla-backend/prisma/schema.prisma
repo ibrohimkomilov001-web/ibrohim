@@ -316,6 +316,7 @@ model Shop {
   // Business info
   city         String?
   category     String?
+  categoryId   String?  @map("category_id") @db.Uuid
   businessType String? @map("business_type")
   inn          String?
   bankName     String? @map("bank_name")
@@ -350,8 +351,9 @@ model Shop {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  owner        Profile             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  products     Product[]
+  owner         Profile             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  shopCategory  Category?           @relation("ShopCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  products      Product[]
   reviews      ShopReview[]
   followers    ShopFollow[]
   orderItems   OrderItem[]
@@ -363,6 +365,7 @@ model Shop {
   penalties     Penalty[]
 
   @@index([status])
+  @@index([categoryId])
   @@map("shops")
 }
 
@@ -428,6 +431,7 @@ model Category {
   parent             Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
   children           Category[]          @relation("CategoryTree")
   products           Product[]
+  shops              Shop[]              @relation("ShopCategory")
   categoryCommission CategoryCommission?
   attributes         CategoryAttribute[]
 

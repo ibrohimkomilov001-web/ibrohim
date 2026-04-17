@@ -1166,12 +1166,18 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({ success: true, data: categories });
     }
 
-    // Level filter yoki default (L0 + L1 children)
+    // Level filter yoki default (L0 + L1 + L2 children — full tree)
     const categories = await prisma.category.findMany({
       where: { isActive: true, ...(level !== undefined ? { level } : { level: 0 }) },
       include: {
         children: {
           where: { isActive: true },
+          include: {
+            children: {
+              where: { isActive: true },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
           orderBy: { sortOrder: 'asc' },
         },
         _count: { select: { products: true } },
@@ -1471,6 +1477,16 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         throw new AppError('Do\'koningiz hali tasdiqlanmagan. Mahsulot qo\'shish uchun admin tasdig\'ini kuting', 403);
       }
 
+      // Kategoriya leaf ekanligini tekshirish (faqat eng pastki kategoriya tanlash mumkin)
+      if (body.categoryId) {
+        const hasChildren = await prisma.category.count({
+          where: { parentId: body.categoryId, isActive: true },
+        });
+        if (hasChildren > 0) {
+          throw new AppError('Faqat eng pastki (sub) kategoriyani tanlang', 400);
+        }
+      }
+
       // Auto-moderation: validate product data
       const validation = validateProduct({
         nameUz: body.nameUz || body.name,
@@ -1642,6 +1658,16 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       });
 
       if (!product) throw new NotFoundError('Mahsulot');
+
+      // Kategoriya leaf ekanligini tekshirish
+      if (body.categoryId) {
+        const hasChildren = await prisma.category.count({
+          where: { parentId: body.categoryId, isActive: true },
+        });
+        if (hasChildren > 0) {
+          throw new AppError('Faqat eng pastki (sub) kategoriyani tanlang', 400);
+        }
+      }
 
       // Merge existing data with updates for validation
       const merged = {

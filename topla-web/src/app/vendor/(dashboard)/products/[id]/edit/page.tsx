@@ -43,6 +43,7 @@ export default function EditProductPage() {
   const [originalPrice, setOriginalPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
+  const [leafCategoryId, setLeafCategoryId] = useState('');
   const [stock, setStock] = useState('');
   const [sku, setSku] = useState('');
   const [weight, setWeight] = useState('');
@@ -117,7 +118,7 @@ export default function EditProductPage() {
   const sizes = (sizesRes as any)?.data || sizesRes || [];
 
   // Fetch category attributes dynamically (P-FIX-02)
-  const effectiveCategoryId = subcategoryId || categoryId;
+  const effectiveCategoryId = leafCategoryId || subcategoryId || categoryId;
   const { data: categoryAttrsRes } = useQuery({
     queryKey: ['category-attributes', effectiveCategoryId],
     queryFn: () => vendorApi.getCategoryAttributes(effectiveCategoryId),
@@ -138,9 +139,11 @@ export default function EditProductPage() {
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); }
   };
 
-  // Tanlangan kategoriyaning subkategoriyalari
+  // Tanlangan kategoriyaning subkategoriyalari (L0 → L1 → L2)
   const selectedCategory = categories?.find((c: any) => c.id === categoryId);
   const subcategories = selectedCategory?.children || [];
+  const selectedSubcategory = subcategories.find((s: any) => s.id === subcategoryId);
+  const leafCategories = selectedSubcategory?.children || [];
 
   // Variant matrix keys
   const variantKeys = useMemo(() => {
@@ -192,6 +195,36 @@ export default function EditProductPage() {
       setOriginalPrice(String(product.originalPrice || product.compareAtPrice || ''));
       setCategoryId(product.categoryId || '');
       setSubcategoryId('');
+      setLeafCategoryId('');
+
+      // Resolve category path: find which L0→L1→L2 the product's categoryId belongs to
+      if (product.categoryId && categories.length > 0) {
+        const prodCatId = product.categoryId;
+        // Check if it's an L0 category
+        const isL0 = categories.find((c: any) => c.id === prodCatId);
+        if (isL0) {
+          setCategoryId(prodCatId);
+        } else {
+          // Check L1 and L2
+          for (const l0 of categories) {
+            for (const l1 of (l0 as any).children || []) {
+              if (l1.id === prodCatId) {
+                setCategoryId(l0.id);
+                setSubcategoryId(prodCatId);
+                break;
+              }
+              for (const l2 of l1.children || []) {
+                if (l2.id === prodCatId) {
+                  setCategoryId(l0.id);
+                  setSubcategoryId(l1.id);
+                  setLeafCategoryId(prodCatId);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
       setStock(String(product.stock || ''));
       setSku(product.sku || '');
       setWeight(String(product.weight || ''));
@@ -245,7 +278,7 @@ export default function EditProductPage() {
         setVariantRows(rows);
       }
     }
-  }, [product]);
+  }, [product, categories]);
 
   // Update mutation
   const updateMutation = useMutation({
@@ -311,6 +344,14 @@ export default function EditProductPage() {
       toast.error(t('priceRequired'));
       return;
     }
+    if (subcategories.length > 0 && !subcategoryId) {
+      toast.error("Kategoriyani tanlang");
+      return;
+    }
+    if (leafCategories.length > 0 && !leafCategoryId) {
+      toast.error("Sub kategoriyani tanlang");
+      return;
+    }
 
     // Build variants array
     let variantsPayload: any[] | undefined;
@@ -340,7 +381,7 @@ export default function EditProductPage() {
       descriptionRu,
       price: Number(price),
       originalPrice: originalPrice ? Number(originalPrice) : undefined,
-      categoryId: subcategoryId || categoryId || undefined,
+      categoryId: leafCategoryId || subcategoryId || categoryId || undefined,
       colorId: colorId || undefined,
       brandId: brandId || undefined,
       stock: Number(stock) || 0,
@@ -471,7 +512,7 @@ export default function EditProductPage() {
 
               <div className="space-y-2">
                 <Label>{t('category')}</Label>
-                <Select value={categoryId} onValueChange={(val) => { setCategoryId(val); setSubcategoryId(''); }}>
+                <Select value={categoryId} onValueChange={(val) => { setCategoryId(val); setSubcategoryId(''); setLeafCategoryId(''); setAttributeValues({}); }}>
                   <SelectTrigger>
                     <SelectValue placeholder={t('selectCategory')} />
                   </SelectTrigger>
@@ -485,8 +526,8 @@ export default function EditProductPage() {
 
               {subcategories.length > 0 && (
                 <div className="space-y-2">
-                  <Label>{t('subcategory')}</Label>
-                  <Select value={subcategoryId} onValueChange={setSubcategoryId}>
+                  <Label>{t('subcategory')} *</Label>
+                  <Select value={subcategoryId} onValueChange={(val) => { setSubcategoryId(val); setLeafCategoryId(''); setAttributeValues({}); }}>
                     <SelectTrigger>
                       <SelectValue placeholder={t('selectSubcategory')} />
                     </SelectTrigger>
@@ -497,6 +538,22 @@ export default function EditProductPage() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">{t('subcategoryHelp')}</p>
+                </div>
+              )}
+
+              {leafCategories.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Sub kategoriya *</Label>
+                  <Select value={leafCategoryId} onValueChange={(val) => { setLeafCategoryId(val); setAttributeValues({}); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sub kategoriyani tanlang" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leafCategories.map((leaf: any) => (
+                        <SelectItem key={leaf.id} value={leaf.id}>{leaf.nameUz}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 

@@ -137,8 +137,9 @@ export default function PerformancePage() {
               const Icon = METRIC_ICONS[key] || TrendingUp;
               const isNegative = key === 'cancellationRate' || key === 'returnRate';
               const displayValue = metric.value;
-              const scoreColor = metric.weightedScore / metric.weight >= 80 ? "text-green-600" :
-                                 metric.weightedScore / metric.weight >= 50 ? "text-yellow-600" : "text-red-600";
+              const scoreRatio = metric.weight ? (metric.weightedScore / metric.weight) : 0;
+              const scoreColor = scoreRatio >= 80 ? "text-green-600" :
+                                 scoreRatio >= 50 ? "text-yellow-600" : "text-red-600";
               return (
                 <Card key={key}>
                   <CardContent className="p-5">
@@ -167,7 +168,7 @@ export default function PerformancePage() {
                     <div className="h-1.5 bg-muted rounded-full mt-3 overflow-hidden">
                       <div
                         className={cn("h-full rounded-full", scoreColor.replace('text-', 'bg-'))}
-                        style={{ width: `${Math.min(100, (metric.weightedScore / metric.weight) * 100)}%` }}
+                        style={{ width: `${Math.min(100, scoreRatio * 100)}%` }}
                       />
                     </div>
                   </CardContent>

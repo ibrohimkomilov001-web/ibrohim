@@ -12,6 +12,8 @@ export interface Shop {
   bannerUrl?: string;
   address?: string;
   city?: string;
+  category?: string;
+  categoryId?: string;
   instagram?: string;
   telegram?: string;
   website?: string;

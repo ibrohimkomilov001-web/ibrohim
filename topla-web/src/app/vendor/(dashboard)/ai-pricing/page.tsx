@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 export default function AIPricingPage() {
-  const t = useTranslation();
+  const { t } = useTranslation();
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
 
   // Get all price alerts

@@ -30,19 +30,6 @@ const cityKeys = [
   { value: "Guliston", key: "cityGuliston" },
 ];
 
-const fallbackCategories = [
-  "Elektronika",
-  "Kiyim-kechak",
-  "Oziq-ovqat",
-  "Uy-ro'zg'or",
-  "Go'zallik",
-  "Bolalar uchun",
-  "Sport",
-  "Kitoblar",
-  "Avtomobil",
-  "Qurilish",
-];
-
 function formatPhone(value: string) {
   let digits = value.replace(/\D/g, "");
   if (!digits.startsWith("998")) {
@@ -112,18 +99,18 @@ export default function VendorRegisterPage() {
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
   const [slugChecking, setSlugChecking] = useState(false);
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [city, setCity] = useState("");
-  const [dynamicCategories, setDynamicCategories] = useState<string[]>(fallbackCategories);
+  const [dynamicCategories, setDynamicCategories] = useState<{ id: string; nameUz: string }[]>([]);
 
   useEffect(() => {
-    api.get<Array<{ name?: string; nameUz?: string }>>("/categories")
+    api.get<Array<{ id: string; name?: string; nameUz?: string }>>("/categories")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const names = data
-            .map((item) => item.nameUz || item.name)
-            .filter((item): item is string => Boolean(item));
-          if (names.length > 0) setDynamicCategories(names);
+          const cats = data
+            .filter((item) => item.id && (item.nameUz || item.name))
+            .map((item) => ({ id: item.id, nameUz: (item.nameUz || item.name) as string }));
+          if (cats.length > 0) setDynamicCategories(cats);
         }
       })
       .catch(() => {});
@@ -328,14 +315,25 @@ export default function VendorRegisterPage() {
     otpRefs.current[focusIndex]?.focus();
   }, []);
 
-  // OTP → Business step
-  const goToBusinessStep = () => {
+  // OTP → Business step (verify OTP first)
+  const goToBusinessStep = async () => {
     setError(null);
     if (otpValue.length < OTP_LENGTH) {
       setError(t("vendorEnterCode"));
       return;
     }
-    setStep("business");
+    setIsLoading(true);
+    try {
+      await api.post("/auth/verify-otp", {
+        phone: normalizePhone(phone),
+        code: otpValue,
+      });
+      setStep("business");
+    } catch (err: any) {
+      setError(err.message || t("vendorInvalidCode"));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Business → Shop step
@@ -373,7 +371,7 @@ export default function VendorRegisterPage() {
       setError(t("vendorSlugTaken"));
       return;
     }
-    if (!category) {
+    if (!categoryId) {
       setError(t("vendorSelectCategoryError"));
       return;
     }
@@ -384,6 +382,7 @@ export default function VendorRegisterPage() {
 
     setIsLoading(true);
     try {
+      const selectedCat = dynamicCategories.find((c) => c.id === categoryId);
       await authApi.registerOtp({
         phone: normalizePhone(phone),
         code: otpValue,
@@ -393,7 +392,8 @@ export default function VendorRegisterPage() {
         shopName: shopName.trim(),
         shopDescription: shopDescription.trim() || undefined,
         slug: slug.trim() || undefined,
-        category,
+        category: selectedCat?.nameUz,
+        categoryId,
         city,
         businessType: businessType as "yatt" | "mchj",
         inn: inn.replace(/\s/g, ""),
@@ -740,12 +740,12 @@ export default function VendorRegisterPage() {
 
               <select
                 className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
               >
                 <option value="">{t("vendorSelectCategory")}</option>
                 {dynamicCategories.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item.id} value={item.id}>{item.nameUz}</option>
                 ))}
               </select>
 
