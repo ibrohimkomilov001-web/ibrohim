@@ -10,6 +10,8 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   isVendor: boolean;
+  shopStatus: string | null;
+  contractStatus: string | null;
 }
 
 interface AuthContextType extends AuthState {
@@ -18,6 +20,8 @@ interface AuthContextType extends AuthState {
   loginWithOtp: (phone: string, code: string) => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
+  isPending: boolean;
+  isContractSigned: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -29,11 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
     isAuthenticated: false,
     isVendor: false,
+    shopStatus: null,
+    contractStatus: null,
   });
 
   const refreshProfile = useCallback(async () => {
     if (!isVendorAuthenticated()) {
-      setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
+      setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false, shopStatus: null, contractStatus: null });
       return;
     }
 
@@ -44,12 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
         isAuthenticated: true,
         isVendor: profile.role === "vendor",
+        shopStatus: profile.shop?.status || null,
+        contractStatus: profile.shop?.contractStatus || null,
       });
     } catch (err: any) {
       const status = err?.status ?? 0;
       if (status === 401 || status === 403) {
         removeToken();
-        setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
+        setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false, shopStatus: null, contractStatus: null });
       } else {
         setState((prev) => ({ ...prev, isLoading: false }));
       }
@@ -79,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: false,
       isAuthenticated: true,
       isVendor: response.user.role === "vendor",
+      shopStatus: response.shop?.status || null,
+      contractStatus: response.shop?.contractStatus || null,
     });
   };
 
@@ -101,6 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: false,
       isAuthenticated: true,
       isVendor: response.user.role === "vendor",
+      shopStatus: response.shop?.status || null,
+      contractStatus: response.shop?.contractStatus || null,
     });
   };
 
@@ -123,16 +135,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: false,
       isAuthenticated: true,
       isVendor: response.user.role === "vendor",
+      shopStatus: response.shop?.status || null,
+      contractStatus: response.shop?.contractStatus || null,
     });
   };
 
   const logout = () => {
     authApi.logout();
-    setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false });
+    setState({ user: null, isLoading: false, isAuthenticated: false, isVendor: false, shopStatus: null, contractStatus: null });
   };
 
+  const isPending = state.shopStatus === "pending";
+  const isContractSigned = state.contractStatus === "signed";
+
   return (
-    <AuthContext.Provider value={{ ...state, login, loginWithGoogle, loginWithOtp, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ ...state, login, loginWithGoogle, loginWithOtp, logout, refreshProfile, isPending, isContractSigned }}>
       {children}
     </AuthContext.Provider>
   );

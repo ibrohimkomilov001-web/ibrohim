@@ -12,6 +12,7 @@ import {
   calculateOnboardingProgress,
   calculatePerformanceScore,
 } from '../../services/vendor.service.js';
+import { getContractStatus, isDidoxConfigured } from '../../services/didox.service.js';
 
 export async function vendorCoreRoutes(app: FastifyInstance): Promise<void> {
   const vendorAuth = [authMiddleware, requireRole('vendor', 'admin')];
@@ -39,6 +40,8 @@ export async function vendorCoreRoutes(app: FastifyInstance): Promise<void> {
         id: profile.shop.id,
         name: profile.shop.name,
         status: profile.shop.status,
+        contractStatus: profile.shop.contractStatus,
+        contractUrl: profile.shop.contractUrl,
       } : undefined,
     });
   });
@@ -129,6 +132,63 @@ export async function vendorCoreRoutes(app: FastifyInstance): Promise<void> {
     };
 
     return reply.send({ success: true, data: { ...progress, contract: contractInfo } });
+  });
+
+  // ============================================
+  // GET /vendor/contract-status
+  // ============================================
+  app.get('/vendor/contract-status', { preHandler: vendorAuth }, async (request, reply) => {
+    const shop = await getVendorShop(request.user!.userId);
+
+    // Agar contractId bo'lsa va DiDox sozlangan bo'lsa — real-time status olish
+    if (shop.contractId && isDidoxConfigured()) {
+      try {
+        const didoxStatus = await getContractStatus(shop.contractId);
+
+        const updateData: Record<string, unknown> = {};
+
+        if (didoxStatus.status === 'signed' && shop.contractStatus !== 'signed') {
+          updateData.contractStatus = 'signed';
+          updateData.contractSignedAt = didoxStatus.signedAt ? new Date(didoxStatus.signedAt) : new Date();
+        } else if (didoxStatus.status === 'rejected' && shop.contractStatus !== 'rejected') {
+          updateData.contractStatus = 'rejected';
+          updateData.contractNote = didoxStatus.rejectReason || undefined;
+        } else if (didoxStatus.status === 'viewed' && shop.contractStatus === 'sent') {
+          updateData.contractStatus = 'pending_signature';
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await prisma.shop.update({ where: { id: shop.id }, data: updateData });
+        }
+
+        return reply.send({
+          success: true,
+          data: {
+            contractStatus: (updateData.contractStatus as string) || shop.contractStatus,
+            contractId: shop.contractId,
+            contractUrl: shop.contractUrl,
+            contractSentAt: shop.contractSentAt,
+            contractSignedAt: updateData.contractSignedAt || shop.contractSignedAt,
+            contractNote: (updateData.contractNote as string) || shop.contractNote,
+          },
+        });
+      } catch (err) {
+        request.log.warn({ err, shopId: shop.id }, 'Didox status tekshirishda xato');
+      }
+    }
+
+    // Fallback: faqat DB dan qaytarish
+    return reply.send({
+      success: true,
+      data: {
+        contractStatus: shop.contractStatus,
+        contractId: shop.contractId,
+        contractUrl: shop.contractUrl,
+        contractSentAt: shop.contractSentAt,
+        contractSignedAt: shop.contractSignedAt,
+        contractNote: shop.contractNote,
+      },
+    });
   });
 
   // ============================================

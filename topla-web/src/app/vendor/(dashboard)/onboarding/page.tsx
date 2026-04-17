@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,13 +9,15 @@ import {
   CheckCircle, ChevronRight, Store, Package, CreditCard,
   Truck, Star, BarChart3, Settings, FileText, Play,
   BookOpen, GraduationCap, ExternalLink, Rocket, Loader2,
-  FileSignature, AlertCircle,
+  FileSignature, AlertCircle, Clock, ShieldCheck, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { vendorApi } from "@/lib/api/vendor";
 import { useTranslation } from '@/store/locale-store';
 import { useTelegramLink } from '@/hooks/useSettings';
+import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api/client";
 
 const STEP_ICONS: Record<string, any> = {
   shop_info: Store,
@@ -82,6 +84,8 @@ const QUICK_TIPS = [
 export default function OnboardingPage() {
   const { t } = useTranslation();
   const telegramLink = useTelegramLink();
+  const { shopStatus, contractStatus: authContractStatus, refreshProfile } = useAuth();
+  const isPending = shopStatus === "pending";
 
   // Fetch onboarding progress from backend API (V-NEW-02)
   const { data: onboarding, isLoading } = useQuery({
@@ -89,11 +93,194 @@ export default function OnboardingPage() {
     queryFn: vendorApi.getOnboarding,
   });
 
+  // Fetch contract status with auto-refresh every 30s for pending vendors
+  const { data: contractData, isLoading: contractLoading } = useQuery({
+    queryKey: ["vendor-contract-status"],
+    queryFn: () => api.get<{
+      contractStatus: string;
+      contractId?: string;
+      contractUrl?: string;
+      contractSentAt?: string;
+      contractSignedAt?: string;
+      contractNote?: string;
+    }>("/vendor/contract-status"),
+    enabled: isPending,
+    refetchInterval: isPending ? 30000 : false,
+  });
+
+  // Refresh auth profile when contract status changes
+  useEffect(() => {
+    if (contractData?.contractStatus === "signed" && authContractStatus !== "signed") {
+      refreshProfile();
+    }
+  }, [contractData?.contractStatus, authContractStatus, refreshProfile]);
+
   const steps = onboarding?.steps || [];
   const completedSteps = onboarding?.completed || 0;
   const totalSteps = onboarding?.total || 7;
   const progress = onboarding?.percentage || 0;
-  const contract = onboarding?.contract;
+  const contract = contractData || onboarding?.contract;
+
+  // Pending vendor uchun maxsus kutish sahifasi
+  if (isPending) {
+    return (
+      <div className="space-y-6 max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="text-center pt-4">
+          <div className="h-20 w-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+            <Clock className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Do&apos;koningiz tekshirilmoqda</h1>
+          <p className="text-muted-foreground">
+            Ro&apos;yxatdan muvaffaqiyatli o&apos;tdingiz! Quyidagi bosqichlar bajarilishi kerak.
+          </p>
+        </div>
+
+        {/* Status Steps */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            {/* Step 1: Registration - always completed */}
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-green-50/50 border border-green-200 dark:bg-green-900/10 dark:border-green-800">
+              <div className="h-10 w-10 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 flex items-center justify-center shrink-0">
+                <CheckCircle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-medium">Ro&apos;yxatdan o&apos;tish</div>
+                <div className="text-sm text-muted-foreground">Ma&apos;lumotlaringiz qabul qilindi</div>
+              </div>
+              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                <CheckCircle className="mr-1 h-3 w-3" /> Bajarildi
+              </Badge>
+            </div>
+
+            {/* Step 2: Contract */}
+            {(() => {
+              const cs = contract?.contractStatus || "not_sent";
+              const isContractDone = cs === "signed";
+              const isContractSent = cs === "sent" || cs === "pending_signature";
+              const isRejected = cs === "rejected";
+
+              return (
+                <div className={cn(
+                  "flex items-start gap-4 p-4 rounded-xl border",
+                  isContractDone ? "bg-green-50/50 border-green-200 dark:bg-green-900/10 dark:border-green-800" :
+                  isRejected ? "bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-800" :
+                  isContractSent ? "bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800" :
+                  "bg-yellow-50/50 border-yellow-200 dark:bg-yellow-900/10 dark:border-yellow-800"
+                )}>
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+                    isContractDone ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
+                    isRejected ? "bg-red-100 text-red-600" :
+                    isContractSent ? "bg-blue-100 text-blue-600" :
+                    "bg-yellow-100 text-yellow-600"
+                  )}>
+                    {isContractDone ? <CheckCircle className="h-5 w-5" /> :
+                     isRejected ? <AlertCircle className="h-5 w-5" /> :
+                     <FileSignature className="h-5 w-5" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {isContractDone ? "Shartnoma imzolandi" :
+                       isRejected ? "Shartnoma rad etildi" :
+                       isContractSent ? "Shartnomani imzolang" :
+                       "Shartnoma kutilmoqda"}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {isContractDone ? "Shartnoma muvaffaqiyatli imzolandi." :
+                       isRejected ? (contract?.contractNote || "Iltimos, admin bilan bog'laning.") :
+                       isContractSent ? "DiDox orqali shartnoma yuborildi. Iltimos, ko'rib chiqing va imzolang." :
+                       "Ma'lumotlaringiz tekshirilmoqda. Tez orada shartnoma yuboriladi."}
+                    </div>
+                    {isContractSent && contract?.contractUrl && (
+                      <Button size="sm" className="mt-3" onClick={() => window.open(contract.contractUrl!, '_blank')}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Shartnomani ochish va imzolash
+                      </Button>
+                    )}
+                  </div>
+                  <Badge variant="secondary" className={cn(
+                    isContractDone ? "bg-green-100 text-green-700" :
+                    isRejected ? "bg-red-100 text-red-700" :
+                    isContractSent ? "bg-blue-100 text-blue-700" :
+                    "bg-yellow-100 text-yellow-700"
+                  )}>
+                    {isContractDone ? "Imzolandi" :
+                     isRejected ? "Rad etildi" :
+                     isContractSent ? "Imzolang" :
+                     "Kutilmoqda"}
+                  </Badge>
+                </div>
+              );
+            })()}
+
+            {/* Step 3: Admin Approval */}
+            {(() => {
+              const cs = contract?.contractStatus || "not_sent";
+              const isContractSigned = cs === "signed";
+              return (
+                <div className={cn(
+                  "flex items-center gap-4 p-4 rounded-xl border",
+                  isContractSigned ? "bg-yellow-50/50 border-yellow-200 dark:bg-yellow-900/10 dark:border-yellow-800" : "bg-muted/30 border-muted"
+                )}>
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+                    isContractSigned ? "bg-yellow-100 text-yellow-600" : "bg-muted text-muted-foreground"
+                  )}>
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className={cn("font-medium", !isContractSigned && "text-muted-foreground")}>
+                      Admin tasdiqlashi
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {isContractSigned
+                        ? "Shartnoma imzolandi. Admin tez orada do'koningizni tasdiqlaydi."
+                        : "Shartnoma imzolangandan keyin admin do'koningizni tasdiqlaydi."}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className={cn(
+                    isContractSigned ? "bg-yellow-100 text-yellow-700" : "bg-muted text-muted-foreground"
+                  )}>
+                    {isContractSigned ? "Kutilmoqda" : "Navbatda"}
+                  </Badge>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* Auto-refresh indicator */}
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          <span>Holat har 30 soniyada avtomatik yangilanadi</span>
+        </div>
+
+        {/* Settings link */}
+        <Card>
+          <CardContent className="p-4">
+            <Link href="/vendor/settings" className="flex items-center gap-3 text-sm hover:underline">
+              <Settings className="h-5 w-5 text-muted-foreground" />
+              <span>Do&apos;kon ma&apos;lumotlarini to&apos;ldirish va tahrirlash</span>
+              <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Support */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-6 text-center">
+            <p className="text-sm text-muted-foreground mb-3">Savollaringiz bormi?</p>
+            <a href={telegramLink} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="rounded-full">
+                <ExternalLink className="mr-2 h-4 w-4" /> Telegram orqali yordam
+              </Button>
+            </a>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">

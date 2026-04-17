@@ -157,6 +157,8 @@ export interface VendorProfile {
     id: string;
     name: string;
     status: string;
+    contractStatus?: string;
+    contractUrl?: string;
   };
 }
 

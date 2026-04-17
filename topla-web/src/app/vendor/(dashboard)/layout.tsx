@@ -88,9 +88,11 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout, shopStatus, contractStatus } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isPending = shopStatus === "pending";
 
   // Fetch shop data
   const { data: shop } = useQuery({
@@ -104,7 +106,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const { data: stats } = useQuery({
     queryKey: ["vendor-stats"],
     queryFn: vendorApi.getStats,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isPending,
     retry: 1,
   });
 
@@ -113,6 +115,17 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       router.push("/vendor/login");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  // Pending vendor ni onboarding sahifasiga yo'naltirish
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && isPending) {
+      const allowedPaths = ["/vendor/onboarding", "/vendor/settings", "/vendor/help"];
+      const isAllowed = allowedPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+      if (!isAllowed) {
+        router.push("/vendor/onboarding");
+      }
+    }
+  }, [authLoading, isAuthenticated, isPending, pathname, router]);
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -146,6 +159,15 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
   const shopName = shop?.name || user?.shop?.name || "Do'konim";
   const pendingOrders = stats?.orders?.pending || 0;
+
+  // Pending vendor uchun faqat cheklangan sidebar ko'rsatish
+  const pendingSidebarItems: SidebarItem[] = [
+    { icon: Rocket, key: 'vendorOnboarding', href: "/vendor/onboarding" },
+    { icon: Settings, key: 'vendorSettings', href: "/vendor/settings" },
+    { icon: HelpCircle, key: 'help', href: "/vendor/help" },
+  ];
+
+  const activeSidebarItems = isPending ? pendingSidebarItems : sidebarItems;
 
   const handleLogout = () => {
     logout();
@@ -210,7 +232,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
         {/* Navigation */}
         <nav className="p-2 space-y-0.5 overflow-y-auto h-[calc(100vh-10rem)]">
-          {sidebarItems.map((item, idx) => {
+          {activeSidebarItems.map((item, idx) => {
             if (item === 'separator') {
               return <div key={`sep-${idx}`} className="my-2 mx-3 border-t border-border/50" />;
             }

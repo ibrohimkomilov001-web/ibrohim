@@ -12,6 +12,7 @@ import { checkRateLimit, setWithExpiry, getValue, deleteKey } from '../../config
 import { sendOtp, verifyOtp, getOtpForTesting, type OtpChannel } from '../../services/otp.service.js';
 import { getLocationFromIp } from '../../utils/geolocation.js';
 import { generateUniqueSlug, generateSlugBase } from '../../utils/slug.js';
+import { createAndSendContract, isDidoxConfigured } from '../../services/didox.service.js';
 import crypto from 'crypto';
 import {
   generatePasskeyRegistrationOptions,
@@ -1042,9 +1043,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       if (!profile.shop) {
         throw new AppError('Sizda do\'kon mavjud emas. Iltimos, avval ro\'yxatdan o\'ting.', 403);
       }
-      if (profile.shop.status === 'pending') {
-        throw new AppError('Do\'koningiz hali admin tomonidan tasdiqlanmagan. Iltimos kuting.', 403);
-      }
       throw new AppError('Sizda vendor huquqi yo\'q. Iltimos, ro\'yxatdan o\'ting.', 403);
     }
 
@@ -1272,6 +1270,37 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     setAuthCookies(reply, accessToken, refreshToken);
 
+    // DiDox shartnoma avtomatik yuborish (non-blocking)
+    let contractData: { contractId?: string; contractUrl?: string; contractStatus?: string } = {};
+    if (isDidoxConfigured() && result.shop.inn) {
+      try {
+        const contractResult = await createAndSendContract({
+          vendorTin: result.shop.inn,
+          vendorName: result.profile.fullName || result.shop.name,
+          vendorEmail: result.profile.email || undefined,
+          shopName: result.shop.name,
+          commissionRate: 10,
+        });
+        await prisma.shop.update({
+          where: { id: result.shop.id },
+          data: {
+            contractStatus: 'sent',
+            contractId: contractResult.contractId,
+            contractUrl: contractResult.contractUrl,
+            contractSentAt: new Date(),
+          },
+        });
+        contractData = {
+          contractId: contractResult.contractId,
+          contractUrl: contractResult.contractUrl,
+          contractStatus: 'sent',
+        };
+      } catch (err) {
+        // DiDox xatosi registratsiyani to'xtatmasligi kerak
+        app.log.warn({ err, shopId: result.shop.id }, 'DiDox shartnoma yuborishda xato — keyinroq admin qo\'lda yuboradi');
+      }
+    }
+
     return reply.status(201).send({
       success: true,
       data: {
@@ -1282,7 +1311,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           email: result.profile.email,
           role: result.profile.role,
         },
-        shop: result.shop,
+        shop: {
+          ...result.shop,
+          ...(contractData.contractId && {
+            contractId: contractData.contractId,
+            contractUrl: contractData.contractUrl,
+            contractStatus: contractData.contractStatus,
+          }),
+        },
         accessToken,
         refreshToken,
       },
