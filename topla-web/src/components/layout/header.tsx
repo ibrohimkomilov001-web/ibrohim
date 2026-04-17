@@ -72,7 +72,7 @@ export function Header() {
               aria-label={t('catalog')}
               className="flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <Menu className="w-[20px] h-[20px] text-muted-foreground" />
+              <Menu className="w-[22px] h-[22px] text-foreground" strokeWidth={2.2} />
             </button>
 
             {/* Search bar */}
@@ -126,7 +126,7 @@ export function Header() {
               aria-label={`${t('cart')}${cartCount > 0 ? ` (${cartCount})` : ''}`}
               className="relative flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <ShoppingCart className="w-[18px] h-[18px] text-muted-foreground" />
+              <ShoppingCart className="w-[21px] h-[21px] text-foreground" strokeWidth={2.2} />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-0.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {cartCount > 99 ? '99+' : cartCount}
@@ -140,9 +140,9 @@ export function Header() {
               aria-label={t('profile')}
               className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px] text-muted-foreground">
-                <circle cx="12" cy="8" r="3.5"/>
-                <path d="M20 21c0-3.37-3.58-6.5-8-6.5s-8 3.13-8 6.5"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[20px] h-[20px] text-foreground">
+                <circle cx="12" cy="6.5" r="3.5"/>
+                <path d="M4 22c0-4.418 3.582-8 8-8s8 3.582 8 8H4z"/>
               </svg>
             </Link>
           </div>

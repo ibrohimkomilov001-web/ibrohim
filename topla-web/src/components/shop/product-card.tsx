@@ -114,7 +114,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
         </div>
 
         {/* Content */}
-        <div className="p-2 sm:p-2.5">
+        <div className="p-2.5 sm:p-3">
           <p className="text-xs sm:text-sm font-medium leading-snug mb-1 text-foreground min-h-[2.5em] line-clamp-1">
             {name}
           </p>

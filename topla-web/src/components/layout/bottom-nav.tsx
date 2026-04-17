@@ -2,10 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, ShoppingCart, User } from 'lucide-react';
+import { Home, Search, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useTranslation } from '@/store/locale-store';
+
+function ProfileSvg({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="6.5" r="3.5"/>
+      <path d="M4 22c0-4.418 3.582-8 8-8s8 3.582 8 8H4z"/>
+    </svg>
+  );
+}
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -16,7 +25,7 @@ export function BottomNav() {
     { href: '/', icon: Home, label: t('home'), exact: true },
     { href: '/search', icon: Search, label: t('search'), exact: false },
     { href: '/cart', icon: ShoppingCart, label: t('cart'), exact: true, badge: cartCount },
-    { href: '/profile', icon: User, label: t('profile'), exact: true },
+    { href: '/profile', icon: ProfileSvg, label: t('profile'), exact: true },
   ];
 
   return (
@@ -32,7 +41,7 @@ export function BottomNav() {
               href={item.href}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors',
-                isActive ? 'text-primary' : 'text-muted-foreground'
+                isActive ? 'text-primary' : 'text-foreground'
               )}
             >
               <div className="relative">
