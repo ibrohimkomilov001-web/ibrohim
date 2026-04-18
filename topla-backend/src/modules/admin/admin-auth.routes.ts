@@ -3,7 +3,7 @@
  *
  * Security layers:
  *  1) IP allowlist (env ADMIN_IP_ALLOWLIST, optional)
- *  2) Cloudflare Turnstile CAPTCHA on password login (env TURNSTILE_SECRET_KEY, optional)
+ *  2) Google reCAPTCHA v3 CAPTCHA on password login (env RECAPTCHA_SECRET_KEY, optional)
  *  3) Brute-force lockout: 5 fails/15min per email + 20 fails/1h per IP
  *  4) TOTP 2FA (per-admin opt-in) with bcrypt-hashed backup codes
  *  5) Passkey (WebAuthn) primary login — preferred over password
@@ -35,7 +35,7 @@ import {
   generatePasskeyAuthenticationOptions,
   verifyPasskeyAuthentication,
 } from '../../services/passkey.service.js';
-import { verifyTurnstile } from '../../lib/turnstile.js';
+import { verifyRecaptcha } from '../../lib/recaptcha.js';
 import { sendTelegramAlert } from '../../lib/telegram-notify.js';
 import {
   getLockStatus,
@@ -141,7 +141,7 @@ export async function adminAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    const captcha = await verifyTurnstile(captchaToken, request.ip);
+    const captcha = await verifyRecaptcha(captchaToken, request.ip, 'admin_login');
     if (!captcha.success) {
       throw new AppError('CAPTCHA tasdiqlanmadi. Sahifani yangilab qayta urinib ko\'ring.', 400);
     }

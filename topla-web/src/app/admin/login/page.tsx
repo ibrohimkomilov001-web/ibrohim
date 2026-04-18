@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Script from "next/script";
 import { Loader2, MapPin, MapPinOff, Fingerprint, ShieldCheck } from "lucide-react";
-import { Turnstile } from "@marsidev/react-turnstile";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   adminLogin,
@@ -58,6 +57,10 @@ function getCurrentPosition(): Promise<GeolocationPosition | null> {
 declare global {
   interface Window {
     handleGoogleCredential?: (response: { credential: string }) => void;
+    grecaptcha?: {
+      ready: (cb: () => void) => void;
+      execute: (siteKey: string, opts: { action: string }) => Promise<string>;
+    };
   }
 }
 
@@ -67,7 +70,6 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [captchaToken, setCaptchaToken] = useState<string>("");
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const conditionalAttempted = useRef(false);
 
@@ -82,7 +84,23 @@ export default function AdminLoginPage() {
   const [currentPos, setCurrentPos] = useState<LatLng | null>(null);
 
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "";
+
+  // reCAPTCHA v3 — executes invisibly on demand, returns one-time token
+  const executeRecaptcha = useCallback(async (action: string): Promise<string | undefined> => {
+    if (!recaptchaSiteKey) return undefined;
+    if (typeof window === "undefined" || !window.grecaptcha) return undefined;
+    return new Promise((resolve) => {
+      window.grecaptcha!.ready(async () => {
+        try {
+          const token = await window.grecaptcha!.execute(recaptchaSiteKey, { action });
+          resolve(token);
+        } catch {
+          resolve(undefined);
+        }
+      });
+    });
+  }, [recaptchaSiteKey]);
 
   // Geo check
   useEffect(() => {
@@ -171,11 +189,7 @@ export default function AdminLoginPage() {
         setIsLoading(false);
         return;
       }
-      if (turnstileSiteKey && !captchaToken) {
-        setError("CAPTCHA tasdiqini kuting");
-        setIsLoading(false);
-        return;
-      }
+      const captchaToken = await executeRecaptcha("admin_login");
       const data = await adminLogin(email.trim(), password, captchaToken || undefined);
       if (data?.requires2FA && data.tempToken) {
         setTwoFATempToken(data.tempToken);
@@ -229,6 +243,14 @@ export default function AdminLoginPage() {
       {googleClientId && (
         <Script
           src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+        />
+      )}
+
+      {/* Load Google reCAPTCHA v3 */}
+      {recaptchaSiteKey && (
+        <Script
+          src={`https://www.google.com/recaptcha/api.js?render=${recaptchaSiteKey}`}
           strategy="afterInteractive"
         />
       )}
@@ -355,18 +377,7 @@ export default function AdminLoginPage() {
                   </button>
                 </div>
 
-                {/* CAPTCHA */}
-                {turnstileSiteKey && (
-                  <div className="flex justify-center">
-                    <Turnstile
-                      siteKey={turnstileSiteKey}
-                      onSuccess={setCaptchaToken}
-                      onError={() => setCaptchaToken("")}
-                      onExpire={() => setCaptchaToken("")}
-                      options={{ theme: "auto", size: "flexible" }}
-                    />
-                  </div>
-                )}
+                {/* CAPTCHA — Google reCAPTCHA v3 (invisible) */}
 
                 <button
                   type="button"
