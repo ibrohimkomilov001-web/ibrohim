@@ -54,6 +54,11 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY:-}
+      - RECAPTCHA_MIN_SCORE=${RECAPTCHA_MIN_SCORE:-0.5}
+      - ADMIN_TG_BOT_TOKEN=${ADMIN_TG_BOT_TOKEN:-}
+      - ADMIN_TG_CHAT_ID=${ADMIN_TG_CHAT_ID:-}
+      - ADMIN_IP_ALLOWLIST=${ADMIN_IP_ALLOWLIST:-}
     depends_on:
       postgres:
         condition: service_healthy
