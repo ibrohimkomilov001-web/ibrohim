@@ -144,15 +144,17 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
       </AnimatePresence>
 
       {banners.length > 1 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5">
+        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/25 backdrop-blur-sm">
           {banners.map((_, i) => (
             <button
               key={i}
               type="button"
               aria-label={`Banner ${i + 1}`}
               onClick={() => setCurrent(i)}
-              className={`h-1.5 rounded-full transition-all duration-300 drop-shadow ${
-                i === current ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/80'
+              className={`rounded-full transition-all duration-300 ${
+                i === current
+                  ? 'w-2 h-2 bg-white'
+                  : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
               }`}
             />
           ))}

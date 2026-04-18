@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ShoppingBag, Heart, MapPin, CreditCard, Globe,
   HelpCircle, ChevronRight, Store, Star, ArrowLeft,
@@ -10,7 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { useTranslation, useLocaleStore } from '@/store/locale-store';
+import { useTranslation } from '@/store/locale-store';
 import { useAuthStore } from '@/store/auth-store';
 import { userAuthApi, type UserDevice } from '@/lib/api/user-auth';
 
@@ -38,11 +39,10 @@ type LoginStep = 'phone' | 'code' | 'name' | 'details';
 
 export default function ProfilePage() {
   const { t, locale } = useTranslation();
-  const { setLocale } = useLocaleStore();
   const { user, isAuthenticated, login, loginWithGoogle, loginWithPasskey, logout, setUser } = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
 
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [pickupModalOpen, setPickupModalOpen] = useState(false);
   const [devicesModalOpen, setDevicesModalOpen] = useState(false);
@@ -60,24 +60,18 @@ export default function ProfilePage() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
-  const [editMode, setEditMode] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editGender, setEditGender] = useState<'male' | 'female' | ''>('');
-  const [editBirthDate, setEditBirthDate] = useState('');
-  const [editRegion, setEditRegion] = useState('');
-  const [editLoading, setEditLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
 
   // Lock body scroll when modals are open
   useEffect(() => {
-    if (langMenuOpen || devicesModalOpen) {
+    if (devicesModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [langMenuOpen, devicesModalOpen]);
+  }, [devicesModalOpen]);
 
   // Countdown timer for resend
   useEffect(() => {
@@ -687,77 +681,6 @@ export default function ProfilePage() {
 
         {/* User info or Login button */}
         {isAuthenticated && user ? (
-          editMode ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 mb-6 rounded-2xl bg-card border border-border space-y-3"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {locale === 'ru' ? 'Редактировать профиль' : 'Profilni tahrirlash'}
-                </h3>
-                <button onClick={() => setEditMode(false)} className="p-1 rounded-lg hover:bg-muted">
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder={locale === 'ru' ? 'Полное имя' : 'To\'liq ism'}
-                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-sm outline-none focus:border-primary/40 focus:bg-background transition-all"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEditGender('male')}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'male' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-muted text-muted-foreground'}`}
-                >
-                  {locale === 'ru' ? 'Мужской' : 'Erkak'}
-                </button>
-                <button
-                  onClick={() => setEditGender('female')}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${editGender === 'female' ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'bg-muted text-muted-foreground'}`}
-                >
-                  {locale === 'ru' ? 'Женский' : 'Ayol'}
-                </button>
-              </div>
-              <input
-                type="date"
-                value={editBirthDate}
-                onChange={(e) => setEditBirthDate(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-sm outline-none focus:border-primary/40 focus:bg-background transition-all"
-              />
-              <select
-                value={editRegion}
-                onChange={(e) => setEditRegion(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-sm outline-none focus:border-primary/40 focus:bg-background transition-all"
-              >
-                <option value="">{locale === 'ru' ? 'Выберите регион' : 'Viloyatni tanlang'}</option>
-                {UZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <button
-                disabled={editLoading || !editName.trim()}
-                onClick={async () => {
-                  setEditLoading(true);
-                  try {
-                    const payload: Record<string, any> = { fullName: editName.trim() };
-                    if (editGender) payload.gender = editGender;
-                    if (editBirthDate) payload.birthDate = new Date(editBirthDate).toISOString();
-                    if (editRegion) payload.region = editRegion;
-                    const updated = await userAuthApi.updateProfile(payload);
-                    setUser(updated);
-                    setEditMode(false);
-                  } catch { /* ignore */ }
-                  setEditLoading(false);
-                }}
-                className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-50 transition-all"
-              >
-                {editLoading
-                  ? (locale === 'ru' ? 'Сохранение...' : 'Saqlanmoqda...')
-                  : (locale === 'ru' ? 'Сохранить' : 'Saqlash')}
-              </button>
-            </motion.div>
-          ) : (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -776,20 +699,13 @@ export default function ProfilePage() {
               )}
             </div>
             <button
-              onClick={() => {
-                setEditName(user.fullName || '');
-                setEditGender((user as any).gender || '');
-                setEditBirthDate((user as any).birthDate ? new Date((user as any).birthDate).toISOString().split('T')[0] : '');
-                setEditRegion((user as any).region || '');
-                setEditMode(true);
-              }}
+              onClick={() => router.push('/profile/edit')}
               className="p-2 rounded-xl hover:bg-muted transition-colors"
               title={locale === 'ru' ? 'Редактировать' : 'Tahrirlash'}
             >
               <Pencil className="w-4 h-4 text-muted-foreground" />
             </button>
           </motion.div>
-          )
         ) : (
           <motion.button
             initial={{ opacity: 0, y: 10 }}
@@ -853,9 +769,9 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            {/* Language */}
-            <button
-              onClick={() => setLangMenuOpen(true)}
+            {/* Language — opens language page */}
+            <Link
+              href="/profile/language"
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-all group"
             >
               <Globe className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
@@ -866,84 +782,7 @@ export default function ProfilePage() {
                 {locale === 'uz' ? "O'zbek" : 'Русский'}
               </span>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
-
-            {/* Language bottom sheet */}
-            <AnimatePresence>
-              {langMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[100]"
-                >
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setLangMenuOpen(false)} />
-                  {/* X button at ~30% from top */}
-                  <button
-                    onClick={() => setLangMenuOpen(false)}
-                    className="absolute top-[28%] right-5 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-                    aria-label="Yopish"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                  <motion.div
-                    initial={{ y: '100%' }}
-                    animate={{ y: 0 }}
-                    exit={{ y: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-card rounded-t-3xl shadow-2xl"
-                    style={{ height: '65%', paddingBottom: 'env(safe-area-inset-bottom)' }}
-                  >
-                    <div className="w-12 h-1.5 rounded-full bg-muted-foreground/20 mx-auto mt-3 mb-6" />
-                    <div className="px-6">
-                      <h3 className="text-xl font-bold text-foreground mb-8 text-center">
-                        {locale === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
-                      </h3>
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => { setLocale('uz'); setLangMenuOpen(false); }}
-                          className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-[15px] transition-all ${
-                            locale === 'uz' ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-muted hover:bg-muted/80'
-                          }`}
-                        >
-                          <svg viewBox="0 0 30 20" className="w-10 h-7 rounded-md shadow-sm shrink-0" aria-hidden="true">
-                            <rect width="30" height="20" fill="#1EB53A"/>
-                            <rect width="30" height="7" fill="#0099B5"/>
-                            <rect y="7" width="30" height="1" fill="#CE1126"/>
-                            <rect width="30" height="6" y="8" fill="#fff"/>
-                            <rect y="14" width="30" height="1" fill="#CE1126"/>
-                            <circle cx="9" cy="3.5" r="2.2" fill="#fff"/>
-                            <circle cx="10" cy="3.5" r="1.8" fill="#0099B5"/>
-                            {[0,1,2,3,4,5,6,7,8,9,10,11].map((i) => {
-                              const row = Math.floor(i / 4);
-                              const col = i % 4;
-                              return <circle key={i} cx={13 + col * 1.8} cy={1.5 + row * 1.8} r="0.5" fill="#fff" />;
-                            })}
-                          </svg>
-                          <span className={`flex-1 text-left font-medium ${locale === 'uz' ? 'text-primary' : 'text-foreground'}`}>{"O'zbek tili"}</span>
-                          {locale === 'uz' && <Check className="w-5 h-5 text-primary" />}
-                        </button>
-                        <button
-                          onClick={() => { setLocale('ru'); setLangMenuOpen(false); }}
-                          className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-[15px] transition-all ${
-                            locale === 'ru' ? 'bg-primary/10 ring-2 ring-primary/20' : 'bg-muted hover:bg-muted/80'
-                          }`}
-                        >
-                          <svg viewBox="0 0 30 20" className="w-10 h-7 rounded-md shadow-sm shrink-0" aria-hidden="true">
-                            <rect width="30" height="20" rx="1" fill="#fff"/>
-                            <rect y="7" width="30" height="7" fill="#0039A6"/>
-                            <rect y="14" width="30" height="6" fill="#D52B1E"/>
-                            <rect width="30" height="20" rx="1" fill="none" stroke="#d1d5db" strokeWidth="0.8"/>
-                          </svg>
-                          <span className={`flex-1 text-left font-medium ${locale === 'ru' ? 'text-primary' : 'text-foreground'}`}>Русский язык</span>
-                          {locale === 'ru' && <Check className="w-5 h-5 text-primary" />}
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            </Link>
 
             {/* Help — opens help page */}
             <Link
