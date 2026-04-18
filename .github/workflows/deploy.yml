@@ -53,6 +53,11 @@ jobs:
           PAYMENT_WEBHOOK_IPS=${{ secrets.PAYMENT_WEBHOOK_IPS }}
           MEILISEARCH_API_KEY=${{ secrets.MEILISEARCH_API_KEY }}
           FCM_SERVER_KEY=${{ secrets.FCM_SERVER_KEY }}
+          RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY=${{ secrets.RECAPTCHA_SITE_KEY }}
+          ADMIN_TG_BOT_TOKEN=${{ secrets.ADMIN_TG_BOT_TOKEN }}
+          ADMIN_TG_CHAT_ID=${{ secrets.ADMIN_TG_CHAT_ID }}
+          ADMIN_IP_ALLOWLIST=${{ secrets.ADMIN_IP_ALLOWLIST }}
           EOF
 
       - name: Sync files to deploy directory

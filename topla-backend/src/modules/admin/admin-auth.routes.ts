@@ -143,7 +143,8 @@ export async function adminAuthRoutes(app: FastifyInstance) {
 
     const captcha = await verifyRecaptcha(captchaToken, request.ip, 'admin_login');
     if (!captcha.success) {
-      throw new AppError('CAPTCHA tasdiqlanmadi. Sahifani yangilab qayta urinib ko\'ring.', 400);
+      request.log.warn({ captcha, ip: request.ip, email }, 'admin login captcha failed');
+      throw new AppError(`CAPTCHA tasdiqlanmadi (${(captcha.errors || ['unknown']).join(',')}). Sahifani yangilab qayta urinib ko'ring.`, 400);
     }
 
     const user = await prisma.profile.findFirst({ where: { email, role: 'admin' } });
