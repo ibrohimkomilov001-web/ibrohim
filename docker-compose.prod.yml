@@ -89,6 +89,7 @@ services:
       context: ./topla-web
       args:
         - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+        - NEXT_PUBLIC_RECAPTCHA_SITE_KEY=${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-}
     container_name: topla-web
     restart: unless-stopped
     expose:
@@ -100,6 +101,7 @@ services:
       - NEXT_PUBLIC_STORAGE_URL=https://storage.yandexcloud.net/topla-products
       - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - NEXT_PUBLIC_RECAPTCHA_SITE_KEY=${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-}
     depends_on:
       - api
     networks:

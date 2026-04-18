@@ -13,6 +13,9 @@ ENV NEXT_PUBLIC_API_URL=https://api.topla.uz/api/v1
 # Google OAuth client ID — passed as build arg so it is baked into the Next.js bundle
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+# Google reCAPTCHA v3 site key — baked in at build time
+ARG NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+ENV NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 RUN npm run build
 
 FROM node:20-alpine AS runner
