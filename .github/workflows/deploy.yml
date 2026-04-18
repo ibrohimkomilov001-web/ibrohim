@@ -59,6 +59,13 @@ jobs:
           ADMIN_TG_CHAT_ID=${{ secrets.ADMIN_TG_CHAT_ID }}
           ADMIN_IP_ALLOWLIST=${{ secrets.ADMIN_IP_ALLOWLIST }}
           EOF
+          # Strip lines where the value is empty (e.g. RECAPTCHA_SECRET_KEY=)
+          # so that any pre-existing values in /home/yc-user/topla/.env.local are preserved.
+          sudo sed -i '/^[A-Z_]*=$/d' /home/yc-user/topla/.env
+          # Append local overrides (manually managed values not in GitHub Secrets)
+          if [ -f /home/yc-user/topla/.env.local ]; then
+            cat /home/yc-user/topla/.env.local | sudo tee -a /home/yc-user/topla/.env >/dev/null
+          fi
 
       - name: Sync files to deploy directory
         run: |
