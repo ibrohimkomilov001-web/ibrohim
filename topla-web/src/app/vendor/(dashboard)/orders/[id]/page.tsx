@@ -18,7 +18,7 @@ import {
 
 const statusLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: 'Kutilmoqda', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', icon: <Clock className="w-4 h-4" /> },
-  processing: { label: 'Tayyorlanmoqda', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300', icon: <Package className="w-4 h-4" /> },
+  processing: { label: 'Tayyorlanmoqda', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300', icon: <Package className="w-4 h-4" /> },
   ready_for_pickup: { label: 'Tayyor - kuryerga berish', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300', icon: <Package className="w-4 h-4" /> },
   courier_assigned: { label: 'Kuryer tayinlandi', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300', icon: <Truck className="w-4 h-4" /> },
   courier_picked_up: { label: 'Kuryer oldi', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300', icon: <Truck className="w-4 h-4" /> },

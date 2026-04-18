@@ -11,7 +11,7 @@ import { useTranslation } from '@/store/locale-store';
 import { shopApi } from '@/lib/api/shop';
 import { CategoryDrawer } from './category-drawer';
 
-export function Header() {
+export function Header({ className }: { className?: string }) {
   const router = useRouter();
   const { t } = useTranslation();
   const cartCount = useCartStore((s) => s.getItemCount());
@@ -57,7 +57,7 @@ export function Header() {
   };
 
   return (
-    <>
+    <div className={className}>
       <header
         className={cn(
           'fixed top-0 left-0 right-0 z-50 bg-background/75 backdrop-blur-xl border-b border-border/60 transition-shadow duration-200',
@@ -163,6 +163,6 @@ export function Header() {
 
       {/* Category Drawer */}
       <CategoryDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-    </>
+    </div>
   );
 }

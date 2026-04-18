@@ -141,6 +141,7 @@ export interface AuthResponse {
     id: string;
     name: string;
     status: string;
+    contractStatus?: string;
   };
 }
 

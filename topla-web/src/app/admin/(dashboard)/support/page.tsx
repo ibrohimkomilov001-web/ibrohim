@@ -412,12 +412,12 @@ export default function AdminSupportPage() {
                                 isAdmin
                                   ? 'bg-[#2AABEE] text-white rounded-br-md'
                                   : isBot
-                                  ? 'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-100 rounded-br-md'
+                                  ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-100 rounded-br-md'
                                   : 'bg-muted rounded-bl-md'
                               )}>
                                 <div className={cn(
                                   'text-[10px] font-medium mb-0.5',
-                                  isAdmin ? 'text-white/70' : isBot ? 'text-purple-600 dark:text-purple-300' : 'text-muted-foreground'
+                                  isAdmin ? 'text-white/70' : isBot ? 'text-blue-600 dark:text-blue-300' : 'text-muted-foreground'
                                 )}>
                                   {isAdmin ? 'Admin' : isBot ? '🤖 Bot' : (selectedTicket?.user.fullName || 'Foydalanuvchi')}
                                 </div>

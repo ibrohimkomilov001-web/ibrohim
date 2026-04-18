@@ -71,7 +71,7 @@ export default function CartPage() {
                 const name = locale === 'ru' && item.nameRu ? item.nameRu : item.nameUz;
                 return (
                   <motion.div
-                    key={item.productId}
+                    key={`${item.productId}-${item.variantId || ''}`}
                     layout
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -100,6 +100,9 @@ export default function CartPage() {
                       {item.shopName && (
                         <p className="text-xs text-muted-foreground mt-1">{item.shopName}</p>
                       )}
+                      {item.variantLabel && (
+                        <p className="text-xs text-primary/80 mt-0.5">{item.variantLabel}</p>
+                      )}
 
                       <div className="flex items-end gap-2 mt-2">
                         <span className="text-lg font-bold">{formatPrice(item.price)}</span>
@@ -114,14 +117,14 @@ export default function CartPage() {
                         {/* Qty */}
                         <div className="flex items-center glass rounded-xl overflow-hidden">
                           <button
-                            onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1))}
+                            onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1), item.variantId)}
                             className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-muted transition-colors"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                           <span className="w-10 text-center text-sm font-medium">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.productId, Math.min(item.stock, item.quantity + 1))}
+                            onClick={() => updateQuantity(item.productId, Math.min(item.stock, item.quantity + 1), item.variantId)}
                             className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-muted transition-colors"
                           >
                             <Plus className="w-4 h-4" />
@@ -133,7 +136,7 @@ export default function CartPage() {
                             {formatPrice(item.price * item.quantity)}
                           </span>
                           <button
-                            onClick={() => removeItem(item.productId)}
+                            onClick={() => removeItem(item.productId, item.variantId)}
                             className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-destructive/10 transition-colors"
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />

@@ -489,24 +489,41 @@ export function buildVariantInfo(cartItem: any): VariantInfo {
   const labelParts: string[] = [];
 
   if (variant) {
-    // Color
-    if (variant.color?.nameUz) {
-      attributes['Rang'] = variant.color.nameUz;
-      labelParts.push(variant.color.nameUz);
-    }
-    // Size
-    if (variant.size?.nameUz) {
-      attributes['O\'lcham'] = variant.size.nameUz;
-      labelParts.push(variant.size.nameUz);
+    // Yangi junction-based variantValues (Yandex-style multi-attribute)
+    if (variant.variantValues && Array.isArray(variant.variantValues) && variant.variantValues.length > 0) {
+      // sortOrder bo'yicha tartiblash
+      const sorted = [...variant.variantValues].sort((a: any, b: any) => {
+        const so = (a.optionType?.sortOrder ?? 0) - (b.optionType?.sortOrder ?? 0);
+        return so;
+      });
+      for (const vv of sorted) {
+        const typeName = vv.optionType?.nameUz || vv.optionType?.slug || 'Attribut';
+        const valueName = vv.optionValue?.valueUz || '';
+        if (!valueName) continue;
+        attributes[typeName] = valueName;
+        labelParts.push(valueName);
+      }
+    } else {
+      // Eski Color / Size (backward compat)
+      if (variant.color?.nameUz) {
+        attributes['Rang'] = variant.color.nameUz;
+        labelParts.push(variant.color.nameUz);
+      }
+      if (variant.size?.nameUz) {
+        attributes['O\'lcham'] = variant.size.nameUz;
+        labelParts.push(variant.size.nameUz);
+      }
     }
 
-    // Custom attribute values (RAM, Xotira, Material, etc.)
+    // Custom attribute values (eski formatdagi)
     if (variant.attributeValues && Array.isArray(variant.attributeValues)) {
       for (const av of variant.attributeValues) {
         if (av.attribute?.key && av.value) {
           const key = av.attribute.nameUz || av.attribute.key;
-          attributes[key] = av.value;
-          labelParts.push(`${key}: ${av.value}`);
+          if (!attributes[key]) {
+            attributes[key] = av.value;
+            labelParts.push(`${key}: ${av.value}`);
+          }
         }
       }
     }

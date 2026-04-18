@@ -102,6 +102,11 @@ Future<void> setupDependencies() async {
     () => ApiLuckyWheelRepositoryImpl(ApiClient()),
   );
 
+  // Loyalty repository
+  getIt.registerLazySingleton<ILoyaltyRepository>(
+    () => ApiLoyaltyRepositoryImpl(ApiClient()),
+  );
+
   // ==================== PROVIDERS ====================
 
   getIt.registerLazySingleton<AuthProvider>(
@@ -135,6 +140,10 @@ Future<void> setupDependencies() async {
 
   getIt.registerLazySingleton<LuckyWheelProvider>(
     () => LuckyWheelProvider(getIt<ILuckyWheelRepository>()),
+  );
+
+  getIt.registerLazySingleton<LoyaltyProvider>(
+    () => LoyaltyProvider(getIt<ILoyaltyRepository>()),
   );
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Heart, Star, Zap } from 'lucide-react';
@@ -21,6 +22,33 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
   const { locale } = useLocaleStore();
   const { toggleFavorite, isFavorite } = useFavoritesStore();
   const isFav = isFavorite(product.id);
+  const [currentImg, setCurrentImg] = useState(0);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const isSwiping = useRef(false);
+  const imgCount = product.images?.length || 0;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    isSwiping.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+    if (Math.abs(touchStartX.current - e.touches[0].clientX) > 10) {
+      isSwiping.current = true;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!isSwiping.current) return;
+    e.preventDefault();
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 30) {
+      if (diff > 0 && currentImg < imgCount - 1) setCurrentImg(p => p + 1);
+      else if (diff < 0 && currentImg > 0) setCurrentImg(p => p - 1);
+    }
+  }, [currentImg, imgCount]);
 
   const name = locale === 'ru' && product.nameRu ? product.nameRu : product.nameUz;
   const oldPrice = product.compareAtPrice || product.originalPrice;
@@ -66,19 +94,41 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
 
   return (
     <div className={className}>
-      <Link href={`/products/${product.id}`} className="product-card block overflow-hidden group">
-        {/* Image */}
-        <div className="relative aspect-square">
-          {product.images?.[0] ? (
-            <Image
-              src={resolveImageUrl(product.images[0])}
-              alt={name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center text-3xl">📦</div>
+      <div className="product-card block overflow-hidden group">
+        {/* Image with swipe carousel */}
+        <div
+          className="relative aspect-square"
+          onTouchStart={imgCount > 1 ? handleTouchStart : undefined}
+          onTouchMove={imgCount > 1 ? handleTouchMove : undefined}
+          onTouchEnd={imgCount > 1 ? handleTouchEnd : undefined}
+        >
+          <Link href={`/products/${product.id}`} className="block w-full h-full">
+            {product.images?.[currentImg] ? (
+              <Image
+                src={resolveImageUrl(product.images[currentImg])}
+                alt={name}
+                fill
+                className="object-cover transition-opacity duration-200"
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center text-3xl">📦</div>
+            )}
+          </Link>
+
+          {/* Image dots */}
+          {imgCount > 1 && (
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
+              {product.images.slice(0, 5).map((_, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    'w-1 h-1 rounded-full transition-all',
+                    i === currentImg ? 'bg-white w-2' : 'bg-white/50'
+                  )}
+                />
+              ))}
+            </div>
           )}
 
           {/* Discount badge */}
@@ -95,7 +145,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           <button
             aria-label={isFav ? 'Sevimlilardan olib tashlash' : "Sevimlilarga qo'shish"}
             className={cn(
-              'absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
+              'absolute top-2 right-2 w-8 h-8 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
               'sm:opacity-0 sm:group-hover:opacity-100'
             )}
             onClick={(e) => {
@@ -106,7 +156,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           >
             <Heart
               className={cn(
-                'w-3.5 h-3.5 transition-colors',
+                'w-4 h-4 transition-colors',
                 isFav ? 'fill-red-500 text-red-500' : 'text-muted-foreground'
               )}
             />
@@ -114,7 +164,7 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
         </div>
 
         {/* Content */}
-        <div className="p-2.5 sm:p-3">
+        <Link href={`/products/${product.id}`} className="block p-2.5 sm:p-3">
           <p className="text-xs sm:text-sm font-medium leading-snug mb-1 text-foreground min-h-[2.5em] line-clamp-1">
             {name}
           </p>
@@ -134,8 +184,8 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           <div className="flex items-end gap-1.5">
             <span className="font-bold text-sm sm:text-base text-foreground">{formatPrice(product.price)}</span>
           </div>
-        </div>
-      </Link>
+        </Link>
+      </div>
     </div>
   );
 }
@@ -155,7 +205,7 @@ export function ProductGrid({ products, columns = 4 }: ProductGridProps) {
   };
 
   return (
-    <div className={cn('grid gap-2 sm:gap-3', colClasses[columns])}>
+    <div className={cn('grid gap-3 sm:gap-4', colClasses[columns])}>
       {products.map((product, i) => (
         <ProductCard key={product.id} product={product} index={i} />
       ))}

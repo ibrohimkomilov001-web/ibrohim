@@ -418,6 +418,11 @@ export const vendorApi = {
   getBrands: () => api.get<any[]>('/brands'),
   getSizes: () => api.get<SizeOption[]>('/sizes'),
 
+  // --- Option Types (multi-attribute variants) ---
+  getOptionTypes: () => api.get<any[]>('/option-types'),
+  createOptionValue: (optionTypeId: string, data: { valueUz: string; valueRu: string; hexCode?: string }) =>
+    api.post<any>(`/vendor/option-types/${optionTypeId}/values`, data),
+
   // --- Documents ---
   getDocuments: () => api.get<VendorDocument[]>('/vendor/documents'),
 

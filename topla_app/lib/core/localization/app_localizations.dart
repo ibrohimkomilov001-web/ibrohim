@@ -995,8 +995,13 @@ class AppLocalizations {
       'total_orders': 'Jami buyurtmalar',
       'member_since': 'A\'zo bo\'lgan sana',
       'rating_suffix': 'reyting',
-
-      // Shop reviews screen
+      'shop_type_store': 'Do\'kon',
+      'shop_reviews_count': 'baho',
+      'shop_orders_count': 'buyurtma',
+      'shop_subscribers_count': 'obunachi',
+      'shop_years_on_market': 'yil Topla\'da',
+      'shop_months_on_market': 'oy Topla\'da',
+      'sold_count': 'sotilgan',
       'login_to_review': 'Sharh qoldirish uchun tizimga kiring',
       'add_review': 'Sharh qoldirish',
       'no_reviews_yet': 'Hali sharhlar yo\'q',
@@ -1061,6 +1066,24 @@ class AppLocalizations {
       'clear_all': 'Tozalash',
       'add_to_comparison': 'Taqqoslashga',
       'remove_from_comparison': 'Taqqoslashdan olib tashlash',
+
+      // Loyalty
+      'loyalty_title': 'Sodiqlik Dasturi',
+      'loyalty_available_points': 'Mavjud ball',
+      'loyalty_total': 'Jami',
+      'loyalty_lifetime': 'Umrbod',
+      'loyalty_tier_progress': 'Daraja progressi',
+      'loyalty_next_tier': 'Keyingi daraja',
+      'loyalty_points': 'ball',
+      'loyalty_max_tier': 'Eng yuqori darajaga erishdingiz! 🎉',
+      'loyalty_daily_bonus': 'Kundalik kirish bonusi',
+      'loyalty_already_claimed': 'Bugungi bonus allaqachon olingan',
+      'loyalty_claim_now': 'Bosing va 10 ball oling!',
+      'loyalty_your_benefits': 'Sizning imtiyozlaringiz',
+      'loyalty_no_benefits': 'Hozircha imtiyozlar yo\'q',
+      'loyalty_history': 'Ball tarixi',
+      'loyalty_no_history': 'Hozircha tarix yo\'q',
+      'loyalty_error': 'Yuklab bo\'lmadi',
     },
     'ru': {
       // Общие
@@ -2032,8 +2055,13 @@ class AppLocalizations {
       'total_orders': 'Всего заказов',
       'member_since': 'Дата регистрации',
       'rating_suffix': 'рейтинг',
-
-      // Shop reviews screen
+      'shop_type_store': 'Магазин',
+      'shop_reviews_count': 'оценок',
+      'shop_orders_count': 'заказов',
+      'shop_subscribers_count': 'подписчиков',
+      'shop_years_on_market': 'лет на Topla',
+      'shop_months_on_market': 'мес. на Topla',
+      'sold_count': 'продано',
       'login_to_review': 'Войдите, чтобы оставить отзыв',
       'add_review': 'Оставить отзыв',
       'no_reviews_yet': 'Отзывов пока нет',
@@ -2098,6 +2126,24 @@ class AppLocalizations {
       'clear_all': 'Очистить',
       'add_to_comparison': 'В сравнение',
       'remove_from_comparison': 'Убрать из сравнения',
+
+      // Loyalty
+      'loyalty_title': 'Программа лояльности',
+      'loyalty_available_points': 'Доступные баллы',
+      'loyalty_total': 'Всего',
+      'loyalty_lifetime': 'За всё время',
+      'loyalty_tier_progress': 'Прогресс уровня',
+      'loyalty_next_tier': 'Следующий уровень',
+      'loyalty_points': 'баллов',
+      'loyalty_max_tier': 'Вы достигли максимального уровня! 🎉',
+      'loyalty_daily_bonus': 'Ежедневный бонус',
+      'loyalty_already_claimed': 'Сегодняшний бонус уже получен',
+      'loyalty_claim_now': 'Нажмите и получите 10 баллов!',
+      'loyalty_your_benefits': 'Ваши привилегии',
+      'loyalty_no_benefits': 'Пока нет привилегий',
+      'loyalty_history': 'История баллов',
+      'loyalty_no_history': 'Пока нет истории',
+      'loyalty_error': 'Не удалось загрузить',
     },
   };
 

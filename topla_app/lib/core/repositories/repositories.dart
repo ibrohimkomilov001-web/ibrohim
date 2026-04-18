@@ -13,3 +13,4 @@ export 'i_banner_repository.dart';
 export 'i_shop_repository.dart';
 export 'i_courier_repository.dart';
 export 'i_lucky_wheel_repository.dart';
+export 'i_loyalty_repository.dart';

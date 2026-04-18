@@ -1,11 +1,19 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Script from "next/script";
-import { Loader2, MapPin, MapPinOff, Key } from "lucide-react";
-import { adminLogin, adminGoogleLogin, adminKeyLogin } from "@/lib/api/admin";
+import { Loader2, MapPin, MapPinOff, Fingerprint, ShieldCheck } from "lucide-react";
+import { Turnstile } from "@marsidev/react-turnstile";
+import { startAuthentication } from "@simplewebauthn/browser";
+import {
+  adminLogin,
+  adminLogin2FA,
+  adminGoogleLogin,
+  adminPasskeyLoginBegin,
+  adminPasskeyLoginVerify,
+} from "@/lib/api/admin";
 
-// ── Geolocation helpers ──────────────────────────────────────────────────────
+// â”€â”€ Geolocation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const TRUSTED_LOCATION_KEY = "admin_trusted_location";
 const GEO_RADIUS_METERS = 5000;
@@ -45,7 +53,7 @@ function getCurrentPosition(): Promise<GeolocationPosition | null> {
   });
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 declare global {
   interface Window {
@@ -53,25 +61,30 @@ declare global {
   }
 }
 
-type LoginMode = "email" | "key";
-
 export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [secretKey, setSecretKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loginMode, setLoginMode] = useState<LoginMode>("email");
+  const [captchaToken, setCaptchaToken] = useState<string>("");
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const conditionalAttempted = useRef(false);
 
-  // geo states
+  // 2FA challenge state
+  const [twoFAOpen, setTwoFAOpen] = useState(false);
+  const [twoFATempToken, setTwoFATempToken] = useState("");
+  const [twoFACode, setTwoFACode] = useState("");
+
+  // geo
   const [geoStatus, setGeoStatus] = useState<"idle" | "checking" | "ok" | "warn" | "denied">("idle");
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
   const [currentPos, setCurrentPos] = useState<LatLng | null>(null);
 
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
+  // Geo check
   useEffect(() => {
     (async () => {
       setGeoStatus("checking");
@@ -105,28 +118,89 @@ export default function AdminLoginPage() {
     window.location.href = "/admin/dashboard";
   }, [currentPos]);
 
+  // â”€â”€ Passkey handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handlePasskey = useCallback(async (opts?: { conditional?: boolean }) => {
+    try {
+      if (typeof window === "undefined" || !("credentials" in navigator)) return;
+      // Check feature support
+      if (opts?.conditional) {
+        const supported = await (PublicKeyCredential as any)?.isConditionalMediationAvailable?.();
+        if (!supported) return;
+      }
+      const { options, sessionId } = await adminPasskeyLoginBegin(email || undefined);
+      const cred = await startAuthentication({
+        optionsJSON: options,
+        useBrowserAutofill: !!opts?.conditional,
+      });
+      await adminPasskeyLoginVerify(sessionId, cred);
+      onSuccess();
+    } catch (err: any) {
+      // Conditional UI silently aborts when no passkey â€” don't show error
+      if (opts?.conditional) return;
+      const msg = err?.message || "Passkey orqali kirib bo'lmadi";
+      if (!/abort|cancel|no credentials/i.test(msg)) setError(msg);
+    }
+  }, [email, onSuccess]);
+
+  // Detect passkey availability + auto-trigger conditional UI
+  useEffect(() => {
+    if (typeof window === "undefined" || conditionalAttempted.current) return;
+    conditionalAttempted.current = true;
+    (async () => {
+      try {
+        const PKC = (window as any).PublicKeyCredential;
+        if (!PKC) return;
+        const conditional = await PKC.isConditionalMediationAvailable?.();
+        const platform = await PKC.isUserVerifyingPlatformAuthenticatorAvailable?.();
+        if (conditional || platform) setPasskeyAvailable(true);
+        if (conditional) {
+          // Fire conditional UI silently (browser will surface autofill suggestion)
+          handlePasskey({ conditional: true });
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [handlePasskey]);
+
+  // â”€â”€ Password submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSubmit = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      if (loginMode === "key") {
-        if (!secretKey.trim()) {
-          setError("Kalitni kiriting");
-          setIsLoading(false);
-          return;
-        }
-        await adminKeyLogin(secretKey.trim());
-      } else {
-        if (!email.trim() || !password.trim()) {
-          setError("Email va parolni kiriting");
-          setIsLoading(false);
-          return;
-        }
-        await adminLogin(email.trim(), password);
+      if (!email.trim() || !password.trim()) {
+        setError("Email va parolni kiriting");
+        setIsLoading(false);
+        return;
+      }
+      if (turnstileSiteKey && !captchaToken) {
+        setError("CAPTCHA tasdiqini kuting");
+        setIsLoading(false);
+        return;
+      }
+      const data = await adminLogin(email.trim(), password, captchaToken || undefined);
+      if (data?.requires2FA && data.tempToken) {
+        setTwoFATempToken(data.tempToken);
+        setTwoFAOpen(true);
+        setIsLoading(false);
+        return;
       }
       onSuccess();
     } catch (err: any) {
       setError(err.message || "Kirishda xatolik yuz berdi");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // â”€â”€ 2FA submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handle2FASubmit = async () => {
+    if (!twoFACode.trim()) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      await adminLogin2FA(twoFATempToken, twoFACode.trim());
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || "Kod noto'g'ri");
     } finally {
       setIsLoading(false);
     }
@@ -162,7 +236,7 @@ export default function AdminLoginPage() {
       {/* Header */}
       <div className="h-14 flex items-center px-4 border-b border-gray-100 dark:border-gray-800">
         <span className="text-lg font-bold text-gray-900 dark:text-white">TOPLA</span>
-        <span className="ml-1.5 text-[11px] font-medium bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">ADMIN</span>
+        <span className="ml-1.5 text-[11px] font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">ADMIN</span>
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 py-8">
@@ -190,36 +264,63 @@ export default function AdminLoginPage() {
             </div>
           )}
 
-          {/* Login mode tabs */}
-          <div className="mt-6 flex gap-2">
+          {/* PASSKEY â€” primary action */}
+          {passkeyAvailable && !twoFAOpen && (
             <button
               type="button"
-              onClick={() => { setLoginMode("email"); setError(null); }}
-              className={`flex-1 h-10 rounded-full text-sm font-medium transition-colors ${
-                loginMode === "email"
-                  ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-              }`}
+              onClick={() => handlePasskey()}
+              disabled={isLoading}
+              className="mt-6 h-14 w-full rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-base font-medium flex items-center justify-center gap-2 hover:bg-black dark:hover:bg-gray-100 transition disabled:opacity-60"
             >
-              Email / Parol
+              <Fingerprint className="w-5 h-5" />
+              Passkey bilan kirish (1 bosish)
             </button>
-            <button
-              type="button"
-              onClick={() => { setLoginMode("key"); setError(null); }}
-              className={`flex-1 h-10 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
-                loginMode === "key"
-                  ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-              }`}
-            >
-              <Key className="w-4 h-4" />
-              Kalit orqali
-            </button>
-          </div>
+          )}
 
-          <div className="mt-4 space-y-4">
-            {loginMode === "email" ? (
-              <>
+          {/* 2FA challenge view */}
+          {twoFAOpen ? (
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
+                <span className="text-sm font-medium">2FA tasdiqlash</span>
+              </div>
+              <p className="text-xs text-gray-500">Authenticator ilovangizdagi 6 xonali kodni yoki backup kodni kiriting.</p>
+              <input
+                className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none tracking-widest text-center font-mono"
+                placeholder="000000"
+                value={twoFACode}
+                onChange={(e) => setTwoFACode(e.target.value)}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handle2FASubmit(); }}
+              />
+              <button
+                type="button"
+                className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                onClick={handle2FASubmit}
+                disabled={isLoading || !twoFACode.trim()}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Tasdiqlash"}
+              </button>
+              <button
+                type="button"
+                className="h-10 w-full rounded-full text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => { setTwoFAOpen(false); setTwoFACode(""); setTwoFATempToken(""); }}
+              >
+                Ortga qaytish
+              </button>
+            </div>
+          ) : (
+            <>
+              {passkeyAvailable && (
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800" /></div>
+                  <div className="relative flex justify-center text-sm"><span className="bg-white dark:bg-gray-950 px-4 text-gray-400">yoki email/parol</span></div>
+                </div>
+              )}
+
+              <div className={passkeyAvailable ? "space-y-4" : "mt-6 space-y-4"}>
                 <input
                   className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                   placeholder="Email manzil"
@@ -227,7 +328,7 @@ export default function AdminLoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   type="email"
                   enterKeyHint="next"
-                  autoComplete="email"
+                  autoComplete="email webauthn"
                 />
                 <div className="relative">
                   <input
@@ -253,52 +354,36 @@ export default function AdminLoginPage() {
                     )}
                   </button>
                 </div>
-              </>
-            ) : (
-              <div className="relative">
-                <input
-                  className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 pr-12 text-base outline-none"
-                  placeholder="Admin maxfiy kaliti"
-                  value={secretKey}
-                  onChange={(e) => setSecretKey(e.target.value)}
-                  type={showKey ? "text" : "password"}
-                  enterKeyHint="go"
-                  autoComplete="off"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
-                />
+
+                {/* CAPTCHA */}
+                {turnstileSiteKey && (
+                  <div className="flex justify-center">
+                    <Turnstile
+                      siteKey={turnstileSiteKey}
+                      onSuccess={setCaptchaToken}
+                      onError={() => setCaptchaToken("")}
+                      onExpire={() => setCaptchaToken("")}
+                      options={{ theme: "auto", size: "flexible" }}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  onClick={() => setShowKey(!showKey)}
-                  tabIndex={-1}
+                  className="h-12 w-full rounded-full bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                  onClick={handleSubmit}
+                  disabled={isLoading}
                 >
-                  {showKey ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Kirish...
+                    </span>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    "Kirish"
                   )}
                 </button>
-              </div>
-            )}
 
-            <button
-              type="button"
-              className="h-12 w-full rounded-full bg-purple-600 text-sm font-medium text-white transition hover:bg-purple-700 disabled:opacity-60"
-              onClick={handleSubmit}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Kirish...
-                </span>
-              ) : (
-                "Kirish"
-              )}
-            </button>
-
-            {loginMode === "email" && (
-              <>
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-gray-200 dark:border-gray-800" />
@@ -329,12 +414,11 @@ export default function AdminLoginPage() {
                     />
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

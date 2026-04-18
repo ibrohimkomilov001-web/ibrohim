@@ -40,6 +40,7 @@ import 'features/notifications/notifications_screen.dart';
 import 'features/profile/my_promo_codes_screen.dart';
 import 'features/lucky_wheel/all_prizes_screen.dart';
 import 'features/lucky_wheel/spin_history_screen.dart';
+import 'features/loyalty/loyalty_screen.dart';
 import 'core/widgets/auth_guard.dart';
 import 'services/cache_service.dart';
 
@@ -189,6 +190,7 @@ class ToplaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => getIt<AddressesProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<ShopProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<LuckyWheelProvider>()),
+        ChangeNotifierProvider(create: (_) => getIt<LoyaltyProvider>()),
         ChangeNotifierProvider(
           create: (_) => ConnectivityProvider(ConnectivityService()),
         ),
@@ -262,6 +264,8 @@ class ToplaApp extends StatelessWidget {
                   const AuthGuard(child: AllPrizesScreen()),
               '/lucky-wheel/history': (context) =>
                   const AuthGuard(child: SpinHistoryScreen()),
+              '/loyalty': (context) =>
+                  const AuthGuard(child: LoyaltyScreen()),
               '/': (context) => const SplashScreen(),
             },
             onGenerateRoute: (settings) {

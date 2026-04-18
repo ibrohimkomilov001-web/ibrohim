@@ -34,32 +34,68 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late List<String> _productImages;
   late String _productId;
 
-  // === VARIANT SYSTEM ===
+  // === VARIANT SYSTEM (multi-attribute) ===
   List<Map<String, dynamic>> _variants = [];
-  List<Map<String, dynamic>> _uniqueColors = []; // [{id, nameUz, hexCode}]
-  List<Map<String, dynamic>> _uniqueSizes = []; // [{id, nameUz}]
-  String? _selectedColorId;
-  String? _selectedSizeId;
+
+  /// Parsed option types for the product: [{id, slug, nameUz, nameRu, displayType, unit, values: [{id, slug, valueUz, valueRu, hexCode, imageUrl}]}]
+  List<Map<String, dynamic>> _optionTypes = [];
+
+  /// Selected value per option type: {optionTypeId: optionValueId}
+  Map<String, String> _selectedValues = {};
+
+  // Backward-compat aliases
+  List<Map<String, dynamic>> get _uniqueColors {
+    final ct = _optionTypes.where((t) => t['slug'] == 'color' || t['displayType'] == 'color').toList();
+    if (ct.isEmpty) return [];
+    return List<Map<String, dynamic>>.from(ct.first['values'] ?? []);
+  }
+  List<Map<String, dynamic>> get _uniqueSizes {
+    final st = _optionTypes.where((t) => t['slug'] == 'size').toList();
+    if (st.isEmpty) return [];
+    return List<Map<String, dynamic>>.from(st.first['values'] ?? []);
+  }
+  String? get _selectedColorId {
+    final ct = _optionTypes.where((t) => t['slug'] == 'color' || t['displayType'] == 'color').toList();
+    if (ct.isEmpty) return null;
+    return _selectedValues[ct.first['id']];
+  }
+  String? get _selectedSizeId {
+    final st = _optionTypes.where((t) => t['slug'] == 'size').toList();
+    if (st.isEmpty) return null;
+    return _selectedValues[st.first['id']];
+  }
 
   bool get _hasVariants => _variants.isNotEmpty;
   bool get _hasColors => _uniqueColors.isNotEmpty;
   bool get _hasSizes => _uniqueSizes.isNotEmpty;
 
-  /// Hozir tanlangan variantni topish
+  /// Hozir tanlangan variantni topish (N-attribute)
   Map<String, dynamic>? get _selectedVariant {
     if (!_hasVariants) return null;
+    if (_selectedValues.isEmpty) return null;
+
     for (final v in _variants) {
-      final vc = v['colorId'] ?? v['color_id'];
-      final vs = v['sizeId'] ?? v['size_id'];
+      // New format: variantValues junction
+      final variantValues = v['variantValues'];
+      if (variantValues != null && variantValues is List && variantValues.isNotEmpty) {
+        bool allMatch = true;
+        for (final vv in variantValues) {
+          final typeId = (vv['optionType']?['id'] ?? vv['optionTypeId'])?.toString();
+          final valId = (vv['optionValue']?['id'] ?? vv['optionValueId'])?.toString();
+          if (typeId != null && _selectedValues[typeId] != valId) {
+            allMatch = false;
+            break;
+          }
+        }
+        if (allMatch) return v;
+        continue;
+      }
+      // Old format: colorId + sizeId
+      final vc = (v['colorId'] ?? v['color_id'])?.toString();
+      final vs = (v['sizeId'] ?? v['size_id'])?.toString();
       if (vc == _selectedColorId && vs == _selectedSizeId) return v;
-      // Faqat rang bo'lsa (o'lchamsiz)
-      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null) {
-        return v;
-      }
-      // Faqat o'lcham bo'lsa (rangsiz)
-      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null) {
-        return v;
-      }
+      if (_uniqueSizes.isEmpty && vc == _selectedColorId && vs == null) return v;
+      if (_uniqueColors.isEmpty && vs == _selectedSizeId && vc == null) return v;
     }
     return null;
   }
@@ -312,7 +348,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  /// Variantlarni parse qilish
+  /// Variantlarni parse qilish (multi-attribute yoki eski color/size)
   void _parseVariants(Map<String, dynamic> product) {
     final variants = product['variants'];
     if (variants == null || variants is! List || variants.isEmpty) return;
@@ -321,7 +357,67 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       variants.map((v) => Map<String, dynamic>.from(v as Map)),
     );
 
-    // Unique ranglarni olish
+    // Check if new multi-attribute format (optionLinks + variantValues)
+    final optionLinks = product['optionLinks'];
+    if (optionLinks != null && optionLinks is List && optionLinks.isNotEmpty) {
+      // New format: parse option types from optionLinks
+      final types = <Map<String, dynamic>>[];
+      for (final ol in optionLinks) {
+        final ot = ol['optionType'];
+        if (ot == null) continue;
+        final typeId = ot['id']?.toString() ?? '';
+        // Collect only values that actually appear in variants
+        final usedValueIds = <String>{};
+        for (final v in variantList) {
+          final vvList = v['variantValues'];
+          if (vvList != null && vvList is List) {
+            for (final vv in vvList) {
+              final tId = (vv['optionType']?['id'] ?? vv['optionTypeId'])?.toString();
+              final valId = (vv['optionValue']?['id'] ?? vv['optionValueId'])?.toString();
+              if (tId == typeId && valId != null) usedValueIds.add(valId);
+            }
+          }
+        }
+        final allValues = ot['values'] is List ? List<Map<String, dynamic>>.from(
+          (ot['values'] as List).map((v) => Map<String, dynamic>.from(v as Map))
+        ) : <Map<String, dynamic>>[];
+        final filteredValues = allValues.where((v) => usedValueIds.contains(v['id']?.toString())).toList();
+        if (filteredValues.isNotEmpty) {
+          types.add({
+            'id': typeId,
+            'slug': ot['slug'] ?? '',
+            'nameUz': ot['nameUz'] ?? ot['name_uz'] ?? '',
+            'nameRu': ot['nameRu'] ?? ot['name_ru'] ?? '',
+            'displayType': ot['displayType'] ?? ot['display_type'] ?? 'text',
+            'unit': ot['unit'],
+            'values': filteredValues,
+          });
+        }
+      }
+
+      setState(() {
+        _variants = variantList;
+        _optionTypes = types;
+        // Auto-select first variant's values
+        if (_selectedValues.isEmpty && variantList.isNotEmpty) {
+          final defaultV = product['defaultVariantId'] != null
+            ? variantList.firstWhere((v) => v['id'] == product['defaultVariantId'], orElse: () => variantList.first)
+            : variantList.first;
+          final vvList = defaultV['variantValues'];
+          if (vvList != null && vvList is List) {
+            for (final vv in vvList) {
+              final tId = (vv['optionType']?['id'] ?? vv['optionTypeId'])?.toString();
+              final valId = (vv['optionValue']?['id'] ?? vv['optionValueId'])?.toString();
+              if (tId != null && valId != null) _selectedValues[tId] = valId;
+            }
+          }
+        }
+        _updateImagesForVariant();
+      });
+      return;
+    }
+
+    // Old format: extract color/size from variant objects
     final colorMap = <String, Map<String, dynamic>>{};
     final sizeMap = <String, Map<String, dynamic>>{};
 
@@ -342,19 +438,52 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     }
 
+    // Build optionTypes from old color/size for uniform handling
+    final types = <Map<String, dynamic>>[];
+    if (colorMap.isNotEmpty) {
+      types.add({
+        'id': 'legacy-color',
+        'slug': 'color',
+        'nameUz': 'Rang',
+        'nameRu': 'Цвет',
+        'displayType': 'color',
+        'values': colorMap.values.map((c) => <String, dynamic>{
+          'id': c['id']?.toString(),
+          'slug': '',
+          'valueUz': c['nameUz'] ?? c['name_uz'] ?? c['nameRu'] ?? '',
+          'valueRu': c['nameRu'] ?? c['name_ru'] ?? '',
+          'hexCode': c['hexCode'] ?? c['hex_code'],
+        }).toList(),
+      });
+    }
+    if (sizeMap.isNotEmpty) {
+      types.add({
+        'id': 'legacy-size',
+        'slug': 'size',
+        'nameUz': 'O\'lcham',
+        'nameRu': 'Размер',
+        'displayType': 'text',
+        'values': sizeMap.values.map((s) => <String, dynamic>{
+          'id': s['id']?.toString(),
+          'slug': '',
+          'valueUz': s['nameUz'] ?? s['name_uz'] ?? '',
+          'valueRu': s['nameRu'] ?? s['name_ru'] ?? '',
+        }).toList(),
+      });
+    }
+
     setState(() {
       _variants = variantList;
-      _uniqueColors = colorMap.values.toList();
-      _uniqueSizes = sizeMap.values.toList();
-      // Birinchi rangni tanlash
-      if (_uniqueColors.isNotEmpty && _selectedColorId == null) {
-        _selectedColorId = _uniqueColors.first['id']?.toString();
+      _optionTypes = types;
+      // Auto-select first value per type
+      if (_selectedValues.isEmpty) {
+        for (final t in types) {
+          final vals = t['values'] as List;
+          if (vals.isNotEmpty) {
+            _selectedValues[t['id'].toString()] = (vals.first as Map)['id'].toString();
+          }
+        }
       }
-      // Birinchi o'lchamni tanlash
-      if (_uniqueSizes.isNotEmpty && _selectedSizeId == null) {
-        _selectedSizeId = _uniqueSizes.first['id']?.toString();
-      }
-      // Tanlangan variant rasmlarini yangilash
       _updateImagesForVariant();
     });
   }
@@ -479,16 +608,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   const SizedBox(height: 16),
 
-                  // 🎨 VARIANTS - COLOR
-                  if (_hasColors && _hasVariants) ...[
-                    _buildColorSelectorWithImages(),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 📏 VARIANTS - SIZE
-                  if (_hasSizes && _hasVariants) ...[
-                    _buildSizeSelector(),
-                    const SizedBox(height: 16),
+                  // 🎨 VARIANTS - All option types (generic)
+                  if (_hasVariants && _optionTypes.isNotEmpty) ...[
+                    for (final optType in _optionTypes) ...[
+                      _buildOptionTypeSelector(optType),
+                      const SizedBox(height: 16),
+                    ],
                   ],
 
                   // Agar variant bo'lmasa, shunchaki bo'sh joy
@@ -885,7 +1010,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // ============ SHOP INFO ============
+  // ============ SHOP INFO — Yandex Market style ============
   Widget _buildShopInfo() {
     final shopName = (_shop['name'] ?? 'Do\'kon') as String;
     final shopRating = (_shop['rating'] ?? 0);
@@ -895,11 +1020,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         : (int.tryParse(rawReviews.toString()) ?? 0);
     final shopLogo = _shop['logoUrl'] ?? _shop['logo_url'] ?? _shop['logo'];
     final shopId = _shop['id']?.toString();
+    final shopType = (_shop['shopType'] ?? _shop['shop_type'] ?? context.l10n.translate('shop_type_store')) as String;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -907,15 +1033,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         child: Row(
           children: [
-            // Bosilganda do'konga o'tadi
+            // Rounded square logo
             GestureDetector(
               onTap: () => _navigateToShop(shopId, shopName),
               child: Container(
-                width: 38,
-                height: 38,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200, width: 0.5),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: shopLogo != null && shopLogo.toString().isNotEmpty
@@ -949,8 +1076,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
               ),
             ),
-            const SizedBox(width: 10),
-            // Nom + Reyting — bosilganda do'konga
+            const SizedBox(width: 12),
+            // Name + Type + Rating
             Expanded(
               child: GestureDetector(
                 onTap: () => _navigateToShop(shopId, shopName),
@@ -969,6 +1096,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 2),
                     Row(
                       children: [
+                        Text(
+                          shopType,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         const Icon(Iconsax.star_1,
                             size: 12, color: Colors.amber),
                         const SizedBox(width: 3),
@@ -993,40 +1128,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
             ),
-            // Obuna bo'lish + Savol berish
+            // Chat icon + Heart icon
+            InkWell(
+              onTap: () {
+                // Chat bilan to'g'ridan-to'g'ri do'kon sahifasiga o'tish
+                if (shopId != null && shopId.isNotEmpty) {
+                  _navigateToShop(shopId, shopName);
+                }
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(Iconsax.message, size: 22, color: Colors.grey.shade600),
+              ),
+            ),
             GestureDetector(
               onTap: () => _toggleShopFollow(),
-              child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: _isFollowingShop
-                      ? Colors.grey.shade100
-                      : AppColors.primary,
-                  borderRadius: BorderRadius.circular(20),
-                  border: _isFollowingShop
-                      ? Border.all(color: Colors.grey.shade300)
-                      : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _isFollowingShop ? Iconsax.tick_circle : Iconsax.add,
-                      size: 14,
-                      color: _isFollowingShop ? Colors.black87 : Colors.white,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      _isFollowingShop ? 'Obuna' : 'Obuna bo\'lish',
-                      style: TextStyle(
-                        color:
-                            _isFollowingShop ? Colors.black87 : Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  _isFollowingShop ? Iconsax.heart_copy : Iconsax.heart,
+                  size: 22,
+                  color: _isFollowingShop ? Colors.red : Colors.grey.shade600,
                 ),
               ),
             ),
@@ -1113,6 +1236,194 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
+  // ============ GENERIC OPTION TYPE SELECTOR ============
+  Widget _buildOptionTypeSelector(Map<String, dynamic> optType) {
+    final typeId = optType['id']?.toString() ?? '';
+    final displayType = optType['displayType'] ?? 'text';
+    final typeName = optType['nameUz'] ?? '';
+    final unit = optType['unit'];
+    final values = List<Map<String, dynamic>>.from(optType['values'] ?? []);
+    if (values.isEmpty) return const SizedBox.shrink();
+
+    final selectedValId = _selectedValues[typeId];
+    // Find selected value name
+    String selectedName = '';
+    for (final v in values) {
+      if (v['id']?.toString() == selectedValId) {
+        selectedName = v['valueUz']?.toString() ?? '';
+        break;
+      }
+    }
+
+    // Check which values are available given other selected options
+    Set<String> availableIds = {};
+    for (final variant in _variants) {
+      final vvList = variant['variantValues'];
+      if (vvList != null && vvList is List && vvList.isNotEmpty) {
+        bool otherMatch = true;
+        String? thisVal;
+        for (final vv in vvList) {
+          final tId = (vv['optionType']?['id'] ?? vv['optionTypeId'])?.toString();
+          final valId = (vv['optionValue']?['id'] ?? vv['optionValueId'])?.toString();
+          if (tId == typeId) {
+            thisVal = valId;
+          } else if (_selectedValues[tId] != null && _selectedValues[tId] != valId) {
+            otherMatch = false;
+            break;
+          }
+        }
+        if (otherMatch && thisVal != null) availableIds.add(thisVal);
+      } else {
+        // Old format fallback: all values available
+        for (final v in values) {
+          availableIds.add(v['id']?.toString() ?? '');
+        }
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '$typeName${unit != null ? ' ($unit)' : ''}: ',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              Text(
+                selectedName,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: values.map((val) {
+              final vId = val['id']?.toString() ?? '';
+              final isSelected = vId == selectedValId;
+              final isAvailable = availableIds.contains(vId);
+              final valName = val['valueUz']?.toString() ?? '';
+              final hexCode = val['hexCode'] ?? val['hex_code'];
+
+              if (displayType == 'color' && hexCode != null) {
+                // Color swatch with optional image
+                String? imageUrl;
+                for (final v in _variants) {
+                  final vvList = v['variantValues'];
+                  if (vvList != null && vvList is List) {
+                    for (final vv in vvList) {
+                      final tId = (vv['optionType']?['id'] ?? vv['optionTypeId'])?.toString();
+                      final valId = (vv['optionValue']?['id'] ?? vv['optionValueId'])?.toString();
+                      if (tId == typeId && valId == vId && v['images'] != null && (v['images'] as List).isNotEmpty) {
+                        imageUrl = (v['images'] as List).first.toString();
+                        break;
+                      }
+                    }
+                  } else {
+                    // Old format
+                    final vc = (v['colorId'] ?? v['color_id'])?.toString();
+                    if (vc == vId && v['images'] != null && (v['images'] as List).isNotEmpty) {
+                      imageUrl = (v['images'] as List).first.toString();
+                    }
+                  }
+                  if (imageUrl != null) break;
+                }
+
+                final color = _parseColor(hexCode);
+                return GestureDetector(
+                  onTap: () {
+                    if (!isAvailable || isSelected) return;
+                    setState(() {
+                      _selectedValues[typeId] = vId;
+                      _updateImagesForVariant();
+                    });
+                  },
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.black87
+                            : isAvailable
+                                ? Colors.grey.shade300
+                                : Colors.grey.shade200,
+                        width: isSelected ? 2.5 : 1,
+                      ),
+                    ),
+                    child: Opacity(
+                      opacity: isAvailable ? 1.0 : 0.3,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(isSelected ? 7.5 : 9),
+                        child: imageUrl != null && imageUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Container(
+                                  color: color,
+                                  child: const Icon(Iconsax.image,
+                                      color: Colors.white, size: 18),
+                                ),
+                              )
+                            : Container(color: color),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Text/pill style (size, storage, RAM, material, etc.)
+              return GestureDetector(
+                onTap: () {
+                  if (!isAvailable || isSelected) return;
+                  setState(() {
+                    _selectedValues[typeId] = vId;
+                    _updateImagesForVariant();
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : isAvailable
+                            ? Colors.white
+                            : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : isAvailable
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Text(
+                    valName,
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : isAvailable
+                              ? Colors.black
+                              : Colors.grey.shade400,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ============ COLOR SELECTOR ============
   Widget _buildColorSelectorWithImages() {
     if (_uniqueColors.isEmpty) return const SizedBox.shrink();
@@ -1172,7 +1483,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 onTap: () {
                   if (isSelected) return;
                   setState(() {
-                    _selectedColorId = cId;
+                    final ct = _optionTypes.where((t) => t['slug'] == 'color' || t['displayType'] == 'color').toList();
+                    if (ct.isNotEmpty) _selectedValues[ct.first['id'].toString()] = cId!;
                     _updateImagesForVariant();
                   });
                 },
@@ -1268,7 +1580,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 onTap: () {
                   if (!isAvailable) return;
                   setState(() {
-                    _selectedSizeId = sId;
+                    final st = _optionTypes.where((t) => t['slug'] == 'size').toList();
+                    if (st.isNotEmpty) _selectedValues[st.first['id'].toString()] = sId!;
                     _updateImagesForVariant();
                   });
                 },

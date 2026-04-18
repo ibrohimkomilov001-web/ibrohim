@@ -17,3 +17,4 @@ export 'api_banner_repository_impl.dart';
 export 'api_shop_repository_impl.dart';
 export 'api_courier_repository_impl.dart';
 export 'api_lucky_wheel_repository_impl.dart';
+export 'api_loyalty_repository_impl.dart';

@@ -85,8 +85,8 @@ export default function PickupDashboardPage() {
       label: "Jami buyurtmalar",
       value: stats?.totalOrders ?? 0,
       icon: Package,
-      color: "text-purple-600",
-      bg: "bg-purple-100 dark:bg-purple-900/30",
+      color: "text-blue-600",
+      bg: "bg-blue-100 dark:bg-blue-900/30",
     },
   ];
 

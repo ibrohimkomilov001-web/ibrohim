@@ -1914,6 +1914,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    * Yangi foydalanuvchi bo'lsa yaratadi.
    */
   app.post('/auth/google', async (request, reply) => {
+    // Rate limit: IP bo'yicha 20 so'rov / 15 daqiqa (bot/spam himoyasi)
+    const ip = request.ip || 'unknown';
+    const googleRateKey = `auth:google:ip:${ip}`;
+    const googleRate = await checkRateLimit(googleRateKey, 20, 900);
+    if (!googleRate.allowed) {
+      throw new AppError(
+        `Juda ko'p urinish. ${Math.ceil((googleRate.retryAfter || 900) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
     const body = googleLoginSchema.parse(request.body);
 
     let email: string | undefined;
@@ -1948,12 +1959,16 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       // Google Access Token orqali to'g'ridan-to'g'ri
       // google_id (Google sub) ni firebase_uid ga emas, alohida maydoniga saqlaymiz
       try {
+        // 8s timeout — hang bo'lishdan saqlanish
+        const abortCtrl = new AbortController();
+        const timeoutId = setTimeout(() => abortCtrl.abort(), 8000);
         const googleResponse = await fetch(
           `https://www.googleapis.com/oauth2/v3/userinfo`,
           {
             headers: { Authorization: `Bearer ${body.googleAccessToken}` },
+            signal: abortCtrl.signal,
           }
-        );
+        ).finally(() => clearTimeout(timeoutId));
 
         if (!googleResponse.ok) {
           throw new Error(`Google API error: ${googleResponse.status}`);
@@ -2080,6 +2095,70 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         isNewUser: isNew,
         accessToken,
         refreshToken,
+      },
+    });
+  });
+
+  /**
+   * POST /auth/link-phone
+   * Authenticated foydalanuvchi (masalan, Google orqali kirgan) o'z telefonini qo'shadi.
+   * OTP verify qilinadi, phone uniqueness tekshiriladi va profile yangilanadi.
+   */
+  const linkPhoneSchema = z.object({
+    phone: z.string().min(9, 'Telefon raqam noto\'g\'ri'),
+    code: z.string().length(5, '5 xonali kod kerak'),
+  });
+
+  app.post('/auth/link-phone', { preHandler: authMiddleware }, async (request, reply) => {
+    const body = linkPhoneSchema.parse(request.body);
+    const userId = request.user!.userId;
+
+    const phone = body.phone.startsWith('+998')
+      ? body.phone
+      : body.phone.startsWith('998')
+        ? `+${body.phone}`
+        : `+998${body.phone}`;
+
+    // Brute-force himoyasi: 5 urinish / 30 daqiqa
+    const verifyRateKey = `link_phone:verify:${phone}`;
+    const verifyRate = await checkRateLimit(verifyRateKey, 5, 1800);
+    if (!verifyRate.allowed) {
+      throw new AppError(
+        `Juda ko'p noto'g'ri urinish. ${Math.ceil((verifyRate.retryAfter || 1800) / 60)} daqiqadan keyin qayta urinib ko'ring.`,
+        429
+      );
+    }
+
+    // 1. OTP tekshirish
+    const otpResult = await verifyOtp(phone, body.code);
+    if (!otpResult.valid) {
+      throw new AppError(otpResult.error || 'Noto\'g\'ri kod', 401);
+    }
+
+    // 2. Phone uniqueness — agar boshqa foydalanuvchida mavjud bo'lsa
+    const existing = await prisma.profile.findUnique({ where: { phone } });
+    if (existing && existing.id !== userId) {
+      throw new AppError('Bu telefon raqam boshqa foydalanuvchiga bog\'langan', 409);
+    }
+
+    // 3. Profile yangilash
+    const updated = await prisma.profile.update({
+      where: { id: userId },
+      data: { phone },
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        user: {
+          id: updated.id,
+          phone: updated.phone,
+          fullName: updated.fullName,
+          email: updated.email,
+          avatarUrl: updated.avatarUrl,
+          role: updated.role,
+          language: updated.language,
+        },
       },
     });
   });

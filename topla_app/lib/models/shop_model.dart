@@ -21,6 +21,7 @@ class ShopModel {
   final double rating;
   final int reviewCount;
   final int followersCount;
+  final String? shopType;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -46,6 +47,7 @@ class ShopModel {
     this.rating = 0.0,
     this.reviewCount = 0,
     this.followersCount = 0,
+    this.shopType,
     required this.createdAt,
     this.updatedAt,
   });
@@ -79,10 +81,13 @@ class ShopModel {
               .toDouble(),
       balance: (json['balance'] ?? 0.0).toDouble(),
       totalSales: (json['total_sales'] ?? json['totalSales'] ?? 0.0).toDouble(),
-      totalOrders: json['total_orders'] ?? json['totalOrders'] ?? 0,
+      totalOrders: json['total_orders'] ?? json['totalOrders'] ??
+          (json['_count'] != null ? json['_count']['orderItems'] ?? 0 : 0),
       rating: (json['rating'] ?? 0.0).toDouble(),
       reviewCount: json['review_count'] ?? json['reviewCount'] ?? 0,
-      followersCount: json['followers_count'] ?? json['followersCount'] ?? 0,
+      followersCount: json['followers_count'] ?? json['followersCount'] ??
+          (json['_count'] != null ? json['_count']['followers'] ?? 0 : 0),
+      shopType: json['shop_type'] ?? json['shopType'],
       createdAt:
           createdAtRaw != null ? DateTime.parse(createdAtRaw) : DateTime.now(),
       updatedAt: (json['updated_at'] ?? json['updatedAt']) != null
@@ -149,6 +154,7 @@ class ShopModel {
       rating: rating,
       reviewCount: reviewCount,
       followersCount: followersCount,
+      shopType: shopType,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -166,4 +172,27 @@ class ShopModel {
 
   String get formattedTotalSales => '${totalSales.toStringAsFixed(0)} so\'m';
   String get formattedRating => rating.toStringAsFixed(1);
+  String get formattedTotalOrders => _formatCount(totalOrders);
+
+  /// Marketda qancha vaqt (yil/oy)
+  int get yearsOnMarket {
+    return DateTime.now().difference(createdAt).inDays ~/ 365;
+  }
+
+  int get monthsOnMarket {
+    return DateTime.now().difference(createdAt).inDays ~/ 30;
+  }
+
+  String get formattedTimeOnMarket {
+    final years = yearsOnMarket;
+    if (years >= 1) return '$years';
+    final months = monthsOnMarket;
+    return months > 0 ? '$months' : '1';
+  }
+
+  String get timeOnMarketSuffix {
+    final years = yearsOnMarket;
+    if (years >= 1) return years == 1 ? 'yil' : 'yil';
+    return 'oy';
+  }
 }

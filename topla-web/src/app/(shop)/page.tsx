@@ -15,12 +15,20 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
   const { locale } = useLocaleStore();
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
+  const viewedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (banners.length <= 1) return;
     const timer = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 5000);
     return () => clearInterval(timer);
   }, [banners.length]);
+
+  useEffect(() => {
+    const b = banners[current];
+    if (!b || viewedRef.current.has(b.id)) return;
+    viewedRef.current.add(b.id);
+    shopApi.trackBannerView(b.id);
+  }, [current, banners]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -34,16 +42,89 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
     const diff = touchStartX.current - touchEndX.current;
     if (Math.abs(diff) > 50) {
       if (diff > 0) {
-        // swipe left → next
         setCurrent((p) => (p + 1) % banners.length);
       } else {
-        // swipe right → prev
         setCurrent((p) => (p - 1 + banners.length) % banners.length);
       }
     }
   }, [banners.length]);
 
   if (!banners.length) return null;
+
+  const b = banners[current];
+  const title = locale === 'ru' && b.titleRu ? b.titleRu : b.titleUz;
+  const subtitle = locale === 'ru' && b.subtitleRu ? b.subtitleRu : b.subtitleUz;
+  const ctaLabel = locale === 'ru' && b.ctaTextRu ? b.ctaTextRu : b.ctaText;
+  const textPos = b.textPosition || 'left';
+  const alignClass =
+    textPos === 'center' ? 'items-center text-center'
+    : textPos === 'right' ? 'items-end text-right'
+    : 'items-start text-left';
+
+  const href = (() => {
+    if (!b.actionType || b.actionType === 'none' || !b.actionValue) return null;
+    if (b.actionType === 'link') return b.actionValue;
+    if (b.actionType === 'product') return `/product/${b.actionValue}`;
+    if (b.actionType === 'category') return `/category/${b.actionValue}`;
+    if (b.actionType === 'shop') return `/shop/${b.actionValue}`;
+    return null;
+  })();
+
+  const handleClick = () => { shopApi.trackBannerClick(b.id); };
+
+  const innerStyle: React.CSSProperties = {};
+  if (b.bgColor) innerStyle.background = b.bgColor;
+
+  const slide = (
+    <motion.div
+      key={current}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="relative aspect-[2.2/1]"
+      style={innerStyle}
+    >
+      {b.imageUrl ? (
+        <Image
+          src={b.imageUrl}
+          alt={title || ''}
+          fill
+          className="object-cover"
+          priority
+          unoptimized
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
+          <span className="text-white text-xl font-bold">{title}</span>
+        </div>
+      )}
+      {(title || subtitle || ctaLabel) && (
+        <>
+          {!b.bgColor && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+          )}
+          <div className={`absolute inset-0 p-3 sm:p-5 flex flex-col justify-end ${alignClass}`}>
+            {title && (
+              <h2 className="font-bold text-sm sm:text-xl mb-0.5 line-clamp-1" style={{ color: b.textColor || '#fff' }}>
+                {title}
+              </h2>
+            )}
+            {subtitle && (
+              <p className="text-xs line-clamp-1 opacity-80" style={{ color: b.textColor || '#fff' }}>
+                {subtitle}
+              </p>
+            )}
+            {ctaLabel && href && (
+              <span className="inline-flex items-center mt-2 px-3 py-1 rounded-full bg-white/90 text-foreground text-xs font-semibold shadow self-start">
+                {ctaLabel}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
 
   return (
     <div
@@ -53,46 +134,30 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
       onTouchEnd={handleTouchEnd}
     >
       <AnimatePresence mode="wait">
-        <motion.div
-          key={current}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
-          className="relative aspect-[2.2/1]"
-        >
-          {banners[current].imageUrl ? (
-            <Image
-              src={banners[current].imageUrl}
-              alt={banners[current].titleUz || ''}
-              fill
-              className="object-cover"
-              priority
-              unoptimized
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
-              <span className="text-white text-xl font-bold">
-                {locale === 'ru' && banners[current].titleRu ? banners[current].titleRu : banners[current].titleUz}
-              </span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-          {(banners[current].titleUz || banners[current].titleRu) && (
-            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-5">
-              <h2 className="text-white font-bold text-sm sm:text-xl mb-0.5 line-clamp-1">
-                {locale === 'ru' && banners[current].titleRu ? banners[current].titleRu : banners[current].titleUz}
-              </h2>
-              {(banners[current].subtitleUz || banners[current].subtitleRu) && (
-                <p className="text-white/80 text-xs line-clamp-1">
-                  {locale === 'ru' && banners[current].subtitleRu ? banners[current].subtitleRu : banners[current].subtitleUz}
-                </p>
-              )}
-            </div>
-          )}
-        </motion.div>
+        {href ? (
+          <Link key={current} href={href} onClick={handleClick} className="block">
+            {slide}
+          </Link>
+        ) : (
+          slide
+        )}
       </AnimatePresence>
 
+      {banners.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5">
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Banner ${i + 1}`}
+              onClick={() => setCurrent(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 drop-shadow ${
+                i === current ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/80'
+              }`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -118,9 +183,9 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
             <button
               key={f.key}
               onClick={() => onSelect(f.key)}
-              className={`relative whitespace-nowrap px-3 pb-2 text-sm transition-all ${
+              className={`relative whitespace-nowrap px-3 pb-1 text-sm transition-all ${
                 isActive
-                  ? 'text-foreground font-semibold border-b-2 border-foreground'
+                  ? 'text-foreground font-semibold border-b-2 border-foreground -mb-px'
                   : 'text-muted-foreground font-normal hover:text-foreground'
               }`}
             >
@@ -194,7 +259,7 @@ export default function HomePage() {
   if (isLoading && !productsData) return <HomeSkeleton />;
 
   return (
-    <div className="space-y-1.5 pb-8">
+    <div className="space-y-3 pb-8">
       {/* Banner */}
       <section className="site-container">
         <BannerCarousel banners={banners} />

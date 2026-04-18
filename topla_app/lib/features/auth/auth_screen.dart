@@ -236,14 +236,22 @@ class _AuthScreenState extends State<AuthScreen> {
         if (e is PlatformException) {
           debugPrint(
               '=== PlatformException code: ${e.code} message: ${e.message} ===');
+          // code 12501 = user cancelled (native)
+          if (e.code == '12501') {
+            setState(() => _isGoogleLoading = false);
+            return;
+          }
           if (e.code == 'sign_in_failed' || e.code == '10') {
             message =
-                'Google kirish xatoligi (${e.code}): ${e.message ?? "Noma'lum xato"}';
-          } else if (e.code == 'network_error') {
-            message = 'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring';
+                'Google Sign-In konfiguratsiyasi to\'g\'ri emas. Iltimos, qo\'llab-quvvatlash xizmatiga murojaat qiling.';
+          } else if (e.code == '12500') {
+            message =
+                'Google Play Services eski versiyada. Iltimos, yangilang.';
+          } else if (e.code == '7' || e.code == 'network_error') {
+            message = 'Internet aloqasi yo\'q. Iltimos, tarmoqni tekshiring.';
           } else {
             message =
-                'Google xatoligi [${e.code}]: ${e.message ?? e.toString()}';
+                'Google kirish xatoligi [${e.code}]. Qaytadan urinib ko\'ring.';
           }
         } else if (e is ApiException) {
           message = 'Server xatoligi: ${e.message}';

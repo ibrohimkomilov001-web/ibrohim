@@ -71,7 +71,7 @@ const benefits = [
     icon: Users,
     title: "Yangi mijozlar oqimi",
     desc: "Buyurtma oluvchilar sizning do'koningizga keladi — qo'shimcha savdo imkoniyati",
-    color: "bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
+    color: "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
   },
   {
     icon: Shield,
@@ -89,7 +89,7 @@ const benefits = [
     icon: TrendingUp,
     title: "O'sish imkoniyati",
     desc: "Birinchi punkt yaxshi ishlasa — ko'proq punktlar ochish va daromadni oshirish mumkin",
-    color: "bg-pink-100 text-pink-600 dark:bg-pink-950 dark:text-pink-400",
+    color: "bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
   },
 ];
 

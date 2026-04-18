@@ -199,6 +199,7 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
         '=== Backend javob keldi, dataMap keys: ${response.dataMap.keys.toList()} ===');
 
     final data = response.dataMap;
+    _lastVerifyIsNewUser = data['isNewUser'] == true;
     await _api.setTokens(
       accessToken: data['accessToken'] ?? data['token'],
       refreshToken: data['refreshToken'] ?? '',

@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
   ready_for_pickup: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
   courier_assigned: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
   courier_picked_up: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
-  shipping: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+  shipping: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
   delivered: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
   cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
   at_pickup_point: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',

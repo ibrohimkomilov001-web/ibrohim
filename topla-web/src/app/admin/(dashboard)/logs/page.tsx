@@ -49,7 +49,7 @@ export default function AdminLogsPage() {
     if (action.includes('create') || action.includes('add')) return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
     if (action.includes('update') || action.includes('edit')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
     if (action.includes('delete') || action.includes('remove')) return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-    if (action.includes('login') || action.includes('auth')) return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+    if (action.includes('login') || action.includes('auth')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
     return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
   }
 

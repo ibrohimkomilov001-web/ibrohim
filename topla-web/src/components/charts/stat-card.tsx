@@ -43,8 +43,8 @@ const COLOR_MAP = {
     sparkColor: "#06B6D4",
   },
   purple: {
-    iconBg: "bg-violet-50 dark:bg-violet-950/40",
-    iconText: "text-violet-600 dark:text-violet-400",
+    iconBg: "bg-blue-50 dark:bg-blue-950/40",
+    iconText: "text-blue-600 dark:text-blue-400",
     sparkColor: "#8B5CF6",
   },
   orange: {

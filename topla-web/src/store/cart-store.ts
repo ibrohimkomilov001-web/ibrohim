@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 
 export interface CartItem {
   productId: string;
+  variantId?: string;
+  variantLabel?: string;
   name: string;
   nameUz: string;
   nameRu?: string;
@@ -18,8 +20,8 @@ export interface CartItem {
 interface CartStore {
   items: CartItem[];
   addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string, variantId?: string) => void;
+  updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
   getItemCount: () => number;
   getTotal: () => number;
@@ -33,11 +35,12 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) => {
         set((state) => {
-          const existing = state.items.find((i) => i.productId === item.productId);
+          const match = (i: CartItem) => i.productId === item.productId && i.variantId === item.variantId;
+          const existing = state.items.find(match);
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.productId === item.productId
+                match(i)
                   ? { ...i, quantity: Math.min(i.quantity + (item.quantity || 1), i.stock) }
                   : i
               ),
@@ -49,18 +52,19 @@ export const useCartStore = create<CartStore>()(
         });
       },
 
-      removeItem: (productId) => {
+      removeItem: (productId, variantId) => {
         set((state) => ({
-          items: state.items.filter((i) => i.productId !== productId),
+          items: state.items.filter((i) => !(i.productId === productId && i.variantId === variantId)),
         }));
       },
 
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (productId, quantity, variantId) => {
+        const match = (i: CartItem) => i.productId === productId && i.variantId === variantId;
         set((state) => ({
           items: quantity <= 0
-            ? state.items.filter((i) => i.productId !== productId)
+            ? state.items.filter((i) => !match(i))
             : state.items.map((i) =>
-                i.productId === productId
+                match(i)
                   ? { ...i, quantity: Math.min(quantity, i.stock) }
                   : i
               ),

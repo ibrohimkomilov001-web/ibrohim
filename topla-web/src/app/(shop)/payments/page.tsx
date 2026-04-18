@@ -28,8 +28,8 @@ export default function PaymentsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center py-20"
         >
-          <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center mb-4">
-            <CreditCard className="w-9 h-9 text-purple-400" />
+          <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+            <CreditCard className="w-9 h-9 text-blue-400" />
           </div>
           <h2 className="text-base font-semibold text-gray-700 mb-1">
             {locale === 'ru' ? 'Нет способов оплаты' : 'To\'lov usullari yo\'q'}

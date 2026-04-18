@@ -65,9 +65,10 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
         where,
         select: {
           id: true, name: true, description: true, logoUrl: true, bannerUrl: true,
-          rating: true, reviewCount: true, address: true, isOpen: true,
+          rating: true, reviewCount: true, totalSales: true, shopType: true,
+          address: true, isOpen: true, createdAt: true,
           deliveryFee: true, freeDeliveryFrom: true, minOrderAmount: true,
-          _count: { select: { products: true } },
+          _count: { select: { products: true, followers: true } },
         },
         orderBy: { rating: 'desc' },
         skip,
@@ -115,7 +116,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const shop = await prisma.shop.findUnique({
       where: { id },
       include: {
-        _count: { select: { products: true, reviews: true } },
+        _count: { select: { products: true, reviews: true, followers: true, orderItems: true } },
       },
     });
 

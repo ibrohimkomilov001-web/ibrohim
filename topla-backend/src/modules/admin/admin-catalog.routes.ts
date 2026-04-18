@@ -334,16 +334,33 @@ export async function adminCatalogRoutes(app: FastifyInstance) {
   }, async (request) => {
     const data = z.object({
       imageUrl: z.string(),
-      titleUz: z.string().optional(),
-      titleRu: z.string().optional(),
-      subtitleUz: z.string().optional(),
-      subtitleRu: z.string().optional(),
-      actionType: z.enum(['none', 'link', 'product', 'category']).optional(),
-      actionValue: z.string().optional(),
+      titleUz: z.string().optional().nullable(),
+      titleRu: z.string().optional().nullable(),
+      subtitleUz: z.string().optional().nullable(),
+      subtitleRu: z.string().optional().nullable(),
+      actionType: z.enum(['none', 'link', 'product', 'category', 'shop']).optional(),
+      actionValue: z.string().optional().nullable(),
+      ctaText: z.string().max(50).optional().nullable(),
+      ctaTextRu: z.string().max(50).optional().nullable(),
+      bgColor: z.string().max(200).optional().nullable(),
+      textColor: z.string().max(50).optional().nullable(),
+      textPosition: z.enum(['left', 'center', 'right']).optional(),
+      startsAt: z.string().datetime().optional().nullable(),
+      endsAt: z.string().datetime().optional().nullable(),
       sortOrder: z.number().optional(),
+      isActive: z.boolean().optional(),
+    }).refine((d) => !d.startsAt || !d.endsAt || new Date(d.endsAt) > new Date(d.startsAt), {
+      message: 'endsAt must be after startsAt',
+      path: ['endsAt'],
     }).parse(request.body);
 
-    const banner = await prisma.banner.create({ data: data as any });
+    const banner = await prisma.banner.create({
+      data: {
+        ...data,
+        startsAt: data.startsAt ? new Date(data.startsAt) : undefined,
+        endsAt: data.endsAt ? new Date(data.endsAt) : undefined,
+      } as any,
+    });
     await cacheDelete('banners:active');
     return { success: true, data: banner };
   });
@@ -354,17 +371,31 @@ export async function adminCatalogRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const data = z.object({
       imageUrl: z.string().optional(),
-      titleUz: z.string().optional(),
-      titleRu: z.string().optional(),
-      subtitleUz: z.string().optional(),
-      subtitleRu: z.string().optional(),
-      actionType: z.enum(['none', 'link', 'product', 'category']).optional(),
-      actionValue: z.string().optional(),
+      titleUz: z.string().optional().nullable(),
+      titleRu: z.string().optional().nullable(),
+      subtitleUz: z.string().optional().nullable(),
+      subtitleRu: z.string().optional().nullable(),
+      actionType: z.enum(['none', 'link', 'product', 'category', 'shop']).optional(),
+      actionValue: z.string().optional().nullable(),
+      ctaText: z.string().max(50).optional().nullable(),
+      ctaTextRu: z.string().max(50).optional().nullable(),
+      bgColor: z.string().max(200).optional().nullable(),
+      textColor: z.string().max(50).optional().nullable(),
+      textPosition: z.enum(['left', 'center', 'right']).optional(),
+      startsAt: z.string().datetime().optional().nullable(),
+      endsAt: z.string().datetime().optional().nullable(),
       sortOrder: z.number().optional(),
       isActive: z.boolean().optional(),
     }).parse(request.body);
 
-    const banner = await prisma.banner.update({ where: { id }, data });
+    const banner = await prisma.banner.update({
+      where: { id },
+      data: {
+        ...data,
+        startsAt: data.startsAt === undefined ? undefined : (data.startsAt ? new Date(data.startsAt) : null),
+        endsAt: data.endsAt === undefined ? undefined : (data.endsAt ? new Date(data.endsAt) : null),
+      } as any,
+    });
     await cacheDelete('banners:active');
     return { success: true, data: banner };
   });

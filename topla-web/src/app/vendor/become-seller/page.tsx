@@ -702,7 +702,7 @@ function FAQItem({ item }: { item: { q: string; a: string } }) {
 /* ──────────────── DATA (icons & colors only — text via i18n) ──────────────── */
 const benefitMeta = [
   { icon: Users, titleKey: 'bsBenefit1Title', descKey: 'bsBenefit1Desc', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400' },
-  { icon: Megaphone, titleKey: 'bsBenefit2Title', descKey: 'bsBenefit2Desc', color: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400' },
+  { icon: Megaphone, titleKey: 'bsBenefit2Title', descKey: 'bsBenefit2Desc', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400' },
   { icon: Globe, titleKey: 'bsBenefit3Title', descKey: 'bsBenefit3Desc', color: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400' },
   { icon: Truck, titleKey: 'bsBenefit4Title', descKey: 'bsBenefit4Desc', color: 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400' },
   { icon: BarChart3, titleKey: 'bsBenefit5Title', descKey: 'bsBenefit5Desc', color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400' },
@@ -919,7 +919,7 @@ export default function BecomeSellerPage() {
               suffix: "+",
               labelKey: "bsStatCities",
               icon: MapPin,
-              color: "text-purple-500",
+              color: "text-blue-500",
               translate: false,
             },
           ].map((stat) => (

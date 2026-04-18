@@ -159,6 +159,7 @@ export default function CheckoutPage() {
         note: address.note || undefined,
         items: items.map((item) => ({
           productId: item.productId,
+          variantId: item.variantId || undefined,
           quantity: item.quantity,
         })),
       };
@@ -524,8 +525,8 @@ export default function CheckoutPage() {
                     }`}>
                       {paymentMethod === 'card' && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                     </div>
-                    <div className="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-                      <CreditCard className="w-5 h-5 text-purple-600" />
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                      <CreditCard className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">{t('checkoutCard')}</p>
@@ -613,7 +614,7 @@ export default function CheckoutPage() {
                   </h3>
                   <div className="space-y-3 max-h-64 overflow-y-auto thin-scrollbar">
                     {items.map((item) => (
-                      <div key={item.productId} className="flex gap-3">
+                      <div key={`${item.productId}-${item.variantId || ''}`} className="flex gap-3">
                         <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 relative">
                           {item.image ? (
                             <Image src={resolveImageUrl(item.image)} alt={item.nameUz} fill className="object-cover" />
@@ -623,6 +624,9 @@ export default function CheckoutPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm line-clamp-1">{locale === 'ru' && item.nameRu ? item.nameRu : item.nameUz}</p>
+                          {item.variantLabel && (
+                            <p className="text-[10px] text-primary/70">{item.variantLabel}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">{item.quantity} x {formatPrice(item.price)}</p>
                         </div>
                         <span className="text-sm font-medium">{formatPrice(item.price * item.quantity)}</span>

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Loader2, Plus, Trash2, Search, UserPlus, Shield, Monitor, Smartphone, Globe, LogOut, Key, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPlatformSettings, updatePlatformSettings, getAdminUsers, searchUsers, promoteToAdmin, removeAdmin, getSessions, revokeSession, revokeAllOtherSessions, changePassword, type AdminUser, type Session } from './actions'
+import { AdminPasskeysCard, Admin2FACard } from './security-cards'
 import { useTranslation } from '@/store/locale-store';
 
 export default function AdminSettingsPage() {
@@ -674,6 +675,12 @@ export default function AdminSettingsPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Passkey management */}
+            <AdminPasskeysCard />
+
+            {/* 2FA management */}
+            <Admin2FACard />
           </div>
         </TabsContent>
       </Tabs>

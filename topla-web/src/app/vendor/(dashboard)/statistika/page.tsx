@@ -240,7 +240,7 @@ export default function StatistikaPage() {
           }
           icon={TrendingUp}
           loading={analyticsLoading}
-          iconColor="text-purple-500"
+          iconColor="text-blue-500"
         />
         <StatCard
           title={t("commission")}

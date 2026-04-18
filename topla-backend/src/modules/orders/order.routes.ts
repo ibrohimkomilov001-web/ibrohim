@@ -276,6 +276,12 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { nameUz: true, nameRu: true } },
               size: { select: { nameUz: true, nameRu: true } },
+              variantValues: {
+                include: {
+                  optionType: { select: { id: true, slug: true, nameUz: true, nameRu: true, sortOrder: true } },
+                  optionValue: { select: { id: true, slug: true, valueUz: true, valueRu: true, hexCode: true } },
+                },
+              },
             },
           },
         },
@@ -300,6 +306,12 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { nameUz: true, nameRu: true } },
               size: { select: { nameUz: true, nameRu: true } },
+              variantValues: {
+                include: {
+                  optionType: { select: { id: true, slug: true, nameUz: true, nameRu: true, sortOrder: true } },
+                  optionValue: { select: { id: true, slug: true, valueUz: true, valueRu: true, hexCode: true } },
+                },
+              },
             },
           },
         },
@@ -489,13 +501,34 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
             FOR UPDATE
           `;
         const currentProduct = locked[0];
-        if (!currentProduct || currentProduct.stock < item.quantity) {
-          throw new AppError(
-            `"${currentProduct?.name || item.product.name}" mahsulotidan faqat ${currentProduct?.stock || 0} dona bor`,
-          );
+        if (!currentProduct) {
+          throw new AppError(`"${item.product.name}" topilmadi`);
         }
         if (!currentProduct.is_active) {
           throw new AppError(`"${currentProduct.name}" mahsuloti sotuvda mavjud emas`);
+        }
+        // Variant bo'lsa — variant stock tekshir
+        if (item.variantId) {
+          const lockedVariants: { id: string; stock: number; is_active: boolean }[] =
+            await tx.$queryRaw`
+              SELECT id, stock, is_active
+              FROM product_variants
+              WHERE id = ${item.variantId}::uuid
+              FOR UPDATE
+            `;
+          const currentVariant = lockedVariants[0];
+          if (!currentVariant || !currentVariant.is_active) {
+            throw new AppError(`"${currentProduct.name}" varianti mavjud emas`);
+          }
+          if (currentVariant.stock < item.quantity) {
+            throw new AppError(
+              `"${currentProduct.name}" varianti faqat ${currentVariant.stock} dona bor`,
+            );
+          }
+        } else if (currentProduct.stock < item.quantity) {
+          throw new AppError(
+            `"${currentProduct.name}" mahsulotidan faqat ${currentProduct.stock} dona bor`,
+          );
         }
       }
 
@@ -573,6 +606,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
         });
+        // Variant stock ham kamaytirish
+        if (item.variantId) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
       }
 
       // Savatdan faqat buyurtma qilingan mahsulotlarni o'chirish
@@ -1068,10 +1108,20 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
       if (body.status === 'delivered') {
         // Mahsulotlarning sotilgan sonini oshirish
         const deliveredItems = await prisma.orderItem.findMany({ where: { orderId: id } });
+        const shopIds = new Set<string>();
         for (const item of deliveredItems) {
           await prisma.product.update({
             where: { id: item.productId },
             data: { salesCount: { increment: item.quantity } },
+          });
+          if (item.shopId) shopIds.add(item.shopId);
+        }
+
+        // Do'konlarning totalSales ni oshirish
+        for (const shopId of shopIds) {
+          await prisma.shop.update({
+            where: { id: shopId },
+            data: { totalSales: { increment: 1 } },
           });
         }
 

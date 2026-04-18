@@ -52,7 +52,19 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product || !product.isActive) throw new NotFoundError('Mahsulot');
-    if (product.stock < quantity) throw new AppError('Yetarli mahsulot yo\'q');
+
+    // Variant bo'lsa — variant stock tekshir; bo'lmasa — product stock
+    if (variantId) {
+      const variant = await prisma.productVariant.findFirst({
+        where: { id: variantId, productId, isActive: true },
+      });
+      if (!variant) throw new NotFoundError('Variant');
+      if (variant.stock < quantity) {
+        throw new AppError(`Faqat ${variant.stock} dona mavjud`, 400);
+      }
+    } else {
+      if (product.stock < quantity) throw new AppError('Yetarli mahsulot yo\'q');
+    }
 
     const userId = request.user!.userId;
     const vId = variantId ?? null;

@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Share2, Heart, Star, ShoppingCart, Plus, Minus,
   Store, Truck, Shield, RotateCcw, Loader2, X,
-  UserPlus, UserCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { shopApi, type ProductDetail } from '@/lib/api/shop';
@@ -23,53 +23,11 @@ import { useTranslation } from '@/store/locale-store';
 import { useAuthStore } from '@/store/auth-store';
 import { userAuthApi } from '@/lib/api/user-auth';
 import { ProductCard } from '@/components/shop/product-card';
+import { ShopFollowButton } from '@/components/shop/shop-follow-button';
 
 interface ProductDetailClientProps {
   productId: string;
   initialProduct: ProductDetail | null;
-}
-
-// ─── SHOP FOLLOW BUTTON ────────────────────────────
-function ShopFollowButton({ shopId }: { shopId: string }) {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    shopApi.isFollowingShop(shopId)
-      .then(res => setIsFollowing(res.isFollowing))
-      .catch(() => {});
-  }, [shopId]);
-
-  const toggle = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLoading(true);
-    try {
-      if (isFollowing) {
-        await shopApi.unfollowShop(shopId);
-        setIsFollowing(false);
-      } else {
-        await shopApi.followShop(shopId);
-        setIsFollowing(true);
-      }
-    } catch { /* auth required */ }
-    setLoading(false);
-  };
-
-  return (
-    <button
-      onClick={toggle}
-      disabled={loading}
-      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-        isFollowing
-          ? 'bg-muted text-foreground border border-border hover:bg-muted/80'
-          : 'bg-primary text-primary-foreground hover:bg-primary/90'
-      }`}
-    >
-      {isFollowing ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-      {isFollowing ? 'Obuna' : "Obuna bo'lish"}
-    </button>
-  );
 }
 
 export default function ProductDetailClient({ productId, initialProduct }: ProductDetailClientProps) {
@@ -95,6 +53,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   }, [lightboxOpen]);
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description');
+  const [selectedValues, setSelectedValues] = useState<Record<string, string>>({});
 
   const { addItem } = useCartStore();
   const { toggleFavorite, isFavorite } = useFavoritesStore();
@@ -123,6 +82,46 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
       setCurrentImage((p) => p - 1);
     }
   }, [currentImage, product?.images?.length]);
+
+  // Variant logic
+  const optionLinks = product?.optionLinks ?? [];
+  const allVariants = (product?.variants ?? []).filter((v) => v.isActive);
+
+  // Auto-select default variant on load
+  useEffect(() => {
+    if (!product || optionLinks.length === 0 || allVariants.length === 0) return;
+    const defaultV = allVariants.find((v) => v.id === product.defaultVariantId) || allVariants[0];
+    if (defaultV) {
+      const vals: Record<string, string> = {};
+      defaultV.variantValues.forEach((vv) => { vals[vv.optionType.id] = vv.optionValue.id; });
+      setSelectedValues(vals);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
+
+  // Find matched variant
+  const matchedVariant = allVariants.find((v) =>
+    v.variantValues.length > 0 &&
+    v.variantValues.every((vv) => selectedValues[vv.optionType.id] === vv.optionValue.id)
+  );
+
+  // Compute available values per attribute (grey out impossible combos)
+  const availableValues: Record<string, Set<string>> = {};
+  optionLinks.forEach((ol) => {
+    const typeId = ol.optionType.id;
+    const possible = new Set<string>();
+    allVariants.forEach((v) => {
+      const match = Object.entries(selectedValues).every(([tId, vId]) => {
+        if (tId === typeId) return true; // skip current type
+        return v.variantValues.some((vv) => vv.optionType.id === tId && vv.optionValue.id === vId);
+      });
+      if (match) {
+        const vv = v.variantValues.find((vv) => vv.optionType.id === typeId);
+        if (vv) possible.add(vv.optionValue.id);
+      }
+    });
+    availableValues[typeId] = possible;
+  });
 
   // Similar products
   const { data: similarData } = useQuery({
@@ -187,23 +186,36 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   const description = locale === 'ru' && product.descriptionRu
     ? product.descriptionRu
     : (product.descriptionUz || product.description || '');
-  const images = product.images?.length ? product.images : [];
-  const oldPrice = product.compareAtPrice || product.originalPrice;
-  const hasDiscount = oldPrice && oldPrice > product.price;
+  const activePrice = matchedVariant?.price ?? product.price;
+  const activeCompareAt = matchedVariant?.compareAtPrice ?? product.compareAtPrice ?? product.originalPrice;
+  const activeStock = matchedVariant?.stock ?? product.stock;
+  const variantImages = matchedVariant?.images?.length ? matchedVariant.images : null;
+  const images = variantImages || (product.images?.length ? product.images : []);
+  const oldPrice = activeCompareAt;
+  const hasDiscount = oldPrice && oldPrice > activePrice;
   const discountPercent = hasDiscount
-    ? Math.round(((oldPrice! - product.price) / oldPrice!) * 100)
+    ? Math.round(((oldPrice! - activePrice) / oldPrice!) * 100)
     : 0;
 
   const handleAddToCart = () => {
+    // Build variant label
+    let variantLabel: string | undefined;
+    if (matchedVariant) {
+      variantLabel = matchedVariant.variantValues
+        .map((vv) => locale === 'ru' && vv.optionValue.valueRu ? vv.optionValue.valueRu : vv.optionValue.valueUz)
+        .join(' / ');
+    }
     addItem({
       productId: product.id,
+      variantId: matchedVariant?.id,
+      variantLabel,
       name: product.nameUz,
       nameUz: product.nameUz,
       nameRu: product.nameRu,
-      price: product.price,
-      originalPrice: product.compareAtPrice,
+      price: activePrice,
+      originalPrice: activeCompareAt,
       image: images[0],
-      stock: product.stock,
+      stock: activeStock,
       quantity: qty,
       shopId: product.shop?.id,
       shopName: product.shop?.name,
@@ -268,7 +280,12 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
               )}
 
               {/* Actions */}
-              <div className="absolute top-4 right-4 flex flex-col gap-2">
+              <div
+                className="absolute top-4 right-4 flex flex-col gap-2"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleFavorite(id); }}
                   className="w-11 h-11 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
@@ -359,7 +376,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
           {/* Price */}
           <div className="glass rounded-2xl p-4 sm:p-5">
             <div>
-              <span className="text-3xl sm:text-4xl font-bold text-primary">{formatPrice(product.price)}</span>
+              <span className="text-3xl sm:text-4xl font-bold text-primary">{formatPrice(activePrice)}</span>
               {hasDiscount && (
                 <div className="mt-1">
                   <span className="text-base text-muted-foreground line-through">
@@ -368,12 +385,89 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                 </div>
               )}
             </div>
-            <p className={`text-sm mt-2 ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-              {product.stock > 0
-                ? `${t('inStock')} — ${product.stock} ${locale === 'ru' ? 'шт.' : 'dona'}`
+            <p className={`text-sm mt-2 ${activeStock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {activeStock > 0
+                ? `${t('inStock')} — ${activeStock} ${locale === 'ru' ? 'шт.' : 'dona'}`
                 : t('outOfStock')}
             </p>
           </div>
+
+          {/* Variant Selector */}
+          {optionLinks.length > 0 && allVariants.length > 0 && (
+            <div className="space-y-4">
+              {optionLinks.map((ol) => {
+                const type = ol.optionType;
+                const available = availableValues[type.id] ?? new Set();
+                // Only show values that exist in variants
+                const usedValueIds = new Set(
+                  allVariants.flatMap((v) =>
+                    v.variantValues.filter((vv) => vv.optionType.id === type.id).map((vv) => vv.optionValue.id)
+                  )
+                );
+                const values = type.values.filter((v) => usedValueIds.has(v.id));
+                if (values.length === 0) return null;
+
+                return (
+                  <div key={type.id} className="space-y-2">
+                    <p className="text-sm font-medium">
+                      {locale === 'ru' && type.nameRu ? type.nameRu : type.nameUz}
+                      {type.unit && <span className="text-muted-foreground ml-1">({type.unit})</span>}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {values.map((val) => {
+                        const isSelected = selectedValues[type.id] === val.id;
+                        const isAvailable = available.has(val.id);
+                        const valLabel = locale === 'ru' && val.valueRu ? val.valueRu : val.valueUz;
+
+                        if (type.displayType === 'color' && val.hexCode) {
+                          return (
+                            <button
+                              key={val.id}
+                              type="button"
+                              disabled={!isAvailable}
+                              onClick={() => setSelectedValues((prev) => ({ ...prev, [type.id]: val.id }))}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10 text-primary font-medium ring-2 ring-primary/20'
+                                  : isAvailable
+                                    ? 'border-muted hover:border-primary/50'
+                                    : 'border-muted opacity-30 cursor-not-allowed line-through'
+                              }`}
+                              title={valLabel}
+                            >
+                              <span
+                                className="inline-block w-4 h-4 rounded-full border border-black/10"
+                                style={{ backgroundColor: val.hexCode }}
+                              />
+                              {valLabel}
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={val.id}
+                            type="button"
+                            disabled={!isAvailable}
+                            onClick={() => setSelectedValues((prev) => ({ ...prev, [type.id]: val.id }))}
+                            className={`px-3 py-1.5 rounded-full border text-sm transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary font-medium ring-2 ring-primary/20'
+                                : isAvailable
+                                  ? 'border-muted hover:border-primary/50'
+                                  : 'border-muted opacity-30 cursor-not-allowed line-through'
+                            }`}
+                          >
+                            {valLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Qty + Add to cart */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -386,7 +480,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
               </button>
               <span className="w-12 text-center font-medium">{qty}</span>
               <button
-                onClick={() => setQty(Math.min(product.stock, qty + 1))}
+                onClick={() => setQty(Math.min(activeStock, qty + 1))}
                 className="w-11 h-11 flex items-center justify-center hover:bg-muted transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -395,7 +489,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
 
             <button
               className="flex-1 liquid-btn flex items-center justify-center gap-2 !py-2.5 text-sm whitespace-nowrap"
-              disabled={product.stock <= 0}
+              disabled={activeStock <= 0 || (optionLinks.length > 0 && !matchedVariant)}
               onClick={handleAddToCart}
             >
               <ShoppingCart className="w-4 h-4 shrink-0" />
@@ -420,27 +514,73 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
           </div>
 
           {/* Shop info */}
-          {product.shop && (
-            <div className="glass rounded-2xl p-4 flex items-center gap-4">
-              <Link href={`/shops/${product.shop.id}`} className="flex items-center gap-4 flex-1 min-w-0 hover-spring group">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
-                  {product.shop.logoUrl ? (
-                    <Image src={resolveImageUrl(product.shop.logoUrl)} alt="" width={48} height={48} className="object-cover" />
-                  ) : (
-                    <Store className="w-6 h-6 text-primary" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold group-hover:text-primary transition-colors">{product.shop.name}</p>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Star className="w-3.5 h-3.5 rating-star fill-current" />
-                    {product.shop.rating?.toFixed(1) || '0.0'}
+          {product.shop && (() => {
+            const shop = product.shop;
+            const shopType = shop.shopType || (locale === 'ru' ? 'Магазин' : 'Do\'kon');
+            const followersCount = shop._count?.followers ?? 0;
+            const ordersCount = shop._count?.orderItems ?? shop.totalSales ?? 0;
+            const fmtCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toString();
+            let timeStr = '';
+            if (shop.createdAt) {
+              const days = Math.floor((Date.now() - new Date(shop.createdAt).getTime()) / 86400000);
+              const yrs = Math.floor(days / 365);
+              timeStr = yrs >= 1
+                ? `${yrs} ${locale === 'ru' ? 'лет' : 'yil'}`
+                : `${Math.max(1, Math.floor(days / 30))} ${locale === 'ru' ? 'мес.' : 'oy'}`;
+            }
+            return (
+              <div className="bg-card rounded-2xl p-4 sm:p-5 border border-border/50">
+                {/* Row 1: Logo + Name/Type + Icons */}
+                <div className="flex items-center gap-3">
+                  <Link href={`/shops/${shop.id}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+                    <div className="w-12 h-12 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/50">
+                      {shop.logoUrl ? (
+                        <Image src={resolveImageUrl(shop.logoUrl)} alt="" width={48} height={48} className="object-cover w-full h-full" />
+                      ) : (
+                        <div className="w-full h-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
+                          {shop.name?.charAt(0)?.toUpperCase() || '🏪'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate group-hover:text-primary transition-colors">{shop.name}</p>
+                      <p className="text-xs text-muted-foreground">{shopType}</p>
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Link href={`/shops/${shop.id}/chat`} className="p-2 rounded-full hover:bg-muted transition-colors">
+                      <MessageCircle className="w-5 h-5 text-muted-foreground" />
+                    </Link>
+                    <ShopFollowButton shopId={shop.id} />
                   </div>
                 </div>
-              </Link>
-              <ShopFollowButton shopId={product.shop.id} />
-            </div>
-          )}
+                {/* Row 2: Stats bar */}
+                <div className="grid grid-cols-4 gap-1 mt-3 pt-3 border-t border-border/30">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-0.5">
+                      <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                      <span className="text-sm font-bold">{shop.rating?.toFixed(1) || '—'}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{fmtCount(shop.reviewCount ?? 0)} {locale === 'ru' ? 'оценок' : 'baho'}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold">{fmtCount(ordersCount)}</p>
+                    <p className="text-[10px] text-muted-foreground">{locale === 'ru' ? 'заказов' : 'buyurtma'}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold">{fmtCount(followersCount)}</p>
+                    <p className="text-[10px] text-muted-foreground">{locale === 'ru' ? 'подпис.' : 'obunachi'}</p>
+                  </div>
+                  {timeStr && (
+                    <div className="text-center">
+                      <p className="text-sm font-bold">{timeStr.split(' ')[0]}</p>
+                      <p className="text-[10px] text-muted-foreground">{timeStr.split(' ').slice(1).join(' ')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </motion.div>
       </div>
 
@@ -509,9 +649,9 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                 )}
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">{locale === 'ru' ? 'В наличии' : 'Mavjudlik'}</span>
-                  <span className={`font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {product.stock > 0
-                      ? `${product.stock} ${locale === 'ru' ? 'шт.' : 'dona'}`
+                  <span className={`font-medium ${activeStock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {activeStock > 0
+                      ? `${activeStock} ${locale === 'ru' ? 'шт.' : 'dona'}`
                       : t('outOfStock')}
                   </span>
                 </div>

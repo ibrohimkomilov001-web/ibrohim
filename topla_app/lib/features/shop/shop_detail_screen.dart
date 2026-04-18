@@ -388,8 +388,6 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
         return [
           _buildAppBar(shop),
           _buildProfileHeader(shop),
-          _buildNameAndBio(shop),
-          _buildActionButtons(shop),
           _buildTabBarSliver(),
         ];
       },
@@ -444,294 +442,278 @@ class _ShopDetailScreenState extends State<ShopDetailScreen>
     );
   }
 
-  // ─── PROFILE HEADER: AVATAR + STATS ───────────────────────────
+  // ─── PROFILE HEADER: YANDEX MARKET STYLE CARD ─────────────────
   Widget _buildProfileHeader(ShopModel shop) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-        child: Row(
-          children: [
-            _buildAvatar(shop),
-            const SizedBox(width: 24),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildProfileStat(_formatCount(shop.totalOrders),
-                      context.l10n.translate('sold_label')),
-                  _buildProfileStat(_formatCount(_localFollowerCount),
-                      context.l10n.translate('followers')),
-                  _buildProfileStat(
-                    shop.rating > 0 ? shop.formattedRating : '—',
-                    '${shop.reviewCount} ${context.l10n.translate('review_count_suffix')}',
-                  ),
-                ],
-              ),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade900 : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAvatar(ShopModel shop) {
-    return Container(
-      width: 90,
-      height: 90,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            Color(0xFFFBAA47),
-            Color(0xFFD91A46),
-            Color(0xFFA60F93),
+        child: Column(
+          children: [
+            // Row 1: Logo + Name/Type + Chat/Heart icons
+            Row(
+              children: [
+                // Rounded square logo
+                _buildSquareLogo(shop),
+                const SizedBox(width: 14),
+                // Name + Type
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              shop.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (shop.isVerified) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.verified,
+                                color: Color(0xFF3897F0), size: 18),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        shop.shopType ??
+                            context.l10n.translate('shop_type_store'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Action icons: Chat + Follow heart
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildIconBtn(
+                      icon: Iconsax.message,
+                      onTap: _startChat,
+                      isDark: isDark,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFollowHeartBtn(isDark),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Row 2: Stats bar
+            _buildStatsBar(shop, isDark),
           ],
         ),
       ),
-      padding: const EdgeInsets.all(3),
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Theme.of(context).scaffoldBackgroundColor,
+    );
+  }
+
+  Widget _buildSquareLogo(ShopModel shop) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.grey.shade100,
+        border: Border.all(
+          color: Colors.grey.shade200,
+          width: 0.5,
         ),
-        padding: const EdgeInsets.all(2),
-        child: ClipOval(
-          child: shop.logoUrl != null
-              ? CachedNetworkImage(
-                  imageUrl: shop.logoUrl!,
-                  fit: BoxFit.cover,
-                  width: 82,
-                  height: 82,
-                  placeholder: (_, __) => Container(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    child: const Icon(Iconsax.shop,
-                        color: AppColors.primary, size: 32),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    child: const Icon(Iconsax.shop,
-                        color: AppColors.primary, size: 32),
-                  ),
-                )
-              : Container(
-                  width: 82,
-                  height: 82,
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  child: Center(
-                    child: Text(
-                      shop.name.isNotEmpty ? shop.name[0].toUpperCase() : 'D',
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: shop.logoUrl != null
+          ? CachedNetworkImage(
+              imageUrl: shop.logoUrl!,
+              fit: BoxFit.cover,
+              width: 60,
+              height: 60,
+              placeholder: (_, __) => _logoPlaceholder(shop),
+              errorWidget: (_, __, ___) => _logoPlaceholder(shop),
+            )
+          : _logoPlaceholder(shop),
+    );
+  }
+
+  Widget _logoPlaceholder(ShopModel shop) {
+    return Container(
+      color: AppColors.primary.withValues(alpha: 0.08),
+      child: Center(
+        child: Text(
+          shop.name.isNotEmpty ? shop.name[0].toUpperCase() : 'D',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildProfileStat(String value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildIconBtn({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isDark,
+    Color? iconColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(
+          icon,
+          size: 24,
+          color: iconColor ??
+              (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFollowHeartBtn(bool isDark) {
+    return InkWell(
+      onTap: _isLoadingFollow ? null : _toggleFollow,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: _isLoadingFollow
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                _isFollowing ? Iconsax.heart_copy : Iconsax.heart,
+                size: 24,
+                color: _isFollowing
+                    ? Colors.red
+                    : (isDark
+                        ? Colors.grey.shade400
+                        : Colors.grey.shade600),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildStatsBar(ShopModel shop, bool isDark) {
+    final dividerColor = isDark ? Colors.grey.shade700 : Colors.grey.shade200;
+
+    return Row(
       children: [
-        Text(value,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        // Rating
+        Expanded(
+          child: _buildStatItem(
+            leading: Icon(Iconsax.star_1, size: 16, color: Colors.amber.shade700),
+            value: shop.rating > 0 ? shop.formattedRating : '—',
+            suffix:
+                '${_formatCount(shop.reviewCount)} ${context.l10n.translate('shop_reviews_count')}',
+            isBold: true,
+          ),
+        ),
+        _verticalDivider(dividerColor),
+        // Orders
+        Expanded(
+          child: _buildStatItem(
+            value: _formatCount(shop.totalOrders),
+            suffix: context.l10n.translate('shop_orders_count'),
+          ),
+        ),
+        _verticalDivider(dividerColor),
+        // Subscribers
+        Expanded(
+          child: _buildStatItem(
+            value: _formatCount(_localFollowerCount),
+            suffix: context.l10n.translate('shop_subscribers_count'),
+          ),
+        ),
+        _verticalDivider(dividerColor),
+        // Time on market
+        Expanded(
+          child: _buildStatItem(
+            value: shop.formattedTimeOnMarket,
+            suffix: shop.yearsOnMarket >= 1
+                ? context.l10n.translate('shop_years_on_market')
+                : context.l10n.translate('shop_months_on_market'),
+          ),
+        ),
       ],
     );
   }
 
-  // ─── NAME + BIO ───────────────────────────────────────────────
-  Widget _buildNameAndBio(ShopModel shop) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildStatItem({
+    Widget? leading,
+    required String value,
+    required String suffix,
+    bool isBold = false,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Name + City
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    shop.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (shop.city != null) ...[
-                  const SizedBox(width: 6),
-                  Icon(Iconsax.location, size: 13, color: Colors.grey.shade500),
-                  const SizedBox(width: 2),
-                  Text(shop.city!,
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-                ],
-              ],
-            ),
-            // Bio / Description
-            if (shop.description != null && shop.description!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                shop.description!,
+            if (leading != null) ...[
+              leading,
+              const SizedBox(width: 2),
+            ],
+            Flexible(
+              child: Text(
+                value,
                 style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isBold ? Colors.black87 : null,
                 ),
-                maxLines: 3,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            ],
-            // Rating badge
-            if (shop.rating > 0) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Iconsax.star_1, size: 14, color: Colors.amber),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${shop.formattedRating} ${context.l10n.translate('rating_suffix')}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.amber.shade800,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text('•', style: TextStyle(color: Colors.grey.shade400)),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${shop.totalOrders}+ ${context.l10n.translate('sold_count')}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 12),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 2),
+        Text(
+          suffix,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade500,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 
-  // ─── ACTION BUTTONS ───────────────────────────────────────────
-  Widget _buildActionButtons(ShopModel shop) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
-    final textColor = isDark ? Colors.white : Colors.black;
-
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Row(
-          children: [
-            // Follow / Obuna button
-            Expanded(
-              child: SizedBox(
-                height: 36,
-                child: _isFollowing
-                    ? OutlinedButton(
-                        onPressed: _isLoadingFollow ? null : _toggleFollow,
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          side: BorderSide(color: borderColor),
-                        ),
-                        child: _isLoadingFollow
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2))
-                            : Text(context.l10n.translate('subscribed_btn'),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 13)),
-                      )
-                    : FilledButton(
-                        onPressed: _isLoadingFollow ? null : _toggleFollow,
-                        style: FilledButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          backgroundColor: const Color(0xFF3897F0),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: _isLoadingFollow
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ))
-                            : Text(context.l10n.translate('subscribe_btn'),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: Colors.white,
-                                )),
-                      ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Xabar button
-            Expanded(
-              child: SizedBox(
-                height: 36,
-                child: OutlinedButton(
-                  onPressed: _startChat,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    side: BorderSide(color: borderColor),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Iconsax.message, size: 16, color: textColor),
-                      const SizedBox(width: 6),
-                      Text(context.l10n.translate('message_btn'),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: textColor,
-                          )),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Share button
-            SizedBox(
-              width: 36,
-              height: 36,
-              child: OutlinedButton(
-                onPressed: _shareShop,
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  side: BorderSide(color: borderColor),
-                ),
-                child: Icon(Iconsax.share, size: 16, color: textColor),
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _verticalDivider(Color color) {
+    return Container(
+      width: 1,
+      height: 28,
+      color: color,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
     );
   }
 

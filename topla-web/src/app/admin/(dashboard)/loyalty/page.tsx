@@ -29,7 +29,7 @@ const tierConfig: Record<string, { icon: typeof Crown; color: string; label: str
   bronze: { icon: Medal, color: "text-amber-700", label: "Bronze" },
   silver: { icon: Medal, color: "text-gray-400", label: "Silver" },
   gold: { icon: Crown, color: "text-yellow-500", label: "Gold" },
-  platinum: { icon: Crown, color: "text-violet-500", label: "Platinum" },
+  platinum: { icon: Crown, color: "text-blue-500", label: "Platinum" },
 };
 
 export default function LoyaltyPage() {

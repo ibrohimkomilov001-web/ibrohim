@@ -49,14 +49,17 @@ export function isAdminAuthenticated(): boolean {
 // ============================================
 // Auth
 // ============================================
-export async function adminLogin(email: string, password: string) {
+export async function adminLogin(email: string, password: string, captchaToken?: string) {
   try {
-    // autoUnwrap: false — response: { success, data: { token, adminRole, user } }
-    const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>('/auth/admin/login', {
+    const res = await adminRequest<{ success: boolean; data: { token?: string; refreshToken?: string; adminRole?: AdminPermissions; requires2FA?: boolean; tempToken?: string } }>('/auth/admin/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captchaToken }),
     });
     const data = res.data;
+    if (data?.requires2FA) {
+      // Don't store token yet — let UI handle 2FA challenge
+      return data;
+    }
     if (data?.token) {
       setAdminToken(data.token);
     }
@@ -66,6 +69,21 @@ export async function adminLogin(email: string, password: string) {
     return data;
   } catch (err: any) {
     throw new Error(err.message || 'Serverga ulanib bo\'lmadi. Qayta urinib ko\'ring.');
+  }
+}
+
+export async function adminLogin2FA(tempToken: string, code: string) {
+  try {
+    const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>('/auth/admin/login/2fa', {
+      method: 'POST',
+      body: JSON.stringify({ tempToken, code }),
+    });
+    const data = res.data;
+    if (data?.token) setAdminToken(data.token);
+    if (data?.adminRole) setAdminPermissions(data.adminRole);
+    return data;
+  } catch (err: any) {
+    throw new Error(err.message || '2FA tasdiqlash xatoligi');
   }
 }
 
@@ -89,23 +107,82 @@ export async function adminGoogleLogin(credential: string) {
   }
 }
 
-export async function adminKeyLogin(key: string) {
-  try {
-    const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>('/auth/admin/key-login', {
-      method: 'POST',
-      body: JSON.stringify({ key }),
-    });
-    const data = res.data;
-    if (data?.token) {
-      setAdminToken(data.token);
-    }
-    if (data?.adminRole) {
-      setAdminPermissions(data.adminRole);
-    }
-    return data;
-  } catch (err: any) {
-    throw new Error(err.message || 'Kalit orqali kirishda xatolik yuz berdi.');
-  }
+// ============================================
+// Passkey (WebAuthn) Login
+// ============================================
+export async function adminPasskeyLoginBegin(email?: string) {
+  const res = await adminRequest<{ success: boolean; data: { options: any; sessionId: string } }>(
+    '/auth/admin/passkey/login/begin',
+    { method: 'POST', body: JSON.stringify({ email }) },
+  );
+  return res.data;
+}
+
+export async function adminPasskeyLoginVerify(sessionId: string, credential: any) {
+  const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>(
+    '/auth/admin/passkey/login/verify',
+    { method: 'POST', body: JSON.stringify({ sessionId, credential }) },
+  );
+  const data = res.data;
+  if (data?.token) setAdminToken(data.token);
+  if (data?.adminRole) setAdminPermissions(data.adminRole);
+  return data;
+}
+
+export async function adminPasskeyRegisterBegin() {
+  const res = await adminRequest<{ success: boolean; data: any }>(
+    '/auth/admin/passkey/register/begin',
+    { method: 'POST' },
+  );
+  return res.data;
+}
+
+export async function adminPasskeyRegisterVerify(response: any, deviceName?: string) {
+  const res = await adminRequest<{ success: boolean }>(
+    '/auth/admin/passkey/register/verify',
+    { method: 'POST', body: JSON.stringify({ response, deviceName }) },
+  );
+  return res;
+}
+
+export async function fetchAdminPasskeys(): Promise<Array<{ id: string; deviceName: string | null; createdAt: string; lastUsedAt: string | null }>> {
+  const res = await adminRequest<{ success: boolean; data: any[] }>('/admin/passkeys');
+  return res.data || [];
+}
+
+export async function deleteAdminPasskey(id: string) {
+  await adminRequest(`/admin/passkeys/${id}`, { method: 'DELETE' });
+}
+
+// ============================================
+// 2FA (TOTP)
+// ============================================
+export async function admin2FAStatus(): Promise<{ enabled: boolean; backupCodesRemaining: number }> {
+  const res = await adminRequest<{ success: boolean; data: any }>('/admin/2fa/status');
+  return res.data;
+}
+
+export async function admin2FASetupBegin(): Promise<{ secret: string; otpauth: string }> {
+  const res = await adminRequest<{ success: boolean; data: any }>(
+    '/admin/2fa/setup/begin',
+    { method: 'POST' },
+  );
+  return res.data;
+}
+
+export async function admin2FASetupVerify(code: string): Promise<{ backupCodes: string[] }> {
+  const res = await adminRequest<{ success: boolean; data: any }>(
+    '/admin/2fa/setup/verify',
+    { method: 'POST', body: JSON.stringify({ code }) },
+  );
+  return res.data;
+}
+
+export async function admin2FADisable(code: string) {
+  await adminRequest('/admin/2fa/disable', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
 }
 
 // ============================================

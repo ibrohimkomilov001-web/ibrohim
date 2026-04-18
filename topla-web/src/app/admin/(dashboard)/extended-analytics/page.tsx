@@ -218,7 +218,7 @@ function FunnelTab({ period }: { period: string }) {
             <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t dark:border-border">
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">Ko&apos;rish → Savat</p>
-                <p className="text-lg font-bold text-violet-600 dark:text-violet-400">
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                   {stages[0].count > 0 ? ((stages[1].count / stages[0].count) * 100).toFixed(1) : 0}%
                 </p>
               </div>

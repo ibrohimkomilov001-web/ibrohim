@@ -20,3 +20,4 @@ export 'product_facets.dart';
 export 'shop_review_model.dart';
 export 'shop_conversation_model.dart';
 export 'shop_message_model.dart';
+export 'loyalty_model.dart';

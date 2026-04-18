@@ -24,6 +24,7 @@ import { ArrowLeft, Upload, X, Loader2, ImageIcon, Save, Palette, Package, Dolla
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslation } from '@/store/locale-store';
+import { VariantBuilder, type VariantRow as VBVariantRow } from '@/components/vendor/variant-builder';
 
 export default function EditProductPage() {
   const { id } = useParams<{ id: string }>();
@@ -67,20 +68,10 @@ export default function EditProductPage() {
   // Dynamic category attributes (P-FIX-02)
   const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
 
-  // Variant state
-  interface VariantRow {
-    colorId: string | null;
-    sizeId: string | null;
-    price: string;
-    compareAtPrice: string;
-    stock: string;
-    sku: string;
-    images: string[];
-  }
+  // Variant state (multi-attribute)
   const [hasVariants, setHasVariants] = useState(false);
-  const [selectedColorIds, setSelectedColorIds] = useState<string[]>([]);
-  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>([]);
-  const [variantRows, setVariantRows] = useState<Record<string, VariantRow>>({});
+  const [selectedOptions, setSelectedOptions] = useState<{ optionTypeId: string; valueIds: string[] }[]>([]);
+  const [variantRows, setVariantRows] = useState<VBVariantRow[]>([]);
 
   // Fetch product data
   const { data: product, isLoading } = useQuery({
@@ -144,43 +135,6 @@ export default function EditProductPage() {
   const subcategories = selectedCategory?.children || [];
   const selectedSubcategory = subcategories.find((s: any) => s.id === subcategoryId);
   const leafCategories = selectedSubcategory?.children || [];
-
-  // Variant matrix keys
-  const variantKeys = useMemo(() => {
-    if (!hasVariants) return [];
-    const keys: { key: string; colorId: string | null; sizeId: string | null }[] = [];
-    const colorList = selectedColorIds.length > 0 ? selectedColorIds : [null];
-    const sizeList = selectedSizeIds.length > 0 ? selectedSizeIds : [null];
-    for (const c of colorList) {
-      for (const s of sizeList) {
-        keys.push({ key: `${c || 'none'}_${s || 'none'}`, colorId: c, sizeId: s });
-      }
-    }
-    return keys;
-  }, [hasVariants, selectedColorIds, selectedSizeIds]);
-
-  const updateVariantRow = (key: string, field: keyof VariantRow, value: any) => {
-    setVariantRows(prev => ({
-      ...prev,
-      [key]: { ...prev[key], [field]: value },
-    }));
-  };
-
-  const getVariantRow = (key: string, colorId: string | null, sizeId: string | null): VariantRow => {
-    return variantRows[key] || {
-      colorId, sizeId,
-      price: price || '', compareAtPrice: originalPrice || '',
-      stock: stock || '0', sku: '', images: [],
-    };
-  };
-
-  const toggleColorSelection = (cid: string) => {
-    setSelectedColorIds(prev => prev.includes(cid) ? prev.filter(c => c !== cid) : [...prev, cid]);
-  };
-
-  const toggleSizeSelection = (sid: string) => {
-    setSelectedSizeIds(prev => prev.includes(sid) ? prev.filter(s => s !== sid) : [...prev, sid]);
-  };
 
   // Populate form when product loads
   useEffect(() => {
@@ -253,28 +207,52 @@ export default function EditProductPage() {
         setAttributeValues(vals);
       }
 
-      // Load existing variants
-      const variants = (product as any).variants as ProductVariant[] | undefined;
+      // Load existing variants (multi-attribute)
+      const variants = (product as any).variants as any[] | undefined;
+      const optionLinks = (product as any).optionLinks as any[] | undefined;
       if ((product as any).hasVariants && variants && variants.length > 0) {
         setHasVariants(true);
-        const cIds = Array.from(new Set(variants.filter(v => v.colorId).map(v => v.colorId!)));
-        const sIds = Array.from(new Set(variants.filter(v => v.sizeId).map(v => v.sizeId!)));
-        setSelectedColorIds(cIds);
-        setSelectedSizeIds(sIds);
 
-        const rows: Record<string, VariantRow> = {};
-        for (const v of variants) {
-          const key = `${v.colorId || 'none'}_${v.sizeId || 'none'}`;
-          rows[key] = {
-            colorId: v.colorId || null,
-            sizeId: v.sizeId || null,
-            price: String(v.price || ''),
-            compareAtPrice: String(v.compareAtPrice || ''),
-            stock: String(v.stock || '0'),
-            sku: v.sku || '',
-            images: v.images || [],
-          };
+        // Build selectedOptions from optionLinks or variant values
+        const optMap = new Map<string, Set<string>>();
+        if (optionLinks && optionLinks.length > 0) {
+          for (const link of optionLinks) {
+            const typeId = link.optionTypeId || link.optionType?.id;
+            if (typeId && !optMap.has(typeId)) optMap.set(typeId, new Set());
+          }
         }
+        // Collect all value selections from variants
+        for (const v of variants) {
+          const vvs = v.variantValues || [];
+          for (const vv of vvs) {
+            const typeId = vv.optionTypeId || vv.optionType?.id;
+            const valId = vv.optionValueId || vv.optionValue?.id;
+            if (typeId && valId) {
+              if (!optMap.has(typeId)) optMap.set(typeId, new Set());
+              optMap.get(typeId)!.add(valId);
+            }
+          }
+        }
+        const selOpts = Array.from(optMap.entries()).map(([optionTypeId, valIds]) => ({
+          optionTypeId,
+          valueIds: Array.from(valIds),
+        }));
+        setSelectedOptions(selOpts);
+
+        // Build variant rows
+        const rows: VBVariantRow[] = variants.map((v, idx) => ({
+          values: (v.variantValues || []).map((vv: any) => ({
+            optionTypeId: vv.optionTypeId || vv.optionType?.id,
+            optionValueId: vv.optionValueId || vv.optionValue?.id,
+          })),
+          price: String(v.price || ''),
+          compareAtPrice: String(v.compareAtPrice || ''),
+          stock: String(v.stock || '0'),
+          sku: v.sku || '',
+          images: v.images || [],
+          isActive: v.isActive ?? true,
+          isDefault: (product as any).defaultVariantId === v.id || idx === 0,
+        }));
         setVariantRows(rows);
       }
     }
@@ -315,26 +293,6 @@ export default function EditProductPage() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Variant image upload (P-FIX-03)
-  const handleVariantImageUpload = async (variantKey: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    try {
-      for (const file of Array.from(files)) {
-        const result = await uploadApi.uploadImage(file);
-        updateVariantRow(variantKey, 'images', [
-          ...(variantRows[variantKey]?.images || []),
-          result.url,
-        ]);
-      }
-      toast.success(t('imageUploaded'));
-    } catch {
-      toast.error(t('imageUploadError'));
-    } finally {
-      e.target.value = '';
-    }
-  };
-
   const handleSubmit = () => {
     if (!nameUz) {
       toast.error(t('nameRequired'));
@@ -353,23 +311,22 @@ export default function EditProductPage() {
       return;
     }
 
-    // Build variants array
+    // Build variants array (multi-attribute)
     let variantsPayload: any[] | undefined;
-    if (hasVariants && variantKeys.length > 0) {
-      variantsPayload = variantKeys.map((vk, idx) => {
-        const row = getVariantRow(vk.key, vk.colorId, vk.sizeId);
-        return {
-          colorId: vk.colorId || null,
-          sizeId: vk.sizeId || null,
-          price: Number(row.price) || Number(price),
-          compareAtPrice: row.compareAtPrice ? Number(row.compareAtPrice) : null,
-          stock: Number(row.stock) || 0,
-          sku: row.sku?.trim() || null,
-          images: row.images || [],
-          isActive: true,
-          sortOrder: idx,
-        };
-      });
+    let optionTypeIdsPayload: string[] | undefined;
+    if (hasVariants && variantRows.length > 0) {
+      optionTypeIdsPayload = selectedOptions.map(o => o.optionTypeId);
+      variantsPayload = variantRows.map((row, idx) => ({
+        values: row.values,
+        price: Number(row.price) || Number(price),
+        compareAtPrice: row.compareAtPrice ? Number(row.compareAtPrice) : null,
+        stock: Number(row.stock) || 0,
+        sku: row.sku?.trim() || null,
+        images: row.images || [],
+        isActive: row.isActive,
+        sortOrder: idx,
+        isDefault: row.isDefault,
+      }));
     }
 
     updateMutation.mutate({
@@ -392,6 +349,7 @@ export default function EditProductPage() {
       images,
       hasVariants: !!hasVariants,
       variants: variantsPayload,
+      optionTypeIds: optionTypeIdsPayload,
       // Extended fields (P-FIX-04, P-06, P-11)
       barcode: barcode.trim() || undefined,
       videoUrl: videoUrl.trim() || undefined,
@@ -646,170 +604,16 @@ export default function EditProductPage() {
             </CardContent>
           </Card>
 
-          {/* Variants */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Palette className="h-5 w-5 text-primary" />
-                {t('variantsTitle')}
-              </CardTitle>
-              <CardDescription>
-                {t('variantsDesc')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>{t('variantProduct')}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t('variantQuestion')}
-                  </p>
-                </div>
-                <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
-              </div>
-
-              {hasVariants && (
-                <>
-                  {Array.isArray(colors) && colors.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>{t('selectColors')}</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {colors.map((color: any) => (
-                          <button
-                            key={color.id}
-                            type="button"
-                            onClick={() => toggleColorSelection(color.id)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-colors ${
-                              selectedColorIds.includes(color.id)
-                                ? 'border-primary bg-primary/10 text-primary font-medium'
-                                : 'border-muted hover:border-primary/50'
-                            }`}
-                          >
-                            <span className="inline-block w-3.5 h-3.5 rounded-full border" style={{ backgroundColor: color.hexCode }} />
-                            {color.nameUz}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {Array.isArray(sizes) && sizes.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>{t('selectSizes')}</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {sizes.map((size: any) => (
-                          <button
-                            key={size.id}
-                            type="button"
-                            onClick={() => toggleSizeSelection(size.id)}
-                            className={`px-3 py-1.5 rounded-full border text-sm transition-colors ${
-                              selectedSizeIds.includes(size.id)
-                                ? 'border-primary bg-primary/10 text-primary font-medium'
-                                : 'border-muted hover:border-primary/50'
-                            }`}
-                          >
-                            {size.nameUz}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {variantKeys.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>{t('variantTable')} ({variantKeys.length} {t('variantCount')})</Label>
-                      <div className="border rounded-lg overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-muted/50">
-                              {selectedColorIds.length > 0 && <th className="text-left px-3 py-2 font-medium">{t('color')}</th>}
-                              {selectedSizeIds.length > 0 && <th className="text-left px-3 py-2 font-medium">{t('size')}</th>}
-                              <th className="text-left px-3 py-2 font-medium">{t('price')} *</th>
-                              <th className="text-left px-3 py-2 font-medium">{t('originalPrice')}</th>
-                              <th className="text-left px-3 py-2 font-medium">{t('quantity')}</th>
-                              <th className="text-left px-3 py-2 font-medium">{t('sku')}</th>
-                              <th className="text-left px-3 py-2 font-medium">{t('images')}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {variantKeys.map(vk => {
-                              const row = getVariantRow(vk.key, vk.colorId, vk.sizeId);
-                              const colorObj = colors.find((c: any) => c.id === vk.colorId);
-                              const sizeObj = sizes.find((s: any) => s.id === vk.sizeId);
-                              return (
-                                <tr key={vk.key} className="border-b last:border-0">
-                                  {selectedColorIds.length > 0 && (
-                                    <td className="px-3 py-2">
-                                      <div className="flex items-center gap-1.5">
-                                        {colorObj && (
-                                          <span className="inline-block w-3 h-3 rounded-full border" style={{ backgroundColor: colorObj.hexCode }} />
-                                        )}
-                                        <span className="whitespace-nowrap">{colorObj?.nameUz || '—'}</span>
-                                      </div>
-                                    </td>
-                                  )}
-                                  {selectedSizeIds.length > 0 && (
-                                    <td className="px-3 py-2 whitespace-nowrap">{sizeObj?.nameUz || '—'}</td>
-                                  )}
-                                  <td className="px-3 py-1">
-                                    <Input type="number" placeholder={price || '0'} value={row.price} onChange={e => updateVariantRow(vk.key, 'price', e.target.value)} className="h-8 w-28" min={0} />
-                                  </td>
-                                  <td className="px-3 py-1">
-                                    <Input type="number" placeholder="0" value={row.compareAtPrice} onChange={e => updateVariantRow(vk.key, 'compareAtPrice', e.target.value)} className="h-8 w-28" min={0} />
-                                  </td>
-                                  <td className="px-3 py-1">
-                                    <Input type="number" placeholder="0" value={row.stock} onChange={e => updateVariantRow(vk.key, 'stock', e.target.value)} className="h-8 w-20" min={0} />
-                                  </td>
-                                  <td className="px-3 py-1">
-                                    <Input placeholder="" value={row.sku} onChange={e => updateVariantRow(vk.key, 'sku', e.target.value)} className="h-8 w-28" />
-                                  </td>
-                                  <td className="px-3 py-1">
-                                    <div className="flex items-center gap-1">
-                                      {row.images?.length > 0 && (
-                                        <div className="flex -space-x-1">
-                                          {row.images.slice(0, 2).map((img, imgIdx) => (
-                                            <div key={imgIdx} className="relative w-7 h-7 rounded border overflow-hidden">
-                                              <Image src={resolveImageUrl(img)} alt="" fill className="object-cover" />
-                                            </div>
-                                          ))}
-                                          {row.images.length > 2 && (
-                                            <span className="text-[10px] text-muted-foreground ml-1">+{row.images.length - 2}</span>
-                                          )}
-                                        </div>
-                                      )}
-                                      <label className="h-7 w-7 rounded border border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors flex-shrink-0">
-                                        <Upload className="h-3 w-3 text-muted-foreground" />
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          multiple
-                                          className="hidden"
-                                          onChange={(e) => handleVariantImageUpload(vk.key, e)}
-                                        />
-                                      </label>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t('emptyPriceHint')}
-                      </p>
-                    </div>
-                  )}
-
-                  {variantKeys.length === 0 && (
-                    <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                      {t('selectFromAbove')}
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+          {/* Variants (multi-attribute) */}
+          <VariantBuilder
+            hasVariants={hasVariants}
+            onHasVariantsChange={setHasVariants}
+            defaultPrice={price}
+            selectedOptions={selectedOptions}
+            onSelectedOptionsChange={setSelectedOptions}
+            variantRows={variantRows}
+            onVariantRowsChange={setVariantRows}
+          />
 
           {/* Dynamic Category Attributes (P-FIX-02) */}
           {categoryAttributes.length > 0 && (

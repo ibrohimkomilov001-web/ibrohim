@@ -50,9 +50,17 @@ const createProductSchema = z.object({
   metaDescription: z.string().max(320).optional(),
   // Variant support
   hasVariants: z.boolean().optional(),
+  // Yangi format (recommended): option types + variants with values
+  optionTypeIds: z.array(z.string().uuid()).optional(),
   variants: z.array(z.object({
+    // Eski format (backward compat)
     colorId: z.string().uuid().nullable().optional(),
     sizeId: z.string().uuid().nullable().optional(),
+    // Yangi format: atribut qiymatlari
+    values: z.array(z.object({
+      optionTypeId: z.string().uuid(),
+      optionValueId: z.string().uuid(),
+    })).optional(),
     price: z.number().positive(),
     compareAtPrice: z.number().positive().nullable().optional(),
     stock: z.number().int().min(0).default(0),
@@ -60,6 +68,7 @@ const createProductSchema = z.object({
     images: z.array(z.string()).default([]),
     isActive: z.boolean().default(true),
     sortOrder: z.number().int().default(0),
+    isDefault: z.boolean().optional(),
   })).optional(),
   // Category attribute values (P-01/B-02 fix)
   attributeValues: z.array(z.object({
@@ -95,6 +104,132 @@ const productFilterSchema = z.object({
   page: z.coerce.number().default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
+
+// ============================================
+// Helpers: Variant junction management
+// ============================================
+
+type VariantInput = {
+  colorId?: string | null;
+  sizeId?: string | null;
+  values?: { optionTypeId: string; optionValueId: string }[];
+  price: number;
+  compareAtPrice?: number | null;
+  stock: number;
+  sku?: string | null;
+  images: string[];
+  isActive: boolean;
+  sortOrder: number;
+  isDefault?: boolean;
+};
+
+/**
+ * Variantlarni junction jadvallari bilan yozadi va default variantni belgilaydi.
+ * Mavjud variant/link/value larni o'chirib qayta yaratadi (replace strategy).
+ */
+async function syncProductVariants(
+  productId: string,
+  variantsData: VariantInput[],
+  optionTypeIds?: string[],
+): Promise<any[]> {
+  // Eski variantlarni o'chirish (cascade: values, cart, order refs)
+  await prisma.productVariant.deleteMany({ where: { productId } });
+  await prisma.productOptionLink.deleteMany({ where: { productId } });
+
+  if (variantsData.length === 0) {
+    await prisma.product.update({ where: { id: productId }, data: { defaultVariantId: null } });
+    return [];
+  }
+
+  // Option type linklarni yaratish
+  const optionTypeIdSet = new Set<string>(optionTypeIds || []);
+  for (const v of variantsData) {
+    if (v.values) {
+      for (const val of v.values) optionTypeIdSet.add(val.optionTypeId);
+    }
+  }
+  if (optionTypeIdSet.size > 0) {
+    await prisma.productOptionLink.createMany({
+      data: Array.from(optionTypeIdSet).map((optionTypeId, idx) => ({
+        productId,
+        optionTypeId,
+        sortOrder: idx,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  // Har bir variantni yaratish + junction value larni yozish
+  const createdVariants: any[] = [];
+  let defaultVariantId: string | null = null;
+
+  for (let idx = 0; idx < variantsData.length; idx++) {
+    const v = variantsData[idx]!;
+    const created = await prisma.productVariant.create({
+      data: {
+        productId,
+        colorId: v.colorId || null,
+        sizeId: v.sizeId || null,
+        price: v.price,
+        compareAtPrice: v.compareAtPrice || null,
+        stock: v.stock,
+        sku: v.sku || null,
+        images: v.images || [],
+        isActive: v.isActive ?? true,
+        sortOrder: v.sortOrder ?? idx,
+      },
+      include: {
+        color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+        size: { select: { id: true, nameUz: true, nameRu: true } },
+      },
+    });
+
+    // Junction rows
+    if (v.values && v.values.length > 0) {
+      await prisma.productVariantValue.createMany({
+        data: v.values.map((vv) => ({
+          variantId: created.id,
+          optionTypeId: vv.optionTypeId,
+          optionValueId: vv.optionValueId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    if (v.isDefault) defaultVariantId = created.id;
+
+    createdVariants.push(created);
+  }
+
+  // Default variant (agar belgilanmagan bo'lsa — birinchi aktiv)
+  if (!defaultVariantId) {
+    const first = createdVariants.find((v) => v.isActive) || createdVariants[0];
+    if (first) defaultVariantId = first.id;
+  }
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: { defaultVariantId },
+  });
+
+  // Yaratilgan variantlarning values larni qayta o'qib qaytarish
+  const withValues = await prisma.productVariant.findMany({
+    where: { productId },
+    include: {
+      color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
+      size: { select: { id: true, nameUz: true, nameRu: true } },
+      variantValues: {
+        include: {
+          optionType: { select: { id: true, slug: true, nameUz: true, nameRu: true, displayType: true, unit: true } },
+          optionValue: { select: { id: true, slug: true, valueUz: true, valueRu: true, hexCode: true, imageUrl: true } },
+        },
+      },
+    },
+    orderBy: { sortOrder: 'asc' },
+  });
+
+  return withValues;
+}
 
 // ============================================
 // Routes
@@ -931,7 +1066,11 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
         where: { id },
         include: {
           shop: {
-            select: { id: true, name: true, logoUrl: true, rating: true, reviewCount: true },
+            select: {
+              id: true, name: true, logoUrl: true, rating: true, reviewCount: true,
+              shopType: true, totalSales: true, createdAt: true,
+              _count: { select: { followers: true, orderItems: true } },
+            },
           },
           category: {
             include: {
@@ -945,6 +1084,25 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
             include: {
               color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
               size: { select: { id: true, nameUz: true, nameRu: true } },
+              variantValues: {
+                include: {
+                  optionType: { select: { id: true, slug: true, nameUz: true, nameRu: true, displayType: true, unit: true } },
+                  optionValue: { select: { id: true, slug: true, valueUz: true, valueRu: true, hexCode: true, imageUrl: true } },
+                },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+          optionLinks: {
+            include: {
+              optionType: {
+                include: {
+                  values: {
+                    where: { isActive: true },
+                    orderBy: { sortOrder: 'asc' },
+                  },
+                },
+              },
             },
             orderBy: { sortOrder: 'asc' },
           },
@@ -1518,7 +1676,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Determine status based on validation
       const status = validation.isValid ? 'active' : 'has_errors';
 
-      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, tags, metaTitle, metaDescription, videoUrl, width, height, length: lengthCm, barcode, ...restBody } = body;
+      const { categoryId, brandId, colorId, variants: variantsData, hasVariants: hasVariantsFlag, optionTypeIds, attributeValues, tags, metaTitle, metaDescription, videoUrl, width, height, length: lengthCm, barcode, ...restBody } = body;
 
       // Auto-generate slug from product name
       const slug = await generateProductSlug(body.nameUz || body.name);
@@ -1559,28 +1717,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Create variants if provided
       let createdVariants: any[] = [];
       if (hasVariantsFlag && variantsData && variantsData.length > 0) {
-        createdVariants = await Promise.all(
-          variantsData.map((v, idx) =>
-            prisma.productVariant.create({
-              data: {
-                productId: product.id,
-                colorId: v.colorId || null,
-                sizeId: v.sizeId || null,
-                price: v.price,
-                compareAtPrice: v.compareAtPrice || null,
-                stock: v.stock,
-                sku: v.sku || null,
-                images: v.images || [],
-                isActive: v.isActive ?? true,
-                sortOrder: v.sortOrder ?? idx,
-              },
-              include: {
-                color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
-                size: { select: { id: true, nameUz: true, nameRu: true } },
-              },
-            })
-          )
-        );
+        createdVariants = await syncProductVariants(product.id, variantsData, optionTypeIds);
       }
 
       // Create attribute values if provided (P-01/B-02 fix)
@@ -1691,7 +1828,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const status = validation.isValid ? 'active' : 'has_errors';
 
       // Extract variant data and relation IDs from body
-      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, attributeValues, tags, metaTitle, metaDescription, videoUrl, width, height, length: lengthCm, barcode, ...updateFields } = body;
+      const { categoryId: bodyCategoryId, brandId: bodyBrandId, colorId: bodyColorId, variants: variantsData, hasVariants: hasVariantsFlag, optionTypeIds, attributeValues, tags, metaTitle, metaDescription, videoUrl, width, height, length: lengthCm, barcode, ...updateFields } = body;
 
       // Auto-generate slug if name changed and no slug yet
       let slugUpdate: string | undefined;
@@ -1741,34 +1878,7 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       // Update variants if provided (replace all strategy)
       let updatedVariants: any[] = [];
       if (variantsData !== undefined) {
-        // Delete existing variants
-        await prisma.productVariant.deleteMany({ where: { productId: id } });
-        
-        // Create new variants
-        if (variantsData && variantsData.length > 0) {
-          updatedVariants = await Promise.all(
-            variantsData.map((v, idx) =>
-              prisma.productVariant.create({
-                data: {
-                  productId: id,
-                  colorId: v.colorId || null,
-                  sizeId: v.sizeId || null,
-                  price: v.price,
-                  compareAtPrice: v.compareAtPrice || null,
-                  stock: v.stock,
-                  sku: v.sku || null,
-                  images: v.images || [],
-                  isActive: v.isActive ?? true,
-                  sortOrder: v.sortOrder ?? idx,
-                },
-                include: {
-                  color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
-                  size: { select: { id: true, nameUz: true, nameRu: true } },
-                },
-              })
-            )
-          );
-        }
+        updatedVariants = await syncProductVariants(id, variantsData || [], optionTypeIds);
       } else {
         // Fetch existing variants for response
         updatedVariants = await prisma.productVariant.findMany({
@@ -1776,6 +1886,12 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
           include: {
             color: { select: { id: true, nameUz: true, nameRu: true, hexCode: true } },
             size: { select: { id: true, nameUz: true, nameRu: true } },
+            variantValues: {
+              include: {
+                optionType: { select: { id: true, slug: true, nameUz: true, nameRu: true, displayType: true, unit: true } },
+                optionValue: { select: { id: true, slug: true, valueUz: true, valueRu: true, hexCode: true, imageUrl: true } },
+              },
+            },
           },
           orderBy: { sortOrder: 'asc' },
         });
@@ -2827,6 +2943,120 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
       const attr = await prisma.categoryAttribute.delete({ where: { id } });
       cacheDelete(`cat-attrs:${attr.categoryId}`).catch(() => {});
       return reply.send({ success: true, message: 'Atribut o\'chirildi' });
+    }
+  );
+
+  // ============================================
+  // PUBLIC: Product Option Types (Yandex-style variants)
+  // ============================================
+
+  /**
+   * GET /option-types
+   * Barcha aktiv option type larni qaytaradi (dropdown uchun)
+   */
+  app.get('/option-types', async (_request, reply) => {
+    const cached = await cacheGet<any>('option-types:all');
+    if (cached) return reply.send({ success: true, data: cached });
+
+    const types = await prisma.productOptionType.findMany({
+      where: { isActive: true },
+      include: {
+        values: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { valueUz: 'asc' }],
+        },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { nameUz: 'asc' }],
+    });
+
+    cacheSet('option-types:all', types, 300).catch(() => {});
+    return reply.send({ success: true, data: types });
+  });
+
+  /**
+   * POST /vendor/option-types/:id/values
+   * Vendor yangi option value qo'sha oladi (masalan "1TB" xotira qiymati)
+   */
+  app.post(
+    '/vendor/option-types/:id/values',
+    { preHandler: [authMiddleware, requireRole('vendor', 'admin')] },
+    async (request, reply) => {
+      const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+      const body = z.object({
+        valueUz: z.string().min(1).max(100),
+        valueRu: z.string().min(1).max(100),
+        slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
+        hexCode: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+        imageUrl: z.string().url().optional(),
+        sortOrder: z.number().int().optional(),
+      }).parse(request.body);
+
+      const type = await prisma.productOptionType.findUnique({ where: { id } });
+      if (!type) throw new NotFoundError('Option type');
+
+      const slug = body.slug || body.valueUz
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .slice(0, 100) || `v-${Date.now()}`;
+
+      // Agar shu slug mavjud bo'lsa, mavjudni qaytar
+      const existing = await prisma.productOptionValue.findUnique({
+        where: { optionTypeId_slug: { optionTypeId: id, slug } },
+      });
+      if (existing) return reply.send({ success: true, data: existing });
+
+      const value = await prisma.productOptionValue.create({
+        data: {
+          optionTypeId: id,
+          slug,
+          valueUz: body.valueUz,
+          valueRu: body.valueRu,
+          hexCode: body.hexCode || null,
+          imageUrl: body.imageUrl || null,
+          sortOrder: body.sortOrder ?? 0,
+          isActive: true,
+        },
+      });
+
+      cacheDelete('option-types:all').catch(() => {});
+      return reply.status(201).send({ success: true, data: value });
+    }
+  );
+
+  /**
+   * POST /admin/option-types
+   * Admin yangi option type yaratadi
+   */
+  app.post(
+    '/admin/option-types',
+    { preHandler: [authMiddleware, requireRole('admin')] },
+    async (request, reply) => {
+      const body = z.object({
+        slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/),
+        nameUz: z.string().min(1).max(100),
+        nameRu: z.string().min(1).max(100),
+        displayType: z.enum(['color', 'text', 'image']).default('text'),
+        unit: z.string().max(20).optional(),
+        isGlobal: z.boolean().default(true),
+        sortOrder: z.number().int().default(0),
+      }).parse(request.body);
+
+      const type = await prisma.productOptionType.create({
+        data: {
+          slug: body.slug,
+          nameUz: body.nameUz,
+          nameRu: body.nameRu,
+          displayType: body.displayType,
+          unit: body.unit || null,
+          isGlobal: body.isGlobal,
+          sortOrder: body.sortOrder,
+          isActive: true,
+        },
+      });
+
+      cacheDelete('option-types:all').catch(() => {});
+      return reply.status(201).send({ success: true, data: type });
     }
   );
 

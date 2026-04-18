@@ -119,6 +119,9 @@ const userRequest = createRequest({
   onUnauthorized: tryRefreshToken,
 });
 
+/** Authenticated request for user-facing features (follow, cart, etc.) */
+export { userRequest };
+
 // ============ API ============
 
 export const userAuthApi = {

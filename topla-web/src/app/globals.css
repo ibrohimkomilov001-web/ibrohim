@@ -17,13 +17,13 @@
     --card-foreground: 225 15% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 225 15% 12%;
-    --primary: 238 76% 62%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
+    --secondary: 214 14% 96%;
     --secondary-foreground: 225 15% 12%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 268 72% 60%;
+    --muted: 214 14% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 199 89% 48%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -33,7 +33,7 @@
     --warning-foreground: 0 0% 100%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 238 76% 62%;
+    --ring: 217 91% 60%;
     --radius: 0.875rem;
 
     /* Adaptive Glass — Light */
@@ -52,8 +52,8 @@
     --glass-saturate: 1.8;
 
     /* Mesh gradient orbs */
-    --mesh-1: hsl(238 76% 62% / 0.07);
-    --mesh-2: hsl(268 72% 60% / 0.05);
+    --mesh-1: hsl(217 91% 60% / 0.07);
+    --mesh-2: hsl(199 89% 48% / 0.05);
     --mesh-3: hsl(152 69% 31% / 0.04);
 
     /* Elevation scale (glass depth) */
@@ -70,14 +70,14 @@
     --card-foreground: 210 20% 95%;
     --popover: 228 20% 10%;
     --popover-foreground: 210 20% 95%;
-    --primary: 238 80% 70%;
-    --primary-foreground: 228 18% 6%;
-    --secondary: 228 15% 16%;
+    --primary: 217 91% 67%;
+    --primary-foreground: 222 18% 6%;
+    --secondary: 222 15% 16%;
     --secondary-foreground: 210 20% 95%;
-    --muted: 228 15% 16%;
-    --muted-foreground: 220 12% 60%;
-    --accent: 268 76% 68%;
-    --accent-foreground: 228 18% 6%;
+    --muted: 222 15% 16%;
+    --muted-foreground: 215 16% 60%;
+    --accent: 199 89% 55%;
+    --accent-foreground: 222 18% 6%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
     --success: 152 69% 40%;
@@ -86,7 +86,7 @@
     --warning-foreground: 0 0% 100%;
     --border: 228 15% 18%;
     --input: 228 15% 18%;
-    --ring: 238 80% 70%;
+    --ring: 217 91% 67%;
 
     /* Adaptive Glass — Dark */
     --glass-bg: rgba(18, 18, 35, 0.7);

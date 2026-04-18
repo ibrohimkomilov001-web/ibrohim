@@ -1,4 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+import { userRequest } from './user-auth';
 
 // ============ TYPES ============
 
@@ -21,6 +22,10 @@ export interface ShopInfo {
   rating: number;
   reviewCount?: number;
   phone?: string;
+  shopType?: string;
+  totalSales?: number;
+  createdAt?: string;
+  _count?: { followers?: number; orderItems?: number };
 }
 
 export interface ProductItem {
@@ -57,6 +62,39 @@ export interface ProductDetail extends ProductItem {
   minOrder?: number;
   viewCount: number;
   createdAt: string;
+  hasVariants?: boolean;
+  defaultVariantId?: string;
+  optionLinks?: Array<{
+    optionType: {
+      id: string;
+      slug: string;
+      nameUz: string;
+      nameRu?: string;
+      displayType: string;
+      unit?: string;
+      values: Array<{
+        id: string;
+        slug: string;
+        valueUz: string;
+        valueRu?: string;
+        hexCode?: string;
+        imageUrl?: string;
+      }>;
+    };
+  }>;
+  variants?: Array<{
+    id: string;
+    price: number;
+    compareAtPrice?: number;
+    stock: number;
+    sku?: string;
+    images: string[];
+    isActive: boolean;
+    variantValues: Array<{
+      optionType: { id: string; slug: string; nameUz: string; displayType: string };
+      optionValue: { id: string; slug: string; valueUz: string; valueRu?: string; hexCode?: string };
+    }>;
+  }>;
 }
 
 export interface ShopDetail {
@@ -77,22 +115,34 @@ export interface ShopDetail {
   reviewCount: number;
   isOpen: boolean;
   totalSales?: number;
+  shopType?: string;
+  createdAt?: string;
   deliveryFee?: number;
   freeDeliveryFrom?: number;
   minOrderAmount?: number;
-  _count?: { products: number; orders: number; followers?: number };
+  _count?: { products: number; orders: number; followers?: number; orderItems?: number };
 }
 
 export interface Banner {
   id: string;
   imageUrl: string;
-  titleUz?: string;
-  titleRu?: string;
-  subtitleUz?: string;
-  subtitleRu?: string;
-  actionType?: string;
-  actionValue?: string;
+  titleUz?: string | null;
+  titleRu?: string | null;
+  subtitleUz?: string | null;
+  subtitleRu?: string | null;
+  actionType?: 'none' | 'link' | 'product' | 'category' | 'shop' | string;
+  actionValue?: string | null;
+  ctaText?: string | null;
+  ctaTextRu?: string | null;
+  bgColor?: string | null;
+  textColor?: string | null;
+  textPosition?: 'left' | 'center' | 'right' | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  clickCount?: number;
+  viewCount?: number;
   sortOrder: number;
+  isActive?: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -129,6 +179,10 @@ async function clientFetch<T>(endpoint: string, init?: RequestInit): Promise<T> 
 export const shopApi = {
   // Banners
   getBanners: () => shopFetch<Banner[]>('/banners'),
+  trackBannerClick: (id: string) =>
+    fetch(`${API_BASE_URL}/banners/${id}/click`, { method: 'POST', keepalive: true }).catch(() => {}),
+  trackBannerView: (id: string) =>
+    fetch(`${API_BASE_URL}/banners/${id}/view`, { method: 'POST', keepalive: true }).catch(() => {}),
 
   // Categories
   getCategories: () => shopFetch<Category[]>('/categories'),
@@ -186,21 +240,18 @@ export const shopApi = {
   // Public settings (support phone, email)
   getPublicSettings: () => clientFetch<Record<string, string>>('/settings/public'),
 
-  // Shop follow (requires auth — uses credentials: include)
+  // Shop follow (requires auth — uses userRequest with CSRF + cookies)
   followShop: (shopId: string) =>
-    clientFetch<{ isFollowing: boolean }>(`/shops/${shopId}/follow`, {
+    userRequest<{ isFollowing: boolean }>(`/shops/${shopId}/follow`, {
       method: 'POST',
-      credentials: 'include',
+      body: JSON.stringify({}),
     }),
 
   unfollowShop: (shopId: string) =>
-    clientFetch<{ isFollowing: boolean }>(`/shops/${shopId}/follow`, {
+    userRequest<{ isFollowing: boolean }>(`/shops/${shopId}/follow`, {
       method: 'DELETE',
-      credentials: 'include',
     }),
 
   isFollowingShop: (shopId: string) =>
-    clientFetch<{ isFollowing: boolean }>(`/shops/${shopId}/is-following`, {
-      credentials: 'include',
-    }),
+    userRequest<{ isFollowing: boolean }>(`/shops/${shopId}/is-following`),
 };

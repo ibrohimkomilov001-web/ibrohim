@@ -314,6 +314,13 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () => Navigator.pushNamed(context, '/favorites'),
           ),
           _divider(),
+          _buildMenuItem(
+            icon: Iconsax.medal_star_copy,
+            label: context.l10n.translate('loyalty_title'),
+            iconColor: const Color(0xFFFFD700),
+            onTap: () => Navigator.pushNamed(context, '/loyalty'),
+          ),
+          _divider(),
         ],
         _buildMenuItem(
           icon: Iconsax.location_copy,

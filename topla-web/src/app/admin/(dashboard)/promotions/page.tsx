@@ -35,7 +35,7 @@ import { useTranslation } from '@/store/locale-store';
 const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
   flash_sale: { label: "flashSale", icon: Zap, color: "bg-red-500" },
   category_discount: { label: "categoryDiscount", icon: Tag, color: "bg-blue-500" },
-  shop_discount: { label: "shopDiscount", icon: Package, color: "bg-purple-500" },
+  shop_discount: { label: "shopDiscount", icon: Package, color: "bg-blue-500" },
   free_delivery: { label: "freeDelivery", icon: Truck, color: "bg-green-500" },
   bundle_deal: { label: "bundleDeal", icon: Gift, color: "bg-orange-500" },
 };
