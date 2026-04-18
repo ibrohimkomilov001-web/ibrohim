@@ -143,8 +143,13 @@ export async function adminAuthRoutes(app: FastifyInstance) {
 
     const captcha = await verifyRecaptcha(captchaToken, request.ip, 'admin_login');
     if (!captcha.success) {
-      request.log.warn({ captcha, ip: request.ip, email }, 'admin login captcha failed');
-      throw new AppError(`CAPTCHA tasdiqlanmadi (${(captcha.errors || ['unknown']).join(',')}). Sahifani yangilab qayta urinib ko'ring.`, 400);
+      const softMode = process.env.RECAPTCHA_SOFT_MODE === 'true';
+      request.log.warn({ captcha, ip: request.ip, email, softMode }, 'admin login captcha failed');
+      if (!softMode) {
+        throw new AppError(`CAPTCHA tasdiqlanmadi (${(captcha.errors || ['unknown']).join(',')}). Sahifani yangilab qayta urinib ko'ring.`, 400);
+      }
+      // Soft mode: log warning but allow login to proceed (used while Google reCAPTCHA admin
+      // panel domain registration is being fixed, or when frontend cannot load the script).
     }
 
     const user = await prisma.profile.findFirst({ where: { email, role: 'admin' } });
