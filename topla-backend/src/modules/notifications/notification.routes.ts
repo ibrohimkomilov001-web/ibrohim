@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { prisma } from '../../config/database.js';
+import * as notificationRepo from '../../repositories/notification.repository.js';
 import { authMiddleware } from '../../middleware/auth.js';
 
 const paginationSchema = z.object({
@@ -18,20 +18,10 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
     const { page, limit } = paginationSchema.parse(request.query);
     const skip = (page - 1) * limit;
 
-    const [notifications, total, unreadCount] = await Promise.all([
-      prisma.notification.findMany({
-        where: { userId: request.user!.userId },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.notification.count({
-        where: { userId: request.user!.userId },
-      }),
-      prisma.notification.count({
-        where: { userId: request.user!.userId, isRead: false },
-      }),
-    ]);
+    const { notifications, total, unreadCount } = await notificationRepo.findByUser(
+      request.user!.userId,
+      { skip, take: limit },
+    );
 
     return reply.send({
       success: true,
@@ -54,12 +44,7 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
    */
   app.put('/notifications/:id/read', { preHandler: authMiddleware }, async (request, reply) => {
     const { id } = idParamSchema.parse(request.params);
-
-    await prisma.notification.update({
-      where: { id, userId: request.user!.userId },
-      data: { isRead: true },
-    });
-
+    await notificationRepo.markRead(id, request.user!.userId);
     return reply.send({ success: true });
   });
 
@@ -68,11 +53,7 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
    * Barcha bildirishnomalarni o'qilgan deb belgilash
    */
   app.put('/notifications/read-all', { preHandler: authMiddleware }, async (request, reply) => {
-    await prisma.notification.updateMany({
-      where: { userId: request.user!.userId, isRead: false },
-      data: { isRead: true },
-    });
-
+    await notificationRepo.markAllRead(request.user!.userId);
     return reply.send({ success: true });
   });
 
@@ -81,10 +62,7 @@ export async function notificationRoutes(app: FastifyInstance): Promise<void> {
    * O'qilmagan bildirishnomalar soni
    */
   app.get('/notifications/unread-count', { preHandler: authMiddleware }, async (request, reply) => {
-    const count = await prisma.notification.count({
-      where: { userId: request.user!.userId, isRead: false },
-    });
-
+    const count = await notificationRepo.unreadCount(request.user!.userId);
     return reply.send({ success: true, data: { count } });
   });
 }

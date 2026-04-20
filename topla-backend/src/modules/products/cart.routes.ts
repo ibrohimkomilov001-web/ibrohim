@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
+import * as cartRepo from '../../repositories/cart.repository.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 
@@ -14,20 +15,11 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
    * GET /cart
    */
   app.get('/cart', { preHandler: authMiddleware }, async (request, reply) => {
-    const cartItems = await prisma.cartItem.findMany({
-      where: { userId: request.user!.userId },
-      include: {
-        product: {
-          include: {
-            shop: { select: { id: true, name: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const cartItems = await cartRepo.findByUser(request.user!.userId);
 
     const total = cartItems.reduce(
-      (sum, item) => sum + Number(item.product.price) * item.quantity,
+      (sum: number, item: { product: { price: unknown }; quantity: number }) =>
+        sum + Number(item.product.price) * item.quantity,
       0,
     );
 
@@ -67,27 +59,12 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.user!.userId;
-    const vId = variantId ?? null;
-
-    // variantId null bo'lganda compound unique upsert ishlamaydi,
-    // shuning uchun findFirst + create/update ishlatamiz
-    const existing = await prisma.cartItem.findFirst({
-      where: { userId, productId, variantId: vId },
-    });
-
-    let cartItem;
-    if (existing) {
-      cartItem = await prisma.cartItem.update({
-        where: { id: existing.id },
-        data: { quantity: existing.quantity + quantity },
-        include: { product: true },
-      });
-    } else {
-      cartItem = await prisma.cartItem.create({
-        data: { userId, productId, variantId: vId, quantity },
-        include: { product: true },
-      });
-    }
+    const cartItem = await cartRepo.addOrIncrement(
+      userId,
+      productId,
+      variantId ?? null,
+      quantity,
+    );
 
     return reply.send({ success: true, data: cartItem });
   });
@@ -105,10 +82,10 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
     });
     const { quantity } = bodySchema.parse(request.body);
 
+    const userId = request.user!.userId;
+
     if (quantity <= 0) {
-      await prisma.cartItem.deleteMany({
-        where: { userId: request.user!.userId, productId },
-      });
+      await cartRepo.setQuantity(userId, productId, 0);
       return reply.send({ success: true, message: 'Savatdan o\'chirildi' });
     }
 
@@ -121,20 +98,7 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
-      // For PUT we don't have variantId in params, so update all matching items
-      const cartItem = await prisma.cartItem.updateMany({
-        where: {
-          userId: request.user!.userId,
-          productId,
-        },
-        data: { quantity },
-      });
-
-      const updated = await prisma.cartItem.findFirst({
-        where: { userId: request.user!.userId, productId },
-        include: { product: true },
-      });
-
+      const updated = await cartRepo.setQuantity(userId, productId, quantity);
       return reply.send({ success: true, data: updated });
     } catch (e: any) {
       throw new AppError('Savatni yangilashda xatolik', 500);
@@ -147,11 +111,7 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
    */
   app.delete('/cart/:productId', { preHandler: authMiddleware }, async (request, reply) => {
     const { productId } = productIdParamSchema.parse(request.params);
-
-    await prisma.cartItem.deleteMany({
-      where: { userId: request.user!.userId, productId },
-    });
-
+    await cartRepo.removeProduct(request.user!.userId, productId);
     return reply.send({ success: true });
   });
 
@@ -160,9 +120,7 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
    * Savatni tozalash
    */
   app.delete('/cart', { preHandler: authMiddleware }, async (request, reply) => {
-    await prisma.cartItem.deleteMany({
-      where: { userId: request.user!.userId },
-    });
+    await cartRepo.clear(request.user!.userId);
     return reply.send({ success: true });
   });
 }

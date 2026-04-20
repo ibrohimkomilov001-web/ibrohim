@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { prisma } from '../../config/database.js';
+import * as addressRepo from '../../repositories/address.repository.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { NotFoundError } from '../../middleware/error.js';
 
@@ -21,39 +21,20 @@ const addressSchema = z.object({
 export async function addressRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/addresses', { preHandler: authMiddleware }, async (request, reply) => {
-    const addresses = await prisma.address.findMany({
-      where: { userId: request.user!.userId },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
-    });
+    const addresses = await addressRepo.findByUser(request.user!.userId);
     return reply.send({ success: true, data: addresses });
   });
 
   app.get('/addresses/:id', { preHandler: authMiddleware }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const address = await prisma.address.findFirst({
-      where: { id, userId: request.user!.userId },
-    });
+    const address = await addressRepo.findByIdForUser(id, request.user!.userId);
     if (!address) throw new NotFoundError('Manzil');
     return reply.send({ success: true, data: address });
   });
 
   app.post('/addresses', { preHandler: authMiddleware }, async (request, reply) => {
     const body = addressSchema.parse(request.body);
-
-    if (body.isDefault) {
-      await prisma.address.updateMany({
-        where: { userId: request.user!.userId },
-        data: { isDefault: false },
-      });
-    }
-
-    const address = await prisma.address.create({
-      data: { 
-        ...body,
-        user: { connect: { id: request.user!.userId } }
-      } as any,
-    });
-
+    const address = await addressRepo.createForUser(request.user!.userId, body);
     return reply.status(201).send({ success: true, data: address });
   });
 
@@ -62,23 +43,8 @@ export async function addressRoutes(app: FastifyInstance): Promise<void> {
     const userId = request.user!.userId;
     const body = addressSchema.partial().parse(request.body);
 
-    // Ownership tekshiruvi
-    const existing = await prisma.address.findFirst({
-      where: { id, userId },
-    });
-    if (!existing) throw new NotFoundError('Manzil');
-
-    if (body.isDefault) {
-      await prisma.address.updateMany({
-        where: { userId },
-        data: { isDefault: false },
-      });
-    }
-
-    const address = await prisma.address.update({
-      where: { id },
-      data: body,
-    });
+    const address = await addressRepo.updateForUser(id, userId, body);
+    if (!address) throw new NotFoundError('Manzil');
 
     return reply.send({ success: true, data: address });
   });
@@ -87,12 +53,9 @@ export async function addressRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
-    const existing = await prisma.address.findFirst({
-      where: { id, userId },
-    });
-    if (!existing) throw new NotFoundError('Manzil');
+    const deleted = await addressRepo.deleteForUser(id, userId);
+    if (!deleted) throw new NotFoundError('Manzil');
 
-    await prisma.address.delete({ where: { id } });
     return reply.send({ success: true });
   });
 }
