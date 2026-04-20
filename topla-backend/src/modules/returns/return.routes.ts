@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
+import * as returnRepo from '../../repositories/return.repository.js';
 import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
@@ -36,32 +37,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
     const userId = request.user!.userId;
     const { status } = request.query as { status?: string };
 
-    const where: any = { userId };
-    if (status) where.status = status;
-
-    const returns = await prisma.return.findMany({
-      where,
-      include: {
-        order: {
-          select: {
-            id: true,
-            orderNumber: true,
-            total: true,
-            createdAt: true,
-            items: {
-              select: {
-                id: true,
-                name: true,
-                quantity: true,
-                price: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    const returns = await returnRepo.findByUser(userId, { status });
 
     return reply.send({ success: true, data: returns });
   });
@@ -96,36 +72,19 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // Allaqachon qaytarish borligini tekshirish
-    const existing = await prisma.return.findFirst({
-      where: {
-        orderId: body.orderId,
-        userId,
-        status: { in: ['pending', 'approved'] },
-      },
-    });
+    const existing = await returnRepo.findExistingActive(body.orderId, userId);
 
     if (existing) {
       throw new AppError('Bu buyurtma uchun qaytarish so\'rovi allaqachon mavjud');
     }
 
-    const returnRequest = await prisma.return.create({
-      data: {
-        orderId: body.orderId,
-        userId,
-        reason: body.reason,
-        description: body.description,
-        images: body.images,
-        refundAmount: Number(order.total),
-      },
-      include: {
-        order: {
-          select: {
-            id: true,
-            orderNumber: true,
-            total: true,
-          },
-        },
-      },
+    const returnRequest = await returnRepo.create({
+      orderId: body.orderId,
+      userId,
+      reason: body.reason,
+      description: body.description,
+      images: body.images,
+      refundAmount: Number(order.total),
     });
 
     return reply.status(201).send({ success: true, data: returnRequest });
@@ -139,28 +98,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
-    const returnRequest = await prisma.return.findFirst({
-      where: { id, userId },
-      include: {
-        order: {
-          select: {
-            id: true,
-            orderNumber: true,
-            total: true,
-            createdAt: true,
-            items: {
-              select: {
-                id: true,
-                name: true,
-                quantity: true,
-                price: true,
-                imageUrl: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const returnRequest = await returnRepo.findByIdForUser(id, userId);
 
     if (!returnRequest) throw new NotFoundError('Qaytarish');
 
@@ -175,9 +113,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
-    const returnRequest = await prisma.return.findFirst({
-      where: { id, userId },
-    });
+    const returnRequest = await returnRepo.findByIdForUser(id, userId);
 
     if (!returnRequest) throw new NotFoundError('Qaytarish');
 
@@ -185,7 +121,7 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
       throw new AppError('Faqat kutilayotgan so\'rovlarni bekor qilish mumkin');
     }
 
-    await prisma.return.delete({ where: { id } });
+    await returnRepo.deleteForUser(id, userId);
 
     return reply.send({ success: true, message: 'Qaytarish bekor qilindi' });
   });
@@ -205,31 +141,11 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
       const { page, limit, skip } = parsePagination(request.query as any);
       const { status } = request.query as Record<string, string>;
 
-      const where: any = {};
-      if (status) where.status = status;
-
-      const [returns, total] = await Promise.all([
-        prisma.return.findMany({
-          where,
-          include: {
-            user: { select: { id: true, fullName: true, phone: true } },
-            order: {
-              select: {
-                id: true,
-                orderNumber: true,
-                total: true,
-                items: {
-                  select: { name: true, quantity: true, price: true, imageUrl: true },
-                },
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        prisma.return.count({ where }),
-      ]);
+      const { returns, total } = await returnRepo.findAllForAdmin({
+        status,
+        skip,
+        take: limit,
+      });
 
       return reply.send({
         success: true,
@@ -250,24 +166,17 @@ export async function returnRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as { id: string };
       const body = reviewReturnSchema.parse(request.body);
 
-      const returnRequest = await prisma.return.findUnique({ where: { id } });
+      const returnRequest = await returnRepo.findById(id);
       if (!returnRequest) throw new NotFoundError('Qaytarish');
 
       if (returnRequest.status !== 'pending') {
         throw new AppError('Bu qaytarish allaqachon ko\'rib chiqilgan');
       }
 
-      const updated = await prisma.return.update({
-        where: { id },
-        data: {
-          status: body.status,
-          adminNote: body.adminNote,
-          refundAmount: body.refundAmount ?? returnRequest.refundAmount,
-        },
-        include: {
-          user: { select: { id: true, fullName: true, phone: true } },
-          order: { select: { id: true, orderNumber: true, total: true } },
-        },
+      const updated = await returnRepo.updateStatus(id, {
+        status: body.status,
+        adminNote: body.adminNote,
+        refundAmount: body.refundAmount ?? Number(returnRequest.refundAmount),
       });
 
       return reply.send({ success: true, data: updated });

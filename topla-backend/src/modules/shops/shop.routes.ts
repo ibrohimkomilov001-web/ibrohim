@@ -1,10 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
+import * as shopRepo from '../../repositories/shop.repository.js';
+import * as shopReviewRepo from '../../repositories/shop-review.repository.js';
+import * as shopFollowRepo from '../../repositories/shop-follow.repository.js';
 import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { parsePagination, paginationMeta } from '../../utils/pagination.js';
-import { cacheGet, cacheSet } from '../../config/redis.js';
 
 const idParamSchema = z.object({ id: z.string().uuid('Noto\'g\'ri ID formati') });
 
@@ -45,41 +47,16 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
       search?: string;
     };
 
-    const where: any = { status: 'active' };
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
     const { page: pg, limit: lim, skip } = parsePagination({ page, limit });
 
-    // Cache: do'konlar ro'yxati (120 sek)
-    const shopsCacheKey = `shops:list:${pg}:${lim}:${search || ''}`;
-    const cachedShops = await cacheGet<any>(shopsCacheKey);
-    if (cachedShops) return reply.send(cachedShops);
+    const data = await shopRepo.findListCached({
+      page: pg,
+      limit: lim,
+      skip,
+      search,
+    });
 
-    const [shops, total] = await Promise.all([
-      prisma.shop.findMany({
-        where,
-        select: {
-          id: true, name: true, description: true, logoUrl: true, bannerUrl: true,
-          rating: true, reviewCount: true, totalSales: true, shopType: true,
-          address: true, isOpen: true, createdAt: true,
-          deliveryFee: true, freeDeliveryFrom: true, minOrderAmount: true,
-          _count: { select: { products: true, followers: true } },
-        },
-        orderBy: { rating: 'desc' },
-        skip,
-        take: lim,
-      }),
-      prisma.shop.count({ where }),
-    ]);
-
-    const shopsResponse = { success: true, data: { shops, total } };
-    cacheSet(shopsCacheKey, shopsResponse, 120).catch(() => {});
-    return reply.send(shopsResponse);
+    return reply.send({ success: true, data });
   });
 
   /**
@@ -93,12 +70,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
       throw new AppError('Slug noto\'g\'ri', 400);
     }
 
-    const shop = await prisma.shop.findUnique({
-      where: { slug: slug.toLowerCase() },
-      include: {
-        _count: { select: { products: true, reviews: true, followers: true } },
-      },
-    });
+    const shop = await shopRepo.findBySlugPublic(slug.toLowerCase());
 
     if (!shop || shop.status !== 'active') {
       throw new NotFoundError('Do\'kon');
@@ -113,12 +85,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
   app.get('/shops/:id', async (request, reply) => {
     const { id } = idParamSchema.parse(request.params);
 
-    const shop = await prisma.shop.findUnique({
-      where: { id },
-      include: {
-        _count: { select: { products: true, reviews: true, followers: true, orderItems: true } },
-      },
-    });
+    const shop = await shopRepo.findByIdPublic(id);
 
     if (!shop) throw new NotFoundError('Do\'kon');
 
@@ -131,23 +98,14 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
   app.get('/shops/:id/products', async (request, reply) => {
     const { id } = idParamSchema.parse(request.params);
     const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
-    const { page: pg2, limit: lim2, skip: skip2 } = parsePagination({ page, limit });
+    const { limit: lim2, skip: skip2 } = parsePagination({ page, limit });
 
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where: { shopId: id, isActive: true },
-        include: {
-          category: { select: { id: true, nameUz: true, nameRu: true } },
-          brand: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: skip2,
-        take: lim2,
-      }),
-      prisma.product.count({ where: { shopId: id, isActive: true } }),
-    ]);
+    const data = await shopRepo.findProductsForShop(id, {
+      skip: skip2,
+      take: lim2,
+    });
 
-    return reply.send({ success: true, data: { products, total } });
+    return reply.send({ success: true, data });
   });
 
   /**
@@ -158,18 +116,10 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
     const { page: pg, limit: lim, skip } = parsePagination({ page, limit });
 
-    const [reviews, total] = await Promise.all([
-      prisma.shopReview.findMany({
-        where: { shopId: id },
-        include: {
-          user: { select: { id: true, fullName: true, avatarUrl: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: lim,
-      }),
-      prisma.shopReview.count({ where: { shopId: id } }),
-    ]);
+    const { reviews, total } = await shopReviewRepo.findByShop(id, {
+      skip,
+      take: lim,
+    });
 
     return reply.send({
       success: true,
@@ -189,28 +139,8 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const { id } = idParamSchema.parse(request.params);
     const { rating, comment } = reviewSchema.parse(request.body);
 
-    await prisma.shopReview.upsert({
-      where: {
-        shopId_userId: { shopId: id, userId: request.user!.userId },
-      },
-      update: { rating, comment },
-      create: { shopId: id, userId: request.user!.userId, rating, comment },
-    });
-
-    // Ratingni qayta hisoblash
-    const avg = await prisma.shopReview.aggregate({
-      where: { shopId: id },
-      _avg: { rating: true },
-      _count: true,
-    });
-
-    await prisma.shop.update({
-      where: { id },
-      data: {
-        rating: avg._avg.rating || 0,
-        reviewCount: avg._count || 0,
-      },
-    });
+    await shopReviewRepo.upsert(id, request.user!.userId, { rating, comment });
+    await shopReviewRepo.recalcShopRating(id);
 
     return reply.send({ success: true });
   });
@@ -278,24 +208,22 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const body = createShopSchema.partial().parse(request.body);
 
-      // Ownership tekshiruvi — do'kon mavjudligini tekshirish
+      // Ownership — Shop.ownerId @unique; repo.updateForOwner queries by id+ownerId,
+      // but here we don't have shopId. Lookup first, then update.
       const existingShop = await prisma.shop.findUnique({
         where: { ownerId: request.user!.userId },
       });
       if (!existingShop) throw new NotFoundError('Do\'kon');
 
-      const shop = await prisma.shop.update({
+      const updatedShop = await prisma.shop.update({
         where: { ownerId: request.user!.userId },
         data: body,
       });
 
-      // Invalidate shops cache (SCAN-based, production-safe)
-      try {
-        const { cacheDeletePattern } = await import('../../config/redis.js');
-        await cacheDeletePattern('shops:*');
-      } catch { /* non-blocking */ }
+      await shopRepo.invalidateCache(existingShop.id);
+      await shopRepo.invalidateListCache();
 
-      return reply.send({ success: true, data: shop });
+      return reply.send({ success: true, data: updatedShop });
     },
   );
 
@@ -367,18 +295,13 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const shop = await prisma.shop.findUnique({ where: { id }, select: { id: true } });
     if (!shop) throw new NotFoundError('Do\'kon');
 
-    // Allaqachon follow qilganmi?
-    const existing = await prisma.shopFollow.findUnique({
-      where: { shopId_userId: { shopId: id, userId } },
-    });
+    const existing = await shopFollowRepo.find(userId, id);
 
     if (existing) {
       return reply.send({ success: true, message: 'Allaqachon obuna bo\'lgansiz', isFollowing: true });
     }
 
-    await prisma.shopFollow.create({
-      data: { shopId: id, userId },
-    });
+    await shopFollowRepo.follow(userId, id);
 
     return reply.status(201).send({ success: true, isFollowing: true });
   });
@@ -391,17 +314,13 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
-    const existing = await prisma.shopFollow.findUnique({
-      where: { shopId_userId: { shopId: id, userId } },
-    });
+    const existing = await shopFollowRepo.find(userId, id);
 
     if (!existing) {
       return reply.send({ success: true, message: 'Obuna mavjud emas', isFollowing: false });
     }
 
-    await prisma.shopFollow.delete({
-      where: { shopId_userId: { shopId: id, userId } },
-    });
+    await shopFollowRepo.unfollow(userId, id);
 
     return reply.send({ success: true, isFollowing: false });
   });
@@ -414,9 +333,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
-    const existing = await prisma.shopFollow.findUnique({
-      where: { shopId_userId: { shopId: id, userId } },
-    });
+    const existing = await shopFollowRepo.find(userId, id);
 
     return reply.send({ success: true, isFollowing: !!existing });
   });
@@ -428,7 +345,7 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
   app.get('/shops/:id/followers/count', async (request, reply) => {
     const { id } = request.params as { id: string };
 
-    const count = await prisma.shopFollow.count({ where: { shopId: id } });
+    const count = await shopFollowRepo.countByShop(id);
 
     return reply.send({ success: true, data: { count } });
   });
@@ -442,26 +359,12 @@ export async function shopRoutes(app: FastifyInstance): Promise<void> {
     const { page = '1', limit = '20' } = request.query as { page?: string; limit?: string };
     const { skip, limit: lim } = parsePagination({ page, limit });
 
-    const [follows, total] = await Promise.all([
-      prisma.shopFollow.findMany({
-        where: { userId },
-        include: {
-          shop: {
-            select: {
-              id: true, name: true, description: true, logoUrl: true,
-              rating: true, reviewCount: true, isOpen: true,
-              _count: { select: { products: true } },
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: lim,
-      }),
-      prisma.shopFollow.count({ where: { userId } }),
-    ]);
+    const { follows, total } = await shopFollowRepo.findByUser(userId, {
+      skip,
+      take: lim,
+    });
 
-    const shops = follows.map(f => f.shop);
+    const shops = follows.map((f: { shop: unknown }) => f.shop);
 
     return reply.send({ success: true, data: { shops, total } });
   });

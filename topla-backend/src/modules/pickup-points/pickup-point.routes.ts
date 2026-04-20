@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database.js';
+import * as pickupPointRepo from '../../repositories/pickup-point.repository.js';
 import { authMiddleware, requireRole } from '../../middleware/auth.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { notifyOrderStatusChange } from '../notifications/notification.service.js';
@@ -68,21 +69,8 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
    * GET /pickup-points
    * Faol topshirish punktlari (mijozlar uchun)
    */
-  app.get('/pickup-points', async (request, reply) => {
-    const points = await prisma.pickupPoint.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        latitude: true,
-        longitude: true,
-        phone: true,
-        workingHours: true,
-      },
-      orderBy: { name: 'asc' },
-    });
-
+  app.get('/pickup-points', async (_request, reply) => {
+    const points = await pickupPointRepo.findActive();
     return reply.send({ success: true, data: points });
   });
 
@@ -93,18 +81,7 @@ export async function pickupPointRoutes(app: FastifyInstance): Promise<void> {
   app.get('/pickup-points/:id', async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
 
-    const point = await prisma.pickupPoint.findFirst({
-      where: { id, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        latitude: true,
-        longitude: true,
-        phone: true,
-        workingHours: true,
-      },
-    });
+    const point = await pickupPointRepo.findActiveById(id);
 
     if (!point) throw new NotFoundError('Topshirish punkti');
     return reply.send({ success: true, data: point });
