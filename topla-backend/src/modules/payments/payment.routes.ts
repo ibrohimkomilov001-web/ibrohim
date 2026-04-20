@@ -7,6 +7,7 @@ import { authMiddleware } from '../../middleware/auth.js';
 import { env } from '../../config/env.js';
 import { AppError, NotFoundError } from '../../middleware/error.js';
 import { encrypt, decrypt } from '../../utils/encryption.js';
+import { acquireIdempotency } from '../../config/redis.js';
 
 // ============================================
 // Validation Schemas
@@ -1267,6 +1268,16 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
 
     const body = callbackSchema.parse(request.body);
     const { provider, transactionId, status, providerTxnId, amount, signature } = body;
+
+    // Idempotency guard — dublikat webhook (bank retry) qayta process qilinmaydi.
+    // Key: provider + transactionId + status → 24 soat TTL.
+    // `acquireIdempotency` false qaytarsa — allaqachon qayta ishlangan, 200 OK qaytaramiz.
+    const idemKey = `webhook:payment:${provider}:${transactionId}:${status}`;
+    const acquired = await acquireIdempotency(idemKey, 86400);
+    if (!acquired) {
+      request.log.info({ idemKey }, 'Payment webhook: duplicate (idempotency hit)');
+      return reply.send({ success: true, duplicate: true });
+    }
 
     // Signature tekshiruvi
     const webhookSecret = provider === 'aliance'

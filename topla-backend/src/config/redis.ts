@@ -41,6 +41,26 @@ export function getRedis(): RedisClientType | null {
   return isConnected ? redisClient : null;
 }
 
+/**
+ * Socket.IO Redis adapter uchun pub/sub client juftligi.
+ * Adapter ikkita alohida connection talab qiladi (subscriber bloklangan holatda bo'ladi).
+ * Agar Redis mavjud bo'lmasa, null qaytaradi (adapter yoqilmaydi, single-node fallback).
+ */
+export async function createPubSubPair(): Promise<{ pub: RedisClientType; sub: RedisClientType } | null> {
+  if (!isConnected || !redisClient) return null;
+  try {
+    const pub = redisClient.duplicate() as RedisClientType;
+    const sub = redisClient.duplicate() as RedisClientType;
+    pub.on('error', (err) => console.warn('⚠️ Redis pub error:', err.message));
+    sub.on('error', (err) => console.warn('⚠️ Redis sub error:', err.message));
+    await Promise.all([pub.connect(), sub.connect()]);
+    return { pub, sub };
+  } catch (err: any) {
+    console.warn('⚠️ Redis pub/sub juftligini yaratib bo\'lmadi:', err?.message);
+    return null;
+  }
+}
+
 // ============================================
 // OTP Operations (with Redis or in-memory fallback)
 // ============================================
@@ -116,6 +136,33 @@ export async function cacheSet(key: string, value: any, ttlSeconds = 300): Promi
 
 export async function cacheDelete(key: string): Promise<void> {
   await deleteKey(`cache:${key}`);
+}
+
+/**
+ * Idempotency guard — webhook/payment kabi "exactly-once" operatsiyalar uchun.
+ * Agar shu key bo'yicha avval qayd qilingan bo'lsa, `false` qaytaradi (duplicate).
+ * Aks holda `true` qaytaradi va TTL muddatiga lock o'rnatadi.
+ *
+ * Redis mavjud bo'lmasa — `true` qaytaradi (single-node fallback, hech bo'lmaganda
+ * joriy instance'da jarayonni davom ettirish uchun); bu holda idempotency kafolati
+ * yo'qoladi, shuning uchun production'da Redis talab qilinadi.
+ */
+export async function acquireIdempotency(
+  key: string,
+  ttlSeconds: number = 86400,
+): Promise<boolean> {
+  const redis = getRedis();
+  if (!redis) {
+    // In-memory fallback — bir node ichida idempotency
+    const fallbackKey = `idem:${key}`;
+    const existing = memoryStore.get(fallbackKey);
+    if (existing && Date.now() < existing.expiresAt) return false;
+    memoryStore.set(fallbackKey, { value: '1', expiresAt: Date.now() + ttlSeconds * 1000 });
+    return true;
+  }
+  // SET NX EX — atomic; returns null if key exists, 'OK' if set
+  const result = await redis.set(`idem:${key}`, '1', { NX: true, EX: ttlSeconds });
+  return result === 'OK';
 }
 
 /**

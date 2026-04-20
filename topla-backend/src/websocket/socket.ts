@@ -1,10 +1,11 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { Server as HttpServer } from 'http';
 import { z } from 'zod';
 import { verifyToken, isTokenBlacklisted } from '../utils/jwt.js';
 import { prisma } from '../config/database.js';
 import { env } from '../config/env.js';
-import { checkRateLimit } from '../config/redis.js';
+import { checkRateLimit, createPubSubPair } from '../config/redis.js';
 
 let io: SocketIOServer | null = null;
 
@@ -55,22 +56,19 @@ const courierLocationSchema = z.object({
 const uuidSchema = z.string().uuid();
 
 // ============================================
-// Active connections tracking
+// Active connections tracking (node-local)
+// Multi-node deployment'da cross-node emit'lar Redis adapter
+// orqali amalga oshiriladi (socket.join('user:{id}') room-based).
+// Ushbu Map'lar faqat joriy node'dagi socket'lar uchun.
 // ============================================
 
-// orderId → Set<socketId> (mijozlar kuzatmoqda)
-const orderWatchers = new Map<string, Set<string>>();
+// orderId → Set<socketId> — emit uchun kerak emas (io.to('order:{id}') ishlatiladi),
+// lekin disconnect'da cleanup uchun socket.leave() avtomatik bajaradi.
 
-// courierId → socketId
+// courierId → socketId (faqat joriy node'dagi tezkor lookup uchun; cross-node emit rooms orqali)
 const courierSockets = new Map<string, string>();
 
-// userId → socketId
-const userSockets = new Map<string, string>();
-
-// adminId → socketId
-const adminSockets = new Map<string, string>();
-
-// socketId → token (har bir ulanish uchun token saqlash — blacklist tekshiruvi uchun)
+// socketId → token (blacklist tekshiruvi uchun; har node o'z socket'larini tekshiradi)
 const socketTokens = new Map<string, string>();
 
 // ============================================
@@ -87,6 +85,20 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     pingInterval: 25000,
     pingTimeout: 60000,
   });
+
+  // Redis adapter — multi-node scale uchun. Redis mavjud bo'lmasa, single-node fallback.
+  createPubSubPair()
+    .then((pair) => {
+      if (pair && io) {
+        io.adapter(createAdapter(pair.pub, pair.sub));
+        console.log('✅ Socket.IO Redis adapter yoqildi (multi-node ready)');
+      } else {
+        console.warn('⚠️ Socket.IO single-node rejimida (Redis adapter yo\'q)');
+      }
+    })
+    .catch((err) => {
+      console.warn('⚠️ Socket.IO Redis adapter xatoligi:', err?.message);
+    });
 
   // Authentication middleware
   io.use(async (socket, next) => {
@@ -128,12 +140,12 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     const connToken = (socket as any)._token;
     if (connToken) socketTokens.set(socket.id, connToken);
 
-    // Track user socket
-    userSockets.set(user.userId, socket.id);
+    // Room-based tracking — Redis adapter orqali multi-node ishlaydi
+    socket.join(`user:${user.userId}`);
 
     // Track admin socket
     if (user.role === 'admin') {
-      adminSockets.set(user.userId, socket.id);
+      socket.join(`admin:${user.userId}`);
     }
 
     // ============================================
@@ -177,10 +189,6 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
         }
       }
 
-      if (!orderWatchers.has(orderId)) {
-        orderWatchers.set(orderId, new Set());
-      }
-      orderWatchers.get(orderId)!.add(socket.id);
       socket.join(`order:${orderId}`);
       } catch (err) {
         console.error('WS track:order xatolik:', err);
@@ -192,7 +200,6 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     socket.on('track:stop', (orderId: string) => {
       const parsed = uuidSchema.safeParse(orderId);
       if (!parsed.success) return;
-      orderWatchers.get(parsed.data)?.delete(socket.id);
       socket.leave(`order:${parsed.data}`);
     });
 
@@ -202,7 +209,6 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
 
     socket.on('admin:watch-dashboard', () => {
       if (user.role !== 'admin') return;
-      adminSockets.set(user.userId, socket.id);
       socket.join('admin:dashboard');
     });
 
@@ -384,11 +390,9 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
     // ============================================
 
     socket.on('disconnect', () => {
-      userSockets.delete(user.userId);
-      adminSockets.delete(user.userId);
       socketTokens.delete(socket.id);
 
-      // Kuryer disconnect
+      // Kuryer disconnect — map cleanup (joriy node'dagi)
       if (user.role === 'courier') {
         const courierId = [...courierSockets.entries()].find(
           ([, sid]) => sid === socket.id,
@@ -398,13 +402,7 @@ export function initWebSocket(httpServer: HttpServer): SocketIOServer {
         }
       }
 
-      // Order watchers dan o'chirish
-      for (const [orderId, watchers] of orderWatchers) {
-        watchers.delete(socket.id);
-        if (watchers.size === 0) {
-          orderWatchers.delete(orderId);
-        }
-      }
+      // Socket.IO avtomatik ravishda barcha rooms'dan chiqaradi (user:, admin:, order:, chat:, shop:)
     });
   });
 
@@ -546,14 +544,11 @@ export function emitToShop(shopId: string, event: string, data: any): void {
 }
 
 /**
- * Kuryerga event yuborish
+ * Kuryerga event yuborish — room-based (cross-node Redis adapter orqali ishlaydi).
  */
 export function emitToCourier(courierId: string, event: string, data: any): void {
   if (!io) return;
-  const socketId = courierSockets.get(courierId);
-  if (socketId) {
-    io.to(socketId).emit(event, data);
-  }
+  io.to(`courier:${courierId}`).emit(event, data);
 }
 
 /**
