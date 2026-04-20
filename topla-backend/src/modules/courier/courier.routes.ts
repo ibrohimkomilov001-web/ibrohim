@@ -256,34 +256,32 @@ export async function courierRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      // Buyurtma tafsilotlarini olish
-      const orders = await Promise.all(
-        assignments.map(async (a) => {
-          const order = await prisma.order.findUnique({
-            where: { id: a.orderId },
+      // Buyurtma tafsilotlarini BATCH olish (N+1 fix)
+      const orderIds = assignments.map(a => a.orderId);
+      const orderRows = await prisma.order.findMany({
+        where: { id: { in: orderIds } },
+        include: {
+          items: {
             include: {
-              items: {
-                include: {
-                  shop: {
-                    select: { id: true, name: true, address: true, latitude: true, longitude: true },
-                  },
-                },
+              shop: {
+                select: { id: true, name: true, address: true, latitude: true, longitude: true },
               },
-              address: true,
             },
-          });
+          },
+          address: true,
+        },
+      });
+      const orderMap = new Map(orderRows.map(o => [o.id, o]));
 
-          return {
-            assignment: {
-              id: a.id,
-              distanceKm: a.distanceKm,
-              estimatedMinutes: a.estimatedMinutes,
-              expiresAt: a.expiresAt,
-            },
-            order,
-          };
-        }),
-      );
+      const orders = assignments.map(a => ({
+        assignment: {
+          id: a.id,
+          distanceKm: a.distanceKm,
+          estimatedMinutes: a.estimatedMinutes,
+          expiresAt: a.expiresAt,
+        },
+        order: orderMap.get(a.orderId) ?? null,
+      }));
 
       return reply.send({ success: true, data: orders });
     },

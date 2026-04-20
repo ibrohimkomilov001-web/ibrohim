@@ -1007,12 +1007,13 @@ export async function adminCoreRoutes(app: FastifyInstance) {
 
     if (status === 'delivered') {
       const deliveredItems = await prisma.orderItem.findMany({ where: { orderId: id } });
-      for (const item of deliveredItems) {
-        await prisma.product.update({
+      // Parallel updates (N+1 fix)
+      await Promise.all(deliveredItems.map(item =>
+        prisma.product.update({
           where: { id: item.productId },
           data: { salesCount: { increment: item.quantity } },
-        });
-      }
+        }),
+      ));
     }
 
     await prisma.notification.create({

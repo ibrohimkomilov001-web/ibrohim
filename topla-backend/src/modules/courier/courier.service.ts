@@ -397,32 +397,33 @@ export async function courierDelivered(
       },
     });
 
-    // Vendor balansni yangilash
-    for (const item of order.items) {
+    // Vendor balansni yangilash (Parallel N+1 fix)
+    await Promise.all(order.items.flatMap(item => {
       const shop = item.shop;
       const itemTotal = Number(item.price) * item.quantity;
       const commission = (itemTotal * Number(shop.commissionRate)) / 100;
       const netAmount = itemTotal - commission;
 
-      await tx.shop.update({
-        where: { id: shop.id },
-        data: {
-          balance: { increment: netAmount },
-          totalSales: { increment: 1 },
-        },
-      });
-
-      await tx.vendorTransaction.create({
-        data: {
-          shopId: shop.id,
-          orderId: order.id,
-          amount: itemTotal,
-          commission,
-          netAmount,
-          type: 'sale',
-        },
-      });
-    }
+      return [
+        tx.shop.update({
+          where: { id: shop.id },
+          data: {
+            balance: { increment: netAmount },
+            totalSales: { increment: 1 },
+          },
+        }),
+        tx.vendorTransaction.create({
+          data: {
+            shopId: shop.id,
+            orderId: order.id,
+            amount: itemTotal,
+            commission,
+            netAmount,
+            type: 'sale',
+          },
+        }),
+      ];
+    }));
   });
 
   await notifyOrderStatusChange(orderId, 'order_delivered');

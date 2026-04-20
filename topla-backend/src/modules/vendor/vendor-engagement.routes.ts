@@ -426,16 +426,32 @@ export async function vendorEngagementRoutes(app: FastifyInstance): Promise<void
       byCat.get(p.categoryId)!.push(p);
     }
 
+    // N+1 fix: Barcha kategoriyalar uchun competitor productlarni BITTA query bilan olib kelamiz
+    const catIds = Array.from(byCat.keys());
+    const competitorProducts = catIds.length > 0
+      ? await prisma.product.findMany({
+          where: {
+            categoryId: { in: catIds },
+            status: 'active',
+            shopId: { not: shop.id },
+          },
+          select: { categoryId: true, price: true, originalPrice: true },
+        })
+      : [];
+
+    // Kategoriya bo'yicha guruhlash + har birida max 30
+    const competitorsByCat = new Map<string, Array<{ price: any; originalPrice: any }>>();
+    for (const cp of competitorProducts) {
+      if (!cp.categoryId) continue;
+      const bucket = competitorsByCat.get(cp.categoryId) ?? [];
+      if (bucket.length < 30) {
+        bucket.push({ price: cp.price, originalPrice: cp.originalPrice });
+        competitorsByCat.set(cp.categoryId, bucket);
+      }
+    }
+
     for (const [catId, prods] of byCat) {
-      const competitors = await prisma.product.findMany({
-        where: {
-          categoryId: catId,
-          status: 'active',
-          shopId: { not: shop.id },
-        },
-        select: { price: true, originalPrice: true },
-        take: 30,
-      });
+      const competitors = competitorsByCat.get(catId) ?? [];
 
       if (competitors.length < 3) continue;
       const avgCompPrice = competitors.reduce((s, c) => s + Number(c.originalPrice ?? c.price), 0) / competitors.length;

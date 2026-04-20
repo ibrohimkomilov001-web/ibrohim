@@ -1047,12 +1047,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         // Bekor qilishda stokni qaytarish
         if (body.status === 'cancelled') {
           const items = await tx.orderItem.findMany({ where: { orderId: id } });
-          for (const item of items) {
-            await tx.product.update({
+          // Parallel increment (N+1 fix — har bir itemda stock farqli, updateMany mumkin emas)
+          await Promise.all(items.map(item =>
+            tx.product.update({
               where: { id: item.productId },
               data: { stock: { increment: item.quantity } },
-            });
-          }
+            }),
+          ));
 
           // BL2: Agar kuryer tayinlangan bo'lsa — kuryerni bo'shatish
           if (order.courierId) {
@@ -1110,20 +1111,24 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
         const deliveredItems = await prisma.orderItem.findMany({ where: { orderId: id } });
         const shopIds = new Set<string>();
         for (const item of deliveredItems) {
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { salesCount: { increment: item.quantity } },
-          });
           if (item.shopId) shopIds.add(item.shopId);
         }
 
-        // Do'konlarning totalSales ni oshirish
-        for (const shopId of shopIds) {
-          await prisma.shop.update({
-            where: { id: shopId },
-            data: { totalSales: { increment: 1 } },
-          });
-        }
+        // Parallel updates (N+1 fix — har bir item farqli quantity, updateMany mumkin emas)
+        await Promise.all([
+          ...deliveredItems.map(item =>
+            prisma.product.update({
+              where: { id: item.productId },
+              data: { salesCount: { increment: item.quantity } },
+            }),
+          ),
+          ...Array.from(shopIds).map(shopId =>
+            prisma.shop.update({
+              where: { id: shopId },
+              data: { totalSales: { increment: 1 } },
+            }),
+          ),
+        ]);
 
         processReferralBonus(order.userId).catch((err) =>
           console.error('Referral bonus error:', err),

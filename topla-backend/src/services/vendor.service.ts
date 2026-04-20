@@ -310,13 +310,17 @@ export async function bulkUpdatePrices(
 ): Promise<{ updated: number; errors: { productId: string; message: string }[] }> {
   const results = { updated: 0, errors: [] as { productId: string; message: string }[] };
 
+  // N+1 fix: Barcha productlarni BITTA query bilan olib kelamiz
+  const productIds = updates.map(u => u.productId);
+  const existingProducts = await prisma.product.findMany({
+    where: { id: { in: productIds }, shopId, deletedAt: null },
+    select: { id: true, price: true },
+  });
+  const productMap = new Map(existingProducts.map(p => [p.id, p]));
+
   for (const update of updates) {
     try {
-      // Verify product belongs to shop
-      const product = await prisma.product.findFirst({
-        where: { id: update.productId, shopId, deletedAt: null },
-        select: { id: true, price: true },
-      });
+      const product = productMap.get(update.productId);
 
       if (!product) {
         results.errors.push({ productId: update.productId, message: 'Mahsulot topilmadi' });

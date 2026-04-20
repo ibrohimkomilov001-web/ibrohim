@@ -270,6 +270,8 @@ export async function reorderToCart(
   const addedItems: ReorderResult['addedItems'] = [];
   const skippedItems: ReorderResult['skippedItems'] = [];
 
+  // Validation bosqichi + upsert payload tayyorlash
+  const upsertPayloads: Array<{ productId: string; variantId: string | null; qty: number; name: string }> = [];
   for (const item of order.items) {
     const product = item.product;
 
@@ -294,31 +296,41 @@ export async function reorderToCart(
     }
 
     const addQty = Math.min(item.quantity, product.stock);
+    upsertPayloads.push({
+      productId: item.productId,
+      variantId: item.variantId || null,
+      qty: addQty,
+      name: item.name,
+    });
+  }
 
-    // Savatga qo'shish (upsert — mavjud bo'lsa quantity oshirish)
-    await prisma.cartItem.upsert({
+  // Parallel upsert (N+1 fix)
+  await Promise.all(upsertPayloads.map(p =>
+    prisma.cartItem.upsert({
       where: {
         userId_productId_variantId: {
           userId,
-          productId: item.productId,
-          variantId: item.variantId || 'no-variant',
+          productId: p.productId,
+          variantId: p.variantId || 'no-variant',
         },
       },
       create: {
         userId,
-        productId: item.productId,
-        variantId: item.variantId || null,
-        quantity: addQty,
+        productId: p.productId,
+        variantId: p.variantId,
+        quantity: p.qty,
       },
       update: {
-        quantity: { increment: addQty },
+        quantity: { increment: p.qty },
       },
-    });
+    }),
+  ));
 
+  for (const p of upsertPayloads) {
     addedItems.push({
-      productId: item.productId,
-      name: item.name,
-      quantity: addQty,
+      productId: p.productId,
+      name: p.name,
+      quantity: p.qty,
     });
   }
 
@@ -383,12 +395,13 @@ export async function cancelOrderItem(
       });
 
       // Stokni qaytarish (barcha items uchun, chunki order bekor)
-      for (const oi of order.items) {
-        await tx.product.update({
+      // Parallel (N+1 fix)
+      await Promise.all(order.items.map(oi =>
+        tx.product.update({
           where: { id: oi.productId },
           data: { stock: { increment: oi.quantity } },
-        });
-      }
+        }),
+      ));
 
       await tx.orderStatusHistory.create({
         data: {
