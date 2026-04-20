@@ -4,7 +4,7 @@ WORKDIR /app
 # Dependencies stage
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm install prisma@6.19.2
+RUN npm ci --omit=dev && npm install prisma@6.19.2 tsx@4.19.2
 
 # Build stage
 FROM base AS build
@@ -29,6 +29,10 @@ COPY --from=build /app/dist ./dist
 # Copy Prisma schema & generated client
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy authz source (needed by prisma/seed-authz.ts — runs via tsx at deploy time)
+COPY --from=build /app/src/lib/authz ./src/lib/authz
+COPY --from=build /app/tsconfig.json ./tsconfig.json
 
 # Copy package.json for scripts
 COPY package.json ./
