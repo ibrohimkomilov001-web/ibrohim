@@ -3,6 +3,7 @@ import { verifyToken, isTokenBlacklisted, JwtPayload } from '../utils/jwt.js';
 import { extractToken } from '../utils/cookie.js';
 import { prisma } from '../config/database.js';
 import { checkRateLimit } from '../config/redis.js';
+import { getTokenVersion } from '../services/refresh-token.service.js';
 import { AppError } from './error.js';
 
 export interface ApiKeyContext {
@@ -50,6 +51,21 @@ export async function authMiddleware(
     }
 
     const payload = verifyToken(token);
+
+    // B2 — session invalidation via tokenVersion.
+    // Tokens issued before the rotation system was deployed have no
+    // `tokenVersion` claim; skip the check for them (they naturally expire
+    // within JWT_EXPIRES_IN, usually 1 day).
+    if (typeof payload.tokenVersion === 'number') {
+      const currentVersion = await getTokenVersion(payload.userId);
+      if (payload.tokenVersion !== currentVersion) {
+        return reply.status(401).send({
+          error: 'Unauthorized',
+          message: 'Sessiya bekor qilingan. Qayta kiring.',
+        });
+      }
+    }
+
     request.user = payload;
   } catch (error) {
     return reply.status(401).send({
@@ -78,10 +94,15 @@ export function requireRole(...roles: string[]) {
 }
 
 /**
- * Permission-based authorization middleware (RBAC)
- * Checks granular permissions from AdminRole model.
- * super_admin level always passes. Other levels need explicit permission.
- * Usage: requirePermission('products.manage') or requirePermission('orders.view', 'orders.manage')
+ * Permission-based authorization middleware (RBAC — HYBRID V1/V2).
+ *
+ * Uchta rejim, `USE_NEW_AUTHZ` ENV orqali boshqariladi:
+ *   - `off` (default) — faqat eski AdminRole.permissions ishlaydi (v1)
+ *   - `shadow`        — v1 ruxsat beradi, lekin v2 bilan ham taqqoslanadi (log yoziladi)
+ *   - `on`            — faqat v2 (Membership/Role.bitmask) ishlaydi, v1 butunlay chetga surilmaydi
+ *
+ * Legacy `.manage` permissionlar legacy-map orqali yangi fine-grained permslarga kengayadi.
+ * super_admin (v1) va admin_super membership (v2) — bypass.
  */
 export function requirePermission(...requiredPermissions: string[]) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -96,7 +117,10 @@ export function requirePermission(...requiredPermissions: string[]) {
       });
     }
 
-    // Fetch admin role if not already loaded
+    const mode = (process.env.USE_NEW_AUTHZ || 'off').toLowerCase();
+
+    // ─── V1 tekshirish (off va shadow rejimda asosiy) ─────
+    let v1Allowed = false;
     if (!request.adminLevel) {
       const adminRole = await prisma.adminRole.findUnique({
         where: { userId: request.user.userId },
@@ -107,28 +131,70 @@ export function requirePermission(...requiredPermissions: string[]) {
         request.adminPermissions = adminRole.permissions;
       } else {
         // No explicit AdminRole — treat as super_admin for backward compatibility
-        // (existing admins without AdminRole entry should retain full access)
         request.adminLevel = 'super_admin';
         request.adminPermissions = [];
       }
     }
 
-    // super_admin has all permissions
     if (request.adminLevel === 'super_admin') {
-      return;
+      v1Allowed = true;
+    } else {
+      v1Allowed = requiredPermissions.some(
+        (perm) => request.adminPermissions?.includes(perm),
+      );
     }
 
-    // Check if user has ANY of the required permissions
-    const hasPermission = requiredPermissions.some(
-      (perm) => request.adminPermissions?.includes(perm)
-    );
+    // ─── V2 tekshirish (on/shadow rejimda) ────────────────
+    let v2Allowed: boolean | null = null;
+    if (mode === 'on' || mode === 'shadow') {
+      try {
+        const { loadAuthzContext, canAny } = await import('../lib/authz/policy.js');
+        const { expandLegacyPermissions } = await import('../lib/authz/legacy-map.js');
 
-    if (!hasPermission) {
+        if (!request.authzContext) {
+          request.authzContext = await loadAuthzContext(request.user.userId);
+        }
+        const expanded = expandLegacyPermissions(requiredPermissions);
+        v2Allowed = expanded.length > 0
+          ? await canAny(request.authzContext, expanded)
+          : false;
+      } catch (err) {
+        request.log.warn({ err }, '[AUTHZ] v2 tekshiruv xatoligi — v1 ga qaytish');
+        v2Allowed = null;
+      }
+    }
+
+    // ─── Qaror ─────────────────────────────────────────────
+    if (mode === 'on') {
+      // Faqat v2 natijasi hisobga olinadi. xato bo'lsa DENY.
+      if (v2Allowed === true) return;
       return reply.status(403).send({
         error: 'Forbidden',
+        code: 'PERMISSION_DENIED',
         message: `Sizda "${requiredPermissions.join('" yoki "')}" ruxsati yo'q`,
       });
     }
+
+    // shadow / off — v1 asosiy qaror
+    if (mode === 'shadow' && v2Allowed !== null && v2Allowed !== v1Allowed) {
+      request.log.warn(
+        {
+          authz: 'shadow-mismatch',
+          userId: request.user.userId,
+          requiredPermissions,
+          v1: v1Allowed ? 'ALLOW' : 'DENY',
+          v2: v2Allowed ? 'ALLOW' : 'DENY',
+        },
+        '[AUTHZ-SHADOW] v1/v2 natija farqi',
+      );
+    }
+
+    if (v1Allowed) return;
+
+    return reply.status(403).send({
+      error: 'Forbidden',
+      message: `Sizda "${requiredPermissions.join('" yoki "')}" ruxsati yo'q`,
+    });
   };
 }
 

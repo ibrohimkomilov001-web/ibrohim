@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  startRegistration,
-} from '@simplewebauthn/browser';
 import QRCode from 'qrcode';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,123 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Trash2, Plus, Fingerprint, ShieldCheck, ShieldOff, Copy, Check } from 'lucide-react';
+import { Loader2, ShieldCheck, ShieldOff, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  fetchAdminPasskeys,
-  deleteAdminPasskey,
-  adminPasskeyRegisterBegin,
-  adminPasskeyRegisterVerify,
   admin2FAStatus,
   admin2FASetupBegin,
   admin2FASetupVerify,
   admin2FADisable,
 } from '@/lib/api/admin';
-
-export function AdminPasskeysCard() {
-  const qc = useQueryClient();
-  const passkeysQuery = useQuery({ queryKey: ['admin-passkeys'], queryFn: fetchAdminPasskeys });
-  const [adding, setAdding] = useState(false);
-  const [deviceName, setDeviceName] = useState('');
-
-  const addPasskey = async () => {
-    setAdding(true);
-    try {
-      const options = await adminPasskeyRegisterBegin();
-      const credential = await startRegistration({ optionsJSON: options });
-      await adminPasskeyRegisterVerify(credential, deviceName.trim() || undefined);
-      toast.success('Passkey muvaffaqiyatli qo\'shildi');
-      setDeviceName('');
-      qc.invalidateQueries({ queryKey: ['admin-passkeys'] });
-    } catch (err: any) {
-      const msg = err?.message || 'Passkey qo\'shilmadi';
-      if (!/cancel|abort/i.test(msg)) toast.error(msg);
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const removePasskey = async (id: string) => {
-    if (!confirm('Passkey o\'chirilsinmi?')) return;
-    try {
-      await deleteAdminPasskey(id);
-      toast.success('Passkey o\'chirildi');
-      qc.invalidateQueries({ queryKey: ['admin-passkeys'] });
-    } catch (err: any) {
-      toast.error(err?.message || 'O\'chirilmadi');
-    }
-  };
-
-  const passkeys = passkeysQuery.data || [];
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Fingerprint className="w-5 h-5" />
-              Passkey (WebAuthn)
-            </CardTitle>
-            <CardDescription>
-              Barmoq izi, Yuz ID yoki Windows Hello bilan parolsiz kirish
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Qurilma nomi (masalan: Ish noutbugi)"
-            value={deviceName}
-            onChange={(e) => setDeviceName(e.target.value)}
-            disabled={adding}
-            className="flex-1"
-          />
-          <Button onClick={addPasskey} disabled={adding}>
-            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            <span className="ml-1.5 hidden sm:inline">Qo'shish</span>
-          </Button>
-        </div>
-
-        {passkeysQuery.isLoading ? (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : passkeys.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            Hech qanday passkey yo'q. Qo'shing — keyingi safar 1 bosishda kiring.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {passkeys.map((pk) => (
-              <div key={pk.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Fingerprint className="w-5 h-5 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">{pk.deviceName || 'Nomsiz qurilma'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Qo'shilgan: {new Date(pk.createdAt).toLocaleDateString('uz-UZ')}
-                      {pk.lastUsedAt && ` · Oxirgi: ${new Date(pk.lastUsedAt).toLocaleDateString('uz-UZ')}`}
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removePasskey(pk.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export function Admin2FACard() {
   const qc = useQueryClient();

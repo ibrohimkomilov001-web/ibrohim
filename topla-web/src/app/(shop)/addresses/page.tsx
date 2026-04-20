@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@/store/locale-store';
 import { isUserAuthenticated, userAuthApi } from '@/lib/api/user-auth';
+import { EmptyState } from '@/components/shop/empty-state';
 
 interface AddressForm {
   name: string;
@@ -129,10 +130,10 @@ export default function AddressesPage() {
           {!showForm && (
             <button
               onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+              aria-label={locale === 'ru' ? 'Добавить' : 'Qo\'shish'}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              {locale === 'ru' ? 'Добавить' : 'Qo\'shish'}
+              <Plus className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -314,30 +315,17 @@ export default function AddressesPage() {
             ))}
           </div>
         ) : !showForm ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-20"
-          >
-            <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-4">
-              <MapPin className="w-9 h-9 text-green-400" />
-            </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-1">
-              {locale === 'ru' ? 'Нет сохранённых адресов' : 'Saqlangan manzillar yo\'q'}
-            </h2>
-            <p className="text-sm text-gray-400 text-center max-w-xs">
-              {locale === 'ru'
-                ? 'Добавьте адрес для быстрой доставки'
-                : 'Tez yetkazib berish uchun manzil qo\'shing'}
-            </p>
-            <button
-              onClick={() => { setForm(emptyForm); setShowForm(true); }}
-              className="mt-6 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              {locale === 'ru' ? 'Добавить адрес' : 'Manzil qo\'shish'}
-            </button>
-          </motion.div>
+          <EmptyState
+            icon={MapPin}
+            title={locale === 'ru' ? 'Нет сохранённых адресов' : "Saqlangan manzillar yo'q"}
+            description={
+              locale === 'ru'
+                ? 'Добавьте адрес доставки — это ускорит оформление заказа'
+                : "Yetkazib berish manzilini qo'shing \u2014 bu buyurtmani rasmiylashtirishni tezlashtiradi"
+            }
+            actionLabel={locale === 'ru' ? 'Добавить адрес' : "Manzil qo'shish"}
+            onAction={() => { setForm(emptyForm); setShowForm(true); }}
+          />
         ) : null}
       </div>
     </div>

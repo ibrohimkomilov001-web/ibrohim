@@ -1,60 +1,26 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Search, ShoppingCart, X, Menu } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Search, ShoppingCart, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useTranslation } from '@/store/locale-store';
-import { shopApi } from '@/lib/api/shop';
 import { CategoryDrawer } from './category-drawer';
+import { SearchOverlay } from '@/components/shop/search-overlay';
 
 export function Header({ className }: { className?: string }) {
-  const router = useRouter();
   const { t } = useTranslation();
   const cartCount = useCartStore((s) => s.getItemCount());
   const [scrolled, setScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  const { data: suggestions } = useQuery({
-    queryKey: ['header-suggest', searchQuery],
-    queryFn: () => shopApi.searchSuggest(searchQuery),
-    enabled: searchQuery.length >= 2 && searchFocused,
-    staleTime: 30 * 1000,
-  });
-
-  const suggestItems: string[] = Array.isArray(suggestions)
-    ? suggestions.map((s: any) => s.nameUz || s.name || s.query || String(s)).slice(0, 6)
-    : [];
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Blur input to dismiss keyboard on mobile
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-      setSearchFocused(false);
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-    }
-  };
-
-  const handleOverlayClick = () => {
-    setSearchFocused(false);
-    if (searchRef.current) searchRef.current.blur();
-  };
 
   return (
     <div className={className}>
@@ -75,50 +41,18 @@ export function Header({ className }: { className?: string }) {
               <Menu className="w-[22px] h-[22px] text-foreground" strokeWidth={2.2} />
             </button>
 
-            {/* Search bar */}
-            <form onSubmit={handleSearch} className="flex-1 min-w-0 relative">
-              <div className="flex items-center h-9 sm:h-10 px-3 rounded-xl bg-muted border border-border transition-all focus-within:bg-background focus-within:border-primary/30 focus-within:shadow-sm">
-                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <input
-                  ref={searchRef}
-                  type="search"
-                  enterKeyHint="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  placeholder={t('findProducts')}
-                  className="flex-1 bg-transparent border-none outline-none ml-2 text-[16px] sm:text-sm text-foreground placeholder:text-muted-foreground min-w-0"
-                />
-                {searchQuery && (
-                  <button type="button" onClick={() => setSearchQuery('')} className="p-2" aria-label="Qidiruvni tozalash">
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                )}
-              </div>
-              {/* Search suggestions dropdown */}
-              {searchFocused && suggestItems.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-background rounded-xl shadow-lg border border-border overflow-hidden z-[60]">
-                  {suggestItems.map((item, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setSearchQuery(item);
-                        setSearchFocused(false);
-                        if (searchRef.current) searchRef.current.blur();
-                        router.push(`/search?q=${encodeURIComponent(item)}`);
-                        setSearchQuery('');
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted transition-colors"
-                    >
-                      <Search className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-                      <span className="text-sm text-foreground truncate">{item}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </form>
+            {/* Search trigger (opens full-screen overlay) */}
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label={t('findProducts')}
+              className="flex-1 min-w-0 flex items-center h-9 sm:h-10 px-3 rounded-xl bg-muted border border-border hover:bg-muted/80 transition-colors text-left"
+            >
+              <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="ml-2 text-sm text-muted-foreground truncate">
+                {t('findProducts')}
+              </span>
+            </button>
 
             {/* Cart */}
             <Link
@@ -149,20 +83,14 @@ export function Header({ className }: { className?: string }) {
         </div>
       </header>
 
-      {/* Search overlay */}
-      {searchFocused && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-          onClick={handleOverlayClick}
-          style={{ top: 'calc(env(safe-area-inset-top) + 3rem)' }}
-        />
-      )}
-
       {/* Spacer */}
       <div className="h-12 sm:h-14" style={{ paddingTop: 'env(safe-area-inset-top)' }} />
 
       {/* Category Drawer */}
       <CategoryDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
+      {/* Search overlay */}
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

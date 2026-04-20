@@ -30,9 +30,6 @@ abstract class IAuthRepository {
   /// Google orqali kirish
   Future<void> signInWithGoogle();
 
-  /// Passkey (barmoq izi / yuz izi) orqali kirish
-  Future<void> signInWithPasskey();
-
   /// Tizimdan chiqish
   Future<void> signOut();
 

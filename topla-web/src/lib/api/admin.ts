@@ -108,53 +108,6 @@ export async function adminGoogleLogin(credential: string) {
 }
 
 // ============================================
-// Passkey (WebAuthn) Login
-// ============================================
-export async function adminPasskeyLoginBegin(email?: string) {
-  const res = await adminRequest<{ success: boolean; data: { options: any; sessionId: string } }>(
-    '/auth/admin/passkey/login/begin',
-    { method: 'POST', body: JSON.stringify({ email }) },
-  );
-  return res.data;
-}
-
-export async function adminPasskeyLoginVerify(sessionId: string, credential: any) {
-  const res = await adminRequest<{ success: boolean; data: { token?: string; adminRole?: AdminPermissions } }>(
-    '/auth/admin/passkey/login/verify',
-    { method: 'POST', body: JSON.stringify({ sessionId, credential }) },
-  );
-  const data = res.data;
-  if (data?.token) setAdminToken(data.token);
-  if (data?.adminRole) setAdminPermissions(data.adminRole);
-  return data;
-}
-
-export async function adminPasskeyRegisterBegin() {
-  const res = await adminRequest<{ success: boolean; data: any }>(
-    '/auth/admin/passkey/register/begin',
-    { method: 'POST' },
-  );
-  return res.data;
-}
-
-export async function adminPasskeyRegisterVerify(response: any, deviceName?: string) {
-  const res = await adminRequest<{ success: boolean }>(
-    '/auth/admin/passkey/register/verify',
-    { method: 'POST', body: JSON.stringify({ response, deviceName }) },
-  );
-  return res;
-}
-
-export async function fetchAdminPasskeys(): Promise<Array<{ id: string; deviceName: string | null; createdAt: string; lastUsedAt: string | null }>> {
-  const res = await adminRequest<{ success: boolean; data: any[] }>('/admin/passkeys');
-  return res.data || [];
-}
-
-export async function deleteAdminPasskey(id: string) {
-  await adminRequest(`/admin/passkeys/${id}`, { method: 'DELETE' });
-}
-
-// ============================================
 // 2FA (TOTP)
 // ============================================
 export async function admin2FAStatus(): Promise<{ enabled: boolean; backupCodesRemaining: number }> {
@@ -165,7 +118,7 @@ export async function admin2FAStatus(): Promise<{ enabled: boolean; backupCodesR
 export async function admin2FASetupBegin(): Promise<{ secret: string; otpauth: string }> {
   const res = await adminRequest<{ success: boolean; data: any }>(
     '/admin/2fa/setup/begin',
-    { method: 'POST' },
+    { method: 'POST', body: JSON.stringify({}) },
   );
   return res.data;
 }

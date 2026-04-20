@@ -8,33 +8,25 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Search as SearchIcon,
   Clock,
-  TrendingUp,
   SlidersHorizontal,
   X,
-  Star,
-  Package,
-  Tag,
-  ArrowUpDown,
   ChevronLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { shopApi } from '@/lib/api/shop';
 import { ProductGrid } from '@/components/shop/product-card';
 import { useTranslation } from '@/store/locale-store';
+import {
+  FilterSheet,
+  EMPTY_FILTERS,
+  countActiveFilters,
+  filtersToParams,
+  type FilterValues,
+} from '@/components/shop/filter-sheet';
 
 // ============================================
 // Types
 // ============================================
-interface SearchFilters {
-  categoryId?: string;
-  brandIds?: string;
-  minPrice?: string;
-  maxPrice?: string;
-  minRating?: string;
-  inStock?: string;
-  hasDiscount?: string;
-  sort?: string;
-}
 
 // ============================================
 // Main Page
@@ -62,9 +54,9 @@ function SearchContent() {
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
-  const [filters, setFilters] = useState<SearchFilters>({});
+  const [filterValues, setFilterValues] = useState<FilterValues>(EMPTY_FILTERS);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestRef = useRef<HTMLDivElement>(null);
 
@@ -99,15 +91,7 @@ function SearchContent() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // ---- Trending searches from API ----
-  const { data: trendingData } = useQuery({
-    queryKey: ['popular-searches'],
-    queryFn: () => shopApi.getPopularSearches(),
-    staleTime: 5 * 60 * 1000,
-  });
-  const trendingSearches = (trendingData && Array.isArray(trendingData) && trendingData.length > 0)
-    ? trendingData.map((item: any) => item.query)
-    : ['telefon', 'krossovka', 'sumka', 'soat', 'naushnik', 'kiyim'];
+  // ---- Trending searches removed per design ----
 
   // ---- Autocomplete suggest ----
   const { data: suggestions } = useQuery({
@@ -119,17 +103,9 @@ function SearchContent() {
 
   // ---- Main search ----
   const { data: searchResult, isLoading } = useQuery({
-    queryKey: ['search-products', debouncedQuery, filters],
+    queryKey: ['search-products', debouncedQuery, filterValues],
     queryFn: () => {
-      const params: Record<string, string> = { limit: '40' };
-      if (filters.categoryId) params.categoryId = filters.categoryId;
-      if (filters.brandIds) params.brandIds = filters.brandIds;
-      if (filters.minPrice) params.minPrice = filters.minPrice;
-      if (filters.maxPrice) params.maxPrice = filters.maxPrice;
-      if (filters.minRating) params.minRating = filters.minRating;
-      if (filters.inStock) params.inStock = 'true';
-      if (filters.hasDiscount) params.hasDiscount = 'true';
-      if (filters.sort) params.sort = filters.sort;
+      const params: Record<string, string> = { limit: '40', ...filtersToParams(filterValues) };
       return shopApi.searchProducts(debouncedQuery, params);
     },
     enabled: debouncedQuery.length >= 2,
@@ -186,17 +162,8 @@ function SearchContent() {
     localStorage.removeItem('recent_searches');
   };
 
-  const updateFilter = (key: keyof SearchFilters, value: string | undefined) => {
-    setFilters(prev => {
-      const next = { ...prev };
-      if (value) next[key] = value;
-      else delete next[key];
-      return next;
-    });
-  };
-
-  const clearFilters = () => setFilters({});
-  const activeFilterCount = Object.keys(filters).length;
+  const clearFilters = () => setFilterValues(EMPTY_FILTERS);
+  const activeFilterCount = countActiveFilters(filterValues);
 
   const showEmpty = debouncedQuery.length >= 2 && !isLoading && Array.isArray(products) && products.length === 0;
   const showDefault = debouncedQuery.length < 2;
@@ -272,6 +239,19 @@ function SearchContent() {
           </div>
           <button
             type="button"
+            onClick={() => setSheetOpen(true)}
+            className={`relative flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 ${activeFilterCount > 0 ? 'bg-blue-600 text-white' : 'hover:bg-muted text-foreground'}`}
+            aria-label="Filters"
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={handleSubmit}
             className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white flex-shrink-0"
           >
@@ -312,7 +292,7 @@ function SearchContent() {
               </button>
             )}
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setSheetOpen(true)}
               className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-colors ${activeFilterCount > 0 ? 'bg-primary text-white' : 'hover:bg-muted'}`}
             >
               <SlidersHorizontal className="w-4 h-4" />
@@ -364,107 +344,7 @@ function SearchContent() {
 
       {/* ── Shared content ── */}
       <div className="site-container sm:pb-10">
-        {/* Filters panel (desktop only) */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="hidden sm:block max-w-3xl mx-auto mb-6 overflow-hidden"
-            >
-              <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4" />
-                    {locale === 'ru' ? 'Фильтры' : 'Filterlar'}
-                  </h3>
-                  {activeFilterCount > 0 && (
-                    <button onClick={clearFilters} className="text-xs text-primary hover:underline">
-                      {locale === 'ru' ? 'Сбросить' : 'Tozalash'}
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">{locale === 'ru' ? 'Мин. цена' : 'Min narx'}</label>
-                    <input
-                      type="number"
-                      value={filters.minPrice || ''}
-                      onChange={(e) => updateFilter('minPrice', e.target.value || undefined)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">{locale === 'ru' ? 'Макс. цена' : 'Max narx'}</label>
-                    <input
-                      type="number"
-                      value={filters.maxPrice || ''}
-                      onChange={(e) => updateFilter('maxPrice', e.target.value || undefined)}
-                      placeholder="∞"
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Star className="w-3 h-3" /> {locale === 'ru' ? 'Мин. рейтинг' : 'Min reyting'}
-                    </label>
-                    <select
-                      value={filters.minRating || ''}
-                      onChange={(e) => updateFilter('minRating', e.target.value || undefined)}
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="">{locale === 'ru' ? 'Все' : 'Barchasi'}</option>
-                      <option value="4">4+ ⭐</option>
-                      <option value="3">3+ ⭐</option>
-                      <option value="2">2+ ⭐</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground flex items-center gap-1">
-                      <ArrowUpDown className="w-3 h-3" /> {locale === 'ru' ? 'Сортировка' : 'Saralash'}
-                    </label>
-                    <select
-                      value={filters.sort || ''}
-                      onChange={(e) => updateFilter('sort', e.target.value || undefined)}
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="">{locale === 'ru' ? 'По умолчанию' : 'Standart'}</option>
-                      <option value="price_asc">{locale === 'ru' ? 'Цена ↑' : 'Narx ↑'}</option>
-                      <option value="price_desc">{locale === 'ru' ? 'Цена ↓' : 'Narx ↓'}</option>
-                      <option value="rating">{locale === 'ru' ? 'Рейтинг' : 'Reyting'}</option>
-                      <option value="newest">{locale === 'ru' ? 'Новые' : 'Yangi'}</option>
-                      <option value="popular">{locale === 'ru' ? 'Популярные' : 'Mashhur'}</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => updateFilter('inStock', filters.inStock ? undefined : 'true')}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                      filters.inStock ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/80'
-                    }`}
-                  >
-                    <Package className="w-3 h-3" />
-                    {locale === 'ru' ? 'В наличии' : 'Mavjud'}
-                  </button>
-                  <button
-                    onClick={() => updateFilter('hasDiscount', filters.hasDiscount ? undefined : 'true')}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                      filters.hasDiscount ? 'bg-primary text-white' : 'bg-muted text-foreground hover:bg-muted/80'
-                    }`}
-                  >
-                    <Tag className="w-3 h-3" />
-                    {locale === 'ru' ? 'Со скидкой' : 'Chegirmali'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Filter sheet is rendered below (as overlay) */}
 
         {/* Results count & meta */}
         {debouncedQuery.length >= 2 && !isLoading && Array.isArray(products) && products.length > 0 && (
@@ -483,14 +363,10 @@ function SearchContent() {
           </div>
         )}
 
-        {/* Default state - recent & trending */}
+        {/* Default state - recent searches only */}
         {showDefault && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto space-y-6 pt-4 sm:pt-0"
-          >
-            {recentSearches.length > 0 && (
+          <div className="max-w-2xl mx-auto space-y-6 pt-4 sm:pt-0">
+            {recentSearches.length > 0 ? (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-sm flex items-center gap-2">
@@ -513,29 +389,22 @@ function SearchContent() {
                   ))}
                 </div>
               </div>
-            )}
-
-            <div>
-              <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                {locale === 'ru' ? 'Популярные запросы' : 'Trend qidiruvlar'}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {trendingSearches.slice(0, 12).map((term: string, i: number) => (
-                  <motion.button
-                    key={term}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.05 }}
-                    onClick={() => handleSearch(term)}
-                    className="category-pill text-sm"
-                  >
-                    {term}
-                  </motion.button>
-                ))}
+            ) : (
+              <div className="flex flex-col items-center text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <SearchIcon className="w-9 h-9 text-muted-foreground" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">
+                  {locale === 'ru' ? 'Что ищете?' : 'Nimani qidiryapsiz?'}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground max-w-sm">
+                  {locale === 'ru'
+                    ? 'Введите название товара, бренда или категории'
+                    : "Mahsulot, brend yoki kategoriya nomini kiriting"}
+                </p>
               </div>
-            </div>
-          </motion.div>
+            )}
+          </div>
         )}
 
         {/* Loading skeleton */}
@@ -578,23 +447,6 @@ function SearchContent() {
                 {locale === 'ru' ? 'Сбросить фильтры' : 'Filterlarni tozalash'} ({activeFilterCount})
               </button>
             )}
-
-            <div className="mt-6">
-              <p className="text-sm text-muted-foreground mb-3">
-                {locale === 'ru' ? 'Попробуйте:' : "Sinab ko'ring:"}
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {trendingSearches.slice(0, 6).map((term: string) => (
-                  <button
-                    key={term}
-                    onClick={() => handleSearch(term)}
-                    className="category-pill text-sm"
-                  >
-                    {term}
-                  </button>
-                ))}
-              </div>
-            </div>
           </motion.div>
         )}
 
@@ -605,6 +457,13 @@ function SearchContent() {
           </motion.div>
         )}
       </div>
+
+      <FilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onApply={(v) => setFilterValues(v)}
+        initial={filterValues}
+      />
     </div>
   );
 }

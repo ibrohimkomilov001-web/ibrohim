@@ -36,9 +36,6 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
   const { t, locale } = useTranslation();
   const [currentImage, setCurrentImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const isSwiping = useRef(false);
   const lightboxTouchStartX = useRef(0);
   const lightboxTouchEndX = useRef(0);
 
@@ -254,10 +251,7 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
             {/* Main image */}
             <div
               className="relative aspect-square rounded-2xl overflow-hidden bg-muted cursor-pointer select-none"
-              onClick={() => { if (!isSwiping.current && images.length > 0) setLightboxOpen(true); }}
-              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; isSwiping.current = false; }}
-              onTouchMove={(e) => { touchEndX.current = e.touches[0].clientX; if (Math.abs(touchStartX.current - e.touches[0].clientX) > 10) isSwiping.current = true; }}
-              onTouchEnd={() => { handleSwipe(touchStartX.current, touchEndX.current); touchStartX.current = 0; touchEndX.current = 0; }}
+              onClick={() => { if (images.length > 0) setLightboxOpen(true); }}
             >
               {images.length > 0 ? (
                 <Image
@@ -287,10 +281,18 @@ export default function ProductDetailClient({ productId, initialProduct }: Produ
                 onTouchEnd={(e) => e.stopPropagation()}
               >
                 <button
+                  aria-label={isFav ? 'Sevimlilardan olib tashlash' : "Sevimlilarga qo'shish"}
                   onClick={(e) => { e.stopPropagation(); toggleFavorite(id); }}
-                  className="w-11 h-11 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
+                  className="w-11 h-11 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                 >
-                  <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
+                  <motion.div
+                    key={String(isFav)}
+                    initial={{ scale: 1 }}
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                  >
+                    <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
+                  </motion.div>
                 </button>
                 <button
                   onClick={async (e) => {

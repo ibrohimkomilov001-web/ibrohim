@@ -1,5 +1,6 @@
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# libc6-compat + vips-dev required for `sharp` (next/image optimizer) on Alpine/musl
+RUN apk add --no-cache libc6-compat vips-dev build-base python3
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -16,6 +17,12 @@ ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 # Google reCAPTCHA v3 site key — baked in at build time
 ARG NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 ENV NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+# Cloudflare Turnstile site key — baked in at build time
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+# Sentry DSN — baked into client bundle at build time
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 RUN npm run build
 
 FROM node:20-alpine AS runner
@@ -23,12 +30,21 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Runtime native deps for `sharp` (libvips). libc6-compat covers glibc ABI.
+RUN apk add --no-cache libc6-compat vips
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# sharp is declared in package.json and bundled by Next's standalone output;
+# the explicit install below is a belt-and-braces safety net in case the
+# standalone bundle drops optional native modules.
+RUN npm install --prefix . --no-save --omit=dev sharp \
+  && chown -R nextjs:nodejs /app/node_modules
 
 USER nextjs
 EXPOSE 3000

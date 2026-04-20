@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { Heart, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useFavoritesStore } from '@/store/favorites-store';
-import { useTranslation } from '@/store/locale-store';
+import { useTranslation, useLocaleStore } from '@/store/locale-store';
 import { useQuery } from '@tanstack/react-query';
 import { shopApi } from '@/lib/api/shop';
 import { ProductCard } from '@/components/shop/product-card';
+import { EmptyState } from '@/components/shop/empty-state';
 
 export default function FavoritesPage() {
   const { t } = useTranslation();
+  const { locale } = useLocaleStore();
   const { favorites } = useFavoritesStore();
   const [mounted, setMounted] = useState(false);
 
@@ -65,30 +67,17 @@ export default function FavoritesPage() {
 
       {/* Content */}
       {favorites.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
-        >
-          <div className="w-20 h-20 rounded-2xl bg-foreground/[0.04] dark:bg-white/[0.06] flex items-center justify-center mb-5">
-            <Heart className="w-10 h-10 text-muted-foreground/40" />
-          </div>
-          <h2 className="text-lg font-semibold mb-2">
-            {t('favorites')} {t('emptyCart').split(' ')[1] || "bo'sh"}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-            {t('about') === 'О нас'
-              ? 'Добавляйте товары в избранное, чтобы не потерять их'
-              : "Mahsulotlarni sevimlilar ro'yxatiga qo'shing"}
-          </p>
-          <Link
-            href="/"
-            className="liquid-btn inline-flex items-center gap-2"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            {t('startShopping')}
-          </Link>
-        </motion.div>
+        <EmptyState
+          icon={Heart}
+          title={locale === 'ru' ? 'Список избранного пуст' : "Sevimlilar ro'yxati bo'sh"}
+          description={
+            locale === 'ru'
+              ? 'Добавляйте товары в избранное, нажимая на сердечко — чтобы не потерять их'
+              : "Yurakcha tugmasini bosib mahsulotlarni sevimlilarga qo'shing"
+          }
+          actionLabel={locale === 'ru' ? 'Смотреть каталог' : 'Katalogni ko\'rish'}
+          actionHref="/categories"
+        />
       ) : isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {Array.from({ length: favorites.length }).map((_, i) => (

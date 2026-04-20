@@ -263,23 +263,4 @@ export const userAuthApi = {
     userRequest<any>(`/addresses/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     }),
-
-  /** Passkey login — 1-qadam: options olish */
-  passkeyLoginBegin: () =>
-    userRequest<{ options: any; sessionId: string }>('/auth/passkey/login/begin', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    }),
-
-  /** Passkey login — 2-qadam: tekshirish */
-  passkeyLoginVerify: (sessionId: string, credential: any) =>
-    userRequest<AuthResponse>('/auth/passkey/login/verify', {
-      method: 'POST',
-      body: JSON.stringify({
-        sessionId,
-        credential,
-        platform: 'web',
-        fcmToken: `web_${Date.now()}`,
-      }),
-    }),
 };

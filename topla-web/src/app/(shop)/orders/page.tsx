@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ShoppingBag, Loader2, Package, ChevronRight, XCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Loader2, Package, ChevronRight, XCircle, PackageOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from '@/store/locale-store';
 import { isUserAuthenticated, userAuthApi } from '@/lib/api/user-auth';
 import { resolveImageUrl } from '@/lib/api/upload';
 import { formatPrice } from '@/lib/utils';
+import { EmptyState } from '@/components/shop/empty-state';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
@@ -112,29 +113,17 @@ export default function OrdersPage() {
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : orders.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-20"
-          >
-            <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-              <ShoppingBag className="w-9 h-9 text-blue-400" />
-            </div>
-            <h2 className="text-base font-semibold text-foreground mb-1">
-              {locale === 'ru' ? 'Пока нет заказов' : 'Buyurtmalar hali yo\'q'}
-            </h2>
-            <p className="text-sm text-muted-foreground text-center max-w-xs">
-              {locale === 'ru'
+          <EmptyState
+            icon={PackageOpen}
+            title={locale === 'ru' ? 'Пока нет заказов' : "Buyurtmalar hali yo'q"}
+            description={
+              locale === 'ru'
                 ? 'Ваши заказы появятся здесь после покупки'
-                : 'Xarid qilganingizdan keyin buyurtmalaringiz shu yerda ko\'rinadi'}
-            </p>
-            <Link
-              href="/"
-              className="mt-6 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all"
-            >
-              {locale === 'ru' ? 'Начать покупки' : 'Xarid qilish'}
-            </Link>
-          </motion.div>
+                : "Xarid qilganingizdan keyin buyurtmalaringiz shu yerda ko'rinadi"
+            }
+            actionLabel={locale === 'ru' ? 'Начать покупки' : 'Xaridni boshlash'}
+            actionHref="/"
+          />
         ) : (
           <div className="space-y-3">
             {orders.map((order: any) => (

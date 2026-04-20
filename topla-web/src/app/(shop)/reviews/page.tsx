@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from '@/store/locale-store';
 import { userAuthApi, isUserAuthenticated } from '@/lib/api/user-auth';
 import { resolveImageUrl } from '@/lib/api/upload';
+import { EmptyState } from '@/components/shop/empty-state';
 
 type ReviewTab = 'reviews' | 'questions';
 
@@ -115,50 +116,29 @@ export default function ReviewsPage() {
                 ))}
               </div>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center py-20"
-              >
-                <div className="w-20 h-20 rounded-full bg-yellow-50 flex items-center justify-center mb-4">
-                  <Star className="w-9 h-9 text-yellow-400" />
-                </div>
-                <h2 className="text-base font-semibold text-gray-700 mb-1">
-                  {locale === 'ru' ? 'Нет отзывов' : 'Sharhlar yo\'q'}
-                </h2>
-                <p className="text-sm text-gray-400 text-center max-w-xs">
-                  {locale === 'ru'
-                    ? 'Здесь будут ваши отзывы о товарах'
-                    : 'Bu yerda mahsulotlar haqidagi sharhlaringiz ko\'rinadi'}
-                </p>
-                <Link
-                  href="/"
-                  className="mt-6 px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all"
-                >
-                  {locale === 'ru' ? 'Смотреть товары' : 'Mahsulotlarni ko\'rish'}
-                </Link>
-              </motion.div>
+              <EmptyState
+                icon={Star}
+                title={locale === 'ru' ? 'Нет отзывов' : "Sharhlar yo'q"}
+                description={
+                  locale === 'ru'
+                    ? 'Оставляйте отзывы после получения заказа — они помогают другим покупателям'
+                    : "Buyurtmangizni olgandan keyin sharh qoldiring — bu boshqa xaridorlarga yordam beradi"
+                }
+                actionLabel={locale === 'ru' ? 'Мои заказы' : 'Buyurtmalarim'}
+                actionHref="/orders"
+              />
             )}
           </>
         ) : (
-          /* Questions tab */
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-20"
-          >
-            <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-              <MessageCircle className="w-9 h-9 text-blue-400" />
-            </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-1">
-              {locale === 'ru' ? 'Нет вопросов' : 'Savollar yo\'q'}
-            </h2>
-            <p className="text-sm text-gray-400 text-center max-w-xs">
-              {locale === 'ru'
+          <EmptyState
+            icon={MessageCircle}
+            title={locale === 'ru' ? 'Нет вопросов' : "Savollar yo'q"}
+            description={
+              locale === 'ru'
                 ? 'Здесь будут ваши вопросы о товарах'
-                : 'Bu yerda mahsulotlar haqidagi savollaringiz ko\'rinadi'}
-            </p>
-          </motion.div>
+                : "Bu yerda mahsulotlar haqidagi savollaringiz ko'rinadi"
+            }
+          />
         )}
       </div>
     </div>

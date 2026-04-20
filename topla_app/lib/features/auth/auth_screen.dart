@@ -25,7 +25,6 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _isOtpSent = false;
   bool _isGoogleLoading = false;
-  bool _isPasskeyLoading = false;
 
   // Countdown timer
   int _resendCountdown = 0;
@@ -286,72 +285,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  /// Passkey orqali kirish
-  Future<void> _signInWithPasskey() async {
-    setState(() => _isPasskeyLoading = true);
-
-    try {
-      final authProvider = context.read<AuthProvider>();
-      await authProvider.signInWithPasskey();
-
-      if (mounted && authProvider.isLoggedIn) {
-        Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
-      }
-    } catch (e) {
-      debugPrint('=== PASSKEY SIGN-IN ERROR: $e ===');
-      if (mounted) {
-        final errorStr = e.toString().toLowerCase();
-
-        // Foydalanuvchi bekor qildi
-        if (errorStr.contains('cancel') ||
-            errorStr.contains('bekor') ||
-            errorStr.contains('abort')) {
-          setState(() => _isPasskeyLoading = false);
-          return;
-        }
-
-        String message;
-
-        if (errorStr.contains('qo\'llab') || errorStr.contains('support')) {
-          message = 'Bu qurilmada kirish kaliti qo\'llab-quvvatlanmaydi';
-        } else if (errorStr.contains('no credential') ||
-            errorStr.contains('no passkey') ||
-            errorStr.contains('no matching') ||
-            errorStr.contains('no viable') ||
-            errorStr.contains('empty') ||
-            errorStr.contains('not found') ||
-            errorStr.contains('no publickeycredential') ||
-            errorStr.contains('no sign-in methods')) {
-          message =
-              'Kirish kaliti topilmadi. Avval tizimga kirib, profildan kirish kalitini ro\'yxatdan o\'tkazing';
-        } else if (errorStr.contains('network') ||
-            errorStr.contains('internet') ||
-            errorStr.contains('socket') ||
-            errorStr.contains('timeout')) {
-          message = 'Internet aloqasi yo\'q. Tarmoqni tekshiring';
-        } else {
-          message =
-              'Kirish kaliti xatoligi. Avval Google orqali kiring va profildan kirish kalitini saqlang';
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppColors.warning,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isPasskeyLoading = false);
-      }
-    }
-  }
-
   String _getErrorMessage(String error) {
     final l10n = AppLocalizations.of(context);
     final lower = error.toLowerCase();
@@ -505,61 +438,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
                       const SizedBox(height: 8),
 
-                      // Subtitle with "Kirish kaliti" link
-                      Column(
-                        children: [
-                          Text(
-                            l10n?.translate('enter_phone') ??
-                                'Telefon raqamingizni kiriting',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade500,
-                              height: 1.3,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'yoki ',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: _isPasskeyLoading
-                                    ? null
-                                    : _signInWithPasskey,
-                                child: _isPasskeyLoading
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      )
-                                    : const Text(
-                                        'Kirish kaliti yordamida kiring',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF2196F3),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                              ),
-                              const Text(
-                                ' ›',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF2196F3),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      // Subtitle
+                      Text(
+                        l10n?.translate('enter_phone') ??
+                            'Telefon raqamingizni kiriting',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                          height: 1.3,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
 
                       const SizedBox(height: 32),

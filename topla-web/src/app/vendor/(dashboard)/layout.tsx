@@ -46,6 +46,8 @@ import {
   Code2,
   Sun,
   Moon,
+  Users as UsersIcon,
+  Building2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "./components/NotificationBell";
@@ -76,6 +78,10 @@ const sidebarItems: SidebarItem[] = [
   'separator',
   // Aloqa
   { icon: MessageCircle, key: 'vendorChat', href: "/vendor/chat" },
+  'separator',
+  // Jamoa & biznes
+  { icon: UsersIcon, key: 'vendorStaff', href: "/vendor/staff" },
+  { icon: Building2, key: 'vendorBusiness', href: "/vendor/business" },
   'separator',
   // Tizim
   { icon: Code2, key: 'vendorApiKeys', href: "/vendor/api-keys" },

@@ -17,7 +17,7 @@ describe('Checkout Delivery Fee Display', () => {
   });
 
   it('should show formatted price when delivery fee > 0', () => {
-    const deliveryFee = 15000;
+    const deliveryFee: number = 15000;
     const display = deliveryFee === 0 ? 'Bepul' : formatPrice(deliveryFee);
     expect(display).toContain('15');
   });
@@ -31,7 +31,7 @@ describe('Checkout Delivery Fee Display', () => {
 
   it('should calculate total correctly with free delivery', () => {
     const subtotal = 200000;
-    const deliveryFee = 0; // free delivery
+    const deliveryFee: number = 0; // free delivery
     const total = subtotal + deliveryFee;
     expect(total).toBe(200000);
   });

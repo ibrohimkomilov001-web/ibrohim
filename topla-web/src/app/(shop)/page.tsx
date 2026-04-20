@@ -4,54 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useMotionValue, animate, type PanInfo } from 'framer-motion';
 import { shopApi, type Banner, type Category } from '@/lib/api/shop';
 import { ProductCard, ProductGrid } from '@/components/shop/product-card';
 import { useTranslation, useLocaleStore } from '@/store/locale-store';
 
-// ─── BANNER CAROUSEL ────────────────────────────────
-function BannerCarousel({ banners }: { banners: Banner[] }) {
-  const [current, setCurrent] = useState(0);
-  const { locale } = useLocaleStore();
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const viewedRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 5000);
-    return () => clearInterval(timer);
-  }, [banners.length]);
-
-  useEffect(() => {
-    const b = banners[current];
-    if (!b || viewedRef.current.has(b.id)) return;
-    viewedRef.current.add(b.id);
-    shopApi.trackBannerView(b.id);
-  }, [current, banners]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    const diff = touchStartX.current - touchEndX.current;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) {
-        setCurrent((p) => (p + 1) % banners.length);
-      } else {
-        setCurrent((p) => (p - 1 + banners.length) % banners.length);
-      }
-    }
-  }, [banners.length]);
-
-  if (!banners.length) return null;
-
-  const b = banners[current];
+// ─── BANNER SLIDE ────────────────────────────────
+function BannerSlide({ b, locale }: { b: Banner; locale: string }) {
   const title = locale === 'ru' && b.titleRu ? b.titleRu : b.titleUz;
   const subtitle = locale === 'ru' && b.subtitleRu ? b.subtitleRu : b.subtitleUz;
   const ctaLabel = locale === 'ru' && b.ctaTextRu ? b.ctaTextRu : b.ctaText;
@@ -70,29 +29,21 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
     return null;
   })();
 
-  const handleClick = () => { shopApi.trackBannerClick(b.id); };
-
   const innerStyle: React.CSSProperties = {};
   if (b.bgColor) innerStyle.background = b.bgColor;
 
-  const slide = (
-    <motion.div
-      key={current}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
-      className="relative aspect-[2.2/1]"
-      style={innerStyle}
-    >
+  const content = (
+    <div className="relative aspect-[2.2/1] w-full select-none" style={innerStyle}>
       {b.imageUrl ? (
         <Image
           src={b.imageUrl}
           alt={title || ''}
           fill
-          className="object-cover"
+          sizes="100vw"
+          className="object-cover pointer-events-none"
           priority
           unoptimized
+          draggable={false}
         />
       ) : (
         <div className="w-full h-full bg-gradient-to-r from-primary to-primary/70 flex items-center justify-center">
@@ -104,7 +55,7 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
           {!b.bgColor && (
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
           )}
-          <div className={`absolute inset-0 p-3 sm:p-5 flex flex-col justify-end ${alignClass}`}>
+          <div className={`absolute inset-0 p-3 sm:p-5 flex flex-col justify-end pointer-events-none ${alignClass}`}>
             {title && (
               <h2 className="font-bold text-sm sm:text-xl mb-0.5 line-clamp-1" style={{ color: b.textColor || '#fff' }}>
                 {title}
@@ -123,43 +74,133 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
           </div>
         </>
       )}
-    </motion.div>
+    </div>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        onClick={() => shopApi.trackBannerClick(b.id)}
+        className="block w-full"
+        draggable={false}
+      >
+        {content}
+      </Link>
+    );
+  }
+  return content;
+}
+
+// ─── BANNER CAROUSEL (Yandex-style peek + drag) ────────────────────────────────
+function BannerCarousel({ banners }: { banners: Banner[] }) {
+  const [current, setCurrent] = useState(0);
+  const { locale } = useLocaleStore();
+  const viewedRef = useRef<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [slideWidth, setSlideWidth] = useState(0);
+  const x = useMotionValue(0);
+
+  // Peek config: each slide is 88% of container, with gap 8px between slides.
+  const SLIDE_RATIO = 0.88;
+  const GAP = 8;
+
+  // Measure container and compute slide width.
+  useEffect(() => {
+    const measure = () => {
+      const w = containerRef.current?.offsetWidth || 0;
+      setSlideWidth(Math.round(w * SLIDE_RATIO));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  // Step = slide width + gap between slides.
+  const step = slideWidth + GAP;
+  // Center offset so active slide is centered with equal peek on both sides.
+  const centerOffset = slideWidth > 0 && containerRef.current
+    ? (containerRef.current.offsetWidth - slideWidth) / 2
+    : 0;
+
+  // Animate to current slide when `current` changes or dimensions change.
+  useEffect(() => {
+    if (slideWidth === 0) return;
+    const target = -current * step + centerOffset;
+    const controls = animate(x, target, {
+      type: 'spring',
+      stiffness: 300,
+      damping: 32,
+    });
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, slideWidth]);
+
+  // Auto-rotate.
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const timer = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 5000);
+    return () => clearInterval(timer);
+  }, [banners.length]);
+
+  // Track view.
+  useEffect(() => {
+    const b = banners[current];
+    if (!b || viewedRef.current.has(b.id)) return;
+    viewedRef.current.add(b.id);
+    shopApi.trackBannerView(b.id);
+  }, [current, banners]);
+
+  const handleDragEnd = useCallback(
+    (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+      if (slideWidth === 0) return;
+      const threshold = slideWidth * 0.2;
+      const { offset, velocity } = info;
+      if (offset.x < -threshold || velocity.x < -400) {
+        setCurrent((p) => Math.min(p + 1, banners.length - 1));
+      } else if (offset.x > threshold || velocity.x > 400) {
+        setCurrent((p) => Math.max(p - 1, 0));
+      } else {
+        // Snap back to current.
+        animate(x, -current * step + centerOffset, {
+          type: 'spring',
+          stiffness: 300,
+          damping: 32,
+        });
+      }
+    },
+    [banners.length, slideWidth, step, centerOffset, current, x]
+  );
+
+  if (!banners.length) return null;
+
+  // Drag bounds: track can go from 0 (first centered) to -(N-1)*step + centerOffset.
+  const dragLeftBound = -(banners.length - 1) * step + centerOffset;
+  const dragRightBound = centerOffset;
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl touch-pan-y"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      ref={containerRef}
+      className="relative overflow-hidden touch-pan-y"
     >
-      <AnimatePresence mode="wait">
-        {href ? (
-          <Link key={current} href={href} onClick={handleClick} className="block">
-            {slide}
-          </Link>
-        ) : (
-          slide
-        )}
-      </AnimatePresence>
-
-      {banners.length > 1 && (
-        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/25 backdrop-blur-sm">
-          {banners.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={`Banner ${i + 1}`}
-              onClick={() => setCurrent(i)}
-              className={`rounded-full transition-all duration-300 ${
-                i === current
-                  ? 'w-2 h-2 bg-white'
-                  : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
-              }`}
-            />
-          ))}
-        </div>
-      )}
+      <motion.div
+        className="flex items-stretch"
+        style={{ x, gap: `${GAP}px` }}
+        drag={banners.length > 1 ? 'x' : false}
+        dragConstraints={{ left: dragLeftBound, right: dragRightBound }}
+        dragElastic={0.1}
+        onDragEnd={handleDragEnd}
+      >
+        {banners.map((b) => (
+          <div
+            key={b.id}
+            className="shrink-0 overflow-hidden rounded-xl"
+            style={{ width: slideWidth || '88%' }}
+          >
+            <BannerSlide b={b} locale={locale} />
+          </div>
+        ))}
+      </motion.div>
     </div>
   );
 }
@@ -177,21 +218,27 @@ function FilterChips({ selected, onSelect }: { selected: string; onSelect: (f: s
   ];
 
   return (
-    <div className="overflow-x-auto no-scrollbar border-b border-border">
-      <div className="inline-flex items-center gap-1">
+    <div
+      className="overflow-x-auto overflow-y-hidden no-scrollbar border-b border-border"
+      style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' }}
+    >
+      <div className="flex items-stretch gap-1 -ml-1 w-max">
         {filters.map((f) => {
           const isActive = selected === f.key;
           return (
             <button
               key={f.key}
               onClick={() => onSelect(f.key)}
-              className={`relative whitespace-nowrap px-3 pb-1 text-sm transition-all ${
+              className={`relative shrink-0 whitespace-nowrap px-3 pb-1.5 pt-1 text-sm transition-colors ${
                 isActive
-                  ? 'text-foreground font-semibold border-b-2 border-foreground -mb-px'
+                  ? 'text-foreground font-semibold'
                   : 'text-muted-foreground font-normal hover:text-foreground'
               }`}
             >
               {f.label}
+              {isActive && (
+                <span className="absolute left-2 right-2 bottom-0 h-[2px] bg-foreground rounded-full" />
+              )}
             </button>
           );
         })}

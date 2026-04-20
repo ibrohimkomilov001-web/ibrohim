@@ -1,0 +1,36 @@
+[Unit]
+Description=Topla PostgreSQL backup to Yandex Object Storage
+Documentation=file:/opt/topla/scripts/backup/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=topla-backup
+Group=topla-backup
+EnvironmentFile=/etc/topla/backup.env
+# WorkingDirectory is not strictly required — script uses mktemp.
+ExecStart=/opt/topla/scripts/backup/pg_backup.sh auto
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/topla
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictNamespaces=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+# Failure resilience — retry up to 3 times with 10-min gap
+Restart=on-failure
+RestartSec=600
+StartLimitBurst=3
+StartLimitIntervalSec=3600
+
+[Install]
+WantedBy=multi-user.target

@@ -105,6 +105,7 @@ export const ICON_MAP: IconOption[] = [
 
   // Sport
   { value: 'weight_1',         label: 'Sport',                  group: 'Sport',             Icon: Weight },
+  { value: 'weight',           label: 'Sport / Dam olish',      group: 'Sport',             Icon: Weight },
   { value: 'activity',         label: 'Aktivlik',               group: 'Sport',             Icon: Activity },
 
   // Oziq-ovqat

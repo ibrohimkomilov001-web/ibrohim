@@ -5,7 +5,7 @@ import { MapPin, Phone, Mail, ExternalLink } from 'lucide-react';
 import { useTranslation } from '@/store/locale-store';
 import { SupportPhoneLink, useSupportEmail, useTelegramLink, useInstagramLink, useYoutubeLink } from '@/hooks/useSettings';
 
-export function Footer() {
+export function Footer({ className = '' }: { className?: string } = {}) {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
   const email = useSupportEmail();
@@ -14,7 +14,7 @@ export function Footer() {
   const youtubeLink = useYoutubeLink();
 
   return (
-    <footer className="relative mt-8 border-t border-border bg-muted/50">
+    <footer className={`relative mt-8 border-t border-border bg-muted/50 ${className}`}>
       <div className="site-container py-8 sm:py-10">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-10">
 

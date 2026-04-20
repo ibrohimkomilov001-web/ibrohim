@@ -9,13 +9,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { shopApi } from '@/lib/api/shop';
 import { ProductCard, ProductGrid } from '@/components/shop/product-card';
 import { useTranslation } from '@/store/locale-store';
+import {
+  FilterSheet,
+  EMPTY_FILTERS,
+  countActiveFilters,
+  filtersToParams,
+  type FilterValues,
+} from '@/components/shop/filter-sheet';
 
 export default function CategoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t, locale } = useTranslation();
   const [sortBy, setSortBy] = useState('newest');
   const [page, setPage] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [filterValues, setFilterValues] = useState<FilterValues>(EMPTY_FILTERS);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
 
   const sortOptions = [
@@ -36,15 +45,17 @@ export default function CategoryDetailPage() {
     ? (locale === 'ru' && category.nameRu ? category.nameRu : category.nameUz)
     : t('categories');
 
+  const activeCategoryId = subcategoryId || id;
   const params: Record<string, string> = {
-    categoryId: subcategoryId || id,
+    ...filtersToParams(filterValues),
+    categoryId: activeCategoryId,
     sortBy,
     page: String(page),
     limit: '24',
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['category-products', id, sortBy, page, subcategoryId],
+    queryKey: ['category-products', id, sortBy, page, subcategoryId, filterValues],
     queryFn: () => shopApi.getProducts(params),
     enabled: !!id,
   });
@@ -52,6 +63,7 @@ export default function CategoryDetailPage() {
   const products = data?.products ?? [];
   const pagination = data?.pagination;
   const currentSort = sortOptions.find((o) => o.value === sortBy);
+  const activeFilterCount = countActiveFilters(filterValues);
 
   return (
     <div className="site-container py-6 sm:py-10">
@@ -82,18 +94,29 @@ export default function CategoryDetailPage() {
 
         {/* Desktop sort + filter */}
         <div className="hidden sm:flex items-center gap-3">
+          <button
+            onClick={() => setSheetOpen(true)}
+            className={`btn-glass flex items-center gap-2 text-sm relative ${activeFilterCount > 0 ? 'bg-primary text-white border-primary' : ''}`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {locale === 'ru' ? 'Фильтры' : 'Filterlar'}
+            {activeFilterCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white text-primary text-xs font-semibold">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
           <div className="relative">
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setSortOpen(!sortOpen)}
               className="btn-glass flex items-center gap-2 text-sm"
             >
-              <SlidersHorizontal className="w-4 h-4" />
               {t('sort')}: {currentSort?.label}
               <ChevronDown className="w-4 h-4" />
             </button>
 
             <AnimatePresence>
-              {showFilters && (
+              {sortOpen && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -103,7 +126,7 @@ export default function CategoryDetailPage() {
                   {sortOptions.map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => { setSortBy(opt.value); setShowFilters(false); setPage(1); }}
+                      onClick={() => { setSortBy(opt.value); setSortOpen(false); setPage(1); }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition-colors ${
                         sortBy === opt.value ? 'bg-primary text-white' : 'hover:bg-muted'
                       }`}
@@ -118,18 +141,31 @@ export default function CategoryDetailPage() {
           </div>
         </div>
 
-        {/* Mobile sort button */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="sm:hidden p-2.5 rounded-xl glass"
-        >
-          <SlidersHorizontal className="w-5 h-5" />
-        </button>
+        {/* Mobile filter + sort buttons */}
+        <div className="sm:hidden flex items-center gap-2">
+          <button
+            onClick={() => setSheetOpen(true)}
+            className={`relative p-2.5 rounded-xl glass ${activeFilterCount > 0 ? 'bg-primary text-white' : ''}`}
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setSortOpen(!sortOpen)}
+            className="p-2.5 rounded-xl glass"
+          >
+            <ChevronDown className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Mobile sort dropdown */}
       <AnimatePresence>
-        {showFilters && (
+        {sortOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -140,7 +176,7 @@ export default function CategoryDetailPage() {
               {sortOptions.map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => { setSortBy(opt.value); setShowFilters(false); setPage(1); }}
+                  onClick={() => { setSortBy(opt.value); setSortOpen(false); setPage(1); }}
                   className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center justify-between transition-colors ${
                     sortBy === opt.value ? 'bg-primary text-white' : 'hover:bg-muted'
                   }`}
@@ -232,6 +268,14 @@ export default function CategoryDetailPage() {
           )}
         </>
       )}
+
+      <FilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onApply={(v) => { setFilterValues(v); setPage(1); }}
+        initial={filterValues}
+        categoryId={activeCategoryId}
+      />
     </div>
   );
 }

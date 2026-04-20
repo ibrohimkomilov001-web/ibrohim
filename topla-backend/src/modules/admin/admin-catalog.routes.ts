@@ -850,6 +850,49 @@ export async function adminCatalogRoutes(app: FastifyInstance) {
   });
 
   // ==========================================
+  // ADMIN AUDIT LOG (B3) — full HTTP audit trail
+  // ==========================================
+  app.get('/admin/audit-logs', {
+    preHandler: [authMiddleware, requireRole('admin')],
+  }, async (request) => {
+    const query = request.query as any;
+    const { page, limit, skip } = parsePagination(query);
+
+    const actorId = query.actorId as string | undefined;
+    const method = query.method as string | undefined;
+    const pathContains = query.path as string | undefined;
+    const statusCode = query.statusCode ? parseInt(query.statusCode as string, 10) : undefined;
+    const from = query.from ? new Date(query.from as string) : undefined;
+    const to = query.to ? new Date(query.to as string) : undefined;
+
+    const where: any = {};
+    if (actorId) where.actorId = actorId;
+    if (method) where.method = method.toUpperCase();
+    if (pathContains) where.path = { contains: pathContains };
+    if (typeof statusCode === 'number' && !Number.isNaN(statusCode)) where.statusCode = statusCode;
+    if (from || to) {
+      where.createdAt = {};
+      if (from && !Number.isNaN(from.getTime())) where.createdAt.gte = from;
+      if (to && !Number.isNaN(to.getTime())) where.createdAt.lte = to;
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.adminAuditLog.findMany({
+        where,
+        skip,
+        take: Math.min(limit, 100),
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.adminAuditLog.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      data: { items, pagination: paginationMeta(page, Math.min(limit, 100), total) },
+    };
+  });
+
+  // ==========================================
   // SETTINGS
   // ==========================================
   app.get('/admin/settings', {

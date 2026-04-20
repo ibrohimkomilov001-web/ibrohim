@@ -189,6 +189,22 @@ export const shopApi = {
 
   getCategoryTree: () => clientFetch<Category[]>('/categories?tree=true'),
 
+  // Filter facets
+  getBrands: (categoryId?: string) => {
+    const q = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : '';
+    return clientFetch<{ success: boolean; data: Array<{ id: string; name: string; _count?: { products: number } }> }>(`/brands${q}`);
+  },
+
+  getColors: (categoryId?: string) => {
+    const q = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : '';
+    return clientFetch<{ success: boolean; data: Array<{ id: string; nameUz: string; nameRu?: string; hexCode?: string }> }>(`/colors${q}`);
+  },
+
+  getSizes: (categoryId?: string) => {
+    const q = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : '';
+    return clientFetch<{ success: boolean; data: Array<{ id: string; nameUz: string; nameRu?: string }> }>(`/sizes${q}`);
+  },
+
   // Products
   getProducts: (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';

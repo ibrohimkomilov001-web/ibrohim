@@ -1,15 +1,12 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Script from "next/script";
-import { Loader2, MapPin, MapPinOff, Fingerprint, ShieldCheck } from "lucide-react";
-import { startAuthentication } from "@simplewebauthn/browser";
+import { Loader2, MapPin, MapPinOff, ShieldCheck } from "lucide-react";
 import {
   adminLogin,
   adminLogin2FA,
   adminGoogleLogin,
-  adminPasskeyLoginBegin,
-  adminPasskeyLoginVerify,
 } from "@/lib/api/admin";
 
 // â”€â”€ Geolocation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -57,10 +54,23 @@ function getCurrentPosition(): Promise<GeolocationPosition | null> {
 declare global {
   interface Window {
     handleGoogleCredential?: (response: { credential: string }) => void;
-    grecaptcha?: {
-      ready: (cb: () => void) => void;
-      execute: (siteKey: string, opts: { action: string }) => Promise<string>;
+    turnstile?: {
+      render: (
+        element: string | HTMLElement,
+        opts: {
+          sitekey: string;
+          action?: string;
+          callback?: (token: string) => void;
+          'error-callback'?: () => void;
+          'expired-callback'?: () => void;
+          theme?: 'light' | 'dark' | 'auto';
+        }
+      ) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+      getResponse: (widgetId?: string) => string | undefined;
     };
+    onloadTurnstileCallback?: () => void;
   }
 }
 
@@ -70,8 +80,6 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
-  const conditionalAttempted = useRef(false);
 
   // 2FA challenge state
   const [twoFAOpen, setTwoFAOpen] = useState(false);
@@ -84,23 +92,35 @@ export default function AdminLoginPage() {
   const [currentPos, setCurrentPos] = useState<LatLng | null>(null);
 
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "";
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
-  // reCAPTCHA v3 — executes invisibly on demand, returns one-time token
-  const executeRecaptcha = useCallback(async (action: string): Promise<string | undefined> => {
-    if (!recaptchaSiteKey) return undefined;
-    if (typeof window === "undefined" || !window.grecaptcha) return undefined;
-    return new Promise((resolve) => {
-      window.grecaptcha!.ready(async () => {
-        try {
-          const token = await window.grecaptcha!.execute(recaptchaSiteKey, { action });
-          resolve(token);
-        } catch {
-          resolve(undefined);
-        }
+  // Cloudflare Turnstile widget state
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [turnstileWidgetId, setTurnstileWidgetId] = useState<string>("");
+
+  // Turnstile widget'ni mount qilish (script yuklangandan keyin)
+  useEffect(() => {
+    if (!turnstileSiteKey) return;
+    const tryRender = () => {
+      const el = document.getElementById("cf-turnstile");
+      if (!el || !window.turnstile) return false;
+      if (el.childElementCount > 0) return true; // allaqachon render qilingan
+      const id = window.turnstile.render(el, {
+        sitekey: turnstileSiteKey,
+        action: "admin_login",
+        theme: "auto",
+        callback: (token) => setTurnstileToken(token),
+        "error-callback": () => setTurnstileToken(""),
+        "expired-callback": () => setTurnstileToken(""),
       });
-    });
-  }, [recaptchaSiteKey]);
+      setTurnstileWidgetId(id);
+      return true;
+    };
+    if (tryRender()) return;
+    const interval = setInterval(() => { if (tryRender()) clearInterval(interval); }, 200);
+    const timeout = setTimeout(() => clearInterval(interval), 10_000);
+    return () => { clearInterval(interval); clearTimeout(timeout); };
+  }, [turnstileSiteKey]);
 
   // Geo check
   useEffect(() => {
@@ -136,49 +156,6 @@ export default function AdminLoginPage() {
     window.location.href = "/admin/dashboard";
   }, [currentPos]);
 
-  // â”€â”€ Passkey handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const handlePasskey = useCallback(async (opts?: { conditional?: boolean }) => {
-    try {
-      if (typeof window === "undefined" || !("credentials" in navigator)) return;
-      // Check feature support
-      if (opts?.conditional) {
-        const supported = await (PublicKeyCredential as any)?.isConditionalMediationAvailable?.();
-        if (!supported) return;
-      }
-      const { options, sessionId } = await adminPasskeyLoginBegin(email || undefined);
-      const cred = await startAuthentication({
-        optionsJSON: options,
-        useBrowserAutofill: !!opts?.conditional,
-      });
-      await adminPasskeyLoginVerify(sessionId, cred);
-      onSuccess();
-    } catch (err: any) {
-      // Conditional UI silently aborts when no passkey â€” don't show error
-      if (opts?.conditional) return;
-      const msg = err?.message || "Passkey orqali kirib bo'lmadi";
-      if (!/abort|cancel|no credentials/i.test(msg)) setError(msg);
-    }
-  }, [email, onSuccess]);
-
-  // Detect passkey availability + auto-trigger conditional UI
-  useEffect(() => {
-    if (typeof window === "undefined" || conditionalAttempted.current) return;
-    conditionalAttempted.current = true;
-    (async () => {
-      try {
-        const PKC = (window as any).PublicKeyCredential;
-        if (!PKC) return;
-        const conditional = await PKC.isConditionalMediationAvailable?.();
-        const platform = await PKC.isUserVerifyingPlatformAuthenticatorAvailable?.();
-        if (conditional || platform) setPasskeyAvailable(true);
-        if (conditional) {
-          // Fire conditional UI silently (browser will surface autofill suggestion)
-          handlePasskey({ conditional: true });
-        }
-      } catch { /* ignore */ }
-    })();
-  }, [handlePasskey]);
-
   // â”€â”€ Password submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -189,8 +166,12 @@ export default function AdminLoginPage() {
         setIsLoading(false);
         return;
       }
-      const captchaToken = await executeRecaptcha("admin_login");
-      const data = await adminLogin(email.trim(), password, captchaToken || undefined);
+      const data = await adminLogin(email.trim(), password, turnstileToken || undefined);
+      // Turnstile token bir marta ishlatiladi — resetlab qayta token olamiz
+      if (turnstileWidgetId && window.turnstile) {
+        window.turnstile.reset(turnstileWidgetId);
+        setTurnstileToken("");
+      }
       if (data?.requires2FA && data.tempToken) {
         setTwoFATempToken(data.tempToken);
         setTwoFAOpen(true);
@@ -247,10 +228,10 @@ export default function AdminLoginPage() {
         />
       )}
 
-      {/* Load Google reCAPTCHA v3 */}
-      {recaptchaSiteKey && (
+      {/* Load Cloudflare Turnstile */}
+      {turnstileSiteKey && (
         <Script
-          src={`https://www.google.com/recaptcha/api.js?render=${recaptchaSiteKey}`}
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
           strategy="afterInteractive"
         />
       )}
@@ -286,18 +267,6 @@ export default function AdminLoginPage() {
             </div>
           )}
 
-          {/* PASSKEY â€” primary action */}
-          {passkeyAvailable && !twoFAOpen && (
-            <button
-              type="button"
-              onClick={() => handlePasskey()}
-              disabled={isLoading}
-              className="mt-6 h-14 w-full rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-base font-medium flex items-center justify-center gap-2 hover:bg-black dark:hover:bg-gray-100 transition disabled:opacity-60"
-            >
-              <Fingerprint className="w-5 h-5" />
-              Passkey bilan kirish (1 bosish)
-            </button>
-          )}
 
           {/* 2FA challenge view */}
           {twoFAOpen ? (
@@ -335,14 +304,7 @@ export default function AdminLoginPage() {
             </div>
           ) : (
             <>
-              {passkeyAvailable && (
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-800" /></div>
-                  <div className="relative flex justify-center text-sm"><span className="bg-white dark:bg-gray-950 px-4 text-gray-400">yoki email/parol</span></div>
-                </div>
-              )}
-
-              <div className={passkeyAvailable ? "space-y-4" : "mt-6 space-y-4"}>
+              <div className="mt-6 space-y-4">
                 <input
                   className="h-14 w-full rounded-full border-0 bg-gray-100 dark:bg-gray-900 dark:text-white px-5 text-base outline-none"
                   placeholder="Email manzil"
@@ -350,7 +312,7 @@ export default function AdminLoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   type="email"
                   enterKeyHint="next"
-                  autoComplete="email webauthn"
+                  autoComplete="email"
                 />
                 <div className="relative">
                   <input
@@ -377,7 +339,10 @@ export default function AdminLoginPage() {
                   </button>
                 </div>
 
-                {/* CAPTCHA — Google reCAPTCHA v3 (invisible) */}
+                {/* CAPTCHA — Cloudflare Turnstile */}
+                {turnstileSiteKey && (
+                  <div id="cf-turnstile" className="flex justify-center" />
+                )}
 
                 <button
                   type="button"

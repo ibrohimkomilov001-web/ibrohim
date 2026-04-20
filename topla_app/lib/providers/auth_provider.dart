@@ -124,23 +124,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signInWithPasskey() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _authRepo.signInWithPasskey();
-      await loadProfile();
-    } catch (e) {
-      _error = e.toString();
-      rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   Future<void> signOut() async {
     _isLoading = true;
     _error = null;

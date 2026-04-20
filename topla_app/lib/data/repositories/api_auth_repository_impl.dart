@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:credential_manager/credential_manager.dart';
 import '../../core/repositories/i_auth_repository.dart';
 import '../../core/services/api_client.dart';
 import '../../models/models.dart';
@@ -218,76 +217,6 @@ class ApiAuthRepositoryImpl implements IAuthRepository {
       await _fetchAndSetUser();
     }
     debugPrint('=== signInWithGoogle muvaffaqiyatli tugadi ===');
-  }
-
-  @override
-  Future<void> signInWithPasskey() async {
-    // 1. Backend'dan authentication options olish
-    debugPrint('=== Passkey: login/begin so\'ralmoqda ===');
-    final beginResponse = await _api.post(
-      '/auth/passkey/login/begin',
-      body: {},
-      auth: false,
-    );
-
-    final data = beginResponse.dataMap;
-    final sessionId = data['sessionId'] as String;
-    final options = data['options'] as Map<String, dynamic>;
-    final challenge = options['challenge'] as String;
-    final rpId = options['rpId'] as String;
-
-    debugPrint('=== Passkey: challenge=$challenge, rpId=$rpId ===');
-
-    // 2. Credential Manager orqali passkey autentifikatsiya
-    final credentialManager = CredentialManager();
-    if (!credentialManager.isSupportedPlatform) {
-      throw Exception('Bu qurilmada Passkey qo\'llab-quvvatlanmaydi');
-    }
-
-    await credentialManager.init(preferImmediatelyAvailableCredentials: true);
-
-    final credentials = await credentialManager.getCredentials(
-      passKeyOption: CredentialLoginOptions(
-        challenge: challenge,
-        rpId: rpId,
-        userVerification: 'required',
-      ),
-    );
-
-    final publicKeyCredential = credentials.publicKeyCredential;
-    if (publicKeyCredential == null) {
-      throw Exception('Passkey orqali kirish bekor qilindi');
-    }
-
-    debugPrint('=== Passkey: credential olindi, server ga yuborilmoqda ===');
-
-    // 3. Backend'ga javobni yuborish
-    final verifyResponse = await _api.post(
-      '/auth/passkey/login/verify',
-      body: {
-        'sessionId': sessionId,
-        'credential': publicKeyCredential.toJson(),
-        'platform': 'android',
-      },
-      auth: false,
-    );
-
-    final verifyData = verifyResponse.dataMap;
-    await _api.setTokens(
-      accessToken: verifyData['accessToken'] ?? verifyData['token'],
-      refreshToken: verifyData['refreshToken'] ?? '',
-    );
-
-    final userData = verifyData['user'];
-    if (userData is Map<String, dynamic>) {
-      _cachedProfile = UserProfile.fromJson(userData);
-      _userId = _cachedProfile!.id;
-      _cacheProfileLocally(_cachedProfile!);
-      debugPrint('=== User set from passkey response: $_userId ===');
-    } else {
-      await _fetchAndSetUser();
-    }
-    debugPrint('=== signInWithPasskey muvaffaqiyatli tugadi ===');
   }
 
   @override

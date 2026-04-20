@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Topla PostgreSQL backup (03:00 UTC)
+
+[Timer]
+# Every day at 03:00 UTC (= 08:00 Asia/Tashkent). On Sunday the script itself
+# switches to weekly/ prefix, so a single timer covers both schedules.
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=topla-backup.service
+
+[Install]
+WantedBy=timers.target

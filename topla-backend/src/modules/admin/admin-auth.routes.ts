@@ -1,13 +1,12 @@
 ﻿/**
- * Admin Auth Routes — Login, Google OAuth, Passkey, 2FA, Refresh, Logout, Me
+ * Admin Auth Routes — Login, Google OAuth, 2FA, Refresh, Logout, Me
  *
  * Security layers:
  *  1) IP allowlist (env ADMIN_IP_ALLOWLIST, optional)
- *  2) Google reCAPTCHA v3 CAPTCHA on password login (env RECAPTCHA_SECRET_KEY, optional)
+ *  2) Cloudflare Turnstile CAPTCHA on password login (env TURNSTILE_SECRET_KEY, optional)
  *  3) Brute-force lockout: 5 fails/15min per email + 20 fails/1h per IP
  *  4) TOTP 2FA (per-admin opt-in) with bcrypt-hashed backup codes
- *  5) Passkey (WebAuthn) primary login — preferred over password
- *  6) Telegram alert on every successful admin login (env ADMIN_TG_BOT_TOKEN/_CHAT_ID)
+ *  5) Telegram alert on every successful admin login (env ADMIN_TG_BOT_TOKEN/_CHAT_ID)
  */
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -29,13 +28,7 @@ import { setWithExpiry, getValue, deleteKey } from '../../config/redis.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { authenticator } from 'otplib';
-import {
-  generatePasskeyRegistrationOptions,
-  verifyPasskeyRegistration,
-  generatePasskeyAuthenticationOptions,
-  verifyPasskeyAuthentication,
-} from '../../services/passkey.service.js';
-import { verifyRecaptcha } from '../../lib/recaptcha.js';
+import { verifyCaptcha } from '../../lib/captcha.js';
 import { sendTelegramAlert } from '../../lib/telegram-notify.js';
 import {
   getLockStatus,
@@ -43,6 +36,13 @@ import {
   clearLoginFailures,
   adminIpAllowlistGuard,
 } from '../../lib/admin-security.js';
+import {
+  issueTokenPair,
+  rotateRefreshToken,
+  revokeCurrentRefreshToken,
+  revokeAllUserSessions,
+  RefreshTokenError,
+} from '../../services/refresh-token.service.js';
 
 
 // ============================================
@@ -66,12 +66,21 @@ const setup2FAVerifySchema = z.object({
 // ============================================
 // Helpers
 // ============================================
-function adminTokens(user: { id: string; role: string; phone: string | null }) {
-  const payload = { userId: user.id, role: user.role, phone: user.phone || undefined };
-  return {
-    accessToken: generateToken(payload),
-    refreshToken: generateRefreshToken(payload),
-  };
+async function adminTokens(
+  user: { id: string; role: string; phone: string | null },
+  request: { ip?: string; headers: Record<string, any> },
+) {
+  const pair = await issueTokenPair({
+    userId: user.id,
+    role: user.role,
+    phone: user.phone,
+    ipAddress:
+      (request.headers['x-forwarded-for'] as string | undefined)
+        ?.split(',')[0]
+        ?.trim() || request.ip,
+    userAgent: request.headers['user-agent'] as string | undefined,
+  });
+  return { accessToken: pair.accessToken, refreshToken: pair.refreshToken };
 }
 
 async function getAdminRoleSafe(userId: string) {
@@ -118,8 +127,7 @@ export async function adminAuthRoutes(app: FastifyInstance) {
     if (
       url.startsWith('/auth/admin/') ||
       url.startsWith('/admin/me') ||
-      url.startsWith('/admin/2fa/') ||
-      url.startsWith('/admin/passkeys')
+      url.startsWith('/admin/2fa/')
     ) {
       await adminIpAllowlistGuard(request, reply);
     }
@@ -141,15 +149,14 @@ export async function adminAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    const captcha = await verifyRecaptcha(captchaToken, request.ip, 'admin_login');
+    const captcha = await verifyCaptcha(captchaToken, request.ip, 'admin_login');
     if (!captcha.success) {
-      const softMode = process.env.RECAPTCHA_SOFT_MODE === 'true';
+      const softMode = process.env.TURNSTILE_SOFT_MODE === 'true';
       request.log.warn({ captcha, ip: request.ip, email, softMode }, 'admin login captcha failed');
       if (!softMode) {
         throw new AppError(`CAPTCHA tasdiqlanmadi (${(captcha.errors || ['unknown']).join(',')}). Sahifani yangilab qayta urinib ko'ring.`, 400);
       }
-      // Soft mode: log warning but allow login to proceed (used while Google reCAPTCHA admin
-      // panel domain registration is being fixed, or when frontend cannot load the script).
+      // Soft mode: log warning but allow login to proceed.
     }
 
     const user = await prisma.profile.findFirst({ where: { email, role: 'admin' } });
@@ -173,7 +180,7 @@ export async function adminAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    const { accessToken, refreshToken } = adminTokens(user);
+    const { accessToken, refreshToken } = await adminTokens(user, request);
     setAuthCookies(reply, accessToken, refreshToken);
     await clearLoginFailures(email, request.ip);
 
@@ -249,7 +256,7 @@ export async function adminAuthRoutes(app: FastifyInstance) {
     await deleteKey(`admin:2fa:pending:${tempToken}`);
     await clearLoginFailures(user.email || '', request.ip);
 
-    const { accessToken, refreshToken } = adminTokens(user);
+    const { accessToken, refreshToken } = await adminTokens(user, request);
     setAuthCookies(reply, accessToken, refreshToken);
 
     await prisma.activityLog.create({
@@ -312,7 +319,7 @@ export async function adminAuthRoutes(app: FastifyInstance) {
       throw new AppError('Bu Google hisob bilan admin topilmadi', 403);
     }
 
-    const { accessToken, refreshToken } = adminTokens(user);
+    const { accessToken, refreshToken } = await adminTokens(user, request);
     setAuthCookies(reply, accessToken, refreshToken);
 
     await prisma.activityLog.create({
@@ -336,117 +343,6 @@ export async function adminAuthRoutes(app: FastifyInstance) {
         adminRole: await getAdminRoleSafe(user.id),
       },
     });
-  });
-
-  // ==========================================
-  // PASSKEY: Admin Passkey Login — Begin
-  // ==========================================
-  app.post('/auth/admin/passkey/login/begin', async (request, reply) => {
-    const body = (request.body as { email?: string }) || {};
-
-    let phone: string | undefined;
-    if (body.email) {
-      const u = await prisma.profile.findFirst({
-        where: { email: body.email, role: 'admin' },
-        select: { phone: true },
-      });
-      phone = u?.phone || undefined;
-    }
-
-    const { options, sessionId } = await generatePasskeyAuthenticationOptions(phone);
-    return reply.send({ success: true, data: { options, sessionId } });
-  });
-
-  // ==========================================
-  // PASSKEY: Admin Passkey Login — Verify
-  // ==========================================
-  app.post('/auth/admin/passkey/login/verify', async (request, reply) => {
-    const body = request.body as { sessionId: string; response?: any; credential?: any };
-    const passkeyResponse = body.credential || body.response;
-    if (!body.sessionId || !passkeyResponse) {
-      throw new AppError('sessionId va credential majburiy', 400);
-    }
-
-    const { userId } = await verifyPasskeyAuthentication(body.sessionId, passkeyResponse);
-
-    const user = await prisma.profile.findUnique({ where: { id: userId } });
-    if (!user || user.role !== 'admin') {
-      throw new AppError('Bu passkey admin uchun emas', 403);
-    }
-
-    const { accessToken, refreshToken } = adminTokens(user);
-    setAuthCookies(reply, accessToken, refreshToken);
-    if (user.email) await clearLoginFailures(user.email, request.ip);
-
-    await prisma.activityLog.create({
-      data: {
-        userId: user.id,
-        action: 'admin.login.passkey',
-        entityType: 'profile',
-        entityId: user.id,
-        ipAddress: request.ip,
-      },
-    });
-
-    void notifyLoginAlert(user, request, 'passkey');
-
-    return reply.send({
-      success: true,
-      data: {
-        token: accessToken,
-        refreshToken,
-        user: userPublic(user),
-        adminRole: await getAdminRoleSafe(user.id),
-      },
-    });
-  });
-
-  // ==========================================
-  // PASSKEY: Register Begin / Verify
-  // ==========================================
-  app.post('/auth/admin/passkey/register/begin', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request, reply) => {
-    const userId = request.user!.userId;
-    const options = await generatePasskeyRegistrationOptions(userId);
-    return reply.send({ success: true, data: options });
-  });
-
-  app.post('/auth/admin/passkey/register/verify', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request, reply) => {
-    const userId = request.user!.userId;
-    const body = request.body as { response: any; deviceName?: string };
-    if (!body.response) throw new AppError('Response majburiy', 400);
-
-    await verifyPasskeyRegistration(userId, body.response, body.deviceName);
-    return reply.send({ success: true, message: 'Passkey ro\'yxatdan o\'tkazildi' });
-  });
-
-  // ==========================================
-  // PASSKEY: List & Delete
-  // ==========================================
-  app.get('/admin/passkeys', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request, reply) => {
-    const passkeys = await prisma.passkey.findMany({
-      where: { userId: request.user!.userId },
-      select: { id: true, deviceName: true, createdAt: true, lastUsedAt: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return reply.send({ success: true, data: passkeys });
-  });
-
-  app.delete('/admin/passkeys/:id', {
-    preHandler: [authMiddleware, requireRole('admin')],
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const passkey = await prisma.passkey.findUnique({ where: { id } });
-    if (!passkey || passkey.userId !== request.user!.userId) {
-      throw new AppError('Passkey topilmadi', 404);
-    }
-    await prisma.passkey.delete({ where: { id } });
-    return reply.send({ success: true });
   });
 
   // ==========================================
@@ -554,35 +450,39 @@ export async function adminAuthRoutes(app: FastifyInstance) {
   });
 
   // ==========================================
-  // AUTH: Admin Token Refresh
+  // AUTH: Admin Token Refresh (rotation + reuse detection — B2)
   // ==========================================
-  app.post('/auth/admin/refresh', async (request, reply) => {
-    const refreshToken = extractRefreshToken(request);
-    if (!refreshToken) throw new AppError('Refresh token topilmadi', 401);
+  app.post(
+    '/auth/admin/refresh',
+    {
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const refreshToken = extractRefreshToken(request);
+      if (!refreshToken) throw new AppError('Refresh token topilmadi', 401);
 
-    let payload;
-    try {
-      payload = verifyRefreshToken(refreshToken);
-    } catch {
-      clearAuthCookies(reply);
-      throw new AppError('Refresh token yaroqsiz yoki muddati tugagan', 401);
-    }
+      try {
+        const pair = await rotateRefreshToken({
+          rawRefreshToken: refreshToken,
+          requireRole: 'admin',
+          ipAddress:
+            (request.headers['x-forwarded-for'] as string | undefined)
+              ?.split(',')[0]
+              ?.trim() || request.ip,
+          userAgent: request.headers['user-agent'] as string | undefined,
+        });
 
-    const user = await prisma.profile.findFirst({
-      where: { id: payload.userId, role: 'admin' },
-    });
-    if (!user) {
-      clearAuthCookies(reply);
-      throw new AppError('Admin topilmadi', 401);
-    }
-
-    await blacklistToken(refreshToken);
-
-    const { accessToken: newAccessToken, refreshToken: newRefreshToken } = adminTokens(user);
-    setAuthCookies(reply, newAccessToken, newRefreshToken);
-
-    return reply.send({ success: true, data: { token: newAccessToken } });
-  });
+        setAuthCookies(reply, pair.accessToken, pair.refreshToken);
+        return reply.send({ success: true, data: { token: pair.accessToken } });
+      } catch (err) {
+        clearAuthCookies(reply);
+        if (err instanceof RefreshTokenError) {
+          throw new AppError(err.message, 401);
+        }
+        throw err;
+      }
+    },
+  );
 
   // ==========================================
   // AUTH: Admin Logout
@@ -594,10 +494,33 @@ export async function adminAuthRoutes(app: FastifyInstance) {
     const refreshToken = request.cookies?.['topla_rt'];
 
     if (token) await blacklistToken(token);
-    if (refreshToken) await blacklistToken(refreshToken);
+    await revokeCurrentRefreshToken(refreshToken, 'logout');
 
     clearAuthCookies(reply);
     return reply.send({ success: true, message: 'Chiqish muvaffaqiyatli' });
+  });
+
+  // ==========================================
+  // AUTH: Admin Logout All Devices (B2)
+  // ==========================================
+  app.post('/auth/admin/logout-all', {
+    preHandler: [authMiddleware, requireRole('admin')],
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const result = await revokeAllUserSessions(userId, 'logout_all');
+
+    const token = request.cookies?.['topla_at'];
+    if (token) await blacklistToken(token);
+
+    clearAuthCookies(reply);
+    return reply.send({
+      success: true,
+      data: {
+        refreshTokensRevoked: result.refreshTokensRevoked,
+        newTokenVersion: result.newVersion,
+      },
+    });
   });
 
   // ==========================================

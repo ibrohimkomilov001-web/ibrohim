@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, RotateCcw, Clock } from 'lucide-react';
 import { useTranslation } from '@/store/locale-store';
+import { EmptyState } from '@/components/shop/empty-state';
 
 type Tab = 'active' | 'history';
 
@@ -38,7 +38,7 @@ export default function ReturnsPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${
               activeTab === tab.key
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -50,55 +50,29 @@ export default function ReturnsPage() {
       </div>
 
       {/* Content */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'active' ? (
-          <motion.div
-            key="active"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            className="space-y-4"
-          >
-            {/* Empty state */}
-            <div className="py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <Package className="w-7 h-7 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">
-                {locale === 'ru' ? 'Нет активных возвратов' : 'Faol qaytarishlar yo\'q'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {locale === 'ru'
-                  ? 'Здесь появятся ваши заявки на возврат'
-                  : 'Bu yerda qaytarish so\'rovlaringiz ko\'rinadi'}
-              </p>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="history"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            className="space-y-4"
-          >
-            {/* Empty state */}
-            <div className="py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-7 h-7 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">
-                {locale === 'ru' ? 'История пуста' : 'Tarix bo\'sh'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {locale === 'ru'
-                  ? 'Завершённые возвраты будут показаны здесь'
-                  : 'Yakunlangan qaytarishlar shu yerda ko\'rinadi'}
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {activeTab === 'active' ? (
+        <EmptyState
+          icon={RotateCcw}
+          title={locale === 'ru' ? 'Нет активных возвратов' : "Faol qaytarishlar yo'q"}
+          description={
+            locale === 'ru'
+              ? 'Здесь появятся ваши заявки на возврат товара'
+              : "Bu yerda qaytarish so'rovlaringiz ko'rinadi"
+          }
+          actionLabel={locale === 'ru' ? 'Мои заказы' : 'Buyurtmalarim'}
+          actionHref="/orders"
+        />
+      ) : (
+        <EmptyState
+          icon={Clock}
+          title={locale === 'ru' ? 'История пуста' : "Tarix bo'sh"}
+          description={
+            locale === 'ru'
+              ? 'Завершённые возвраты будут показаны здесь'
+              : "Yakunlangan qaytarishlar shu yerda ko'rinadi"
+          }
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { env } from '../config/env.js';
 import { setWithExpiry, getValue } from '../config/redis.js';
 
@@ -7,6 +8,11 @@ export interface JwtPayload {
   role: string;
   phone?: string;
   pickupPointId?: string;
+  // B2 — session invalidation / rotation claims (optional for backwards-compat
+  // with tokens issued before the rotation system was deployed)
+  tokenVersion?: number; // must match profile.tokenVersion in DB/cache
+  jti?: string;          // unique refresh-token id — used for reuse detection
+  familyId?: string;     // rotation chain group (one per login)
   iat?: number;
   exp?: number;
 }
@@ -18,7 +24,7 @@ const REFRESH_SECRET = env.JWT_REFRESH_SECRET || (() => {
   }
   // Development/test uchun auto-generate (production'da ishlamaydi)
   console.warn('⚠️  JWT_REFRESH_SECRET o\'rnatilmagan — development uchun auto-generated secret ishlatilmoqda');
-  return require('crypto').randomBytes(32).toString('hex');
+  return crypto.randomBytes(32).toString('hex');
 })();
 
 export function generateToken(payload: JwtPayload): string {
@@ -37,6 +43,14 @@ export function verifyToken(token: string): JwtPayload {
 
 export function verifyRefreshToken(token: string): JwtPayload {
   return jwt.verify(token, REFRESH_SECRET) as JwtPayload;
+}
+
+/**
+ * SHA-256 hash of a refresh token — stored in DB for lookup without
+ * keeping the plaintext token server-side.
+ */
+export function hashRefreshToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 // ============================================

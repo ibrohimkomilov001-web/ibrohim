@@ -14,6 +14,7 @@ import { initSentry, flushSentry } from './config/sentry.js';
 import { initWebSocket } from './websocket/socket.js';
 import { errorHandler } from './middleware/error.js';
 import { registerRequestLogging } from './middleware/logging.js';
+import { registerAdminAuditLog } from './lib/admin-audit.js';
 import { ensureCsrfCookie, validateCsrf } from './middleware/csrf.js';
 
 // Route modules
@@ -24,6 +25,7 @@ import { favoriteRoutes } from './modules/products/favorite.routes.js';
 import { shopRoutes } from './modules/shops/shop.routes.js';
 import { orderRoutes } from './modules/orders/order.routes.js';
 import { courierRoutes } from './modules/courier/courier.routes.js';
+import { courierCompanyRoutes } from './modules/courier/courier-company.routes.js';
 import { notificationRoutes } from './modules/notifications/notification.routes.js';
 import { addressRoutes } from './modules/addresses/address.routes.js';
 import { bannerRoutes } from './modules/banners/banner.routes.js';
@@ -200,6 +202,12 @@ app.addHook('preValidation', async (request, reply) => {
 registerRequestLogging(app);
 
 // ============================================
+// Admin Audit Log (B3) — persists mutating admin requests to admin_audit_logs
+// ============================================
+
+registerAdminAuditLog(app);
+
+// ============================================
 // Error Handler
 // ============================================
 
@@ -262,6 +270,7 @@ await app.register(
     await api.register(shopRoutes);
     await api.register(orderRoutes);
     await api.register(courierRoutes);
+    await api.register(courierCompanyRoutes);
     await api.register(notificationRoutes);
     await api.register(addressRoutes);
     await api.register(bannerRoutes);

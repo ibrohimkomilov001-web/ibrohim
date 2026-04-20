@@ -78,3 +78,56 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 export type Env = z.infer<typeof envSchema>;
+
+// Production fail-fast: kritik secretlar default qiymatda bo'lmasligi kerak
+if (env.NODE_ENV === 'production') {
+  const insecureDefaults: string[] = [];
+  const warnings: string[] = [];
+
+  // Secretlar default/bo'sh qiymatda bo'lmasligi
+  if (env.COOKIE_SECRET === 'topla-dev-cookie-secret-change-in-prod') {
+    insecureDefaults.push('COOKIE_SECRET (default dev qiymat)');
+  }
+  if (env.MEILISEARCH_API_KEY === 'topla_meili_master_key') {
+    insecureDefaults.push('MEILISEARCH_API_KEY (default qiymat)');
+  }
+  if (!env.JWT_REFRESH_SECRET) {
+    insecureDefaults.push("JWT_REFRESH_SECRET (bo'sh)");
+  }
+
+  // Secret entropiyasi — 32 char dan kam bo'lmasligi (~256 bit)
+  if (env.JWT_SECRET.length < 32) {
+    insecureDefaults.push(`JWT_SECRET (faqat ${env.JWT_SECRET.length} char, kamida 32)`);
+  }
+  if (env.JWT_REFRESH_SECRET && env.JWT_REFRESH_SECRET.length < 32) {
+    insecureDefaults.push(`JWT_REFRESH_SECRET (faqat ${env.JWT_REFRESH_SECRET.length} char, kamida 32)`);
+  }
+  if (env.COOKIE_SECRET.length < 32) {
+    insecureDefaults.push(`COOKIE_SECRET (faqat ${env.COOKIE_SECRET.length} char, kamida 32)`);
+  }
+
+  // JWT_SECRET === JWT_REFRESH_SECRET bo'lmasligi
+  if (env.JWT_REFRESH_SECRET && env.JWT_SECRET === env.JWT_REFRESH_SECRET) {
+    insecureDefaults.push("JWT_SECRET va JWT_REFRESH_SECRET bir xil — ikki xil bo'lishi shart");
+  }
+
+  // CORS localhost'ni o'z ichiga olmasligi
+  if (/localhost|127\.0\.0\.1/.test(env.CORS_ORIGINS)) {
+    warnings.push('CORS_ORIGINS prod-da localhost/127.0.0.1 ga ruxsat bermoqda');
+  }
+
+  // Database SSL tavsiya etiladi (Yandex Managed PG uchun majburiy)
+  if (!/sslmode=(require|verify-full|verify-ca)/.test(env.DATABASE_URL)) {
+    warnings.push("DATABASE_URL da sslmode=require yo'q");
+  }
+
+  if (warnings.length > 0) {
+    console.warn('[env] Production ogohlantirishlar:\n  - ' + warnings.join('\n  - '));
+  }
+
+  if (insecureDefaults.length > 0) {
+    throw new Error(
+      `[env] Production muhit xavfsizlik xatosi — quyidagilar to'g'ri sozlanmagan:\n  - ${insecureDefaults.join('\n  - ')}\n.env faylini tekshiring.`,
+    );
+  }
+}

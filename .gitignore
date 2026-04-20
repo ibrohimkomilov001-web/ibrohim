@@ -16,7 +16,18 @@ Thumbs.db
 
 # Environment files
 *.env
+.env
+.env.*
+!.env.example
 topla-prod.env
+
+# SSH keys / deploy secrets (hech qachon repo'ga tushmasligi kerak)
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+topla-yc*
+scripts/deploy/*.env
 
 # Android signing
 topla_app/android/key.properties

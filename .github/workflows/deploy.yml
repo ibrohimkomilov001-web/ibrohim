@@ -1,18 +1,18 @@
 # =============================================
 # TOPLA.UZ — Deploy to Yandex Cloud
-# Triggered manually or on push to main
 # =============================================
-name: Deploy
+# DISABLED (2026-04-20): Deploy endi SSH orqali qilinadi.
+# Ishlatish: .\scripts\deploy.ps1 (lokal kompyuterdan)
+# Hujjat: scripts/README.md
+#
+# Bu workflow faqat `workflow_dispatch` (qo'lda trigger) bilan qoladi —
+# favqulodda hollarda kerak bo'lishi mumkin. Avtomatik push trigger
+# o'chirilgan; secrets'ni GitHub'ga qo'shishdan qoching.
+# =============================================
+name: Deploy (DISABLED — use scripts/deploy.ps1)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, master]
-    paths:
-      - 'topla-backend/**'
-      - 'topla-web/**'
-      - 'nginx/**'
-      - 'docker-compose.prod.yml'
 
 concurrency:
   group: deploy

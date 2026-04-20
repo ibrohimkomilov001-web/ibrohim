@@ -123,8 +123,8 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
                 <span
                   key={i}
                   className={cn(
-                    'w-1 h-1 rounded-full transition-all',
-                    i === currentImg ? 'bg-white w-2' : 'bg-white/50'
+                    'w-1.5 h-1.5 rounded-full transition-all',
+                    i === currentImg ? 'bg-white' : 'bg-white/50'
                   )}
                 />
               ))}
@@ -144,22 +144,26 @@ export function ProductCard({ product, index = 0, variant = 'grid', className }:
           {/* Favorite button */}
           <button
             aria-label={isFav ? 'Sevimlilardan olib tashlash' : "Sevimlilarga qo'shish"}
-            className={cn(
-              'absolute top-2 right-2 w-8 h-8 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center z-10 transition-all',
-              'sm:opacity-0 sm:group-hover:opacity-100'
-            )}
+            className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/70 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center z-10 transition-all hover:scale-110 active:scale-95"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               toggleFavorite(product.id);
             }}
           >
-            <Heart
-              className={cn(
-                'w-4 h-4 transition-colors',
-                isFav ? 'fill-red-500 text-red-500' : 'text-muted-foreground'
-              )}
-            />
+            <motion.div
+              key={String(isFav)}
+              initial={{ scale: 1 }}
+              animate={{ scale: [1, 1.3, 1] }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+            >
+              <Heart
+                className={cn(
+                  'w-[18px] h-[18px] transition-colors',
+                  isFav ? 'fill-red-500 text-red-500' : ''
+                )}
+              />
+            </motion.div>
           </button>
         </div>
 

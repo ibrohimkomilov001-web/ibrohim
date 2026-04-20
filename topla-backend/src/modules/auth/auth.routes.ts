@@ -13,15 +13,14 @@ import { sendOtp, verifyOtp, getOtpForTesting, type OtpChannel } from '../../ser
 import { getLocationFromIp } from '../../utils/geolocation.js';
 import { generateUniqueSlug, generateSlugBase } from '../../utils/slug.js';
 import { createAndSendContract, isDidoxConfigured } from '../../services/didox.service.js';
-import crypto from 'crypto';
 import {
-  generatePasskeyRegistrationOptions,
-  verifyPasskeyRegistration,
-  generatePasskeyAuthenticationOptions,
-  verifyPasskeyAuthentication,
-  listUserPasskeys,
-  deletePasskey,
-} from '../../services/passkey.service.js';
+  issueTokenPair,
+  rotateRefreshToken,
+  revokeCurrentRefreshToken,
+  revokeAllUserSessions,
+  RefreshTokenError,
+} from '../../services/refresh-token.service.js';
+import crypto from 'crypto';
 
 // Reserved slugs — mavjud routelar bilan conflict bo'lmasligi uchun
 const RESERVED_SLUGS = new Set([
@@ -436,14 +435,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 4. JWT token yaratish
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: profile.id,
       role: profile.role,
       phone: profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     // httpOnly cookie o'rnatish (web uchun xavfsiz)
     setAuthCookies(reply, accessToken, refreshToken);
@@ -563,14 +561,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 4. JWT token yaratish
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: profile.id,
       role: profile.role,
       phone: profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     // httpOnly cookie o'rnatish (web uchun xavfsiz)
     setAuthCookies(reply, accessToken, refreshToken);
@@ -596,55 +593,51 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * POST /auth/refresh
-   * Token yangilash
+   * Token yangilash (rotation + reuse detection — B2)
    */
-  app.post('/auth/refresh', async (request, reply) => {
-    // Refresh tokenni cookie yoki body dan olish
-    const bodyData = refreshTokenSchema.parse(request.body || {});
-    const refreshTokenValue = extractRefreshToken(request, bodyData.refreshToken);
+  app.post(
+    '/auth/refresh',
+    {
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const bodyData = refreshTokenSchema.parse(request.body || {});
+      const refreshTokenValue = extractRefreshToken(request, bodyData.refreshToken);
 
-    if (!refreshTokenValue) {
-      throw new AppError('Refresh token topilmadi', 401);
-    }
-
-    try {
-      const payload = verifyRefreshToken(refreshTokenValue);
-
-      // Eski refresh tokenni blacklist ga qo'shish (token rotation)
-      await blacklistToken(refreshTokenValue);
-
-      // Profil hali ham borligini tekshirish
-      const profile = await prisma.profile.findUnique({
-        where: { id: payload.userId },
-      });
-
-      if (!profile || profile.status === 'blocked') {
-        throw new AppError('Foydalanuvchi topilmadi yoki bloklangan', 401);
+      if (!refreshTokenValue) {
+        throw new AppError('Refresh token topilmadi', 401);
       }
 
-      const newPayload = {
-        userId: profile.id,
-        role: profile.role,
-        phone: profile.phone,
-      };
+      try {
+        const pair = await rotateRefreshToken({
+          rawRefreshToken: refreshTokenValue,
+          ipAddress:
+            (request.headers['x-forwarded-for'] as string | undefined)
+              ?.split(',')[0]
+              ?.trim() || request.ip,
+          userAgent: request.headers['user-agent'] as string | undefined,
+        });
 
-      const newAccessToken = generateToken(newPayload);
-      const newRefreshToken = generateRefreshToken(newPayload);
+        setAuthCookies(reply, pair.accessToken, pair.refreshToken);
 
-      // httpOnly cookie yangilash
-      setAuthCookies(reply, newAccessToken, newRefreshToken);
-
-      return reply.send({
-        success: true,
-        data: {
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken,
-        },
-      });
-    } catch {
-      throw new AppError('Refresh token yaroqsiz', 401);
-    }
-  });
+        return reply.send({
+          success: true,
+          data: {
+            accessToken: pair.accessToken,
+            refreshToken: pair.refreshToken,
+          },
+        });
+      } catch (err) {
+        if (err instanceof RefreshTokenError) {
+          clearAuthCookies(reply);
+          // Expose reason so the client can decide whether to silently retry
+          // login (reuse_detected, session_invalidated → force re-login).
+          throw new AppError(err.message, 401);
+        }
+        throw err;
+      }
+    },
+  );
 
   /**
    * GET /auth/me
@@ -685,6 +678,64 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         shop: profile.shop,
         courier: profile.courier,
         addresses: profile.addresses,
+      },
+    });
+  });
+
+  /**
+   * GET /auth/me/permissions
+   * RBAC v2 — joriy foydalanuvchining barcha membership va ruxsatlari.
+   * Frontend `<Can>` komponenti shu endpoint'dan foydalanadi.
+   */
+  app.get('/auth/me/permissions', { preHandler: authMiddleware }, async (request, reply) => {
+    const { loadAuthzContext } = await import('../../lib/authz/policy.js');
+    const { bitmaskHexToPermissions } = await import('../../lib/authz/permissions.js');
+    const userId = request.user!.userId;
+    const ctx = await loadAuthzContext(userId);
+
+    // Har bir membership uchun organization nomi va rolName'ni o'qiymiz
+    const orgIds = ctx.memberships.map((m) => m.organizationId);
+    const [orgs, rolesByCode] = await Promise.all([
+      prisma.organization.findMany({
+        where: { id: { in: orgIds } },
+        select: { id: true, name: true, type: true, parentId: true },
+      }),
+      prisma.role.findMany({
+        where: { code: { in: ctx.memberships.map((m) => m.roleCode) } },
+        select: { code: true, name: true },
+      }),
+    ]);
+    const orgById = new Map(orgs.map((o) => [o.id, o]));
+    const roleNameByCode = new Map(rolesByCode.map((r) => [r.code, r.name]));
+
+    const memberships = ctx.memberships.map((m) => {
+      const perms = bitmaskHexToPermissions(m.roleBitmaskHex);
+      const all = Array.from(new Set([...perms, ...m.extraPermissions])) as string[];
+      const org = orgById.get(m.organizationId);
+      return {
+        membershipId: m.membershipId,
+        organizationId: m.organizationId,
+        organizationType: m.orgType,
+        organizationName: org?.name ?? null,
+        parentOrganizationId: m.orgParentId,
+        roleCode: m.roleCode,
+        roleName: roleNameByCode.get(m.roleCode) ?? m.roleCode,
+        rolePriority: m.rolePriority,
+        permissions: all,
+      };
+    });
+
+    const allPermissions = Array.from(
+      new Set(memberships.flatMap((m) => m.permissions)),
+    );
+
+    return reply.send({
+      success: true,
+      data: {
+        profileId: ctx.profileId,
+        isPlatformSuperAdmin: ctx.isPlatformSuperAdmin,
+        memberships,
+        allPermissions,
       },
     });
   });
@@ -800,11 +851,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       await blacklistToken(accessToken);
     }
 
-    // Refresh token ni ham blacklist ga qo'shish (body yoki cookie dan)
+    // Refresh token DB row'ini revoke + raw token'ni blacklist (B2).
     const refreshTokenValue = extractRefreshToken(request, refreshToken);
-    if (refreshTokenValue) {
-      await blacklistToken(refreshTokenValue);
-    }
+    await revokeCurrentRefreshToken(refreshTokenValue, 'logout');
 
     // Cookie larni tozalash
     clearAuthCookies(reply);
@@ -829,6 +878,37 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.send({ success: true });
   });
+
+  /**
+   * POST /auth/logout-all
+   * Barcha qurilmalardan chiqish — tokenVersion oshiriladi, barcha refresh
+   * tokenlar revoke qilinadi (B2).
+   */
+  app.post(
+    '/auth/logout-all',
+    {
+      preHandler: authMiddleware,
+      config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const userId = request.user!.userId;
+      const result = await revokeAllUserSessions(userId, 'logout_all');
+
+      // Joriy access token'ni ham blacklist'ga — middleware darhol sezsin.
+      const accessToken = extractToken(request);
+      if (accessToken) await blacklistToken(accessToken);
+
+      clearAuthCookies(reply);
+
+      return reply.send({
+        success: true,
+        data: {
+          refreshTokensRevoked: result.refreshTokensRevoked,
+          newTokenVersion: result.newVersion,
+        },
+      });
+    },
+  );
 
   // ============================================
   // VENDOR: Email + Password Authentication
@@ -966,14 +1046,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // JWT token yaratish
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: result.profile.id,
       role: result.profile.role,
       phone: result.profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     // httpOnly cookie o'rnatish
     setAuthCookies(reply, accessToken, refreshToken);
@@ -1047,14 +1126,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // JWT generatsiya
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: profile.id,
       role: profile.role,
       phone: profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     // httpOnly cookie o'rnatish
     setAuthCookies(reply, accessToken, refreshToken);
@@ -1259,14 +1337,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // JWT token yaratish
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: result.profile.id,
       role: result.profile.role,
       phone: result.profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     setAuthCookies(reply, accessToken, refreshToken);
 
@@ -1374,14 +1451,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // JWT generatsiya
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: profile.id,
       role: profile.role,
       phone: profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     setAuthCookies(reply, accessToken, refreshToken);
 
@@ -1780,14 +1856,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // JWT generatsiya
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: profile.id,
       role: profile.role,
       phone: profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     setAuthCookies(reply, accessToken, refreshToken);
 
@@ -2070,14 +2145,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // 4. JWT token yaratish
-    const tokenPayload = {
+    const { accessToken, refreshToken } = await issueTokenPair({
       userId: profile.id,
       role: profile.role,
       phone: profile.phone,
-    };
-
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+      ipAddress: (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() || request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined,
+    });
 
     setAuthCookies(reply, accessToken, refreshToken);
     return reply.send({
@@ -2510,151 +2584,4 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  // ============================================
-  // PASSKEY (WebAuthn/FIDO2) — Barmoq izi / Yuz izi
-  // ============================================
-
-  // --- REGISTRATION: 1-qadam — Options olish ---
-  app.post('/auth/passkey/register/begin', {
-    preHandler: [authMiddleware],
-  }, async (request, reply) => {
-    const userId = (request as any).user.userId;
-    const options = await generatePasskeyRegistrationOptions(userId);
-    return reply.send({ success: true, data: options });
-  });
-
-  // --- REGISTRATION: 2-qadam — Javobni tekshirish ---
-  app.post('/auth/passkey/register/verify', {
-    preHandler: [authMiddleware],
-  }, async (request, reply) => {
-    const userId = (request as any).user.userId;
-    const body = request.body as { response: any; deviceName?: string };
-
-    if (!body.response) {
-      throw new AppError('Response majburiy', 400);
-    }
-
-    await verifyPasskeyRegistration(userId, body.response, body.deviceName);
-
-    return reply.send({
-      success: true,
-      message: 'Passkey muvaffaqiyatli ro\'yxatdan o\'tkazildi',
-    });
-  });
-
-  // --- LOGIN: 1-qadam — Authentication options ---
-  app.post('/auth/passkey/login/begin', async (request, reply) => {
-    const body = request.body as { phone?: string } | undefined;
-    const { options, sessionId } = await generatePasskeyAuthenticationOptions(body?.phone);
-
-    return reply.send({
-      success: true,
-      data: { options, sessionId },
-    });
-  });
-
-  // --- LOGIN: 2-qadam — Authentication verify + JWT ---
-  app.post('/auth/passkey/login/verify', async (request, reply) => {
-    const body = request.body as {
-      sessionId: string;
-      response?: any;
-      credential?: any;
-      platform?: string;
-      fcmToken?: string;
-    };
-
-    const passkeyResponse = body.credential || body.response;
-    if (!body.sessionId || !passkeyResponse) {
-      throw new AppError('sessionId va credential/response majburiy', 400);
-    }
-
-    const { userId } = await verifyPasskeyAuthentication(body.sessionId, passkeyResponse);
-
-    // Foydalanuvchi ma'lumotlarini olish
-    const user = await prisma.profile.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        phone: true,
-        role: true,
-        fullName: true,
-        firstName: true,
-        lastName: true,
-        avatarUrl: true,
-        email: true,
-        status: true,
-        language: true,
-        gender: true,
-        birthDate: true,
-        region: true,
-        referralCode: true,
-      },
-    });
-
-    if (!user) throw new AppError('Foydalanuvchi topilmadi', 404);
-
-    // JWT tokenlar yaratish
-    const tokenPayload = { userId: user.id, role: user.role, phone: user.phone };
-    const accessToken = generateToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
-
-    // Cookie o'rnatish (web uchun)
-    setAuthCookies(reply, accessToken, refreshToken);
-
-    // Device saqlash
-    if (body.fcmToken) {
-      const deviceInfo = await extractDeviceInfo(request);
-      await prisma.userDevice.upsert({
-        where: {
-          userId_fcmToken: { userId: user.id, fcmToken: body.fcmToken },
-        },
-        update: {
-          lastActiveAt: new Date(),
-          isActive: true,
-          platform: (body.platform as any) || 'web',
-          ...deviceInfo,
-        },
-        create: {
-          userId: user.id,
-          fcmToken: body.fcmToken,
-          platform: (body.platform as any) || 'web',
-          ...deviceInfo,
-        },
-      });
-    }
-
-    return reply.send({
-      success: true,
-      data: {
-        user,
-        isNewUser: false,
-        accessToken,
-        refreshToken,
-      },
-    });
-  });
-
-  // --- Passkey ro'yxati (profil sozlamalari uchun) ---
-  app.get('/auth/passkeys', {
-    preHandler: [authMiddleware],
-  }, async (request, reply) => {
-    const userId = (request as any).user.userId;
-    const passkeys = await listUserPasskeys(userId);
-    return reply.send({ success: true, data: passkeys });
-  });
-
-  // --- Passkey o'chirish ---
-  app.delete('/auth/passkeys/:id', {
-    preHandler: [authMiddleware],
-  }, async (request, reply) => {
-    const userId = (request as any).user.userId;
-    const { id } = request.params as { id: string };
-
-    await deletePasskey(userId, id);
-
-    return reply.send({
-      success: true,
-      message: 'Passkey o\'chirildi',
-    });
-  });
 }
